@@ -592,18 +592,23 @@
   .cg-serv.on{background:var(--navy-900);color:var(--cream);border-color:var(--navy-900)}
   .preview-note{font-size:12.5px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px}
 
-  /* ---------- EARNINGS CHART ---------- */
-  .chart{display:flex;gap:10px;align-items:flex-end;height:178px;padding-top:24px;border-bottom:1px solid var(--line)}
-  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:9px;height:100%}
-  .bar{width:100%;max-width:40px;background:linear-gradient(180deg,var(--gold-soft),var(--gold));
-    border-radius:8px 8px 4px 4px;position:relative;transition:.25s;min-height:6px;cursor:default}
-  .bar.cur{background:linear-gradient(180deg,var(--gold),var(--gold-deep))}
-  .bar-col:hover .bar{filter:brightness(1.05)}
-  .bar .tip{position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:var(--navy-900);
+  /* ---------- EARNINGS CHART (line) ---------- */
+  .chart{padding-top:8px}
+  .lc-plot{position:relative;height:172px}
+  .lc-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .lc-area{fill:url(#lcArea)}
+  .lc-line{fill:none;stroke:url(#lcStroke);stroke-width:2.5;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
+  .lc-dots{position:absolute;inset:0;pointer-events:none}
+  .lc-pt{position:absolute;transform:translate(-50%,-50%);width:11px;height:11px;border-radius:50%;
+    background:var(--white);border:2.5px solid var(--gold-deep);cursor:pointer;pointer-events:auto;padding:0;transition:.16s}
+  .lc-pt.cur{background:var(--gold);box-shadow:0 0 0 5px rgba(212,175,55,.18)}
+  .lc-pt:hover{width:15px;height:15px}
+  .lc-tipv{position:absolute;bottom:160%;left:50%;transform:translateX(-50%);background:var(--navy-900);
     color:var(--cream);font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;white-space:nowrap;
-    opacity:0;transition:.18s;pointer-events:none}
-  .bar-col:hover .tip{opacity:1;top:-28px}
-  .bar-m{font-size:11.5px;color:var(--muted);font-weight:600}
+    opacity:0;transition:.16s;pointer-events:none}
+  .lc-pt:hover .lc-tipv,.lc-pt:focus-visible .lc-tipv{opacity:1}
+  .lc-labels{display:flex;margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+  .lc-labels span{flex:1;text-align:center;font-size:11.5px;color:var(--muted);font-weight:600}
 
   /* ---------- ORDER DETAIL ---------- */
   .od-info{display:flex;flex-direction:column;gap:2px;margin-top:4px}
@@ -2350,14 +2355,25 @@ function renderEarnings(){
   const max=Math.max(...CG_EARNINGS.map(e=>e.v));
   const total=CG_EARNINGS.reduce((s,e)=>s+e.v,0);
   document.getElementById('earnTotal').textContent=total.toLocaleString('cs-CZ')+' Kč';
-  document.getElementById('earnChart').innerHTML=CG_EARNINGS.map((e,i)=>{
-    const h=Math.round(e.v/max*130)+6;
-    const cur=i===CG_EARNINGS.length-1?'cur':'';
-    return `<div class="bar-col">
-      <div class="bar ${cur}" style="height:${h}px"><span class="tip">${e.v.toLocaleString('cs-CZ')} Kč</span></div>
-      <div class="bar-m">${e.m}</div>
-    </div>`;
-  }).join('');
+  const n=CG_EARNINGS.length,yTop=18,yBot=90;
+  const pts=CG_EARNINGS.map((e,i)=>({x:(i+0.5)/n*100,y:yBot-(e.v/max)*(yBot-yTop),e,i}));
+  const line=pts.map((p,i)=>`${i?'L':'M'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
+  const area=`M${pts[0].x.toFixed(2)} 100 L`+pts.map(p=>`${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L')+` L${pts[n-1].x.toFixed(2)} 100 Z`;
+  const dots=pts.map(p=>`<button class="lc-pt ${p.i===n-1?'cur':''}" style="left:${p.x.toFixed(2)}%;top:${p.y.toFixed(2)}%" aria-label="${p.e.m}: ${p.e.v.toLocaleString('cs-CZ')} Kč"><span class="lc-tipv">${p.e.v.toLocaleString('cs-CZ')} Kč</span></button>`).join('');
+  const labels=CG_EARNINGS.map(e=>`<span>${e.m}</span>`).join('');
+  document.getElementById('earnChart').innerHTML=`
+    <div class="lc-plot">
+      <svg class="lc-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="lcStroke" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#E4C766"/><stop offset="1" stop-color="#B8942A"/></linearGradient>
+          <linearGradient id="lcArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(212,175,55,.32)"/><stop offset="1" stop-color="rgba(212,175,55,0)"/></linearGradient>
+        </defs>
+        <path class="lc-area" d="${area}"/>
+        <path class="lc-line" d="${line}"/>
+      </svg>
+      <div class="lc-dots">${dots}</div>
+    </div>
+    <div class="lc-labels">${labels}</div>`;
 }
 
 /* ---------- ORDER DETAIL ---------- */
