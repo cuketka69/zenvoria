@@ -357,7 +357,8 @@
   .tab{padding:9px 20px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);transition:.16s}
   .tab.on{background:var(--white);color:var(--navy-900);box-shadow:var(--shadow-sm)}
   .order{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:18px 20px;
-    margin-bottom:14px;display:flex;align-items:center;gap:16px}
+    margin-bottom:14px;display:flex;align-items:center;gap:16px;transition:.18s}
+  .order[role="button"]:hover{border-color:rgba(212,175,55,.45);box-shadow:var(--shadow-sm);transform:translateY(-2px)}
   .order .ava{width:50px;height:50px;font-size:17px}
   .order .od b{font-family:'Playfair Display',serif;font-size:16px;color:var(--navy-900)}
   .order .od .det{font-size:13px;color:var(--muted);margin-top:3px}
@@ -518,25 +519,45 @@
   .mm-user span{font-size:12.5px;color:var(--muted)}
 
   /* ---------- CAREGIVER DASHBOARD ---------- */
-  .dash-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:34px 0 22px}
-  .dash-head h1{font-size:32px;color:var(--navy-900);font-weight:700}
+  .dash-head{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+    margin:30px 0 26px;padding:26px 30px;border-radius:22px;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,var(--white),var(--cream));border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+  .dash-head::after{content:"";position:absolute;top:-70px;right:-40px;width:260px;height:260px;border-radius:50%;
+    background:radial-gradient(circle,rgba(212,175,55,.2),transparent 70%);pointer-events:none}
+  .dash-head>*{position:relative;z-index:1}
+  .dash-head h1{font-size:30px;color:var(--navy-900);font-weight:700}
   .dash-head h1 .wave{font-style:normal}
   .dash-head p{color:var(--muted);margin-top:4px}
+  .dash-head .ava{box-shadow:inset 0 0 0 2px rgba(212,175,55,.55),0 8px 20px -8px rgba(212,175,55,.5)}
   .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
-  .stat{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm);transition:.2s}
-  .stat:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
-  .stat .si{width:42px;height:42px;border-radius:12px;background:rgba(212,175,55,.14);
-    display:flex;align-items:center;justify-content:center;margin-bottom:14px}
-  .stat .sv{font-family:'Playfair Display',serif;font-size:27px;color:var(--navy-900);line-height:1}
+  .stat{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow-sm);transition:.22s;position:relative;overflow:hidden}
+  .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--gold),var(--gold-deep));opacity:0;transition:.22s}
+  .stat:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:rgba(212,175,55,.45)}
+  .stat:hover::before{opacity:1}
+  .stat .si{width:44px;height:44px;border-radius:13px;border:1px solid rgba(212,175,55,.3);
+    background:linear-gradient(140deg,rgba(212,175,55,.28),rgba(212,175,55,.08));
+    display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+  .stat .sv{font-family:'Playfair Display',serif;font-size:30px;color:var(--navy-900);line-height:1}
   .stat .sl{font-size:13px;color:var(--muted);margin-top:6px}
   .stat .trend{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;margin-top:10px;
     color:#5a7256;background:#E9EDE8;padding:3px 9px;border-radius:20px}
   .dash-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;align-items:start;padding-bottom:60px}
-  .panel{background:var(--white);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:var(--shadow-sm);margin-bottom:24px}
-  .panel-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-  .panel-h b{font-family:'Playfair Display',serif;font-size:19px;color:var(--navy-900)}
+  .panel{background:var(--white);border:1px solid var(--line);border-radius:20px;padding:24px 26px;box-shadow:var(--shadow-sm);margin-bottom:24px}
+  .panel-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .panel-h b{font-family:'Playfair Display',serif;font-size:19px;color:var(--navy-900);display:inline-flex;align-items:center;gap:11px}
+  .panel-h b::before{content:"";width:4px;height:19px;border-radius:3px;background:linear-gradient(var(--gold),var(--gold-deep))}
   .panel-h .count{font-size:12px;font-weight:600;background:var(--gold);color:var(--navy-900);border-radius:20px;padding:3px 10px}
   .empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px}
+  /* rychlé akce */
+  .qa{display:flex;flex-direction:column;gap:10px}
+  .qa-item{display:flex;align-items:center;gap:13px;width:100%;text-align:left;cursor:pointer;
+    background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:11px 14px;
+    font-family:inherit;font-size:14.5px;font-weight:600;color:var(--navy-800);transition:.18s}
+  .qa-item:hover{border-color:var(--gold);background:var(--white);transform:translateX(3px)}
+  .qa-ic{width:38px;height:38px;border-radius:11px;background:rgba(212,175,55,.16);
+    display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
+  .qa-l{flex:1}
+  .qa-ar{color:var(--gold-deep);font-size:20px;line-height:1}
 
   .req{display:flex;gap:14px;align-items:center;border:1px solid var(--line);border-radius:15px;padding:15px 16px;margin-bottom:12px;transition:.18s}
   .req:hover{border-color:rgba(212,175,55,.5)}
@@ -572,7 +593,7 @@
   .preview-note{font-size:12.5px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px}
 
   /* ---------- EARNINGS CHART ---------- */
-  .chart{display:flex;gap:10px;align-items:flex-end;height:178px;padding-top:24px}
+  .chart{display:flex;gap:10px;align-items:flex-end;height:178px;padding-top:24px;border-bottom:1px solid var(--line)}
   .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:9px;height:100%}
   .bar{width:100%;max-width:40px;background:linear-gradient(180deg,var(--gold-soft),var(--gold));
     border-radius:8px 8px 4px 4px;position:relative;transition:.25s;min-height:6px;cursor:default}
@@ -1055,10 +1076,10 @@
         </div>
         <div class="panel">
           <div class="panel-h"><b>Rychlé akce</b></div>
-          <div class="cg-services" style="flex-direction:column;align-items:stretch;gap:10px">
-            <button class="btn btn-ghost" style="justify-content:flex-start;text-align:left" onclick="go('cg-calendar')">📅 Nastavit dostupnost</button>
-            <button class="btn btn-ghost" style="text-align:left" onclick="go('cg-profile')">👤 Upravit veřejný profil</button>
-            <button class="btn btn-ghost" style="text-align:left" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')">🎓 Vzdělávání</button>
+          <div class="qa">
+            <button class="qa-item" onclick="go('cg-calendar')"><span class="qa-ic">📅</span><span class="qa-l">Nastavit dostupnost</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('cg-profile')"><span class="qa-ic">👤</span><span class="qa-l">Upravit veřejný profil</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')"><span class="qa-ic">🎓</span><span class="qa-l">Vzdělávání</span><span class="qa-ar">›</span></button>
           </div>
         </div>
       </div>
