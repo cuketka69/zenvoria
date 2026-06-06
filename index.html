@@ -381,6 +381,35 @@
   .foot-legal{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:20px}
   .foot-legal a{display:inline;padding:0;font-size:13.5px}
 
+  /* ---------- NASTAVENÍ ---------- */
+  .set-wrap{max-width:760px;margin:0 auto;padding-bottom:60px}
+  .set-card{margin-bottom:22px}
+  .set-card h3{font-family:'Playfair Display',serif;font-size:20px;color:var(--navy-900);font-weight:700}
+  .set-sub{color:var(--muted);font-size:13.5px;margin:6px 0 18px}
+  .set-h4{font-size:14px;color:var(--navy-900);font-weight:700;margin-bottom:2px}
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .set-row:last-child{border-bottom:0}
+  .set-l b{display:block;font-size:14.5px;color:var(--navy-900);font-weight:600}
+  .set-l span{font-size:13px;color:var(--muted);margin-top:2px;display:block}
+  .switch{position:relative;flex:0 0 auto;width:46px;height:26px}
+  .switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .sl-track{position:absolute;inset:0;background:var(--cream-2);border:1px solid var(--line);border-radius:20px;transition:.2s}
+  .sl-track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.2s}
+  .switch input:checked+.sl-track{background:var(--gold);border-color:var(--gold)}
+  .switch input:checked+.sl-track::after{transform:translateX(20px)}
+  .switch input:focus-visible+.sl-track{outline:2.5px solid var(--gold-deep);outline-offset:2px}
+  .set-account{display:flex;align-items:center;gap:14px}
+  .set-account b{font-size:15.5px;color:var(--navy-900);display:block}
+  .set-account span{font-size:13px;color:var(--muted)}
+  .set-account .chip{margin-left:auto}
+  .set-err{color:#B23A2E;font-size:13px;margin-top:10px;min-height:0}
+  .set-links{display:flex;flex-direction:column;gap:10px}
+  .set-danger{border-color:rgba(178,58,46,.35)}
+  .set-danger h3{color:#B23A2E}
+  .set-danger-row{display:flex;gap:12px;flex-wrap:wrap}
+  .set-del{background:rgba(178,58,46,.1);color:#B23A2E;border:1px solid rgba(178,58,46,.4)}
+  .set-del:hover{background:#B23A2E;color:#fff}
+
   /* legal / právní stránky */
   .legal{max-width:780px;margin:0 auto;padding:54px 20px 80px}
   .legal .back{display:inline-flex;align-items:center;gap:7px;color:var(--gold-deep);font-size:14px;margin-bottom:22px;
@@ -804,7 +833,7 @@
             <span class="am-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#B8942A" stroke-width="1.8"/><path d="m9 12 2 2 4-4" stroke="#B8942A" stroke-width="1.8" stroke-linecap="round"/></svg><span id="amBadgeText">Účet rodiny</span></span>
           </div>
           <div id="amLinks"></div>
-          <a role="menuitem" tabindex="0" onclick="toast('⚙️ Nastavení účtu bude brzy k dispozici.')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3" stroke="#7A736A" stroke-width="1.6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/></svg>Nastavení</a>
+          <a role="menuitem" tabindex="0" onclick="go('settings')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3" stroke="#7A736A" stroke-width="1.6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/></svg>Nastavení</a>
           <button class="am-logout" role="menuitem" onclick="logout()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 12H6m0 0 3-3m-3 3 3 3M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" stroke="#B23A2E" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Odhlásit se</button>
         </div>
       </div>
@@ -1410,6 +1439,65 @@
   </div>
 </div>
 
+<!-- ============ NASTAVENÍ ============ -->
+<div class="view" id="view-settings">
+  <div class="wrap set-wrap">
+    <div class="page-head"><h1>Nastavení</h1><p>Spravujte své notifikace, účet a soukromí.</p></div>
+
+    <div class="pcard set-card">
+      <h3>Notifikace</h3>
+      <p class="set-sub">Vyberte, o čem vás chceme informovat.</p>
+      <label class="set-row"><div class="set-l"><b>E-mailové notifikace</b><span>Souhrny a důležité události na váš e-mail.</span></div><span class="switch"><input type="checkbox" id="ntEmail" onchange="toggleSetting('email',this)"><span class="sl-track"></span></span></label>
+      <label class="set-row"><div class="set-l"><b>Nové poptávky a objednávky</b><span>Když přijde nová poptávka nebo se změní objednávka.</span></div><span class="switch"><input type="checkbox" id="ntRequests" onchange="toggleSetting('requests',this)"><span class="sl-track"></span></span></label>
+      <label class="set-row"><div class="set-l"><b>Zprávy v chatu</b><span>Upozornění na nové zprávy.</span></div><span class="switch"><input type="checkbox" id="ntChat" onchange="toggleSetting('chat',this)"><span class="sl-track"></span></span></label>
+      <label class="set-row"><div class="set-l"><b>Připomínky služeb</b><span>Připomeneme vám nadcházející termíny.</span></div><span class="switch"><input type="checkbox" id="ntReminders" onchange="toggleSetting('reminders',this)"><span class="sl-track"></span></span></label>
+    </div>
+
+    <div class="pcard set-card">
+      <h3>Účet</h3>
+      <div class="set-account">
+        <div class="ava" id="setAva" style="width:54px;height:54px;font-size:19px">U</div>
+        <div><b id="setName">Uživatel</b><span id="setEmail">uzivatel@email.cz</span></div>
+        <span class="chip gold" id="setRole">Účet</span>
+      </div>
+      <div class="pdiv"></div>
+      <h4 class="set-h4">Změna hesla</h4>
+      <form id="pwForm" novalidate onsubmit="return changePassword(event)">
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Současné heslo</label><input class="inp" type="password" id="pwCurrent" autocomplete="current-password" placeholder="Současné heslo"></div>
+          <div></div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Nové heslo</label><input class="inp" type="password" id="pwNew" autocomplete="new-password" placeholder="Alespoň 6 znaků"></div>
+          <div><label class="lbl">Potvrzení hesla</label><input class="inp" type="password" id="pwConfirm" autocomplete="new-password" placeholder="Zopakujte heslo"></div>
+        </div>
+        <div class="set-err" id="pwErr"></div>
+        <button type="submit" class="btn btn-gold" style="margin-top:16px">Změnit heslo</button>
+      </form>
+    </div>
+
+    <div class="pcard set-card">
+      <h3>Soukromí a data</h3>
+      <p class="set-sub">Vaše dokumenty a správa dat.</p>
+      <div class="set-links">
+        <button class="qa-item" onclick="openLegal('gdpr')"><span class="qa-ic">🔒</span><span class="qa-l">Ochrana osobních údajů</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="openLegal('cookies')"><span class="qa-ic">🍪</span><span class="qa-l">Zásady cookies</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="exportData()"><span class="qa-ic">⬇️</span><span class="qa-l">Exportovat moje data (JSON)</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="resetDemo()"><span class="qa-ic">↺</span><span class="qa-l">Resetovat demo data</span><span class="qa-ar">›</span></button>
+      </div>
+    </div>
+
+    <div class="pcard set-card set-danger">
+      <h3>Nebezpečná zóna</h3>
+      <p class="set-sub">Tyto akce nelze vrátit zpět.</p>
+      <div class="set-danger-row">
+        <button class="btn btn-ghost" onclick="logout()">Odhlásit se</button>
+        <button class="btn set-del" onclick="deleteAccount()">Smazat účet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </main>
 
 <!-- ============ RATING MODAL ============ -->
@@ -1553,6 +1641,7 @@ function go(v){
   if(v==='cg-calendar')renderCgCalendar();
   if(v==='cg-profile')renderCgProfile();
   if(v==='chat')renderChat();
+  if(v==='settings')renderSettings();
   if(v==='forgot')resetForgot();
 }
 function scrollTo2(id){setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}),60);}
@@ -1882,6 +1971,49 @@ function logout(){
   closeAccountMenu();updateAuthUI();
   toast('👋 Byli jste odhlášeni.');
   go('home');
+}
+
+/* ---------- NASTAVENÍ ---------- */
+let appSettings={email:true,requests:true,chat:true,reminders:true};
+function renderSettings(){
+  ['email','requests','chat','reminders'].forEach(k=>{
+    const el=document.getElementById('nt'+k.charAt(0).toUpperCase()+k.slice(1));
+    if(el)el.checked=!!appSettings[k];
+  });
+  const name=auth.loggedIn?auth.name:'Host';
+  document.getElementById('setName').textContent=name;
+  document.getElementById('setEmail').textContent=auth.loggedIn?auth.email:'—';
+  document.getElementById('setRole').textContent=auth.role==='caregiver'?'Účet pečovatelky':'Účet rodiny';
+  setAva(document.getElementById('setAva'),auth.role==='caregiver'?cgProfile.photo:null,initials(name));
+}
+function toggleSetting(key,el){appSettings[key]=el.checked;persist();toast('✓ Nastavení uloženo');}
+function changePassword(e){
+  e.preventDefault();
+  const cur=document.getElementById('pwCurrent'),nw=document.getElementById('pwNew'),cf=document.getElementById('pwConfirm');
+  const err=document.getElementById('pwErr');err.textContent='';
+  if(!cur.value){err.textContent='Zadejte současné heslo.';cur.focus();return false;}
+  if(nw.value.length<6){err.textContent='Nové heslo musí mít alespoň 6 znaků.';nw.focus();return false;}
+  if(nw.value!==cf.value){err.textContent='Hesla se neshodují.';cf.focus();return false;}
+  cur.value=nw.value=cf.value='';
+  toast('✓ Heslo bylo změněno');
+  return false;
+}
+function exportData(){
+  try{
+    const data=localStorage.getItem(LS_KEY)||'{}';
+    const blob=new Blob([data],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='zenvoria-data.json';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    toast('⬇️ Data byla exportována');
+  }catch(e){toast('⚠️ Export se nezdařil');}
+}
+function deleteAccount(){
+  if(!confirm('Opravdu chcete smazat účet? V demu se tím smažou všechna lokální data a akce je nevratná.'))return;
+  try{localStorage.removeItem(LS_KEY);localStorage.removeItem('zv_auth');}catch(e){}
+  toast('Účet byl smazán.');
+  setTimeout(()=>location.reload(),700);
 }
 const NAV_GUEST=[
   {v:'home',label:'Domů',fn:"go('home')"},
@@ -2578,7 +2710,7 @@ function persist(){
   try{localStorage.setItem(LS_KEY,JSON.stringify({
     conversations:CONVERSATIONS,chatSeq,reqSeq,orderSeq,
     cgRequests:CG_REQUESTS,cgSchedule:CG_SCHEDULE,
-    orders:ORDERS,cgProfile,cgAvail,cgReviews
+    orders:ORDERS,cgProfile,cgAvail,cgReviews,settings:appSettings
   }));}catch(e){}
 }
 function loadState(){
@@ -2595,6 +2727,7 @@ function loadState(){
     syncCgPhotoToList();
     if(Array.isArray(s.cgAvail))cgAvail=s.cgAvail;
     if(s.cgReviews)cgReviews=s.cgReviews;
+    if(s.settings)Object.assign(appSettings,s.settings);
   }catch(e){}
 }
 function resetDemo(){
