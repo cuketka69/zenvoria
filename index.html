@@ -805,7 +805,7 @@
 <!-- ============ NAV ============ -->
 <header class="nav">
   <div class="wrap nav-inner">
-    <div class="brand" role="button" tabindex="0" aria-label="ZENVORIA — domů" onclick="go('home')">
+    <div class="brand" role="button" tabindex="0" aria-label="ZENVORIA — domů" onclick="goHome()">
       <img class="mark" src="logo.webp" alt="ZENVORIA logo" />
       <span class="word">ZENVORIA</span>
     </div>
@@ -1442,6 +1442,46 @@
   </div>
 </div>
 
+<!-- ============ RODINA · PŘEHLED ============ -->
+<div class="view" id="view-fam-dash">
+  <div class="wrap">
+    <div class="dash-head">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="ava" id="famDashAva">MH</div>
+        <div>
+          <h1>Dobrý den, <span id="famFirst">Marie</span> <span class="wave">👋</span></h1>
+          <p id="famIntro">Tady je přehled vaší péče.</p>
+        </div>
+      </div>
+      <button class="btn btn-gold" onclick="go('search')">Najít péči</button>
+    </div>
+    <div class="stat-grid" id="famStats"></div>
+    <div class="dash-grid">
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Nadcházející objednávky</b></div>
+          <div id="famUpcoming"></div>
+          <button class="btn btn-ghost btn-block" style="margin-top:6px" onclick="go('bookings')">Všechny objednávky</button>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Rychlé akce</b></div>
+          <div class="qa">
+            <button class="qa-item" onclick="go('search')"><span class="qa-ic">🔍</span><span class="qa-l">Najít pečovatelku</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('bookings')"><span class="qa-ic">📅</span><span class="qa-l">Moje objednávky</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('chat')"><span class="qa-ic">💬</span><span class="qa-l">Zprávy</span><span class="qa-ar">›</span></button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><b>Doporučené pečovatelky</b></div>
+          <div id="famRecommended"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ NASTAVENÍ ============ -->
 <div class="view" id="view-settings">
   <div class="wrap set-wrap">
@@ -1644,6 +1684,7 @@ function go(v){
   if(v==='cg-calendar')renderCgCalendar();
   if(v==='cg-profile')renderCgProfile();
   if(v==='chat')renderChat();
+  if(v==='fam-dash')renderFamilyDash();
   if(v==='settings')renderSettings();
   if(v==='forgot')resetForgot();
 }
@@ -2030,10 +2071,23 @@ const NAV_CAREGIVER=[
   {v:'cg-calendar',label:'Kalendář',fn:"go('cg-calendar')"},
   {v:'cg-profile',label:'Můj profil',fn:"go('cg-profile')"}
 ];
+const NAV_FAMILY=[
+  {v:'fam-dash',label:'Přehled',fn:"go('fam-dash')"},
+  {v:'search',label:'Hledat péči',fn:"go('search')"},
+  {v:'bookings',label:'Moje objednávky',fn:"go('bookings')"},
+  {v:'chat',label:'Zprávy',fn:"go('chat')"}
+];
+function goHome(){
+  if(auth.loggedIn&&auth.role==='caregiver')go('cg-dashboard');
+  else if(auth.loggedIn)go('fam-dash');
+  else go('home');
+}
 function renderNav(){
   const isCg=auth.loggedIn&&auth.role==='caregiver';
-  const html=(isCg?NAV_CAREGIVER:NAV_GUEST).map(l=>{
-    const badge=(l.v==='cg-requests'&&CG_REQUESTS.length)?`<span class="nav-badge">${CG_REQUESTS.length}</span>`:'';
+  const navset=isCg?NAV_CAREGIVER:(auth.loggedIn?NAV_FAMILY:NAV_GUEST);
+  const html=navset.map(l=>{
+    const badge=(l.v==='cg-requests'&&CG_REQUESTS.length)?`<span class="nav-badge">${CG_REQUESTS.length}</span>`
+      :(l.v==='chat'&&chatUnread())?`<span class="nav-badge">${chatUnread()}</span>`:'';
     return `<a data-v="${l.v}" role="button" tabindex="0" onclick="${l.fn}">${l.label}${badge}</a>`;
   }).join('');
   document.getElementById('navlinks').innerHTML=html;
@@ -2107,7 +2161,7 @@ function submitLogin(e){
   if(acc){loginAs(acc.name,key,acc.role);}
   else{const base=email.value.split('@')[0].replace(/[._-]/g,' ');loginAs(base.charAt(0).toUpperCase()+base.slice(1),key,'family');}
   toast(`✓ Vítejte zpět, <b>${auth.name.split(/\s+/)[0]}</b>!`);
-  go(auth.role==='caregiver'?'cg-dashboard':'home');
+  go(auth.role==='caregiver'?'cg-dashboard':'fam-dash');
   return false;
 }
 function submitRegister(e){
@@ -2123,7 +2177,7 @@ function submitRegister(e){
   if(tBad){document.getElementById('regTerms').focus();return false;}
   loginAs(name.value.trim(),email.value.trim().toLowerCase(),regRole);
   toast(regRole==='caregiver'?'✓ Účet pečovatelky vytvořen. Ověření do 48 hodin.':'✓ Účet vytvořen. Vítejte v ZENVORIA!');
-  go(regRole==='caregiver'?'cg-dashboard':'search');
+  go(regRole==='caregiver'?'cg-dashboard':'fam-dash');
   return false;
 }
 function submitForgot(e){
@@ -2271,6 +2325,44 @@ function renderOrders(tab){
         <div class="pr">${orderPrice(o).toLocaleString('cs-CZ')} Kč</div>
       </div>
     </div>`;}).join('');
+}
+
+/* ---------- RODINA · PŘEHLED ---------- */
+function famOrderRow(o){
+  const c=cg(o.cid);const st=ORDER_STATUS[o.status];
+  return `<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openFamilyOrder(${o.oid})">
+    ${avaHtml(c.init,c.photo)}
+    <div class="od"><b>${sName(o.service)}</b><div class="det">${c.name} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div></div>
+    <div class="ost"><span class="status ${st.cls}">${st.label}</span><div class="pr">${orderPrice(o).toLocaleString('cs-CZ')} Kč</div></div>
+  </div>`;
+}
+function renderFamilyDash(){
+  const name=auth.loggedIn?auth.name:'Marie Horáková';
+  setAva(document.getElementById('famDashAva'),null,initials(name));
+  document.getElementById('famFirst').textContent=name.split(/\s+/)[0];
+  const up=ORDERS.filter(o=>['pending','confirmed'].includes(o.status));
+  const pend=ORDERS.filter(o=>o.status==='pending').length;
+  const done=ORDERS.filter(o=>o.status==='done').length;
+  const unread=chatUnread();
+  document.getElementById('famIntro').textContent=up.length
+    ?`Máte ${up.length} ${up.length===1?'nadcházející objednávku':(up.length<5?'nadcházející objednávky':'nadcházejících objednávek')}.`
+    :'Zatím nemáte žádné objednávky — najděte si pečovatelku.';
+  const stats=[
+    {ic:'M8 2v4M16 2v4M4 9h16M4 5h16v15H4z',v:up.length,l:'Nadcházející objednávky'},
+    {ic:'M12 8v4l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',v:pend,l:'Čeká na potvrzení'},
+    {ic:'M20 6 9 17l-5-5',v:done,l:'Dokončené služby'},
+    {ic:'M4 5h16v11H9l-5 4V5Z',v:unread,l:'Nepřečtené zprávy'}
+  ];
+  document.getElementById('famStats').innerHTML=stats.map(s=>`
+    <div class="stat"><div class="stat-top"><span class="sl">${s.l}</span><div class="si">${sIcon(s.ic)}</div></div><div class="sv">${s.v}</div></div>`).join('');
+  document.getElementById('famUpcoming').innerHTML=up.length?up.slice(0,4).map(famOrderRow).join(''):'<div class="empty">Žádné nadcházející objednávky.</div>';
+  const rec=CAREGIVERS.slice().sort((a,b)=>b.rating-a.rating).slice(0,3);
+  document.getElementById('famRecommended').innerHTML=rec.map(c=>`
+    <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openProfile(${c.id})">
+      ${avaHtml(c.init,c.photo)}
+      <div class="od"><b>${c.name}</b><div class="det">${c.loc} · ${c.exp} let praxe</div></div>
+      <div class="ost"><span class="status ok">★ ${c.rating}</span><div class="pr">${c.rate} Kč</div></div>
+    </div>`).join('');
 }
 
 /* ---------- CAREGIVER PORTAL ---------- */
@@ -2743,7 +2835,7 @@ initTheme();
 loadState();
 updateAuthUI();
 renderHome();renderFilters();renderCare();renderCalendar();
-if(auth.loggedIn&&auth.role==='caregiver')go('cg-dashboard');
+if(auth.loggedIn)go(auth.role==='caregiver'?'cg-dashboard':'fam-dash');
 </script>
 </body>
 </html>
