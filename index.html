@@ -275,6 +275,14 @@
     font-weight:500;cursor:pointer;margin:30px 0 18px;background:none;border:none}
   .back-link:hover{color:var(--gold-deep)}
   .profile-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:30px;align-items:start;padding-bottom:60px}
+  .photo-upload{display:flex;align-items:center;gap:18px;margin:10px 0 20px}
+  .ava.ava-lg{width:78px;height:78px;font-size:27px;background-size:cover;background-position:center}
+  .photo-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .photo-up-label{display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-weight:600;font-size:13.5px;
+    color:var(--navy-800);background:var(--cream);border:1px solid var(--line);border-radius:11px;padding:9px 15px;cursor:pointer;transition:.18s}
+  .photo-up-label:hover{border-color:var(--gold);background:var(--white)}
+  .photo-remove{background:none;border:none;color:var(--muted);font-family:inherit;font-size:13px;cursor:pointer;padding:0;text-decoration:underline}
+  .photo-remove:hover{color:#B23A2E}
   .pcard{background:var(--white);border:1px solid var(--line);border-radius:22px;padding:30px;box-shadow:var(--shadow-sm)}
   .phead{display:flex;gap:22px;align-items:center;margin-bottom:8px}
   .phead .ava{width:96px;height:96px;font-size:34px}
@@ -1112,6 +1120,17 @@
     <div class="profile-grid">
       <div class="pcard">
         <h3>Základní údaje</h3>
+        <div class="photo-upload">
+          <div class="ava ava-lg" id="cpAvatar">JN</div>
+          <div class="photo-actions">
+            <label class="photo-up-label">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L8 8m4-4 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              Nahrát fotku
+              <input type="file" accept="image/*" id="cpPhotoInput" hidden onchange="onCgPhoto(event)">
+            </label>
+            <button type="button" class="photo-remove" id="cpPhotoRemove" onclick="removeCgPhoto()" style="display:none">Odebrat</button>
+          </div>
+        </div>
         <div class="grid2" style="margin-top:6px">
           <div><label class="lbl">Jméno a příjmení</label><input class="inp" id="cpName" oninput="syncCgPreview()"></div>
           <div><label class="lbl">Lokalita</label>
@@ -2060,7 +2079,7 @@ function renderOrders(tab){
 
 /* ---------- CAREGIVER PORTAL ---------- */
 const cgProfile={
-  name:'Jana Novotná',loc:'Praha 6',rate:250,exp:5,rating:4.9,reviews:128,
+  name:'Jana Novotná',loc:'Praha 6',rate:250,exp:5,rating:4.9,reviews:128,photo:null,
   services:['osobni','lekar','spolecnost'],
   bio:'Jsem pečovatelka s více než 5 lety praxe v péči o seniory. Nabízím laskavý přístup, spolehlivost a individuální péči. Ráda doprovázím k lékaři a věnuji se i společnosti a povídání.'
 };
@@ -2196,7 +2215,50 @@ function renderCgProfile(){
   document.getElementById('cpExp').value=cgProfile.exp;
   document.getElementById('cpBio').value=cgProfile.bio;
   renderCgServiceChips();
+  updateCgAvatar();
   syncCgPreview();
+}
+function updateCgAvatar(){
+  const el=document.getElementById('cpAvatar');
+  const rm=document.getElementById('cpPhotoRemove');
+  if(!el)return;
+  if(cgProfile.photo){
+    el.textContent='';
+    el.style.backgroundImage=`url('${cgProfile.photo}')`;
+    el.style.color='transparent';
+    if(rm)rm.style.display='';
+  }else{
+    el.style.backgroundImage='';
+    el.style.color='';
+    el.textContent=initials((document.getElementById('cpName')||{}).value||cgProfile.name);
+    if(rm)rm.style.display='none';
+  }
+}
+function onCgPhoto(e){
+  const file=e.target.files&&e.target.files[0];
+  if(!file)return;
+  if(!file.type.startsWith('image/')){toast('⚠️ Vyberte prosím obrázek.');return;}
+  const reader=new FileReader();
+  reader.onload=function(){
+    const img=new Image();
+    img.onload=function(){
+      const max=400;let w=img.width,h=img.height;
+      if(w>h){if(w>max){h=Math.round(h*max/w);w=max;}}else{if(h>max){w=Math.round(w*max/h);h=max;}}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      cgProfile.photo=c.toDataURL('image/jpeg',0.85);
+      updateCgAvatar();syncCgPreview();persist();
+      toast('✓ Profilová fotka nahrána');
+    };
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+function removeCgPhoto(){
+  cgProfile.photo=null;
+  const inp=document.getElementById('cpPhotoInput');if(inp)inp.value='';
+  updateCgAvatar();syncCgPreview();persist();
+  toast('Profilová fotka odebrána');
 }
 function renderCgServiceChips(){
   document.getElementById('cpServices').innerHTML=SERVICES.map(s=>
@@ -2213,10 +2275,12 @@ function syncCgPreview(){
   const rate=document.getElementById('cpRate').value||0;
   const exp=document.getElementById('cpExp').value||0;
   const servs=cgProfile.services.slice(0,2).map(s=>`<span class="chip">${sName(s)}</span>`).join('');
+  const avaStyle=cgProfile.photo?` style="background-image:url('${cgProfile.photo}');background-size:cover;background-position:center;color:transparent"`:'';
+  if(!cgProfile.photo)updateCgAvatar();
   document.getElementById('cgPreview').innerHTML=`
     <div class="care-card" style="cursor:default">
       <div class="care-top">
-        <div class="ava">${initials(name)}</div>
+        <div class="ava"${avaStyle}>${cgProfile.photo?'':initials(name)}</div>
         <div style="flex:1">
           <div class="care-name">${name}</div>
           <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${loc}</div>
