@@ -2292,7 +2292,7 @@ function syncCgPreview(){
   const loc=document.getElementById('cpLoc').value;
   const rate=document.getElementById('cpRate').value||0;
   const exp=document.getElementById('cpExp').value||0;
-  const servs=cgProfile.services.slice(0,2).map(s=>`<span class="chip">${sName(s)}</span>`).join('');
+  const servs=cgProfile.services.map(s=>`<span class="chip">${sName(s)}</span>`).join('');
   const avaStyle=cgProfile.photo?` style="background-image:url('${cgProfile.photo}');background-size:cover;background-position:center;color:transparent"`:'';
   if(!cgProfile.photo)updateCgAvatar();
   document.getElementById('cgPreview').innerHTML=`
