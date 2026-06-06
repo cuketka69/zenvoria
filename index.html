@@ -1732,7 +1732,7 @@ function applyTheme(t){
 function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');}
 function initTheme(){
   let t;try{t=localStorage.getItem('zv_theme');}catch(e){}
-  if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+  if(!t)t='dark';
   applyTheme(t);
 }
 
