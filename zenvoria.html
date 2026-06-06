@@ -1,0 +1,2456 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZENVORIA — Péče s lidskostí | Ověřené pečovatelky pro seniory</title>
+<meta name="description" content="ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Najděte ověřenou pečovatelku pro své blízké — jednoduše, bezpečně a s lidským přístupem.">
+<meta name="author" content="ZENVORIA">
+<meta name="theme-color" content="#0D1B2A">
+<meta name="robots" content="index,follow">
+<meta name="keywords" content="pečovatelka, péče o seniory, domácí péče, doprovod k lékaři, Praha, ověřené pečovatelky">
+<!-- Open Graph / sociální sítě -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="cs_CZ">
+<meta property="og:site_name" content="ZENVORIA">
+<meta property="og:title" content="ZENVORIA — Péče s lidskostí">
+<meta property="og:description" content="Ověřené pečovatelky na dosah. Klid pro seniory i rodiny. Jednoduše, bezpečně a s lidským přístupem.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ZENVORIA — Péče s lidskostí">
+<meta name="twitter:description" content="Ověřené pečovatelky na dosah. Klid pro seniory i rodiny.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%230D1B2A'/%3E%3Cpath d='M24 9 L38 18 V36 a2 2 0 0 1-2 2 H12 a2 2 0 0 1-2-2 V18 Z' stroke='%23D4AF37' stroke-width='2' fill='none'/%3E%3Ccircle cx='24' cy='22' r='3' stroke='%23D4AF37' stroke-width='2' fill='none'/%3E%3Cpath d='M24 25 c-4 0-6.5 2.5-6.5 6.5 h13 c0-4-2.5-6.5-6.5-6.5Z' stroke='%23D4AF37' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-900:#0D1B2A;
+    --navy-800:#1B263B;
+    --navy-700:#243447;
+    --gold:#D4AF37;
+    --gold-soft:#E4C766;
+    --gold-deep:#B8942A;
+    --cream:#F4F1EC;
+    --cream-2:#EFEAE1;
+    --white:#FFFFFF;
+    --ink:#2A2620;
+    --muted:#7A736A;
+    --line:#E6E0D6;
+    --shadow:0 18px 50px -20px rgba(13,27,42,.28);
+    --shadow-sm:0 6px 22px -12px rgba(13,27,42,.22);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.55;
+  }
+  h1,h2,h3,h4,.serif{font-family:'Playfair Display',serif}
+  ::selection{background:var(--gold);color:var(--navy-900)}
+
+  /* ---------- A11Y ---------- */
+  [hidden]{display:none!important}
+  :focus{outline:none}
+  :focus-visible{outline:2.5px solid var(--gold-deep);outline-offset:2px;border-radius:6px}
+  .skip-link{position:absolute;left:-999px;top:8px;z-index:200;background:var(--navy-900);color:var(--cream);
+    padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none}
+  .skip-link:focus{left:14px}
+  [role="button"]{cursor:pointer}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  }
+
+  /* ---------- DARK MODE ---------- */
+  html[data-theme="dark"]{
+    --navy-900:#EAEFF5;--navy-800:#D3DBE6;--navy-700:#B7C2D0;
+    --cream:#11151B;--cream-2:#1A2029;--white:#1E2630;
+    --ink:#E6E1D8;--muted:#9AA4B0;--line:#2C3540;
+    --shadow:0 18px 50px -20px rgba(0,0,0,.65);--shadow-sm:0 6px 22px -12px rgba(0,0,0,.55);
+  }
+  html[data-theme="dark"] header.nav{background:rgba(17,21,27,.82)}
+  html[data-theme="dark"] footer{background:#0A0D12}
+  html[data-theme="dark"] footer .word{color:#EAEFF5}
+  html[data-theme="dark"] footer h5{color:#E6E1D8}
+  html[data-theme="dark"] .store{background:#1A222D;color:var(--ink)}
+  html[data-theme="dark"] .summary-card,
+  html[data-theme="dark"] .aud.car{background:#0E141B}
+  html[data-theme="dark"] .ava{background:linear-gradient(140deg,#33404F,#1C2530);color:#EAEFF5}
+  html[data-theme="dark"] .btn-navy{background:#2A3340;color:var(--ink)}
+  html[data-theme="dark"] .btn-navy:hover{background:#333E4D}
+  html[data-theme="dark"] .btn-gold,html[data-theme="dark"] .btn-gold:hover{color:#11151B}
+  html[data-theme="dark"] .step-num,html[data-theme="dark"] .nav-badge{color:#11151B}
+  html[data-theme="dark"] ::selection{color:#11151B}
+  html[data-theme="dark"] .fbtn.on,html[data-theme="dark"] .opt.on,html[data-theme="dark"] .cg-serv.on{background:var(--gold);color:#11151B;border-color:var(--gold)}
+  html[data-theme="dark"] .day.sel{color:#11151B}
+  html[data-theme="dark"] .toast{background:#1E2630;color:var(--ink)}
+  html[data-theme="dark"] .msg.me{background:#2A3340;color:var(--ink)}
+  html[data-theme="dark"] .status.done{background:#21311E;color:#A6D49A}
+  html[data-theme="dark"] .status.pending{background:#322B14;color:#E0C56A}
+  html[data-theme="dark"] .status.declined{background:#331A17;color:#F0B7AE}
+  html[data-theme="dark"] .tl-dot svg path{stroke:#11151B}
+
+  /* ---------- LAYOUT ---------- */
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+  .view{display:none;animation:fade .5s ease both}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* ---------- NAV ---------- */
+  header.nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(244,241,236,.82);
+    backdrop-filter:saturate(140%) blur(14px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{display:flex;align-items:center;gap:22px;height:74px}
+  .brand{display:flex;align-items:center;gap:11px;cursor:pointer;user-select:none;flex:0 0 auto}
+  .brand .mark{width:66px;height:66px;flex:0 0 auto}
+  .brand .word{font-family:'Playfair Display',serif;font-weight:700;font-size:22px;letter-spacing:.16em;color:var(--navy-900)}
+  .nav-links{display:flex;gap:2px;margin-left:4px;flex:0 1 auto}
+  .nav-links a{
+    font-size:14.5px;font-weight:500;color:var(--navy-800);white-space:nowrap;
+    padding:9px 14px;border-radius:9px;cursor:pointer;text-decoration:none;
+    transition:.18s;letter-spacing:.01em;
+  }
+  .nav-links a:hover{background:rgba(13,27,42,.06)}
+  .nav-links a.active{color:var(--navy-900);background:rgba(212,175,55,.16)}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex:0 0 auto}
+  .btn{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:14.5px;white-space:nowrap;
+    border:none;cursor:pointer;border-radius:11px;padding:11px 18px;
+    transition:.2s;letter-spacing:.01em;
+  }
+  .btn-gold{background:var(--gold);color:var(--navy-900);box-shadow:0 10px 26px -12px rgba(212,175,55,.7)}
+  .btn-gold:hover{background:var(--gold-soft);transform:translateY(-1px)}
+  .btn-ghost{background:transparent;color:var(--navy-800);border:1px solid var(--line)}
+  .btn-ghost:hover{background:var(--white);border-color:var(--gold)}
+  .btn-navy{background:var(--navy-900);color:var(--cream)}
+  .btn-navy:hover{background:var(--navy-800)}
+  .btn-block{width:100%}
+  .avatar-pill{
+    display:flex;align-items:center;gap:9px;background:var(--white);
+    border:1px solid var(--line);border-radius:30px;padding:5px 14px 5px 6px;cursor:pointer;
+  }
+  .menu-toggle{display:none;background:none;border:none;cursor:pointer}
+
+  /* ---------- BADGES / CHIPS ---------- */
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;
+    background:var(--cream-2);color:var(--navy-800);padding:5px 12px;border-radius:20px;border:1px solid var(--line)}
+  .chip.gold{background:rgba(212,175,55,.14);border-color:rgba(212,175,55,.4);color:var(--gold-deep)}
+  .verified{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--gold-deep)}
+  .stars{color:var(--gold);letter-spacing:1px;font-size:14px}
+
+  /* avatars */
+  .ava{border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:'Playfair Display',serif;font-weight:600;color:var(--cream);flex:0 0 auto;
+    background:linear-gradient(140deg,var(--navy-800),var(--navy-900));box-shadow:inset 0 0 0 2px rgba(212,175,55,.45)}
+
+  /* ---------- HERO ---------- */
+  .hero{position:relative;overflow:hidden;padding:48px 0;min-height:calc(100vh - 74px);display:flex;align-items:center;background:#0B121A}
+  .hero-bg{position:absolute;top:-40%;left:0;width:100%;height:180%;z-index:0;
+    background:url("hero.png") center/cover no-repeat;will-change:transform}
+  .hero::before{content:"";position:absolute;inset:0;z-index:1;
+    background:linear-gradient(90deg,rgba(8,12,18,.95) 0%,rgba(8,12,18,.82) 40%,rgba(8,12,18,.5) 72%,rgba(8,12,18,.62) 100%)}
+  .hero>.wrap{width:100%;position:relative;z-index:2}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
+  .eyebrow{font-size:13px;letter-spacing:.34em;font-weight:600;color:var(--gold-deep);text-transform:uppercase}
+  .hero .eyebrow{color:var(--gold)}
+  .hero h1{font-size:clamp(46px,6.8vw,84px);line-height:1.02;color:#fff;margin:20px 0 0;font-weight:700}
+  .hero h1 em{font-style:italic;color:var(--gold)}
+  .hero p.lead{font-size:18px;color:#D8DEE6;margin:22px 0 30px;max-width:480px}
+  .hero-cta{display:flex;gap:14px;flex-wrap:wrap}
+  .hero .btn-ghost{color:#fff;border-color:rgba(255,255,255,.4)}
+  .hero .btn-ghost:hover{background:rgba(255,255,255,.1);border-color:var(--gold)}
+  .trust-row{display:flex;gap:30px;margin-top:42px;flex-wrap:wrap}
+  .trust{display:flex;align-items:center;gap:12px;max-width:200px}
+  .trust .ic{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .trust b{font-size:13.5px;color:#fff;font-weight:600}
+  .trust span{font-size:12.5px;color:#AEB6C1;display:block}
+
+
+  /* ---------- SECTIONS ---------- */
+  section.block{padding:70px 0}
+  .sec-head{text-align:center;max-width:640px;margin:0 auto 46px}
+  .sec-head h2{font-size:clamp(28px,3.4vw,40px);color:var(--navy-900);font-weight:700}
+  .sec-head .eyebrow{display:block;margin-bottom:12px}
+  .sec-head p{color:var(--muted);margin-top:12px;font-size:16px}
+
+  /* services grid */
+  .serv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .serv{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:24px 20px;
+    text-align:center;transition:.22s;cursor:pointer}
+  .serv:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:rgba(212,175,55,.5)}
+  .serv .ring{width:58px;height:58px;border-radius:50%;border:1.5px solid var(--gold);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+  .serv b{display:block;font-size:14.5px;color:var(--navy-900);font-weight:600}
+  .serv span{font-size:12.5px;color:var(--muted)}
+
+  /* audience cards */
+  .aud-section{position:relative;overflow:hidden;background:#0B121A}
+  .aud-bg{position:absolute;top:-25%;left:0;width:100%;height:150%;z-index:0;
+    background:url("content.png") center/cover no-repeat;will-change:transform}
+  .aud-section::before{content:"";position:absolute;inset:0;z-index:1;
+    background:linear-gradient(rgba(8,12,18,.7),rgba(8,12,18,.82))}
+  .aud-section>.wrap{position:relative;z-index:2}
+  .aud-section .sec-head h2{color:#fff}
+  .aud-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:stretch}
+  .aud{position:relative;overflow:hidden;border-radius:24px;padding:40px 38px;border:1px solid var(--line);
+    display:flex;flex-direction:column;transition:transform .28s ease,box-shadow .28s ease}
+  .aud::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--gold),var(--gold-deep))}
+  .aud.fam{background:var(--white);box-shadow:0 12px 34px rgba(13,27,42,.08)}
+  .aud.car{background:linear-gradient(165deg,#17212E,#0B121A);color:#EAEFF5;border-color:rgba(212,175,55,.28)}
+  .aud.car::after{content:"";position:absolute;top:-50px;right:-50px;width:230px;height:230px;border-radius:50%;
+    background:radial-gradient(circle,rgba(212,175,55,.22),transparent 70%);pointer-events:none}
+  .aud:hover{transform:translateY(-6px)}
+  .aud.fam:hover{box-shadow:0 22px 48px rgba(13,27,42,.15)}
+  .aud.car:hover{box-shadow:0 24px 50px rgba(0,0,0,.45)}
+  .aud .ic-circ{position:relative;z-index:1;width:66px;height:66px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+  .aud.fam .ic-circ{background:linear-gradient(145deg,#fff,var(--cream));border:1px solid var(--line);box-shadow:0 6px 16px rgba(13,27,42,.08)}
+  .aud.car .ic-circ{background:radial-gradient(circle at 30% 30%,rgba(212,175,55,.34),rgba(212,175,55,.1));border:1px solid rgba(212,175,55,.42)}
+  .aud h3{font-size:24px;margin-bottom:5px;position:relative;z-index:1}
+  .aud.car h3{color:#fff}
+  .aud-sub{font-size:14px;color:var(--muted);margin-bottom:22px;position:relative;z-index:1}
+  .aud.car .aud-sub{color:#9FA8B4}
+  .aud ul{list-style:none;position:relative;z-index:1}
+  .aud li{display:flex;gap:12px;align-items:center;padding:10px 0;font-size:14.5px;border-bottom:1px solid rgba(13,27,42,.06)}
+  .aud li:last-child{border-bottom:0}
+  .aud.car li{color:#CBD2DC;border-bottom-color:rgba(255,255,255,.07)}
+  .aud .chk{flex:0 0 auto;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(212,175,55,.16)}
+  .aud li svg{flex:0 0 auto}
+  .aud .btn{align-self:flex-start;margin-top:26px}
+
+  /* values */
+  .values{display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
+  .val{display:flex;flex-direction:column;align-items:center;gap:10px;width:128px}
+  .val .vc{width:54px;height:54px;border-radius:50%;border:1px solid var(--gold);
+    display:flex;align-items:center;justify-content:center}
+  .val b{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--navy-900);font-weight:600}
+
+  /* ---------- SEARCH VIEW ---------- */
+  .page-head{padding:40px 0 26px}
+  .page-head h1{font-size:34px;color:var(--navy-900);font-weight:700}
+  .page-head p{color:var(--muted);margin-top:6px}
+  .search-bar{display:flex;gap:12px;background:var(--white);border:1px solid var(--line);
+    border-radius:16px;padding:12px;box-shadow:var(--shadow-sm);flex-wrap:wrap}
+  .field{display:flex;align-items:center;gap:9px;flex:1;min-width:180px;background:var(--cream);
+    border:1px solid var(--line);border-radius:11px;padding:11px 14px}
+  .field input,.field select{border:none;background:none;outline:none;font-family:inherit;font-size:14.5px;width:100%;color:var(--ink)}
+  .filters{display:flex;gap:10px;margin:22px 0 26px;flex-wrap:wrap}
+  .fbtn{font-size:13px;font-weight:500;padding:8px 16px;border-radius:30px;border:1px solid var(--line);
+    background:var(--white);cursor:pointer;transition:.18s;color:var(--navy-800)}
+  .fbtn:hover{border-color:var(--gold)}
+  .fbtn.on{background:var(--navy-900);color:var(--cream);border-color:var(--navy-900)}
+  .sort-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+  .sort-row .rescount{font-size:14px;color:var(--muted);font-weight:500;margin-right:auto}
+  .sort-row label{font-size:13px;color:var(--navy-800);font-weight:500;display:flex;align-items:center;gap:8px}
+  .sort-row b{color:var(--gold-deep)}
+  .sort-row select{border:1px solid var(--line);background:var(--white);border-radius:10px;padding:8px 12px;
+    font-family:inherit;font-size:13.5px;color:var(--ink);outline:none;cursor:pointer}
+  .sort-row select:focus{border-color:var(--gold)}
+  .sort-row input[type=range]{accent-color:var(--gold);cursor:pointer}
+  .sort-row input[type=checkbox]{accent-color:var(--gold);cursor:pointer}
+
+  .care-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .care-card{background:var(--white);border:1px solid var(--line);border-radius:20px;overflow:hidden;
+    transition:.22s;cursor:pointer;display:flex;flex-direction:column}
+  .care-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:rgba(212,175,55,.5)}
+  .care-top{display:flex;gap:14px;padding:20px 20px 14px}
+  .care-top .ava{width:58px;height:58px;font-size:20px}
+  .care-name{font-family:'Playfair Display',serif;font-size:18px;font-weight:600;color:var(--navy-900)}
+  .care-loc{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px;margin-top:2px}
+  .care-meta{display:flex;align-items:center;gap:8px;margin-top:7px;font-size:13px;color:var(--muted)}
+  .care-tags{display:flex;flex-wrap:wrap;gap:6px;padding:0 20px 16px}
+  .care-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;
+    padding:14px 20px;border-top:1px solid var(--line);background:var(--cream)}
+  .price b{font-family:'Playfair Display',serif;font-size:19px;color:var(--navy-900)}
+  .price span{font-size:12.5px;color:var(--muted)}
+
+  /* ---------- PROFILE VIEW ---------- */
+  .back-link{display:inline-flex;align-items:center;gap:7px;color:var(--navy-800);font-size:14px;
+    font-weight:500;cursor:pointer;margin:30px 0 18px;background:none;border:none}
+  .back-link:hover{color:var(--gold-deep)}
+  .profile-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:30px;align-items:start;padding-bottom:60px}
+  .pcard{background:var(--white);border:1px solid var(--line);border-radius:22px;padding:30px;box-shadow:var(--shadow-sm)}
+  .phead{display:flex;gap:22px;align-items:center;margin-bottom:8px}
+  .phead .ava{width:96px;height:96px;font-size:34px}
+  .phead h1{font-size:30px;color:var(--navy-900);font-weight:700}
+  .pmeta{display:flex;gap:14px;flex-wrap:wrap;margin-top:9px}
+  .pchips{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:24px 0}
+  .pchip{display:flex;align-items:center;gap:11px;background:var(--cream);border:1px solid var(--line);
+    border-radius:13px;padding:13px 15px;font-size:14px;color:var(--navy-800)}
+  .pchip svg{flex:0 0 auto}
+  .pdiv{height:1px;background:var(--line);margin:24px 0}
+  .pcard h3{font-family:'Playfair Display',serif;font-size:20px;color:var(--navy-900);margin-bottom:12px}
+  .pcard p.bio{color:#5d574e;font-size:15px;line-height:1.7}
+  .book-aside{position:sticky;top:96px}
+  .book-aside .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;font-size:14.5px}
+  .book-aside .row .l{color:var(--muted)}
+  .book-aside .row .r{font-weight:600;color:var(--navy-900)}
+  .total-row{display:flex;justify-content:space-between;align-items:baseline;padding:16px 0 4px;border-top:1px solid var(--line);margin-top:8px}
+  .total-row .big{font-family:'Playfair Display',serif;font-size:26px;color:var(--navy-900)}
+  .rev{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)}
+  .rev:last-child{border:none}
+  .rev .ava{width:42px;height:42px;font-size:15px}
+  .rev .rb{font-weight:600;font-size:14px;color:var(--navy-900)}
+  .rev .rt{font-size:13.5px;color:#5d574e;margin-top:3px}
+
+  /* ---------- BOOKING VIEW ---------- */
+  .booking-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:30px;align-items:start;padding-bottom:60px}
+  .step{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:24px;margin-bottom:18px}
+  .step-h{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .step-num{width:30px;height:30px;border-radius:50%;background:var(--navy-900);color:var(--gold);
+    font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-family:'Playfair Display',serif}
+  .step-h b{font-family:'Playfair Display',serif;font-size:18px;color:var(--navy-900)}
+  .opt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .opt{border:1px solid var(--line);border-radius:12px;padding:13px;text-align:center;cursor:pointer;
+    transition:.16s;font-size:13.5px;font-weight:500;color:var(--navy-800);background:var(--cream)}
+  .opt:hover{border-color:var(--gold)}
+  .opt.on{background:var(--navy-900);color:var(--cream);border-color:var(--navy-900)}
+  .inp{width:100%;border:1px solid var(--line);background:var(--cream);border-radius:11px;
+    padding:12px 14px;font-family:inherit;font-size:14.5px;outline:none;color:var(--ink)}
+  .inp:focus{border-color:var(--gold);background:var(--white)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  label.lbl{display:block;font-size:13px;font-weight:600;color:var(--navy-800);margin-bottom:7px}
+  textarea.inp{resize:vertical;min-height:80px}
+  .summary-card{position:sticky;top:96px;background:var(--navy-900);color:var(--cream);border-radius:20px;padding:28px;box-shadow:var(--shadow)}
+  .summary-card h3{color:var(--white);font-size:20px;margin-bottom:18px}
+  .summary-card .row{display:flex;justify-content:space-between;padding:10px 0;font-size:14px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .summary-card .row .l{color:#A9B2BD}
+  .summary-card .row .r{color:var(--white);font-weight:500;text-align:right}
+  .summary-card .grand{display:flex;justify-content:space-between;align-items:baseline;margin-top:18px}
+  .summary-card .grand .big{font-family:'Playfair Display',serif;font-size:30px;color:var(--gold)}
+
+  /* ---------- BOOKINGS / CALENDAR ---------- */
+  .cal-grid{display:grid;grid-template-columns:1fr 1.2fr;gap:28px;align-items:start;padding-bottom:60px}
+  .cal{background:var(--white);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:var(--shadow-sm)}
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .cal-head b{font-family:'Playfair Display',serif;font-size:20px;color:var(--navy-900)}
+  .cal-nav{display:flex;gap:6px}
+  .cal-nav button{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--cream);cursor:pointer;color:var(--navy-800)}
+  .cal-nav button:hover{border-color:var(--gold)}
+  .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+  .dow span{text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:10px;
+    font-size:14px;cursor:pointer;color:var(--navy-800);transition:.14s;position:relative}
+  .day:hover{background:var(--cream-2)}
+  .day.muted{color:#C4BDB1;cursor:default}
+  .day.muted:hover{background:none}
+  .day.has::after{content:"";position:absolute;bottom:6px;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+  .day.sel{background:var(--gold);color:var(--navy-900);font-weight:600}
+  .day.today{box-shadow:inset 0 0 0 1.5px var(--navy-900)}
+
+  .tabs{display:flex;gap:6px;background:var(--cream-2);padding:5px;border-radius:13px;margin-bottom:18px;width:fit-content}
+  .tab{padding:9px 20px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);transition:.16s}
+  .tab.on{background:var(--white);color:var(--navy-900);box-shadow:var(--shadow-sm)}
+  .order{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:18px 20px;
+    margin-bottom:14px;display:flex;align-items:center;gap:16px}
+  .order .ava{width:50px;height:50px;font-size:17px}
+  .order .od b{font-family:'Playfair Display',serif;font-size:16px;color:var(--navy-900)}
+  .order .od .det{font-size:13px;color:var(--muted);margin-top:3px}
+  .order .ost{margin-left:auto;text-align:right}
+  .status{font-size:12px;font-weight:600;padding:5px 11px;border-radius:20px;display:inline-block}
+  .status.ok{background:rgba(212,175,55,.16);color:var(--gold-deep)}
+  .status.done{background:#E9EDE8;color:#5a7256}
+  .status.pending{background:#FBF1DC;color:#9A7B1F}
+  .status.declined{background:#F7E4E1;color:#B23A2E}
+  .order .ost .pr{font-family:'Playfair Display',serif;font-size:16px;color:var(--navy-900);margin-top:8px}
+
+  /* ---------- FOOTER ---------- */
+  footer{background:var(--navy-900);color:#A9B2BD;padding:60px 0 34px;margin-top:40px}
+  .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:40px;margin-bottom:40px}
+  footer .word{font-family:'Playfair Display',serif;font-weight:700;font-size:22px;letter-spacing:.16em;color:var(--cream)}
+  footer h5{color:var(--cream);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px;font-weight:600}
+  footer a{display:block;color:#A9B2BD;text-decoration:none;font-size:14px;padding:5px 0;cursor:pointer;transition:.16s}
+  footer a:hover{color:var(--gold)}
+  .foot-bottom{border-top:1px solid rgba(255,255,255,.08);padding-top:24px;display:flex;justify-content:space-between;align-items:center;font-size:13px;flex-wrap:wrap;gap:12px}
+  .foot-legal{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:20px}
+  .foot-legal a{display:inline;padding:0;font-size:13.5px}
+
+  /* legal / právní stránky */
+  .legal{max-width:780px;margin:0 auto;padding:54px 20px 80px}
+  .legal .back{display:inline-flex;align-items:center;gap:7px;color:var(--gold-deep);font-size:14px;margin-bottom:22px;
+    cursor:pointer;background:none;border:none;font-family:inherit;font-weight:600;padding:0}
+  .legal h1{font-size:clamp(26px,4vw,34px);color:var(--navy-900);font-weight:700;line-height:1.15}
+  .legal .legal-upd{color:var(--muted);font-size:13.5px;margin:8px 0 8px}
+  .legal .legal-note{background:rgba(212,175,55,.10);border:1px dashed rgba(212,175,55,.5);border-radius:12px;
+    padding:12px 16px;font-size:13px;color:var(--navy-800);margin:18px 0 30px}
+  .legal h2{font-size:19px;color:var(--navy-900);font-weight:700;margin:30px 0 10px}
+  .legal p{color:var(--ink);font-size:15px;line-height:1.75;margin:10px 0}
+  .legal ul{margin:10px 0 10px 6px;padding-left:18px}
+  .legal li{color:var(--ink);font-size:15px;line-height:1.7;margin-bottom:7px}
+  .legal a{color:var(--gold-deep)}
+
+  /* toast */
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(120px);
+    background:var(--navy-900);color:var(--cream);padding:15px 24px;border-radius:14px;
+    box-shadow:var(--shadow);z-index:100;display:flex;align-items:center;gap:11px;font-size:14.5px;
+    transition:transform .4s cubic-bezier(.2,.8,.2,1);border:1px solid rgba(212,175,55,.4)}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast b{color:var(--gold)}
+  .toast.success{background:#16321B;border-color:#6FAE6A}
+  .toast.success b{color:#A6D49A}
+  .toast.error{background:#3A1A16;border-color:#D98A80}
+  .toast.error b{color:#F0B7AE}
+
+  /* ---------- MOBILE MENU ---------- */
+  .nav-badge{display:inline-flex;min-width:18px;height:18px;padding:0 5px;border-radius:10px;
+    background:var(--gold);color:var(--navy-900);font-size:11px;font-weight:700;align-items:center;justify-content:center;margin-left:7px;vertical-align:middle}
+  .account-menu a .nav-badge{margin-left:auto}
+  .avatar-pill{position:relative}
+  .notif-dot{position:absolute;top:3px;right:3px;width:10px;height:10px;border-radius:50%;background:#D9534F;border:2px solid var(--white)}
+  .theme-toggle{background:none;border:1px solid var(--line);border-radius:10px;width:42px;height:42px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--navy-800);flex:0 0 auto;transition:.18s}
+  .theme-toggle:hover{border-color:var(--gold);color:var(--gold-deep)}
+  .menu-toggle{display:none;background:none;border:1px solid var(--line);border-radius:10px;
+    width:42px;height:42px;cursor:pointer;align-items:center;justify-content:center;color:var(--navy-900)}
+  .mobile-menu{position:fixed;inset:0;z-index:80;visibility:hidden;pointer-events:none}
+  .mobile-menu .scrim{position:absolute;inset:0;background:rgba(13,27,42,.45);opacity:0;transition:opacity .28s}
+  .mobile-menu .panel{position:absolute;top:0;right:0;height:100%;width:min(82%,330px);
+    background:var(--cream);box-shadow:var(--shadow);padding:24px 22px;
+    transform:translateX(100%);transition:transform .3s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;gap:6px}
+  .mobile-menu.open{visibility:visible;pointer-events:auto}
+  .mobile-menu.open .scrim{opacity:1}
+  .mobile-menu.open .panel{transform:none}
+  .mobile-menu .panel a{font-size:16px;font-weight:600;color:var(--navy-900);padding:14px 12px;
+    border-radius:10px;text-decoration:none;cursor:pointer;display:flex;align-items:center;gap:10px}
+  .mobile-menu .panel a:hover,.mobile-menu .panel a.active{background:rgba(212,175,55,.16)}
+  .mobile-menu .mm-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .mobile-menu .mm-close{background:none;border:none;cursor:pointer;color:var(--navy-900);padding:6px}
+  .mobile-menu .mm-divider{height:1px;background:var(--line);margin:12px 0}
+
+  /* ---------- AUTH (LOGIN / REGISTER) ---------- */
+  .auth-wrap{position:relative;overflow:hidden;min-height:calc(100vh - 74px);display:flex;align-items:center;justify-content:center;padding:48px 20px;
+    background:
+      radial-gradient(46% 55% at 8% 26%,rgba(212,175,55,.16),transparent 62%),
+      radial-gradient(46% 55% at 92% 74%,rgba(212,175,55,.13),transparent 62%),
+      radial-gradient(120% 80% at 50% -10%,rgba(212,175,55,.10),transparent 60%)}
+  .auth-card{position:relative;z-index:1}
+  .auth-card{width:100%;max-width:460px;background:var(--white);border:1px solid var(--line);
+    border-radius:24px;padding:38px 36px;box-shadow:var(--shadow)}
+  /* split layout: photo + form */
+  .auth-split{position:relative;z-index:1;display:flex;width:100%;max-width:940px;
+    background:var(--white);border:1px solid var(--line);border-radius:24px;overflow:hidden;box-shadow:var(--shadow)}
+  .auth-photo{position:relative;flex:0 0 44%;min-height:580px;
+    background-image:url("gnlog.png");background-size:cover;background-position:50% 18%}
+  .auth-photo::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(185deg,rgba(11,15,20,.05) 35%,rgba(11,15,20,.78))}
+  .auth-photo-cap{position:absolute;left:28px;right:28px;bottom:28px;z-index:1;color:#fff}
+  .auth-photo-cap .q{font-family:'Playfair Display',serif;font-size:21px;line-height:1.3;font-weight:600}
+  .auth-photo-cap .a{font-size:13px;color:rgba(255,255,255,.78);margin-top:8px;letter-spacing:.02em}
+  .auth-split .auth-card{flex:1 1 auto;max-width:none;border:0;border-radius:0;box-shadow:none;background:transparent;
+    display:flex;flex-direction:column;justify-content:center}
+  .auth-card .brand{justify-content:center;cursor:default;margin-bottom:6px}
+  .auth-done-ic{width:62px;height:62px;border-radius:50%;background:var(--gold);
+    display:flex;align-items:center;justify-content:center;margin:4px auto 14px;box-shadow:0 8px 22px rgba(212,175,55,.4)}
+  .auth-card h1{font-size:27px;color:var(--navy-900);text-align:center;font-weight:700}
+  .auth-card .sub{text-align:center;color:var(--muted);font-size:14.5px;margin:8px 0 26px}
+  .auth-field{margin-bottom:16px}
+  .auth-field .lbl{display:block;font-size:13px;font-weight:600;color:var(--navy-800);margin-bottom:7px}
+  .auth-field .inp-wrap{display:flex;align-items:center;gap:9px;border:1px solid var(--line);
+    background:var(--cream);border-radius:12px;padding:0 14px;transition:.18s}
+  .auth-field .inp-wrap:focus-within{border-color:var(--gold);background:var(--white)}
+  .auth-field input{flex:1;border:none;background:none;outline:none;font-family:inherit;
+    font-size:15px;padding:13px 0;color:var(--ink)}
+  .auth-field input::placeholder{color:#A89F92}
+  .pw-toggle{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;display:flex}
+  .err{color:#B23A2E;font-size:12.5px;margin-top:6px;display:none}
+  .auth-field.invalid .inp-wrap{border-color:#D98A80;background:#FBF3F1}
+  .auth-field.invalid .err{display:block}
+  .role-switch{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}
+  .role-opt{border:1px solid var(--line);border-radius:14px;padding:16px 14px;text-align:center;
+    cursor:pointer;background:var(--cream);transition:.18s}
+  .role-opt:hover{border-color:var(--gold)}
+  .role-opt.on{border-color:var(--gold);background:rgba(212,175,55,.12);box-shadow:0 0 0 1px var(--gold) inset}
+  .role-opt .ro-ic{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--gold);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 9px}
+  .role-opt b{display:block;font-size:14.5px;color:var(--navy-900)}
+  .role-opt span{font-size:12px;color:var(--muted)}
+  .auth-meta{display:flex;align-items:center;justify-content:space-between;margin:4px 0 22px;font-size:13.5px}
+  .auth-meta label{display:flex;align-items:center;gap:7px;color:var(--navy-800);cursor:pointer}
+  .auth-link{color:var(--gold-deep);font-weight:600;cursor:pointer;text-decoration:none;background:none;border:none;font-size:inherit;font-family:inherit}
+  .auth-link:hover{text-decoration:underline}
+  .auth-alt{text-align:center;color:var(--muted);font-size:14px;margin-top:20px}
+  .auth-divider{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:12.5px;margin:22px 0}
+  .auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:var(--line)}
+  .auth-demo{background:rgba(212,175,55,.10);border:1px dashed rgba(212,175,55,.55);border-radius:13px;
+    padding:13px 15px;font-size:13px;color:var(--navy-800);margin-bottom:22px;line-height:1.6}
+  .auth-demo b{color:var(--gold-deep)}
+  .auth-demo code{font-family:inherit;font-weight:600;color:var(--navy-900);background:var(--white);
+    border:1px solid var(--line);border-radius:6px;padding:1px 7px}
+
+  /* ---------- ACCOUNT MENU ---------- */
+  .account{position:relative;flex:0 0 auto}
+  .account>.avatar-pill{border:1px solid var(--line)}
+  .account .caret{transition:transform .2s;color:var(--muted)}
+  .account.open .caret{transform:rotate(180deg)}
+  .account-menu{position:absolute;top:calc(100% + 10px);right:0;width:248px;background:var(--white);
+    border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:8px;
+    opacity:0;visibility:hidden;transform:translateY(-6px);transition:.18s;z-index:60}
+  .account.open .account-menu{opacity:1;visibility:visible;transform:none}
+  .am-head{padding:12px 13px 13px;border-bottom:1px solid var(--line);margin-bottom:6px}
+  .am-head strong{display:block;font-family:'Playfair Display',serif;font-size:16px;color:var(--navy-900)}
+  .am-head span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis}
+  .am-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--gold-deep);
+    background:rgba(212,175,55,.14);border-radius:20px;padding:3px 9px;margin-top:9px}
+  .account-menu a,.account-menu button{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    background:none;border:none;font-family:inherit;font-size:14px;color:var(--navy-800);cursor:pointer;
+    padding:11px 13px;border-radius:10px;transition:.14s}
+  .account-menu a:hover,.account-menu button:hover{background:var(--cream-2)}
+  .account-menu .am-logout{color:#B23A2E;border-top:1px solid var(--line);margin-top:6px;border-radius:0 0 10px 10px}
+  .account-menu .am-logout:hover{background:#FBF3F1}
+  .mm-user{display:flex;align-items:center;gap:11px;padding:6px 4px 12px}
+  .mm-user .ava{width:40px;height:40px;font-size:15px}
+  .mm-user b{display:block;font-family:'Playfair Display',serif;font-size:16px;color:var(--navy-900)}
+  .mm-user span{font-size:12.5px;color:var(--muted)}
+
+  /* ---------- CAREGIVER DASHBOARD ---------- */
+  .dash-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:34px 0 22px}
+  .dash-head h1{font-size:32px;color:var(--navy-900);font-weight:700}
+  .dash-head h1 .wave{font-style:normal}
+  .dash-head p{color:var(--muted);margin-top:4px}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
+  .stat{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm);transition:.2s}
+  .stat:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+  .stat .si{width:42px;height:42px;border-radius:12px;background:rgba(212,175,55,.14);
+    display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .stat .sv{font-family:'Playfair Display',serif;font-size:27px;color:var(--navy-900);line-height:1}
+  .stat .sl{font-size:13px;color:var(--muted);margin-top:6px}
+  .stat .trend{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;margin-top:10px;
+    color:#5a7256;background:#E9EDE8;padding:3px 9px;border-radius:20px}
+  .dash-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;align-items:start;padding-bottom:60px}
+  .panel{background:var(--white);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:var(--shadow-sm);margin-bottom:24px}
+  .panel-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .panel-h b{font-family:'Playfair Display',serif;font-size:19px;color:var(--navy-900)}
+  .panel-h .count{font-size:12px;font-weight:600;background:var(--gold);color:var(--navy-900);border-radius:20px;padding:3px 10px}
+  .empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px}
+
+  .req{display:flex;gap:14px;align-items:center;border:1px solid var(--line);border-radius:15px;padding:15px 16px;margin-bottom:12px;transition:.18s}
+  .req:hover{border-color:rgba(212,175,55,.5)}
+  .req .ava{width:48px;height:48px;font-size:16px;flex:0 0 auto}
+  .req .ri{flex:1;min-width:0}
+  .req .ri b{font-size:15px;color:var(--navy-900)}
+  .req .ri .rd{font-size:13px;color:var(--muted);margin-top:3px}
+  .req .ri .rs{display:inline-block;font-size:12px;font-weight:600;color:var(--gold-deep);margin-top:6px}
+  .req-actions{display:flex;gap:8px;flex:0 0 auto}
+  .btn-sm{padding:9px 15px;font-size:13px;border-radius:10px}
+  .btn-accept{background:var(--navy-900);color:var(--cream)}
+  .btn-accept:hover{background:var(--navy-800)}
+  .btn-decline{background:transparent;color:#B23A2E;border:1px solid #E3C9C4}
+  .btn-decline:hover{background:#FBF3F1}
+  @media(max-width:520px){.req{flex-wrap:wrap}.req-actions{width:100%}.btn-sm{flex:1}}
+
+  .avail-day{display:flex;align-items:center;justify-content:space-between;padding:13px 4px;border-bottom:1px solid var(--line)}
+  .avail-day:last-child{border:none}
+  .avail-day .ad-name{font-size:14.5px;font-weight:500;color:var(--navy-800)}
+  .switch{position:relative;width:44px;height:25px;flex:0 0 auto;cursor:pointer}
+  .switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .switch .track{position:absolute;inset:0;background:#D8D2C6;border-radius:20px;transition:.2s}
+  .switch .thumb{position:absolute;top:3px;left:3px;width:19px;height:19px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch input:checked~.track{background:var(--gold)}
+  .switch input:checked~.thumb{left:22px}
+  .switch input:focus-visible~.track{outline:2.5px solid var(--gold-deep);outline-offset:2px}
+
+  .cg-services{display:flex;flex-wrap:wrap;gap:8px}
+  .cg-serv{font-size:13px;font-weight:500;padding:8px 14px;border-radius:30px;border:1px solid var(--line);
+    background:var(--white);cursor:pointer;transition:.16s;color:var(--navy-800)}
+  .cg-serv:hover{border-color:var(--gold)}
+  .cg-serv.on{background:var(--navy-900);color:var(--cream);border-color:var(--navy-900)}
+  .preview-note{font-size:12.5px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+
+  /* ---------- EARNINGS CHART ---------- */
+  .chart{display:flex;gap:10px;align-items:flex-end;height:178px;padding-top:24px}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:9px;height:100%}
+  .bar{width:100%;max-width:40px;background:linear-gradient(180deg,var(--gold-soft),var(--gold));
+    border-radius:8px 8px 4px 4px;position:relative;transition:.25s;min-height:6px;cursor:default}
+  .bar.cur{background:linear-gradient(180deg,var(--gold),var(--gold-deep))}
+  .bar-col:hover .bar{filter:brightness(1.05)}
+  .bar .tip{position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:var(--navy-900);
+    color:var(--cream);font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;white-space:nowrap;
+    opacity:0;transition:.18s;pointer-events:none}
+  .bar-col:hover .tip{opacity:1;top:-28px}
+  .bar-m{font-size:11.5px;color:var(--muted);font-weight:600}
+
+  /* ---------- ORDER DETAIL ---------- */
+  .od-info{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+  .od-info .r{display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+  .od-info .r:last-child{border:none}
+  .od-info .r .l{color:var(--muted);flex:0 0 auto}
+  .od-info .r .v{color:var(--navy-900);font-weight:500;text-align:right}
+  .timeline{margin-top:6px}
+  .tl-step{display:flex;gap:14px;position:relative;padding-bottom:20px}
+  .tl-step:last-child{padding-bottom:0}
+  .tl-step::before{content:"";position:absolute;left:11px;top:24px;bottom:-2px;width:2px;background:var(--line)}
+  .tl-step:last-child::before{display:none}
+  .tl-dot{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);background:var(--white);
+    flex:0 0 auto;display:flex;align-items:center;justify-content:center;z-index:1}
+  .tl-step.done .tl-dot{background:var(--gold);border-color:var(--gold)}
+  .tl-step.done .tl-dot svg{display:block}
+  .tl-step.active .tl-dot{border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,175,55,.18)}
+  .tl-dot svg{display:none}
+  .tl-tx b{font-size:14.5px;color:var(--navy-900);display:block}
+  .tl-tx span{font-size:12.5px;color:var(--muted)}
+  .tl-step:not(.done):not(.active) .tl-tx b{color:var(--muted);font-weight:500}
+
+  /* ---------- CHAT ---------- */
+  .chat-layout{display:grid;grid-template-columns:300px 1fr;border:1px solid var(--line);border-radius:20px;
+    overflow:hidden;height:560px;background:var(--white);box-shadow:var(--shadow-sm);margin:6px 0 50px}
+  .chat-list{border-right:1px solid var(--line);overflow-y:auto;background:var(--cream)}
+  .chat-list-h{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:16px 16px 8px}
+  .chat-li{display:flex;gap:12px;align-items:center;padding:13px 16px;cursor:pointer;border-bottom:1px solid var(--line);transition:.14s;background:none;border-left:none;border-right:none;border-top:none;width:100%;text-align:left;font-family:inherit}
+  .chat-li:hover{background:var(--cream-2)}
+  .chat-li.on{background:var(--white)}
+  .chat-li .ava{width:44px;height:44px;font-size:15px;flex:0 0 auto}
+  .chat-li .ci{flex:1;min-width:0}
+  .chat-li .ci b{font-size:14.5px;color:var(--navy-900);display:block}
+  .chat-li .ci span{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;margin-top:2px}
+  .chat-main{display:flex;flex-direction:column;min-width:0}
+  .chat-head{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  .chat-head .ava{width:40px;height:40px;font-size:14px}
+  .chat-head b{font-family:'Playfair Display',serif;font-size:16px;color:var(--navy-900);display:block}
+  .chat-head span{font-size:12.5px;color:#5a7256;display:flex;align-items:center;gap:5px}
+  .chat-head span::before{content:"";width:7px;height:7px;border-radius:50%;background:#6FAE6A}
+  .chat-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:8px;background:var(--cream-2)}
+  .msg{max-width:74%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.45;animation:fade .3s ease both}
+  .msg.them{background:var(--white);border:1px solid var(--line);border-bottom-left-radius:5px;align-self:flex-start;color:var(--ink)}
+  .msg.me{background:var(--navy-900);color:var(--cream);border-bottom-right-radius:5px;align-self:flex-end}
+  .msg .mt{display:block;font-size:10.5px;opacity:.6;margin-top:4px;text-align:right}
+  .chat-input{display:flex;gap:10px;padding:14px 16px;border-top:1px solid var(--line);background:var(--white);flex:0 0 auto}
+  .chat-input input{flex:1;border:1px solid var(--line);background:var(--cream);border-radius:12px;padding:12px 15px;font-family:inherit;font-size:14px;outline:none;color:var(--ink)}
+  .chat-input input:focus{border-color:var(--gold);background:var(--white)}
+  .chat-send{width:46px;height:46px;border-radius:12px;border:none;background:var(--gold);color:var(--navy-900);cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transition:.16s}
+  .chat-send:hover{background:var(--gold-soft)}
+  .typing{align-self:flex-start;font-size:13px;color:var(--muted);font-style:italic;padding:2px 6px}
+  @media(max-width:760px){
+    .chat-layout{grid-template-columns:1fr;height:auto}
+    .chat-list{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line)}
+    .chat-list-h{display:none}
+    .chat-li{flex:0 0 auto;border-bottom:none;flex-direction:column;text-align:center;gap:6px;padding:12px}
+    .chat-li .ci span,.chat-li .ci b{display:none}
+    .chat-body{height:60vh}
+  }
+
+  /* ---------- MODAL / RATING ---------- */
+  .modal{position:fixed;inset:0;z-index:120;display:none}
+  .modal.open{display:block}
+  .modal-scrim{position:absolute;inset:0;background:rgba(13,27,42,.5);animation:fade .25s ease both}
+  .modal-card{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(440px,92vw);
+    background:var(--white);border:1px solid var(--line);border-radius:22px;padding:32px 30px;
+    box-shadow:var(--shadow);animation:pop .28s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes pop{from{opacity:0;transform:translate(-50%,-46%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+  .modal-card h3{font-family:'Playfair Display',serif;font-size:22px;color:var(--navy-900);margin-bottom:6px}
+  .modal-card p.msub{color:var(--muted);font-size:14px;margin-bottom:20px}
+  .modal-x{position:absolute;top:16px;right:16px;background:none;border:none;cursor:pointer;color:var(--muted);padding:6px;display:flex}
+  .modal-x:hover{color:var(--navy-900)}
+  .star-pick{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
+  .star{background:none;border:none;font-size:40px;line-height:1;color:#DAD3C6;cursor:pointer;transition:.14s;padding:0}
+  .star.on{color:var(--gold)}
+  .star:hover{transform:scale(1.14)}
+  .modal-card textarea.inp{min-height:92px;margin-bottom:18px}
+
+  /* ---------- HOME GREETING ---------- */
+  .home-greeting{display:inline-flex;align-items:center;gap:8px;background:rgba(212,175,55,.14);
+    border:1px solid rgba(212,175,55,.4);color:var(--gold-deep);font-size:13.5px;font-weight:600;
+    padding:7px 15px;border-radius:20px;margin-bottom:16px;animation:fade .5s ease both}
+
+  /* ---------- POLISH ---------- */
+  section.block[id]{scroll-margin-top:90px}
+  .btn:active{transform:translateY(1px)}
+  .btn-gold:active{transform:translateY(0)}
+  .avatar-pill{transition:.18s}
+  .avatar-pill:hover{border-color:var(--gold);box-shadow:var(--shadow-sm)}
+  .store{transition:.18s}
+  .store:hover{border-color:rgba(212,175,55,.5);background:var(--navy-700)}
+  .care-name,.serv b{transition:color .18s}
+  .care-card:hover .care-name,.serv:hover b{color:var(--gold-deep)}
+  .day.has{font-weight:600}
+  .day[role="button"]:hover{background:rgba(212,175,55,.18)}
+
+  /* responsive */
+  @media(max-width:980px){
+    .hero-grid,.profile-grid,.booking-grid,.cal-grid,.aud-grid,.dash-grid{grid-template-columns:1fr}
+    .hero{min-height:0;padding:56px 0}
+    .serv-grid,.stat-grid{grid-template-columns:repeat(2,1fr)}
+    .care-grid{grid-template-columns:repeat(2,1fr)}
+    .foot-grid{grid-template-columns:1fr 1fr}
+    .book-aside,.summary-card,.book-aside.book-aside{position:static}
+  }
+  @media(max-width:760px){
+    .nav-links{display:none}
+    .menu-toggle{display:flex}
+    .nav-right .btn{display:none}
+  }
+  @media(max-width:640px){
+    .care-grid,.serv-grid,.opt-grid,.pchips,.grid2,.stat-grid{grid-template-columns:1fr}
+    .wrap{padding:0 18px}
+    .auth-card{padding:30px 22px}
+    .trust-row{gap:18px}
+  }
+  @media(max-width:780px){
+    .auth-split{max-width:460px;flex-direction:column}
+    .auth-photo{flex:0 0 auto;min-height:220px;background-position:50% 22%}
+    .auth-split .auth-card{padding:34px 30px}
+  }
+</style>
+</head>
+<body>
+
+<a href="#main" class="skip-link">Přeskočit na obsah</a>
+
+<!-- ============ NAV ============ -->
+<header class="nav">
+  <div class="wrap nav-inner">
+    <div class="brand" role="button" tabindex="0" aria-label="ZENVORIA — domů" onclick="go('home')">
+      <img class="mark" src="logo.webp" alt="ZENVORIA logo" />
+      <span class="word">ZENVORIA</span>
+    </div>
+    <nav class="nav-links" id="navlinks" aria-label="Hlavní navigace">
+      <a data-v="home" role="button" tabindex="0" onclick="go('home')">Domů</a>
+      <a data-v="search" role="button" tabindex="0" onclick="go('search')">Hledat péči</a>
+      <a data-v="howto" role="button" tabindex="0" onclick="go('home');scrollTo2('howto')">Jak to funguje</a>
+      <a data-v="bookings" role="button" tabindex="0" onclick="go('bookings')">Moje objednávky</a>
+    </nav>
+    <div class="nav-right">
+      <button class="theme-toggle" id="themeToggle" aria-label="Přepnout světlý/tmavý režim" onclick="toggleTheme()">
+        <svg id="themeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"></svg>
+      </button>
+      <button class="btn btn-ghost" id="loginBtn" onclick="go('login')">Přihlásit se</button>
+      <button class="btn btn-gold" id="navCta" onclick="go('search')">Najít pečovatelku</button>
+      <div class="account" id="accountWrap" hidden>
+        <button class="avatar-pill" id="avatarPill" aria-haspopup="menu" aria-expanded="false" aria-label="Můj účet" onclick="toggleAccountMenu()">
+          <div class="ava" id="avatarInit" style="width:30px;height:30px;font-size:12px">MH</div>
+          <span id="avatarName" style="font-size:13.5px;font-weight:600;color:var(--navy-900)">Marie</span>
+          <svg class="caret" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="notif-dot" id="notifDot" hidden></span>
+        </button>
+        <div class="account-menu" id="accountMenu" role="menu">
+          <div class="am-head">
+            <strong id="amName">Marie</strong>
+            <span id="amEmail">marie@email.cz</span>
+            <span class="am-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#B8942A" stroke-width="1.8"/><path d="m9 12 2 2 4-4" stroke="#B8942A" stroke-width="1.8" stroke-linecap="round"/></svg><span id="amBadgeText">Účet rodiny</span></span>
+          </div>
+          <div id="amLinks"></div>
+          <a role="menuitem" tabindex="0" onclick="toast('⚙️ Nastavení účtu bude brzy k dispozici.')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3" stroke="#7A736A" stroke-width="1.6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/></svg>Nastavení</a>
+          <button class="am-logout" role="menuitem" onclick="logout()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 12H6m0 0 3-3m-3 3 3 3M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" stroke="#B23A2E" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Odhlásit se</button>
+        </div>
+      </div>
+      <button class="menu-toggle" id="menuToggle" aria-label="Otevřít menu" aria-expanded="false" aria-controls="mobileMenu" onclick="toggleMenu(true)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ MOBILE MENU ============ -->
+<div class="mobile-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-label="Menu">
+  <div class="scrim" onclick="toggleMenu(false)"></div>
+  <div class="panel">
+    <div class="mm-head">
+      <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+      <button class="mm-close" aria-label="Zavřít menu" onclick="toggleMenu(false)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div id="mmLinks">
+      <a data-v="home" role="button" tabindex="0" onclick="go('home')">Domů</a>
+      <a data-v="search" role="button" tabindex="0" onclick="go('search')">Hledat péči</a>
+      <a data-v="howto" role="button" tabindex="0" onclick="go('home');scrollTo2('howto')">Jak to funguje</a>
+      <a data-v="bookings" role="button" tabindex="0" onclick="go('bookings')">Moje objednávky</a>
+    </div>
+    <div class="mm-divider"></div>
+    <div id="mmAuth">
+      <a data-v="login" role="button" tabindex="0" onclick="go('login')">Přihlásit se</a>
+      <a role="button" tabindex="0" onclick="go('register')">Registrace</a>
+    </div>
+  </div>
+</div>
+
+<main id="main">
+
+<!-- ============ HOME ============ -->
+<div class="view active" id="view-home">
+  <section class="hero">
+    <div class="hero-bg" id="heroBg"></div>
+    <div class="wrap hero-grid">
+      <div>
+        <div id="homeGreeting" class="home-greeting" hidden></div>
+        <span class="eyebrow">Péče s lidskostí</span>
+        <h1>Ověřené pečovatelky <em>na dosah.</em> Klid pro seniory i rodiny.</h1>
+        <p class="lead">ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Jednoduše, bezpečně a s lidským přístupem.</p>
+        <div class="hero-cta">
+          <button class="btn btn-gold" onclick="go('search')">Najít pečovatelku</button>
+          <button class="btn btn-ghost" onclick="go('home');scrollTo2('howto')">Jak to funguje</button>
+        </div>
+        <div class="trust-row">
+          <div class="trust">
+            <div class="ic">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#D4AF37" stroke-width="1.6"/><path d="m9 12 2 2 4-4" stroke="#D4AF37" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <div><b>Ověřené pečovatelky</b><span>Doklady i reference</span></div>
+          </div>
+          <div class="trust">
+            <div class="ic">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z" stroke="#D4AF37" stroke-width="1.6"/></svg>
+            </div>
+            <div><b>Bezpečná péče</b><span>Pojištění i platby</span></div>
+          </div>
+          <div class="trust">
+            <div class="ic">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z" stroke="#D4AF37" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </div>
+            <div><b>Klid pro blízké</b><span>Přehled 24/7</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- services -->
+  <section class="block" id="howto" style="background:var(--white)">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Služby v aplikaci</span>
+        <h2>Vše, co vaši blízcí potřebují</h2>
+        <p>Od osobní péče po doprovod k lékaři — vyberte si přesně to, co je třeba.</p>
+      </div>
+      <div class="serv-grid" id="servGrid"></div>
+    </div>
+  </section>
+
+  <!-- audience -->
+  <section class="block aud-section">
+    <div class="aud-bg" id="audBg"></div>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Pro koho je aplikace</span>
+        <h2>Spojujeme dvě strany jedné péče</h2>
+      </div>
+      <div class="aud-grid">
+        <div class="aud fam">
+          <div class="ic-circ"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="#0D1B2A" stroke-width="1.5"/><circle cx="17" cy="9" r="2.4" stroke="#0D1B2A" stroke-width="1.5"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M15 19c0-2 1.5-3.5 4-3.5" stroke="#0D1B2A" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          <h3>Pro rodiny</h3>
+          <p class="aud-sub">Najděte ověřenou péči pro své blízké.</p>
+          <ul>
+            <li>{c} Hledání ověřených pečovatelek</li>
+            <li>{c} Hodnocení a recenze</li>
+            <li>{c} Online rezervace služeb</li>
+            <li>{c} Chat a videohovor</li>
+            <li>{c} SOS kontakt 24/7</li>
+            <li>{c} Přehled objednávek a plateb</li>
+          </ul>
+          <button class="btn btn-navy" onclick="go('search')">Najít péči</button>
+        </div>
+        <div class="aud car">
+          <div class="ic-circ"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="#D4AF37" stroke-width="1.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          <h3>Pro pečovatelky</h3>
+          <p class="aud-sub">Pomáhejte a vydělávejte s důvěrou.</p>
+          <ul>
+            <li>{cg} Rychlá registrace a ověření</li>
+            <li>{cg} Nabídka služeb</li>
+            <li>{cg} Kalendář dostupnosti</li>
+            <li>{cg} Bezpečné platby</li>
+            <li>{cg} Hodnocení a recenze</li>
+            <li>{cg} Podpora a vzdělávání</li>
+          </ul>
+          <button class="btn btn-gold" onclick="go('register');pickRole('caregiver')">Stát se pečovatelkou</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- values -->
+  <section class="block" style="background:var(--white)">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Naše hodnoty</span>
+        <h2>Péčí s lidskostí.</h2>
+      </div>
+      <div class="values" id="valuesRow"></div>
+    </div>
+  </section>
+</div>
+
+<!-- ============ SEARCH ============ -->
+<div class="view" id="view-search">
+  <div class="wrap">
+    <div class="page-head">
+      <h1>Hledat pečovatelku</h1>
+      <p>Najděte ověřenou pečovatelku ve svém okolí.</p>
+    </div>
+    <div class="search-bar">
+      <div class="field">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#7A736A" stroke-width="1.6"/><path d="m20 20-3-3" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input id="q" placeholder="Hledat péče / lokalitu" oninput="renderCare()">
+      </div>
+      <div class="field" style="max-width:230px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.4" stroke="#7A736A" stroke-width="1.6"/></svg>
+        <select id="loc" onchange="renderCare()">
+          <option value="">Celá Praha</option>
+          <option>Praha 2</option><option>Praha 3</option><option>Praha 4</option>
+          <option>Praha 5</option><option>Praha 6</option><option>Praha 7</option>
+        </select>
+      </div>
+      <button class="btn btn-navy" onclick="renderCare()">Filtry</button>
+    </div>
+    <div class="filters" id="servFilters"></div>
+    <div class="sort-row">
+      <span class="rescount" id="careCount"></span>
+      <label>Cena do <b id="priceMaxVal">300</b> Kč
+        <input type="range" id="priceMax" min="200" max="300" step="10" value="300" aria-label="Maximální cena za hodinu" oninput="document.getElementById('priceMaxVal').textContent=this.value;renderCare()">
+      </label>
+      <label><input type="checkbox" id="onlyVerified" onchange="renderCare()"> Jen ověřené</label>
+      <label>Řadit:
+        <select id="sortBy" onchange="renderCare()">
+          <option value="rec">Doporučené</option>
+          <option value="price-asc">Cena: nejlevnější</option>
+          <option value="price-desc">Cena: nejdražší</option>
+          <option value="rating">Nejlépe hodnocené</option>
+          <option value="exp">Nejvíc praxe</option>
+        </select>
+      </label>
+    </div>
+    <div class="care-grid" id="careGrid"></div>
+  </div>
+</div>
+
+<!-- ============ PROFILE ============ -->
+<div class="view" id="view-profile">
+  <div class="wrap">
+    <button class="back-link" onclick="go('search')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="m14 6-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Zpět na výsledky
+    </button>
+    <div class="profile-grid" id="profileGrid"></div>
+  </div>
+</div>
+
+<!-- ============ BOOKING ============ -->
+<div class="view" id="view-booking">
+  <div class="wrap">
+    <button class="back-link" onclick="openProfile(state.caregiverId)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="m14 6-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Zpět na profil
+    </button>
+    <div class="page-head" style="padding-top:8px"><h1>Objednávka služby</h1></div>
+    <div class="booking-grid">
+      <div>
+        <div class="step">
+          <div class="step-h"><div class="step-num">1</div><b>Vyberte službu</b></div>
+          <div class="opt-grid" id="bkServices"></div>
+        </div>
+        <div class="step">
+          <div class="step-h"><div class="step-num">2</div><b>Datum a čas</b></div>
+          <div class="grid2">
+            <div><label class="lbl">Datum</label><input type="date" class="inp" id="bkDate" onchange="updateSummary()"></div>
+            <div><label class="lbl">Čas</label><input type="time" class="inp" id="bkTime" value="10:00" onchange="updateSummary()"></div>
+          </div>
+          <div style="margin-top:14px"><label class="lbl">Délka péče</label>
+            <div class="opt-grid" id="bkHours"></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-h"><div class="step-num">3</div><b>Adresa a poznámka</b></div>
+          <label class="lbl">Adresa</label>
+          <input class="inp" id="bkAddr" placeholder="Ulice a číslo, Praha" value="Veleslavínská 123, Praha 6">
+          <div style="margin-top:14px"><label class="lbl">Poznámka pro pečovatelku</label>
+            <textarea class="inp" id="bkNote" placeholder="Např. Ráda bych doprovod k lékaři.">Ráda bych doprovod k lékaři.</textarea>
+          </div>
+        </div>
+      </div>
+      <div class="summary-card" id="summaryCard"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ BOOKINGS / CALENDAR ============ -->
+<div class="view" id="view-bookings">
+  <div class="wrap">
+    <div class="page-head"><h1>Moje objednávky</h1><p>Přehled vašich naplánovaných i minulých služeb.</p></div>
+    <div class="cal-grid">
+      <div class="cal">
+        <div class="cal-head">
+          <b id="calTitle">Květen 2026</b>
+          <div class="cal-nav">
+            <button onclick="calMove(-1)">‹</button>
+            <button onclick="calMove(1)">›</button>
+          </div>
+        </div>
+        <div class="dow"><span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span></div>
+        <div class="days" id="calDays"></div>
+        <div style="margin-top:18px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--gold);display:inline-block"></span> Naplánovaná služba
+        </div>
+      </div>
+      <div>
+        <div class="tabs">
+          <div class="tab on" onclick="setOrderTab(this,'up')">Nadcházející</div>
+          <div class="tab" onclick="setOrderTab(this,'past')">Minulé</div>
+        </div>
+        <div id="orderList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CAREGIVER · DASHBOARD ============ -->
+<div class="view" id="view-cg-dashboard">
+  <div class="wrap">
+    <div class="dash-head">
+      <div>
+        <h1>Dobrý den, <span id="cgFirst">Jano</span> <span class="wave">👋</span></h1>
+        <p id="cgIntro">Tady je přehled vaší péče.</p>
+      </div>
+      <button class="btn btn-gold" onclick="go('cg-profile')">Upravit profil</button>
+    </div>
+    <div class="stat-grid" id="cgStats"></div>
+    <div class="dash-grid">
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Výdělky (posledních 6 měsíců)</b><span class="count" id="earnTotal"></span></div>
+          <div class="chart" id="earnChart"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><b>Nadcházející služby</b></div>
+          <div id="cgScheduleList"></div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Nové poptávky</b><span class="count" id="cgReqBadge">0</span></div>
+          <div id="cgReqPreview"></div>
+          <button class="btn btn-ghost btn-block" style="margin-top:6px" onclick="go('cg-requests')">Zobrazit všechny poptávky</button>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><b>Rychlé akce</b></div>
+          <div class="cg-services" style="flex-direction:column;align-items:stretch;gap:10px">
+            <button class="btn btn-ghost" style="justify-content:flex-start;text-align:left" onclick="go('cg-calendar')">📅 Nastavit dostupnost</button>
+            <button class="btn btn-ghost" style="text-align:left" onclick="go('cg-profile')">👤 Upravit veřejný profil</button>
+            <button class="btn btn-ghost" style="text-align:left" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')">🎓 Vzdělávání</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CAREGIVER · REQUESTS ============ -->
+<div class="view" id="view-cg-requests">
+  <div class="wrap">
+    <div class="page-head"><h1>Poptávky a objednávky</h1><p>Přijměte nové poptávky a mějte přehled o potvrzených službách.</p></div>
+    <div class="dash-grid" style="grid-template-columns:1fr 1fr">
+      <div class="panel">
+        <div class="panel-h"><b>Nové poptávky</b><span class="count" id="cgReqBadge2">0</span></div>
+        <div id="cgReqFull"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><b>Potvrzené služby</b></div>
+        <div id="cgConfirmed"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CAREGIVER · CALENDAR ============ -->
+<div class="view" id="view-cg-calendar">
+  <div class="wrap">
+    <div class="page-head"><h1>Kalendář dostupnosti</h1><p>Nastavte, kdy jste k dispozici, a mějte přehled o naplánovaných službách.</p></div>
+    <div class="cal-grid">
+      <div class="cal">
+        <div class="cal-head">
+          <b id="cgCalTitle">Červen 2026</b>
+          <div class="cal-nav">
+            <button aria-label="Předchozí měsíc" onclick="cgCalMove(-1)">‹</button>
+            <button aria-label="Další měsíc" onclick="cgCalMove(1)">›</button>
+          </div>
+        </div>
+        <div class="dow"><span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span></div>
+        <div class="days" id="cgCalDays"></div>
+        <div style="margin-top:18px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--gold);display:inline-block"></span> Naplánovaná služba
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Týdenní dostupnost</b></div>
+          <div id="cgAvail"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><b>Naplánováno</b></div>
+          <div id="cgCalJobs"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CAREGIVER · PROFILE ============ -->
+<div class="view" id="view-cg-profile">
+  <div class="wrap">
+    <div class="page-head"><h1>Můj profil</h1><p>Takto vás vidí rodiny. Vše můžete upravit a změny se hned promítnou do náhledu.</p></div>
+    <div class="profile-grid">
+      <div class="pcard">
+        <h3>Základní údaje</h3>
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Jméno a příjmení</label><input class="inp" id="cpName" oninput="syncCgPreview()"></div>
+          <div><label class="lbl">Lokalita</label>
+            <select class="inp" id="cpLoc" onchange="syncCgPreview()">
+              <option>Praha 2</option><option>Praha 3</option><option>Praha 4</option>
+              <option>Praha 5</option><option>Praha 6</option><option>Praha 7</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Hodinová sazba (Kč)</label><input class="inp" type="number" id="cpRate" min="150" max="600" step="10" oninput="syncCgPreview()"></div>
+          <div><label class="lbl">Roky praxe</label><input class="inp" type="number" id="cpExp" min="0" max="40" oninput="syncCgPreview()"></div>
+        </div>
+        <div style="margin-top:14px"><label class="lbl">O mně</label><textarea class="inp" id="cpBio" oninput="syncCgPreview()"></textarea></div>
+        <div class="pdiv"></div>
+        <h3>Nabízené služby</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vyberte služby, které nabízíte.</p>
+        <div class="cg-services" id="cpServices"></div>
+        <button class="btn btn-gold" style="margin-top:24px" onclick="saveCgProfile()">Uložit změny</button>
+      </div>
+      <div class="pcard book-aside">
+        <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="#7A736A" stroke-width="1.6"/></svg>Náhled — takto vás uvidí rodiny</div>
+        <div id="cgPreview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ORDER DETAIL ============ -->
+<div class="view" id="view-order-detail">
+  <div class="wrap">
+    <button class="back-link" id="odBack" onclick="go('bookings')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="m14 6-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="odBackLabel">Zpět na objednávky</span>
+    </button>
+    <div class="page-head" style="padding-top:8px"><h1>Detail objednávky</h1></div>
+    <div class="profile-grid" id="orderDetailGrid"></div>
+  </div>
+</div>
+
+<!-- ============ CHAT ============ -->
+<div class="view" id="view-chat">
+  <div class="wrap">
+    <div class="page-head"><h1>Zprávy</h1><p>Komunikujte přímo a domluvte se na detailech péče.</p></div>
+    <div class="chat-layout">
+      <div class="chat-list" id="chatList"></div>
+      <div class="chat-main">
+        <div class="chat-head" id="chatHead"></div>
+        <div class="chat-body" id="chatBody"></div>
+        <form class="chat-input" onsubmit="return sendChat(event)">
+          <input id="chatInput" placeholder="Napište zprávu…" autocomplete="off" aria-label="Napsat zprávu">
+          <button class="chat-send" type="submit" aria-label="Odeslat">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 20 4l-6 16-3-7-7-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div class="view" id="view-login">
+  <div class="auth-wrap">
+    <div class="auth-split">
+    <aside class="auth-photo" role="img" aria-label="Pečovatelka a seniorka">
+      <div class="auth-photo-cap">
+        <div class="q">„Péče s lidskostí — pro klid vašich blízkých."</div>
+        <div class="a">Ověřené pečovatelky, kterým můžete věřit.</div>
+      </div>
+    </aside>
+    <form class="auth-card" id="loginForm" novalidate onsubmit="return submitLogin(event)">
+      <div class="brand">
+        <img class="mark" src="logo.webp" alt="ZENVORIA logo" style="width:62px;height:62px" />
+        <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+      </div>
+      <h1>Vítejte zpět</h1>
+      <p class="sub">Přihlaste se ke svému účtu a spravujte péči pro své blízké.</p>
+
+      <div class="auth-demo">
+        <b>Demo účet</b> — údaje jsou předvyplněné, stačí kliknout na <b>Přihlásit se</b>.<br>
+        E-mail: <code>demo@zenvoria.cz</code> · Heslo: <code>demo123</code>
+      </div>
+
+      <div class="auth-field" id="lf-email">
+        <label class="lbl" for="loginEmail">E-mail</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18v12H3V6Z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="email" id="loginEmail" autocomplete="email" placeholder="vas@email.cz" value="demo@zenvoria.cz" aria-describedby="lf-email-err">
+        </div>
+        <div class="err" id="lf-email-err">Zadejte platný e-mail.</div>
+      </div>
+
+      <div class="auth-field" id="lf-pw">
+        <label class="lbl" for="loginPw">Heslo</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="password" id="loginPw" autocomplete="current-password" placeholder="Vaše heslo" value="demo123" aria-describedby="lf-pw-err">
+          <button type="button" class="pw-toggle" aria-label="Zobrazit heslo" onclick="togglePw(this,'loginPw')">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+          </button>
+        </div>
+        <div class="err" id="lf-pw-err">Zadejte heslo (min. 6 znaků).</div>
+      </div>
+
+      <div class="auth-meta">
+        <label><input type="checkbox" id="loginRemember" checked> Zapamatovat si mě</label>
+        <button type="button" class="auth-link" onclick="go('forgot')">Zapomněli jste heslo?</button>
+      </div>
+
+      <button type="submit" class="btn btn-gold btn-block">Přihlásit se</button>
+      <p class="auth-alt">Nemáte účet? <button type="button" class="auth-link" onclick="go('register')">Zaregistrujte se</button></p>
+    </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FORGOT PASSWORD ============ -->
+<div class="view" id="view-forgot">
+  <div class="auth-wrap">
+    <div class="auth-split">
+    <aside class="auth-photo" role="img" aria-label="Pečovatelka a seniorka">
+      <div class="auth-photo-cap">
+        <div class="q">„Jsme tu, abychom vám pomohli."</div>
+        <div class="a">Obnovte přístup ke svému účtu během chvilky.</div>
+      </div>
+    </aside>
+    <form class="auth-card" id="forgotForm" novalidate onsubmit="return submitForgot(event)">
+      <div class="brand">
+        <img class="mark" src="logo.webp" alt="ZENVORIA logo" style="width:62px;height:62px" />
+        <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+      </div>
+
+      <div id="forgotFields">
+        <h1>Zapomněli jste heslo?</h1>
+        <p class="sub">Zadejte e-mail svého účtu a pošleme vám odkaz pro nastavení nového hesla.</p>
+
+        <div class="auth-field" id="ff-email">
+          <label class="lbl" for="forgotEmail">E-mail</label>
+          <div class="inp-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18v12H3V6Z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/></svg>
+            <input type="email" id="forgotEmail" autocomplete="email" placeholder="vas@email.cz" aria-describedby="ff-email-err">
+          </div>
+          <div class="err" id="ff-email-err">Zadejte platný e-mail.</div>
+        </div>
+
+        <button type="submit" class="btn btn-gold btn-block">Odeslat odkaz pro obnovu</button>
+        <p class="auth-alt">Vzpomněli jste si? <button type="button" class="auth-link" onclick="go('login')">Zpět na přihlášení</button></p>
+      </div>
+
+      <div id="forgotDone" style="display:none;text-align:center">
+        <div class="auth-done-ic" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="m5 12 4.5 4.5L19 7" stroke="#11151B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h1>Zkontrolujte e-mail</h1>
+        <p class="sub">Pokud u nás účet <b id="forgotEmailEcho"></b> existuje, poslali jsme na něj odkaz pro obnovu hesla. Zkontrolujte i složku se spamem.</p>
+        <button type="button" class="btn btn-gold btn-block" onclick="go('login')">Zpět na přihlášení</button>
+      </div>
+    </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============ REGISTER ============ -->
+<div class="view" id="view-register">
+  <div class="auth-wrap">
+    <form class="auth-card" id="registerForm" novalidate onsubmit="return submitRegister(event)">
+      <div class="brand">
+        <img class="mark" src="logo.webp" alt="ZENVORIA logo" style="width:62px;height:62px" />
+        <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+      </div>
+      <h1>Vytvořit účet</h1>
+      <p class="sub">Připojte se k ZENVORIA — péči s lidskostí.</p>
+
+      <div class="role-switch" role="radiogroup" aria-label="Typ účtu">
+        <div class="role-opt on" id="role-family" role="radio" tabindex="0" aria-checked="true" onclick="pickRole('family')">
+          <div class="ro-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3" stroke="#D4AF37" stroke-width="1.5"/><circle cx="17" cy="9" r="2.4" stroke="#D4AF37" stroke-width="1.5"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M15 19c0-2 1.5-3.5 4-3.5" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          <b>Rodina</b><span>Hledám péči</span>
+        </div>
+        <div class="role-opt" id="role-caregiver" role="radio" tabindex="0" aria-checked="false" onclick="pickRole('caregiver')">
+          <div class="ro-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.4" stroke="#D4AF37" stroke-width="1.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          <b>Pečovatelka</b><span>Nabízím péči</span>
+        </div>
+      </div>
+
+      <div class="auth-field" id="rf-name">
+        <label class="lbl" for="regName">Jméno a příjmení</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="text" id="regName" autocomplete="name" placeholder="Jana Nováková" aria-describedby="rf-name-err">
+        </div>
+        <div class="err" id="rf-name-err">Zadejte své jméno a příjmení.</div>
+      </div>
+
+      <div class="auth-field" id="rf-email">
+        <label class="lbl" for="regEmail">E-mail</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18v12H3V6Z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="email" id="regEmail" autocomplete="email" placeholder="vas@email.cz" aria-describedby="rf-email-err">
+        </div>
+        <div class="err" id="rf-email-err">Zadejte platný e-mail.</div>
+      </div>
+
+      <div class="auth-field" id="rf-phone">
+        <label class="lbl" for="regPhone">Telefon</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <input type="tel" id="regPhone" autocomplete="tel" placeholder="+420 777 123 456" aria-describedby="rf-phone-err">
+        </div>
+        <div class="err" id="rf-phone-err">Zadejte platné telefonní číslo.</div>
+      </div>
+
+      <div class="auth-field" id="rf-pw">
+        <label class="lbl" for="regPw">Heslo</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="password" id="regPw" autocomplete="new-password" placeholder="Alespoň 6 znaků" aria-describedby="rf-pw-err">
+          <button type="button" class="pw-toggle" aria-label="Zobrazit heslo" onclick="togglePw(this,'regPw')">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+          </button>
+        </div>
+        <div class="err" id="rf-pw-err">Heslo musí mít alespoň 6 znaků.</div>
+      </div>
+
+      <div class="auth-field" id="rf-terms">
+        <label class="auth-meta" style="margin:0"><span style="display:flex;align-items:center;gap:8px;color:var(--navy-800)"><input type="checkbox" id="regTerms"> Souhlasím s <button type="button" class="auth-link" onclick="event.preventDefault();openLegal('terms')">podmínkami</button></span></label>
+        <div class="err" id="rf-terms-err">Pro pokračování musíte souhlasit s podmínkami.</div>
+      </div>
+
+      <button type="submit" class="btn btn-gold btn-block" style="margin-top:6px">Vytvořit účet</button>
+      <p class="auth-alt">Už máte účet? <button type="button" class="auth-link" onclick="go('login')">Přihlaste se</button></p>
+    </form>
+  </div>
+</div>
+
+</main>
+
+<!-- ============ RATING MODAL ============ -->
+<div class="modal" id="ratingModal" role="dialog" aria-modal="true" aria-labelledby="ratingTitle">
+  <div class="modal-scrim" onclick="closeRating()"></div>
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeRating()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <h3 id="ratingTitle">Ohodnotit péči</h3>
+    <p class="msub">Jak jste byli spokojeni? Vaše hodnocení pomáhá ostatním rodinám.</p>
+    <div class="star-pick" id="starPick"></div>
+    <textarea class="inp" id="ratingText" placeholder="Napište pár slov o péči…"></textarea>
+    <button class="btn btn-gold btn-block" onclick="submitRating()">Odeslat hodnocení</button>
+  </div>
+</div>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div style="display:flex;align-items:center;gap:11px;margin-bottom:14px">
+          <img src="logo.webp" alt="ZENVORIA logo" width="62" height="62" />
+          <span class="word">ZENVORIA</span>
+        </div>
+        <p style="font-size:14px;max-width:300px">Péče s lidskostí. Ověřené pečovatelky pro vaše blízké — bezpečně, rychle a s důvěrou.</p>
+      </div>
+      <div><h5>Aplikace</h5><a role="button" tabindex="0" onclick="go('search')">Hledat péči</a><a role="button" tabindex="0" onclick="go('home');scrollTo2('howto')">Služby</a><a role="button" tabindex="0" onclick="go('bookings')">Moje objednávky</a><a role="button" tabindex="0" onclick="go('home');scrollTo2('howto')">Jak to funguje</a></div>
+      <div><h5>Pro pečovatelky</h5><a role="button" tabindex="0" onclick="go('register');pickRole('caregiver')">Registrace</a><a role="button" tabindex="0" onclick="toast('🛡️ Ověření probíhá do 48 hodin od registrace.')">Ověření</a><a role="button" tabindex="0" onclick="go('login')">Kalendář dostupnosti</a><a role="button" tabindex="0" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')">Vzdělávání</a></div>
+      <div><h5>Společnost</h5><a role="button" tabindex="0" onclick="toast('💛 ZENVORIA — péče s lidskostí od roku 2026.')">O nás</a><a role="button" tabindex="0" onclick="toast('🔒 Bezpečí: ověřené doklady, pojištění a zabezpečené platby.')">Bezpečí</a><a role="button" tabindex="0" onclick="toast('✉️ Kontakt: podpora@zenvoria.cz · +420 800 123 456')">Kontakt</a><a role="button" tabindex="0" onclick="toast('🚨 SOS linka 24/7: +420 800 999 111')">SOS 24/7</a></div>
+    </div>
+    <div class="foot-legal">
+      <a role="button" tabindex="0" onclick="openLegal('gdpr')">Ochrana osobních údajů</a>
+      <a role="button" tabindex="0" onclick="openLegal('terms')">Obchodní podmínky</a>
+      <a role="button" tabindex="0" onclick="openLegal('cookies')">Zásady cookies</a>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 ZENVORIA · Péče s lidskostí. · <a role="button" tabindex="0" style="display:inline;color:var(--gold)" onclick="resetDemo()">↺ Resetovat demo data</a></span>
+      <span style="display:flex;gap:8px"><span class="chip gold">Lidskost</span><span class="chip gold">Důvěra</span><span class="chip gold">Bezpečí</span></span>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ LEGAL / PRÁVNÍ STRÁNKY ============ -->
+<div class="view" id="view-legal">
+  <div class="legal">
+    <button type="button" class="back" onclick="go('home')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Zpět na úvod</button>
+    <h1 id="legalTitle"></h1>
+    <div class="legal-upd" id="legalUpd"></div>
+    <div class="legal-note">Toto je vzorový text pro demonstrační účely. Před ostrým provozem nahraďte dokumenty schválenými právními texty.</div>
+    <div id="legalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ---------- DATA ---------- */
+const SERVICES=[
+  {id:'osobni',name:'Osobní péče',icon:'M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'},
+  {id:'lekar',name:'Doprovod k lékaři',icon:'M9 3h6v3h3v6h-3v3H9v-3H6V6h3V3Z'},
+  {id:'domaci',name:'Domácí péče',icon:'M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z'},
+  {id:'pomoc',name:'Pomoc v domácnosti',icon:'M3 13h18M5 13V7l7-4 7 4v6M9 21v-5h6v5'},
+  {id:'nocni',name:'Noční péče',icon:'M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z'},
+  {id:'nemocnice',name:'Péče v nemocnici',icon:'M5 8h14v12H5V8ZM9 4h6v4H9V4ZM12 11v6M9 14h6'},
+  {id:'rehab',name:'Rehabilitace a cvičení',icon:'M4 12h2l2-5 4 10 2-5h6'},
+  {id:'spolecnost',name:'Společnost a povídání',icon:'M4 5h16v10H9l-5 4V5Z'}
+];
+const VALUES=['Lidskost','Důvěra','Respekt','Bezpečí','Profesionalita'];
+const VAL_ICONS=['M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','m5 12 4 4 10-10','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'];
+
+const CAREGIVERS=[
+  {id:1,name:'Jana Novotná',init:'JN',loc:'Praha 6',rate:250,rating:4.9,reviews:128,exp:5,
+   services:['osobni','lekar','spolecnost'],verified:true,cert:true,
+   bio:'Jsem pečovatelka s více než 5 lety praxe v péči o seniory. Nabízím laskavý přístup, spolehlivost a individuální péči. Ráda doprovázím k lékaři a věnuji se i společnosti a povídání.'},
+  {id:2,name:'Martina Svobodová',init:'MS',loc:'Praha 4',rate:230,rating:4.8,reviews:96,exp:8,
+   services:['domaci','nocni','rehab'],verified:true,cert:true,
+   bio:'Zkušená pečovatelka se zaměřením na domácí a noční péči. Mám zdravotnické vzdělání a certifikát rehabilitačního cvičení. Klienti oceňují můj klidný a trpělivý přístup.'},
+  {id:3,name:'Lucie Dvořáková',init:'LD',loc:'Praha 2',rate:250,rating:5.0,reviews:71,exp:3,
+   services:['pomoc','spolecnost','osobni'],verified:true,cert:false,
+   bio:'Ráda pomáhám seniorům s běžným chodem domácnosti a nejvíc mě baví společnost a povídání. Vždy s úsměvem a empatií. Spolehlivost je pro mě samozřejmostí.'},
+  {id:4,name:'Petra Černá',init:'PČ',loc:'Praha 5',rate:240,rating:4.7,reviews:54,exp:6,
+   services:['nemocnice','lekar','osobni'],verified:true,cert:true,
+   bio:'Specializuji se na doprovod a péči v nemocnici. Mám zdravotnické vzdělání a zkušenost s pacienty po operacích. Pomohu zajistit klidný a bezpečný průběh léčby.'},
+  {id:5,name:'Hana Veselá',init:'HV',loc:'Praha 7',rate:260,rating:4.9,reviews:112,exp:9,
+   services:['osobni','nocni','domaci'],verified:true,cert:true,
+   bio:'Devět let se starám o seniory s láskou a respektem. Nabízím komplexní osobní i noční péči. Klid vašich blízkých je pro mě na prvním místě.'},
+  {id:6,name:'Eva Marková',init:'EM',loc:'Praha 3',rate:235,rating:4.8,reviews:88,exp:4,
+   services:['rehab','domaci','spolecnost'],verified:true,cert:false,
+   bio:'Zaměřuji se na rehabilitační cvičení a aktivní trávení času. Pomáhám seniorům udržet kondici i dobrou náladu. Práce s lidmi je mé poslání.'}
+];
+
+const REVIEWS=[
+  {init:'PM',name:'Petr M.',stars:5,text:'Maminka je nadšená. Velmi laskavá a spolehlivá. Doporučuji.'},
+  {init:'JK',name:'Jana K.',stars:5,text:'Profesionální přístup a hlavně lidskost. Konečně klid v rodině.'},
+  {init:'TS',name:'Tomáš S.',stars:4,text:'Skvělá komunikace a vždy dochvilná. Tatínek si ji pochvaluje.'}
+];
+let cgReviews={}; // id pečovatelky → [{init,name,stars,text}] nové recenze od rodin
+
+/* objednávky rodiny — plochý seznam se stavy: pending|confirmed|done|declined */
+let ORDERS=[
+  {oid:1,cid:1,service:'osobni',hours:4,date:'2026-06-20',time:'10:00',addr:'Veleslavínská 123, Praha 6',note:'Ráda bych doprovod k lékaři.',status:'confirmed'},
+  {oid:2,cid:3,service:'spolecnost',hours:2,date:'2026-06-24',time:'15:00',addr:'Veleslavínská 123, Praha 6',note:'Maminka má ráda procházky.',status:'pending'},
+  {oid:3,cid:5,service:'nocni',hours:8,date:'2026-06-28',time:'22:00',addr:'Veleslavínská 123, Praha 6',note:'Nutné podání léků ve 23:00.',status:'confirmed'},
+  {oid:4,cid:1,service:'lekar',hours:3,date:'2026-05-08',time:'09:00',addr:'Veleslavínská 123, Praha 6',note:'Kontrola u kardiologa.',status:'done'},
+  {oid:5,cid:2,service:'domaci',hours:4,date:'2026-05-02',time:'13:00',addr:'Veleslavínská 123, Praha 6',note:'',status:'done'}
+];
+let orderSeq=5;
+const ORDER_STATUS={
+  pending:{cls:'pending',label:'Čeká na potvrzení'},
+  confirmed:{cls:'ok',label:'Potvrzeno'},
+  done:{cls:'done',label:'Dokončeno'},
+  declined:{cls:'declined',label:'Zamítnuto'},
+  cancelled:{cls:'declined',label:'Zrušeno'}
+};
+
+/* ---------- STATE ---------- */
+const state={caregiverId:1,bkService:'osobni',bkHours:4};
+const sIcon=(d)=>`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="${d}" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const sName=(id)=>SERVICES.find(s=>s.id===id)?.name||id;
+const cg=(id)=>CAREGIVERS.find(c=>c.id===id);
+
+/* ---------- NAV ---------- */
+function go(v){
+  const target=document.getElementById('view-'+v);
+  if(!target)return;
+  document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+  target.classList.add('active');
+  document.querySelectorAll('[data-v]').forEach(a=>{
+    const on=a.dataset.v===v;
+    a.classList.toggle('active',on);
+    if(on)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');
+  });
+  toggleMenu(false);
+  closeAccountMenu();
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(v==='bookings')renderCalendar();
+  if(v==='cg-dashboard')renderCgDashboard();
+  if(v==='cg-requests')renderCgRequests();
+  if(v==='cg-calendar')renderCgCalendar();
+  if(v==='cg-profile')renderCgProfile();
+  if(v==='chat')renderChat();
+  if(v==='forgot')resetForgot();
+}
+function scrollTo2(id){setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}),60);}
+
+/* ---------- HERO PARALLAX ---------- */
+(function(){
+  const hero=document.querySelector('.hero');
+  const bg=document.getElementById('heroBg');
+  if(!hero||!bg)return;
+  let ticking=false;
+  function update(){
+    const max=hero.offsetHeight*0.4;
+    let offset=window.scrollY*0.4;
+    if(offset>max)offset=max;
+    bg.style.transform='translate3d(0,'+offset+'px,0)';
+    ticking=false;
+  }
+  window.addEventListener('scroll',function(){
+    if(!ticking){requestAnimationFrame(update);ticking=true;}
+  },{passive:true});
+  update();
+})();
+
+/* ---------- SECTION PARALLAX (audience) ---------- */
+(function(){
+  const sec=document.querySelector('.aud-section');
+  const bg=document.getElementById('audBg');
+  if(!sec||!bg)return;
+  let ticking=false;
+  function update(){
+    const rect=sec.getBoundingClientRect();
+    const delta=(rect.top+rect.height/2)-window.innerHeight/2;
+    const max=sec.offsetHeight*0.22;
+    let offset=-delta*0.18;
+    if(offset>max)offset=max;else if(offset<-max)offset=-max;
+    bg.style.transform='translate3d(0,'+offset+'px,0)';
+    ticking=false;
+  }
+  window.addEventListener('scroll',function(){
+    if(!ticking){requestAnimationFrame(update);ticking=true;}
+  },{passive:true});
+  window.addEventListener('resize',update);
+  update();
+})();
+
+/* ---------- MOBILE MENU ---------- */
+function toggleMenu(open){
+  const m=document.getElementById('mobileMenu');
+  const t=document.getElementById('menuToggle');
+  if(!m)return;
+  m.classList.toggle('open',open);
+  t.setAttribute('aria-expanded',open?'true':'false');
+  document.body.style.overflow=open?'hidden':'';
+  if(open){m.querySelector('.panel a')?.focus();}
+}
+
+/* ---------- KEYBOARD ACTIVATION (role=button) ---------- */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){toggleMenu(false);closeRating();closeAccountMenu();return;}
+  if((e.key==='Enter'||e.key===' ')){
+    const el=e.target;
+    const r=el&&el.getAttribute&&el.getAttribute('role');
+    if((r==='button'||r==='menuitem'||r==='radio')&&el.tagName!=='BUTTON'){
+      e.preventDefault();el.click();
+    }
+  }
+});
+
+/* ---------- TOAST ---------- */
+let toastT;
+function toast(msg,type){const t=document.getElementById('toast');t.innerHTML=msg;
+  t.className='toast show'+(type?' '+type:'');
+  clearTimeout(toastT);toastT=setTimeout(()=>{t.className='toast';},3200);}
+
+/* ---------- THEME ---------- */
+const MOON_ICON='<path d="M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>';
+const SUN_ICON='<circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.7"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>';
+function applyTheme(t){
+  const dark=t==='dark';
+  if(dark)document.documentElement.setAttribute('data-theme','dark');
+  else document.documentElement.removeAttribute('data-theme');
+  const ic=document.getElementById('themeIcon');if(ic)ic.innerHTML=dark?SUN_ICON:MOON_ICON;
+  try{localStorage.setItem('zv_theme',dark?'dark':'light');}catch(e){}
+}
+function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');}
+function initTheme(){
+  let t;try{t=localStorage.getItem('zv_theme');}catch(e){}
+  if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+  applyTheme(t);
+}
+
+/* ---------- HOME RENDER ---------- */
+function renderHome(){
+  document.getElementById('servGrid').innerHTML=SERVICES.map(s=>
+    `<div class="serv" onclick="filterByService('${s.id}')">
+      <div class="ring">${sIcon(s.icon)}</div><b>${s.name}</b>
+    </div>`).join('');
+  document.getElementById('valuesRow').innerHTML=VALUES.map((v,i)=>
+    `<div class="val"><div class="vc">${sIcon(VAL_ICONS[i])}</div><b>${v}</b></div>`).join('');
+  // audience check icons
+  document.querySelectorAll('#view-home .aud li').forEach(li=>{
+    const chk='<span class="chk"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m5 12 5 5 9-11" stroke="#D4AF37" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+    li.innerHTML=li.innerHTML.replace('{c}',chk).replace('{cg}',chk);
+  });
+}
+
+/* ---------- SEARCH RENDER ---------- */
+let activeFilter='';
+function renderFilters(){
+  const all=[{id:'',name:'Vše'},...SERVICES];
+  document.getElementById('servFilters').innerHTML=all.map(s=>
+    `<button class="fbtn ${activeFilter===s.id?'on':''}" onclick="setFilter('${s.id}')">${s.name}</button>`).join('');
+}
+function setFilter(id){activeFilter=id;renderFilters();renderCare();}
+function filterByService(id){activeFilter=id;go('search');renderFilters();renderCare();}
+
+function renderCare(){
+  const q=(document.getElementById('q').value||'').toLowerCase();
+  const loc=document.getElementById('loc').value;
+  const priceMax=+((document.getElementById('priceMax')||{}).value||999);
+  const onlyVer=(document.getElementById('onlyVerified')||{}).checked;
+  const sortBy=(document.getElementById('sortBy')||{}).value||'rec';
+  let list=CAREGIVERS.filter(c=>{
+    const matchF=!activeFilter||c.services.includes(activeFilter);
+    const matchL=!loc||c.loc===loc;
+    const matchQ=!q||c.name.toLowerCase().includes(q)||c.loc.toLowerCase().includes(q)||
+      c.services.some(s=>sName(s).toLowerCase().includes(q));
+    return matchF&&matchL&&matchQ&&c.rate<=priceMax&&(!onlyVer||c.verified);
+  });
+  const sorters={'price-asc':(a,b)=>a.rate-b.rate,'price-desc':(a,b)=>b.rate-a.rate,
+    'rating':(a,b)=>b.rating-a.rating,'exp':(a,b)=>b.exp-a.exp};
+  if(sorters[sortBy])list.sort(sorters[sortBy]);
+  const cnt=document.getElementById('careCount');
+  if(cnt){const n=list.length;cnt.textContent=n+' '+(n===1?'pečovatelka':(n>=2&&n<=4?'pečovatelky':'pečovatelek'));}
+  const g=document.getElementById('careGrid');
+  if(!list.length){g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted)">Žádná pečovatelka neodpovídá filtru.</div>`;return;}
+  g.innerHTML=list.map(c=>`
+    <div class="care-card" onclick="openProfile(${c.id})">
+      <div class="care-top">
+        <div class="ava">${c.init}</div>
+        <div style="flex:1">
+          <div class="care-name">${c.name}</div>
+          <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${c.loc}</div>
+          <div class="care-meta"><span class="stars">★</span><b style="color:var(--navy-900)">${c.rating}</b><span>(${c.reviews}) · ${c.exp} let praxe</span></div>
+        </div>
+      </div>
+      <div class="care-tags">
+        ${c.verified?'<span class="chip gold"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#B8942A" stroke-width="1.8"/></svg>Ověřená</span>':''}
+        ${c.services.slice(0,2).map(s=>`<span class="chip">${sName(s)}</span>`).join('')}
+      </div>
+      <div class="care-foot">
+        <div class="price"><b>${c.rate} Kč</b> <span>/ hod</span></div>
+        <button class="btn btn-gold" style="padding:9px 16px" onclick="event.stopPropagation();openProfile(${c.id})">Zobrazit profil</button>
+      </div>
+    </div>`).join('');
+}
+
+/* ---------- PROFILE ---------- */
+function openProfile(id){
+  state.caregiverId=id;const c=cg(id);
+  const revs=[...(cgReviews[id]||[]),...REVIEWS];
+  const revCount=c.reviews+((cgReviews[id]||[]).length);
+  document.getElementById('profileGrid').innerHTML=`
+    <div class="pcard">
+      <div class="phead">
+        <div class="ava">${c.init}</div>
+        <div>
+          <h1>${c.name}</h1>
+          <div class="pmeta">
+            <span class="stars">★★★★★ <b style="color:var(--navy-900)">${c.rating}</b> <span style="color:var(--muted)">(${c.reviews} hodnocení)</span></span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            ${c.verified?'<span class="chip gold"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#B8942A" stroke-width="1.8"/><path d="m9 12 2 2 4-4" stroke="#B8942A" stroke-width="1.8" stroke-linecap="round"/></svg>Ověřená pečovatelka</span>':''}
+            ${c.cert?'<span class="chip">Certifikát pečovatelky</span>':''}
+          </div>
+        </div>
+      </div>
+      <div class="pchips">
+        <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#D4AF37" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#D4AF37" stroke-width="1.6"/></svg>${c.loc} a okolí</div>
+        <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#D4AF37" stroke-width="1.6"/><path d="M12 8v4l3 2" stroke="#D4AF37" stroke-width="1.6" stroke-linecap="round"/></svg>${c.exp} let praxe</div>
+        <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#D4AF37" stroke-width="1.6"/></svg>Ověřené doklady</div>
+        <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 8h14v12H5V8ZM9 4h6v4H9V4Z" stroke="#D4AF37" stroke-width="1.6"/></svg>Pojištěná péče</div>
+      </div>
+      <div class="pdiv"></div>
+      <h3>O mně</h3>
+      <p class="bio">${c.bio}</p>
+      <div class="pdiv"></div>
+      <h3>Nabízené služby</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+        ${c.services.map(s=>`<span class="chip gold">${sName(s)}</span>`).join('')}
+      </div>
+      <div class="pdiv"></div>
+      <h3>Hodnocení (${revCount})</h3>
+      ${revs.map(r=>`<div class="rev"><div class="ava">${r.init}</div><div><div class="rb">${r.name} <span class="stars" style="font-size:12px">${'★'.repeat(r.stars)}</span></div><div class="rt">${r.text}</div></div></div>`).join('')}
+    </div>
+    <div class="pcard book-aside">
+      <h3 style="margin-bottom:4px">Objednat péči</h3>
+      <p style="color:var(--muted);font-size:13.5px;margin-bottom:18px">Vyberte si termín a my zajistíme zbytek.</p>
+      <div class="row"><span class="l">Cena za hodinu</span><span class="r">${c.rate} Kč</span></div>
+      <div class="row"><span class="l">Dostupnost</span><span class="r" style="color:var(--gold-deep)">Tento týden</span></div>
+      <div class="row"><span class="l">Reakce</span><span class="r">do 2 hodin</span></div>
+      <div class="total-row"><span class="l">Od</span><span class="big">${c.rate} Kč<span style="font-size:14px;color:var(--muted)"> / hod</span></span></div>
+      <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openBooking(${c.id})">Objednat službu</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openChat('${c.name}','${c.init}','caregiver')">Napsat zprávu</button>
+    </div>`;
+  go('profile');
+}
+
+/* ---------- BOOKING ---------- */
+function openBooking(id){
+  state.caregiverId=id;const c=cg(id);
+  state.bkService=c.services[0];state.bkHours=4;
+  document.getElementById('bkServices').innerHTML=c.services.map(s=>
+    `<div class="opt ${s===state.bkService?'on':''}" onclick="pickService('${s}')">${sName(s)}</div>`).join('');
+  document.getElementById('bkHours').innerHTML=[2,4,6,8].map(h=>
+    `<div class="opt ${h===state.bkHours?'on':''}" onclick="pickHours(${h})">${h} hodin</div>`).join('');
+  const dateEl=document.getElementById('bkDate');
+  dateEl.min=todayISO();
+  dateEl.value=todayISO();
+  updateSummary();go('booking');
+}
+function pickService(s){state.bkService=s;
+  document.querySelectorAll('#bkServices .opt').forEach(o=>o.classList.toggle('on',o.textContent===sName(s)));updateSummary();}
+function pickHours(h){state.bkHours=h;
+  document.querySelectorAll('#bkHours .opt').forEach(o=>o.classList.toggle('on',o.textContent===h+' hodin'));updateSummary();}
+function updateSummary(){
+  const c=cg(state.caregiverId);const sub=c.rate*state.bkHours;const fee=Math.round(sub*0.0);const total=sub+fee;
+  const d=document.getElementById('bkDate').value;const t=document.getElementById('bkTime').value;
+  const dateStr=d?new Date(d).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'}):'—';
+  document.getElementById('summaryCard').innerHTML=`
+    <h3>Souhrn objednávky</h3>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+      <div class="ava" style="width:46px;height:46px;font-size:16px">${c.init}</div>
+      <div><div style="font-family:'Playfair Display',serif;font-size:16px;color:#fff">${c.name}</div>
+      <div style="font-size:12.5px;color:#A9B2BD">${c.loc} · ★ ${c.rating}</div></div>
+    </div>
+    <div class="row"><span class="l">Služba</span><span class="r">${sName(state.bkService)}</span></div>
+    <div class="row"><span class="l">Datum</span><span class="r">${dateStr}</span></div>
+    <div class="row"><span class="l">Čas</span><span class="r">${t} (${state.bkHours} h)</span></div>
+    <div class="row"><span class="l">Sazba</span><span class="r">${c.rate} Kč / hod</span></div>
+    <div class="grand"><span class="l" style="font-size:15px;color:#fff">Celkem</span><span class="big">${total.toLocaleString('cs-CZ')} Kč</span></div>
+    <button class="btn btn-gold btn-block" style="margin-top:22px" onclick="confirmBooking()">Potvrdit objednávku</button>
+    <p style="font-size:11.5px;color:#8C95A1;text-align:center;margin-top:12px">Platba proběhne až po potvrzení pečovatelkou.</p>`;
+}
+function confirmBooking(){
+  const c=cg(state.caregiverId);
+  const date=document.getElementById('bkDate').value;
+  const time=document.getElementById('bkTime').value;
+  const addr=document.getElementById('bkAddr').value.trim();
+  if(!date){toast('⚠️ Vyberte prosím datum péče.');document.getElementById('bkDate').focus();return;}
+  if(date<todayISO()){toast('⚠️ Datum nemůže být v minulosti.');document.getElementById('bkDate').focus();return;}
+  if(!time){toast('⚠️ Vyberte prosím čas.');document.getElementById('bkTime').focus();return;}
+  if(addr.length<5){toast('⚠️ Zadejte prosím platnou adresu.');document.getElementById('bkAddr').focus();return;}
+  const note=document.getElementById('bkNote').value.trim();
+  const hours=state.bkHours;
+  const oid=++orderSeq;
+  // objednávka rodiny (čeká na potvrzení pečovatelkou)
+  ORDERS.unshift({oid,cid:c.id,service:state.bkService,hours,date,time,addr,note,status:'pending'});
+  // propojená poptávka pro pečovatelku
+  const famName=auth.loggedIn?auth.name:'Marie Horáková';
+  CG_REQUESTS.unshift({id:++reqSeq,oid,fam:famName,init:initials(famName),service:state.bkService,date,time,hours,addr});
+  persist();
+  toast(`✓ Objednávka u <b>${c.name}</b> odeslána — čeká na potvrzení`,'success');
+  setTimeout(()=>go('bookings'),900);
+}
+
+/* ---------- DATE HELPER ---------- */
+function todayISO(){
+  const d=new Date();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/* ---------- AUTH ---------- */
+let regRole='family';
+const auth={loggedIn:false,name:'',email:'',role:'family'};
+const isEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v||'').trim());
+const isPhone=v=>/^[0-9+\s/]+$/.test((v||'').trim())&&(v||'').replace(/[^0-9]/g,'').length>=9;
+
+/* Demo účty (e-mail → údaje). Heslo pro oba: demo123 */
+const ACCOUNTS={
+  'demo@zenvoria.cz':{pw:'demo123',name:'Marie Horáková',role:'family'},
+  'pecovatelka@zenvoria.cz':{pw:'demo123',name:'Jana Novotná',role:'caregiver'}
+};
+
+function pickRole(role){
+  regRole=role;
+  ['family','caregiver'].forEach(r=>{
+    const el=document.getElementById('role-'+r);
+    el.classList.toggle('on',r===role);
+    el.setAttribute('aria-checked',r===role?'true':'false');
+  });
+}
+function togglePw(btn,id){
+  const inp=document.getElementById(id);const show=inp.type==='password';
+  inp.type=show?'text':'password';
+  btn.setAttribute('aria-label',show?'Skrýt heslo':'Zobrazit heslo');
+}
+function setFieldError(fieldId,bad){document.getElementById(fieldId).classList.toggle('invalid',bad);}
+function initials(name){
+  const p=name.trim().split(/\s+/);
+  return ((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase()||'Z';
+}
+
+/* ---- session ---- */
+function loginAs(name,email,role){
+  auth.loggedIn=true;auth.name=name;auth.email=email;auth.role=role||'family';
+  try{localStorage.setItem('zv_auth',JSON.stringify({name,email,role:auth.role}));}catch(e){}
+  updateAuthUI();
+}
+function logout(){
+  auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';
+  try{localStorage.removeItem('zv_auth');}catch(e){}
+  closeAccountMenu();updateAuthUI();
+  toast('👋 Byli jste odhlášeni.');
+  go('home');
+}
+const NAV_GUEST=[
+  {v:'home',label:'Domů',fn:"go('home')"},
+  {v:'search',label:'Hledat péči',fn:"go('search')"},
+  {v:'howto',label:'Jak to funguje',fn:"go('home');scrollTo2('howto')"},
+  {v:'bookings',label:'Moje objednávky',fn:"go('bookings')"}
+];
+const NAV_CAREGIVER=[
+  {v:'cg-dashboard',label:'Přehled',fn:"go('cg-dashboard')"},
+  {v:'cg-requests',label:'Poptávky',fn:"go('cg-requests')"},
+  {v:'cg-calendar',label:'Kalendář',fn:"go('cg-calendar')"},
+  {v:'cg-profile',label:'Můj profil',fn:"go('cg-profile')"}
+];
+function renderNav(){
+  const isCg=auth.loggedIn&&auth.role==='caregiver';
+  const html=(isCg?NAV_CAREGIVER:NAV_GUEST).map(l=>{
+    const badge=(l.v==='cg-requests'&&CG_REQUESTS.length)?`<span class="nav-badge">${CG_REQUESTS.length}</span>`:'';
+    return `<a data-v="${l.v}" role="button" tabindex="0" onclick="${l.fn}">${l.label}${badge}</a>`;
+  }).join('');
+  document.getElementById('navlinks').innerHTML=html;
+  document.getElementById('mmLinks').innerHTML=html;
+  document.getElementById('navCta').hidden=isCg;
+  const dot=document.getElementById('notifDot');
+  if(dot)dot.hidden=!(chatUnread()>0||(isCg&&CG_REQUESTS.length>0));
+}
+function updateAuthUI(){
+  const inn=auth.loggedIn;
+  renderNav();
+  document.getElementById('accountWrap').hidden=!inn;
+  document.getElementById('loginBtn').hidden=inn;
+  if(inn){
+    document.getElementById('avatarInit').textContent=initials(auth.name);
+    document.getElementById('avatarName').textContent=auth.name.split(/\s+/)[0];
+    document.getElementById('amName').textContent=auth.name;
+    document.getElementById('amEmail').textContent=auth.email;
+    document.getElementById('amBadgeText').textContent=auth.role==='caregiver'?'Účet pečovatelky':'Účet rodiny';
+    const mi=(fn,label,path)=>`<a role="menuitem" tabindex="0" onclick="${fn}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">${path}</svg>${label}</a>`;
+    const chatIcon='<path d="M4 5h16v11H9l-5 4V5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/>';
+    const unread=chatUnread();const zpr='Zprávy'+(unread?` <span class="nav-badge">${unread}</span>`:'');
+    document.getElementById('amLinks').innerHTML=auth.role==='caregiver'
+      ? mi("go('cg-dashboard')",'Přehled','<rect x="4" y="4" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/>')
+        +mi("go('cg-requests')",'Poptávky','<path d="M3 6h18v12H3z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/>')
+        +mi("go('chat')",zpr,chatIcon)
+        +mi("go('cg-profile')",'Můj profil','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
+      : mi("go('bookings')",'Moje objednávky','<rect x="4" y="5" width="16" height="16" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M4 9h16M8 3v4M16 3v4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
+        +mi("go('chat')",zpr,chatIcon)
+        +mi("go('search')",'Hledat péči','<circle cx="11" cy="11" r="7" stroke="#7A736A" stroke-width="1.6"/><path d="m20 20-3-3" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>');
+  }
+  const mm=document.getElementById('mmAuth');
+  const greet=document.getElementById('homeGreeting');
+  if(inn&&auth.role==='family'){greet.hidden=false;greet.innerHTML=`👋 Vítejte zpět, <b style="color:var(--navy-900)">${auth.name.split(/\s+/)[0]}</b>`;}
+  else{greet.hidden=true;}
+  const homeLink=auth.role==='caregiver'?"<a role=\"button\" tabindex=\"0\" onclick=\"go('cg-dashboard')\">Přehled</a>":"<a role=\"button\" tabindex=\"0\" onclick=\"go('bookings')\">Moje objednávky</a>";
+  mm.innerHTML=inn
+    ? `<div class="mm-user"><div class="ava">${initials(auth.name)}</div><div><b>${auth.name}</b><span>${auth.email}</span></div></div>
+       ${homeLink}
+       <a role="button" tabindex="0" onclick="logout()" style="color:#B23A2E">Odhlásit se</a>`
+    : `<a data-v="login" role="button" tabindex="0" onclick="go('login')">Přihlásit se</a>
+       <a role="button" tabindex="0" onclick="go('register')">Registrace</a>`;
+}
+function toggleAccountMenu(){
+  const w=document.getElementById('accountWrap');
+  const open=!w.classList.contains('open');
+  w.classList.toggle('open',open);
+  document.getElementById('avatarPill').setAttribute('aria-expanded',open?'true':'false');
+}
+function closeAccountMenu(){
+  document.getElementById('accountWrap')?.classList.remove('open');
+  document.getElementById('avatarPill')?.setAttribute('aria-expanded','false');
+}
+document.addEventListener('click',e=>{if(!e.target.closest('#accountWrap'))closeAccountMenu();});
+
+function submitLogin(e){
+  e.preventDefault();
+  const email=document.getElementById('loginEmail'),pw=document.getElementById('loginPw');
+  const eBad=!isEmail(email.value),pBad=pw.value.length<6;
+  setFieldError('lf-email',eBad);setFieldError('lf-pw',pBad);
+  document.getElementById('lf-pw-err').textContent='Zadejte heslo (min. 6 znaků).';
+  if(eBad){email.focus();return false;}
+  if(pBad){pw.focus();return false;}
+  const key=email.value.trim().toLowerCase();
+  const acc=ACCOUNTS[key];
+  if(acc&&acc.pw!==pw.value){
+    setFieldError('lf-pw',true);
+    document.getElementById('lf-pw-err').textContent='Nesprávné heslo (pro demo účet je to demo123).';
+    pw.focus();return false;
+  }
+  if(acc){loginAs(acc.name,key,acc.role);}
+  else{const base=email.value.split('@')[0].replace(/[._-]/g,' ');loginAs(base.charAt(0).toUpperCase()+base.slice(1),key,'family');}
+  toast(`✓ Vítejte zpět, <b>${auth.name.split(/\s+/)[0]}</b>!`);
+  go(auth.role==='caregiver'?'cg-dashboard':'home');
+  return false;
+}
+function submitRegister(e){
+  e.preventDefault();
+  const name=document.getElementById('regName'),email=document.getElementById('regEmail'),
+    phone=document.getElementById('regPhone'),pw=document.getElementById('regPw'),terms=document.getElementById('regTerms');
+  const nBad=name.value.trim().split(/\s+/).filter(Boolean).length<2;
+  const eBad=!isEmail(email.value),phBad=!isPhone(phone.value),pBad=pw.value.length<6,tBad=!terms.checked;
+  setFieldError('rf-name',nBad);setFieldError('rf-email',eBad);setFieldError('rf-phone',phBad);
+  setFieldError('rf-pw',pBad);setFieldError('rf-terms',tBad);
+  const firstBad=[[nBad,name],[eBad,email],[phBad,phone],[pBad,pw]].find(x=>x[0]);
+  if(firstBad){firstBad[1].focus();return false;}
+  if(tBad){document.getElementById('regTerms').focus();return false;}
+  loginAs(name.value.trim(),email.value.trim().toLowerCase(),regRole);
+  toast(regRole==='caregiver'?'✓ Účet pečovatelky vytvořen. Ověření do 48 hodin.':'✓ Účet vytvořen. Vítejte v ZENVORIA!');
+  go(regRole==='caregiver'?'cg-dashboard':'search');
+  return false;
+}
+function submitForgot(e){
+  e.preventDefault();
+  const email=document.getElementById('forgotEmail');
+  const bad=!isEmail(email.value);
+  setFieldError('ff-email',bad);
+  if(bad){email.focus();return false;}
+  document.getElementById('forgotEmailEcho').textContent=email.value.trim().toLowerCase();
+  document.getElementById('forgotFields').style.display='none';
+  document.getElementById('forgotDone').style.display='block';
+  toast('📧 Odeslali jsme odkaz pro obnovu hesla.');
+  return false;
+}
+function resetForgot(){
+  const f=document.getElementById('forgotFields'),d=document.getElementById('forgotDone');
+  if(f)f.style.display='';
+  if(d)d.style.display='none';
+  const i=document.getElementById('forgotEmail');
+  if(i){i.value='';}
+  setFieldError('ff-email',false);
+}
+
+/* ---------- LEGAL / PRÁVNÍ STRÁNKY ---------- */
+const LEGAL={
+  gdpr:{title:'Ochrana osobních údajů',upd:'Naposledy aktualizováno: 6. června 2026',body:`
+    <p>Ochrana vašich osobních údajů je pro ZENVORIA prioritou. Tento dokument popisuje, jaké údaje zpracováváme, za jakým účelem a jaká práva v souvislosti s nimi máte. Zpracování probíhá v souladu s nařízením (EU) 2016/679 (GDPR) a zákonem č. 110/2019 Sb.</p>
+    <h2>1. Správce údajů</h2>
+    <p>Správcem osobních údajů je ZENVORIA s.r.o., IČO 000 00 000, se sídlem v Praze. Kontakt: <a href="mailto:gdpr@zenvoria.cz">gdpr@zenvoria.cz</a>.</p>
+    <h2>2. Jaké údaje zpracováváme</h2>
+    <ul>
+      <li>Identifikační a kontaktní údaje (jméno, e-mail, telefon, adresa).</li>
+      <li>Údaje o objednávkách péče a komunikaci v aplikaci.</li>
+      <li>U pečovatelek doklady o ověření, certifikace a reference.</li>
+      <li>Technické údaje (IP adresa, typ zařízení, soubory cookies).</li>
+    </ul>
+    <h2>3. Účel a právní základ zpracování</h2>
+    <ul>
+      <li>Poskytování služby a plnění smlouvy (čl. 6 odst. 1 písm. b GDPR).</li>
+      <li>Plnění zákonných povinností, např. účetnictví (písm. c).</li>
+      <li>Oprávněný zájem — bezpečnost a zlepšování služby (písm. f).</li>
+      <li>Marketing pouze na základě vašeho souhlasu (písm. a).</li>
+    </ul>
+    <h2>4. Doba uchování</h2>
+    <p>Údaje uchováváme po dobu trvání smluvního vztahu a následně po dobu vyžadovanou právními předpisy (zpravidla 10 let u daňových dokladů).</p>
+    <h2>5. Vaše práva</h2>
+    <p>Máte právo na přístup k údajům, jejich opravu či výmaz, omezení zpracování, přenositelnost, vznesení námitky a podání stížnosti u Úřadu pro ochranu osobních údajů (<a href="https://www.uoou.cz" target="_blank" rel="noopener">uoou.cz</a>).</p>
+    <h2>6. Kontakt</h2>
+    <p>S dotazy ke zpracování osobních údajů se obraťte na <a href="mailto:gdpr@zenvoria.cz">gdpr@zenvoria.cz</a>.</p>`},
+  terms:{title:'Obchodní podmínky',upd:'Účinné od: 6. června 2026',body:`
+    <p>Tyto obchodní podmínky upravují práva a povinnosti při užívání platformy ZENVORIA, která zprostředkovává spojení mezi rodinami a ověřenými pečovatelkami.</p>
+    <h2>1. Úvodní ustanovení</h2>
+    <p>Provozovatelem platformy je ZENVORIA s.r.o. Registrací a užíváním služby vyjadřujete souhlas s těmito podmínkami.</p>
+    <h2>2. Vymezení pojmů</h2>
+    <ul>
+      <li><b>Uživatel</b> — rodina nebo osoba poptávající péči.</li>
+      <li><b>Pečovatelka</b> — ověřený poskytovatel pečovatelských služeb.</li>
+      <li><b>Zprostředkování</b> — propojení uživatele a pečovatelky prostřednictvím platformy.</li>
+    </ul>
+    <h2>3. Registrace a účet</h2>
+    <p>Uživatel je povinen uvádět pravdivé údaje a chránit přístupové údaje ke svému účtu. Za aktivity provedené pod účtem odpovídá jeho držitel.</p>
+    <h2>4. Zprostředkování péče</h2>
+    <p>ZENVORIA poskytuje technologickou platformu pro vyhledání a objednání péče. Samotnou péči poskytuje pečovatelka, která za ni nese odpovědnost. Pečovatelky procházejí ověřením dokladů a referencí.</p>
+    <h2>5. Ceny a platby</h2>
+    <p>Ceny péče jsou uvedeny u jednotlivých pečovatelek. Platby probíhají prostřednictvím zabezpečené platební brány. Platforma si může účtovat zprostředkovatelský poplatek.</p>
+    <h2>6. Zrušení a storno</h2>
+    <p>Objednávku lze bezplatně zrušit nejpozději 24 hodin před začátkem péče. Při pozdějším zrušení může být účtován storno poplatek.</p>
+    <h2>7. Odpovědnost a reklamace</h2>
+    <p>Případné reklamace lze uplatnit na <a href="mailto:podpora@zenvoria.cz">podpora@zenvoria.cz</a>. Spotřebitel má právo na mimosoudní řešení sporů u České obchodní inspekce.</p>
+    <h2>8. Závěrečná ustanovení</h2>
+    <p>Tyto podmínky se řídí právním řádem České republiky. Provozovatel je oprávněn podmínky měnit; o změnách bude informovat v aplikaci.</p>`},
+  cookies:{title:'Zásady používání cookies',upd:'Naposledy aktualizováno: 6. června 2026',body:`
+    <p>Soubory cookies nám pomáhají zajistit správné fungování aplikace a zlepšovat vaši zkušenost. Zde se dozvíte, jaké cookies používáme a jak je můžete spravovat.</p>
+    <h2>1. Co jsou cookies</h2>
+    <p>Cookies jsou malé textové soubory ukládané ve vašem prohlížeči. Umožňují například zapamatovat přihlášení nebo předvolby zobrazení.</p>
+    <h2>2. Jaké cookies používáme</h2>
+    <ul>
+      <li><b>Nezbytné</b> — zajišťují základní funkce, přihlášení a bezpečnost. Nelze je vypnout.</li>
+      <li><b>Předvolby</b> — pamatují si nastavení, např. světlý/tmavý režim.</li>
+      <li><b>Analytické</b> — anonymně měří návštěvnost a pomáhají službu zlepšovat.</li>
+    </ul>
+    <h2>3. Správa cookies</h2>
+    <p>Nastavení cookies můžete kdykoli změnit ve svém prohlížeči, kde je lze také smazat. Omezení některých cookies může ovlivnit funkčnost aplikace.</p>
+    <h2>4. Kontakt</h2>
+    <p>S dotazy ke cookies se obraťte na <a href="mailto:gdpr@zenvoria.cz">gdpr@zenvoria.cz</a>.</p>`}
+};
+function openLegal(key){
+  const d=LEGAL[key];if(!d)return;
+  document.getElementById('legalTitle').textContent=d.title;
+  document.getElementById('legalUpd').textContent=d.upd;
+  document.getElementById('legalBody').innerHTML=d.body;
+  go('legal');
+}
+/* clear validation state while typing */
+document.addEventListener('input',e=>{
+  const f=e.target.closest('.auth-field');
+  if(f)f.classList.remove('invalid');
+});
+/* restore session */
+(function restoreAuth(){
+  try{const s=JSON.parse(localStorage.getItem('zv_auth'));
+    if(s&&s.email){auth.loggedIn=true;auth.name=s.name;auth.email=s.email;auth.role=s.role||'family';}}catch(e){}
+})();
+
+/* ---------- CALENDAR ---------- */
+const TODAY=new Date();
+let calMonth=TODAY.getMonth(),calYear=TODAY.getFullYear();
+const MONTHS=['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
+const BOOKED_DAYS=[20,24,28]; // demo: naplánované služby v květnu 2026
+function renderCalendar(){
+  document.getElementById('calTitle').textContent=MONTHS[calMonth]+' '+calYear;
+  const first=new Date(calYear,calMonth,1).getDay();
+  const offset=(first+6)%7; // Monday-first
+  const dim=new Date(calYear,calMonth+1,0).getDate();
+  let html='';
+  for(let i=0;i<offset;i++)html+='<div class="day muted" aria-hidden="true"></div>';
+  const showDots=(calMonth===4&&calYear===2026);
+  for(let d=1;d<=dim;d++){
+    const has=showDots&&BOOKED_DAYS.includes(d);
+    const today=(d===TODAY.getDate()&&calMonth===TODAY.getMonth()&&calYear===TODAY.getFullYear());
+    const lbl=has?`${d}. ${MONTHS[calMonth].toLowerCase()} ${calYear} — naplánovaná služba`:`${d}. ${MONTHS[calMonth].toLowerCase()} ${calYear}`;
+    html+=`<div class="day ${has?'has':''} ${today?'today':''}" ${has?'role="button" tabindex="0"':''} aria-label="${lbl}" onclick="${has?`toast('📅 Máte naplánovanou službu ${d}. ${MONTHS[calMonth].toLowerCase()}')`:''}">${d}</div>`;
+  }
+  document.getElementById('calDays').innerHTML=html;
+  renderOrders('up');
+}
+function calMove(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--}if(calMonth>11){calMonth=0;calYear++}renderCalendar();}
+function setOrderTab(el,tab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');renderOrders(tab);}
+function orderPrice(o){return cg(o.cid).rate*o.hours;}
+function renderOrders(tab){
+  const want=tab==='up'?['pending','confirmed']:['done','declined','cancelled'];
+  const list=ORDERS.filter(o=>want.includes(o.status));
+  const el=document.getElementById('orderList');
+  if(!list.length){el.innerHTML=`<div class="empty">${tab==='up'?'Žádné nadcházející objednávky.':'Zatím žádné minulé objednávky.'}</div>`;return;}
+  el.innerHTML=list.map(o=>{
+    const c=cg(o.cid);const st=ORDER_STATUS[o.status];
+    return `<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openFamilyOrder(${o.oid})">
+      <div class="ava">${c.init}</div>
+      <div class="od">
+        <b>${sName(o.service)}</b>
+        <div class="det">${c.name} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div>
+      </div>
+      <div class="ost">
+        <span class="status ${st.cls}">${st.label}</span>
+        <div class="pr">${orderPrice(o).toLocaleString('cs-CZ')} Kč</div>
+      </div>
+    </div>`;}).join('');
+}
+
+/* ---------- CAREGIVER PORTAL ---------- */
+const cgProfile={
+  name:'Jana Novotná',loc:'Praha 6',rate:250,exp:5,rating:4.9,reviews:128,
+  services:['osobni','lekar','spolecnost'],
+  bio:'Jsem pečovatelka s více než 5 lety praxe v péči o seniory. Nabízím laskavý přístup, spolehlivost a individuální péči. Ráda doprovázím k lékaři a věnuji se i společnosti a povídání.'
+};
+let CG_REQUESTS=[
+  {id:101,fam:'Petr Marek',init:'PM',service:'osobni',date:'2026-06-10',time:'09:00',hours:4,addr:'Dejvická 5, Praha 6'},
+  {id:102,fam:'Eva Horká',init:'EH',service:'spolecnost',date:'2026-06-12',time:'14:00',hours:2,addr:'Bělohorská 12, Praha 6'},
+  {id:103,fam:'Tomáš Svoboda',init:'TS',service:'lekar',date:'2026-06-14',time:'08:30',hours:3,addr:'Veleslavínská 30, Praha 6'}
+];
+let reqSeq=103;
+let CG_SCHEDULE=[
+  {fam:'Marie Nováková',init:'MN',service:'osobni',date:'2026-06-08',time:'10:00',hours:4},
+  {fam:'Jan Dvořák',init:'JD',service:'nocni',date:'2026-06-09',time:'22:00',hours:8}
+];
+const DAYS_CZ=['Pondělí','Úterý','Středa','Čtvrtek','Pátek','Sobota','Neděle'];
+let cgAvail=[true,true,true,true,true,false,false];
+
+function cgFirstName(){return (auth.role==='caregiver'&&auth.name)?auth.name:cgProfile.name;}
+function fmtDate(iso){return new Date(iso).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'});}
+function timeRange(start,hours){
+  const [h,m]=start.split(':').map(Number);const end=new Date(2000,0,1,h+hours,m);const pad=n=>String(n).padStart(2,'0');
+  return `${start} – ${pad(end.getHours())}:${pad(end.getMinutes())}`;
+}
+
+function renderCgDashboard(){
+  if(auth.role==='caregiver'&&auth.name)cgProfile.name=auth.name;
+  document.getElementById('cgFirst').textContent=cgFirstName().split(/\s+/)[0];
+  document.getElementById('cgIntro').textContent=CG_REQUESTS.length
+    ?`Máte ${CG_REQUESTS.length} ${CG_REQUESTS.length===1?'novou poptávku':'nové poptávky'} a ${CG_SCHEDULE.length} naplánovaných služeb.`
+    :'Aktuálně nemáte žádné nové poptávky.';
+  const earn=CG_SCHEDULE.reduce((s,j)=>s+j.hours*cgProfile.rate,0)+15200;
+  const stats=[
+    {ic:'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',v:earn.toLocaleString('cs-CZ')+' Kč',l:'Výdělek tento měsíc',t:'+12 %'},
+    {ic:'M8 2v4M16 2v4M4 9h16M4 5h16v15H4z',v:CG_SCHEDULE.length,l:'Nadcházející služby',t:null},
+    {ic:'M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z',v:cgProfile.rating,l:'Hodnocení ('+cgProfile.reviews+')',t:null},
+    {ic:'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z',v:342,l:'Zhlédnutí profilu',t:'+28 %'}
+  ];
+  document.getElementById('cgStats').innerHTML=stats.map(s=>`
+    <div class="stat">
+      <div class="si">${sIcon(s.ic)}</div>
+      <div class="sv">${s.v}</div>
+      <div class="sl">${s.l}</div>
+      ${s.t?`<span class="trend"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M4 18 14 8l4 4 4-4" stroke="#5a7256" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${s.t}</span>`:''}
+    </div>`).join('');
+  renderEarnings();
+  document.getElementById('cgScheduleList').innerHTML=cgScheduleHTML();
+  const prev=CG_REQUESTS.slice(0,2);
+  document.getElementById('cgReqBadge').textContent=CG_REQUESTS.length;
+  document.getElementById('cgReqPreview').innerHTML=prev.length?prev.map(reqCardHTML).join(''):'<div class="empty">Žádné nové poptávky.</div>';
+}
+function cgScheduleHTML(){
+  if(!CG_SCHEDULE.length)return '<div class="empty">Zatím nemáte naplánované žádné služby.</div>';
+  return CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date)).map((j,i)=>`
+    <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openCgOrder(${i})">
+      <div class="ava">${j.init}</div>
+      <div class="od"><b>${sName(j.service)}</b><div class="det">${j.fam} · ${fmtDate(j.date)}<br>${timeRange(j.time,j.hours)}</div></div>
+      <div class="ost"><span class="status ok">Potvrzeno</span><div class="pr">${(j.hours*cgProfile.rate).toLocaleString('cs-CZ')} Kč</div></div>
+    </div>`).join('');
+}
+function reqCardHTML(r){
+  return `<div class="req">
+    <div class="ava">${r.init}</div>
+    <div class="ri">
+      <b>${r.fam}</b>
+      <div class="rd">${sName(r.service)} · ${fmtDate(r.date)} · ${timeRange(r.time,r.hours)}</div>
+      <span class="rs">${(r.hours*cgProfile.rate).toLocaleString('cs-CZ')} Kč · ${r.addr}</span>
+    </div>
+    <div class="req-actions">
+      <button class="btn btn-accept btn-sm" onclick="acceptRequest(${r.id})">Přijmout</button>
+      <button class="btn btn-decline btn-sm" onclick="declineRequest(${r.id})">Odmítnout</button>
+    </div>
+  </div>`;
+}
+function renderCgRequests(){
+  document.getElementById('cgReqBadge2').textContent=CG_REQUESTS.length;
+  document.getElementById('cgReqFull').innerHTML=CG_REQUESTS.length?CG_REQUESTS.map(reqCardHTML).join(''):'<div class="empty">Žádné nové poptávky. 🎉</div>';
+  document.getElementById('cgConfirmed').innerHTML=cgScheduleHTML();
+}
+function acceptRequest(id){
+  const i=CG_REQUESTS.findIndex(r=>r.id===id);if(i<0)return;
+  const r=CG_REQUESTS.splice(i,1)[0];
+  CG_SCHEDULE.push({fam:r.fam,init:r.init,service:r.service,date:r.date,time:r.time,hours:r.hours});
+  if(r.oid){const o=ORDERS.find(x=>x.oid===r.oid);if(o)o.status='confirmed';}
+  toast(`✓ Poptávka od <b>${r.fam}</b> přijata`,'success');refreshCg();
+}
+function declineRequest(id){
+  const i=CG_REQUESTS.findIndex(r=>r.id===id);if(i<0)return;
+  const r=CG_REQUESTS.splice(i,1)[0];
+  if(r.oid){const o=ORDERS.find(x=>x.oid===r.oid);if(o)o.status='declined';}
+  toast(`Poptávka od ${r.fam} byla odmítnuta`,'info');refreshCg();
+}
+function refreshCg(){
+  persist();
+  updateAuthUI();
+  renderCgDashboard();
+  if(document.getElementById('view-cg-requests').classList.contains('active'))renderCgRequests();
+  if(document.getElementById('view-cg-calendar').classList.contains('active'))renderCgCalendar();
+}
+
+/* caregiver availability calendar */
+let cgCalMonth=TODAY.getMonth(),cgCalYear=TODAY.getFullYear();
+function renderCgCalendar(){
+  document.getElementById('cgCalTitle').textContent=MONTHS[cgCalMonth]+' '+cgCalYear;
+  const first=new Date(cgCalYear,cgCalMonth,1).getDay();
+  const offset=(first+6)%7;
+  const dim=new Date(cgCalYear,cgCalMonth+1,0).getDate();
+  const booked=CG_SCHEDULE.filter(j=>{const d=new Date(j.date);return d.getMonth()===cgCalMonth&&d.getFullYear()===cgCalYear;}).map(j=>new Date(j.date).getDate());
+  let html='';
+  for(let i=0;i<offset;i++)html+='<div class="day muted" aria-hidden="true"></div>';
+  for(let d=1;d<=dim;d++){
+    const has=booked.includes(d);
+    const today=(d===TODAY.getDate()&&cgCalMonth===TODAY.getMonth()&&cgCalYear===TODAY.getFullYear());
+    html+=`<div class="day ${has?'has':''} ${today?'today':''}" ${has?'role="button" tabindex="0"':''} onclick="${has?`toast('📅 Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:''}">${d}</div>`;
+  }
+  document.getElementById('cgCalDays').innerHTML=html;
+  document.getElementById('cgAvail').innerHTML=DAYS_CZ.map((d,i)=>`
+    <div class="avail-day"><span class="ad-name">${d}</span>
+      <label class="switch"><input type="checkbox" ${cgAvail[i]?'checked':''} onchange="toggleAvail(${i},this.checked)" aria-label="Dostupnost ${d}"><span class="track"></span><span class="thumb"></span></label>
+    </div>`).join('');
+  const jobs=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  document.getElementById('cgCalJobs').innerHTML=jobs.length?jobs.map(j=>`
+    <div class="order" style="padding:13px 15px"><div class="ava" style="width:42px;height:42px;font-size:14px">${j.init}</div>
+      <div class="od"><b style="font-size:15px">${sName(j.service)}</b><div class="det">${fmtDate(j.date)} · ${timeRange(j.time,j.hours)}</div></div></div>`).join(''):'<div class="empty">Žádné naplánované služby v tomto období.</div>';
+}
+function cgCalMove(dir){cgCalMonth+=dir;if(cgCalMonth<0){cgCalMonth=11;cgCalYear--}if(cgCalMonth>11){cgCalMonth=0;cgCalYear++}renderCgCalendar();}
+function toggleAvail(i,val){cgAvail[i]=val;persist();toast(val?`✓ ${DAYS_CZ[i]} — nyní dostupná`:`${DAYS_CZ[i]} — označeno jako nedostupné`);}
+
+/* caregiver profile editing */
+function renderCgProfile(){
+  if(auth.role==='caregiver'&&auth.name)cgProfile.name=auth.name;
+  document.getElementById('cpName').value=cgProfile.name;
+  document.getElementById('cpLoc').value=cgProfile.loc;
+  document.getElementById('cpRate').value=cgProfile.rate;
+  document.getElementById('cpExp').value=cgProfile.exp;
+  document.getElementById('cpBio').value=cgProfile.bio;
+  renderCgServiceChips();
+  syncCgPreview();
+}
+function renderCgServiceChips(){
+  document.getElementById('cpServices').innerHTML=SERVICES.map(s=>
+    `<button type="button" class="cg-serv ${cgProfile.services.includes(s.id)?'on':''}" onclick="toggleCgService('${s.id}')">${s.name}</button>`).join('');
+}
+function toggleCgService(id){
+  const i=cgProfile.services.indexOf(id);
+  if(i<0)cgProfile.services.push(id);else cgProfile.services.splice(i,1);
+  renderCgServiceChips();syncCgPreview();
+}
+function syncCgPreview(){
+  const name=document.getElementById('cpName').value||'Vaše jméno';
+  const loc=document.getElementById('cpLoc').value;
+  const rate=document.getElementById('cpRate').value||0;
+  const exp=document.getElementById('cpExp').value||0;
+  const servs=cgProfile.services.slice(0,2).map(s=>`<span class="chip">${sName(s)}</span>`).join('');
+  document.getElementById('cgPreview').innerHTML=`
+    <div class="care-card" style="cursor:default">
+      <div class="care-top">
+        <div class="ava">${initials(name)}</div>
+        <div style="flex:1">
+          <div class="care-name">${name}</div>
+          <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${loc}</div>
+          <div class="care-meta"><span class="stars">★</span><b style="color:var(--navy-900)">${cgProfile.rating}</b><span>(${cgProfile.reviews}) · ${exp} let praxe</span></div>
+        </div>
+      </div>
+      <div class="care-tags"><span class="chip gold">Ověřená</span>${servs}</div>
+      <div class="care-foot"><div class="price"><b>${rate} Kč</b> <span>/ hod</span></div><button class="btn btn-gold" style="padding:9px 16px">Zobrazit profil</button></div>
+    </div>`;
+}
+function saveCgProfile(){
+  cgProfile.name=document.getElementById('cpName').value.trim()||cgProfile.name;
+  cgProfile.loc=document.getElementById('cpLoc').value;
+  cgProfile.rate=+document.getElementById('cpRate').value||cgProfile.rate;
+  cgProfile.exp=+document.getElementById('cpExp').value||cgProfile.exp;
+  cgProfile.bio=document.getElementById('cpBio').value.trim();
+  if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role);}
+  persist();
+  toast('✓ Profil byl uložen a zveřejněn');
+}
+
+/* ---------- EARNINGS CHART ---------- */
+const CG_EARNINGS=[
+  {m:'Led',v:14200},{m:'Úno',v:15800},{m:'Bře',v:13900},
+  {m:'Dub',v:17200},{m:'Kvě',v:16400},{m:'Čvn',v:18650}
+];
+function renderEarnings(){
+  const max=Math.max(...CG_EARNINGS.map(e=>e.v));
+  const total=CG_EARNINGS.reduce((s,e)=>s+e.v,0);
+  document.getElementById('earnTotal').textContent=total.toLocaleString('cs-CZ')+' Kč';
+  document.getElementById('earnChart').innerHTML=CG_EARNINGS.map((e,i)=>{
+    const h=Math.round(e.v/max*130)+6;
+    const cur=i===CG_EARNINGS.length-1?'cur':'';
+    return `<div class="bar-col">
+      <div class="bar ${cur}" style="height:${h}px"><span class="tip">${e.v.toLocaleString('cs-CZ')} Kč</span></div>
+      <div class="bar-m">${e.m}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- ORDER DETAIL ---------- */
+let curOrder=null;
+function openFamilyOrder(oid){
+  const o=ORDERS.find(x=>x.oid===oid);if(!o)return;const c=cg(o.cid);
+  curOrder={oid:o.oid,cid:o.cid,viewer:'family',title:sName(o.service),status:o.status,rated:!!o.rated,
+    cpName:c.name,cpInit:c.init,cpRole:'Pečovatelka',cpChatRole:'caregiver',
+    dateLabel:fmtDate(o.date),timeLabel:timeRange(o.time,o.hours),hours:o.hours,price:orderPrice(o),addr:o.addr,note:o.note,
+    back:'bookings',backLabel:'Zpět na objednávky'};
+  renderOrderDetail();go('order-detail');
+}
+function openCgOrder(i){
+  const j=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date))[i];if(!j)return;
+  curOrder={viewer:'caregiver',title:sName(j.service),status:'confirmed',
+    cpName:j.fam,cpInit:j.init,cpRole:'Klient',cpChatRole:'family',
+    dateLabel:fmtDate(j.date),timeLabel:timeRange(j.time,j.hours),hours:j.hours,price:j.hours*cgProfile.rate,
+    addr:'Adresa bude sdílena před službou',note:'',
+    back:'cg-requests',backLabel:'Zpět na poptávky'};
+  renderOrderDetail();go('order-detail');
+}
+function cancelOrder(oid){
+  const o=ORDERS.find(x=>x.oid===oid);if(!o)return;
+  o.status='cancelled';persist();
+  toast('Objednávka byla zrušena','info');
+  setTimeout(()=>go('bookings'),700);
+}
+function renderOrderDetail(){
+  const o=curOrder;if(!o)return;
+  document.getElementById('odBack').setAttribute('onclick',`go('${o.back}')`);
+  document.getElementById('odBackLabel').textContent=o.backLabel;
+  const st=ORDER_STATUS[o.status];
+  const declined=(o.status==='declined'||o.status==='cancelled');
+  const doneCount={pending:1,confirmed:2,done:4,declined:1,cancelled:1}[o.status];
+  const steps=[
+    {b:'Objednávka vytvořena',s:'Odesláno'},
+    {b:'Potvrzeno pečovatelkou',s:o.cpName},
+    {b:'Probíhá péče',s:o.dateLabel},
+    {b:'Dokončeno',s:'Připraveno k hodnocení'}
+  ];
+  const chk='<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="m5 12 5 5 9-11" stroke="#0D1B2A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  let tl=steps.map((step,idx)=>{
+    let cls=idx<doneCount?'done':(idx===doneCount&&!declined&&o.status!=='done'?'active':'');
+    return `<div class="tl-step ${cls}"><div class="tl-dot">${chk}</div><div class="tl-tx"><b>${step.b}</b><span>${step.s}</span></div></div>`;
+  }).join('');
+  if(declined)tl+=`<div class="tl-step active" style="padding-top:6px"><div class="tl-dot" style="border-color:#B23A2E;background:#FBF3F1"></div><div class="tl-tx"><b style="color:#B23A2E">${st.label}</b><span>Objednávka neproběhne</span></div></div>`;
+  let action;
+  if(o.viewer==='caregiver'){action='';}
+  else if(o.status==='done'){
+    action=o.rated
+      ?`<button class="btn btn-ghost btn-block" style="margin-top:10px" disabled>Hodnocení odesláno ✓</button>`
+      :`<button class="btn btn-navy btn-block" style="margin-top:10px" onclick="openRating(${o.cid},${o.oid})">Ohodnotit péči</button>`;
+  }else if(declined){
+    action=`<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openProfile(${o.cid})">Objednat znovu</button>`;
+  }else{
+    action=`<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="cancelOrder(${o.oid})">Zrušit objednávku</button>`;
+  }
+  document.getElementById('orderDetailGrid').innerHTML=`
+    <div class="pcard">
+      <div class="phead" style="margin-bottom:18px">
+        <div class="ava">${o.cpInit}</div>
+        <div>
+          <h1 style="font-size:24px">${o.title}</h1>
+          <div class="pmeta"><span style="color:var(--muted);font-size:14px">${o.cpRole}: <b style="color:var(--navy-900)">${o.cpName}</b></span></div>
+          <div style="margin-top:10px"><span class="status ${st.cls}">${st.label}</span></div>
+        </div>
+      </div>
+      <div class="pdiv"></div>
+      <h3>Údaje objednávky</h3>
+      <div class="od-info">
+        <div class="r"><span class="l">Datum</span><span class="v">${o.dateLabel}</span></div>
+        <div class="r"><span class="l">Čas</span><span class="v">${o.timeLabel}</span></div>
+        <div class="r"><span class="l">Délka péče</span><span class="v">${o.hours} hodin</span></div>
+        <div class="r"><span class="l">Adresa</span><span class="v">${o.addr}</span></div>
+        ${o.note?`<div class="r"><span class="l">Poznámka</span><span class="v">${o.note}</span></div>`:''}
+      </div>
+      <div class="pdiv"></div>
+      <h3>Průběh objednávky</h3>
+      <div class="timeline">${tl}</div>
+    </div>
+    <div class="pcard book-aside">
+      <h3 style="margin-bottom:14px">Souhrn</h3>
+      <div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Sazba</span><span style="font-weight:600;color:var(--navy-900)">${Math.round(o.price/o.hours)} Kč / hod</span></div>
+      <div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Délka</span><span style="font-weight:600;color:var(--navy-900)">${o.hours} h</span></div>
+      <div class="total-row"><span class="l" style="color:var(--muted)">Celkem</span><span class="big">${o.price.toLocaleString('cs-CZ')} Kč</span></div>
+      <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openChat('${o.cpName}','${o.cpInit}','${o.cpChatRole}')">Napsat zprávu</button>
+      ${action}
+    </div>`;
+}
+
+/* ---------- RATING ---------- */
+let ratingTarget={cid:null,oid:null,stars:5};
+function openRating(cid,oid){
+  ratingTarget={cid,oid,stars:5};
+  document.getElementById('ratingTitle').textContent='Ohodnotit: '+cg(cid).name;
+  document.getElementById('ratingText').value='';
+  renderStars();
+  document.getElementById('ratingModal').classList.add('open');
+  document.body.style.overflow='hidden';
+  setTimeout(()=>document.querySelector('#starPick .star')?.focus(),60);
+}
+function closeRating(){
+  const m=document.getElementById('ratingModal');
+  if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
+}
+function setStars(n){ratingTarget.stars=n;renderStars();}
+function renderStars(){
+  document.getElementById('starPick').innerHTML=[1,2,3,4,5].map(n=>
+    `<button type="button" class="star ${n<=ratingTarget.stars?'on':''}" aria-label="${n} z 5 hvězd" onclick="setStars(${n})">★</button>`).join('');
+}
+function submitRating(){
+  const {cid,oid,stars}=ratingTarget;
+  const text=document.getElementById('ratingText').value.trim()||'Spokojenost s péčí.';
+  const name=auth.loggedIn?auth.name:'Vy';
+  (cgReviews[cid]=cgReviews[cid]||[]).unshift({init:initials(name),name,stars,text});
+  const o=ORDERS.find(x=>x.oid===oid);if(o)o.rated=true;
+  if(curOrder&&curOrder.oid===oid)curOrder.rated=true;
+  persist();closeRating();
+  toast('⭐ Děkujeme za vaše hodnocení!','success');
+  if(document.getElementById('view-order-detail').classList.contains('active'))renderOrderDetail();
+}
+
+/* ---------- CHAT ---------- */
+let CONVERSATIONS=[
+  {id:1,name:'Jana Novotná',init:'JN',role:'caregiver',unread:0,msgs:[
+    {me:false,text:'Dobrý den, ráda se postarám o vaši maminku. Kdy by se vám to hodilo?',t:'9:24'},
+    {me:true,text:'Dobrý den, děkuji! Hodilo by se příští úterý dopoledne.',t:'9:30'},
+    {me:false,text:'Skvělé, úterý v 10:00 mi vyhovuje. Potvrdím vám to v objednávce.',t:'9:32'}
+  ]},
+  {id:2,name:'Martina Svobodová',init:'MS',role:'caregiver',unread:1,msgs:[
+    {me:false,text:'Dobrý den, mám volno i o víkendu, kdybyste potřebovali noční péči.',t:'včera'}
+  ]}
+];
+function chatUnread(){return CONVERSATIONS.reduce((s,c)=>s+(c.unread||0),0);}
+let activeChat=1,chatSeq=2;
+const CHAT_REPLIES=['Děkuji za zprávu, ozvu se co nejdříve.','Jistě, ráda pomůžu. Domluvíme detaily?',
+  'Rozumím, zařídím to. 🙂','To zní dobře, potvrzuji termín.','Díky, budu se těšit!'];
+function chatNow(){return new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'});}
+function openChat(name,init,role){
+  let c=CONVERSATIONS.find(x=>x.name===name);
+  if(!c){c={id:++chatSeq,name,init:init||initials(name),role:role||'caregiver',msgs:[]};CONVERSATIONS.unshift(c);persist();}
+  activeChat=c.id;go('chat');
+  setTimeout(()=>document.getElementById('chatInput')?.focus(),140);
+}
+function renderChat(){
+  if(!CONVERSATIONS.find(c=>c.id===activeChat))activeChat=CONVERSATIONS[0]&&CONVERSATIONS[0].id;
+  document.getElementById('chatList').innerHTML='<div class="chat-list-h">Konverzace</div>'+CONVERSATIONS.map(c=>{
+    const last=c.msgs[c.msgs.length-1];
+    return `<button class="chat-li ${c.id===activeChat?'on':''}" onclick="selectChat(${c.id})">
+      <div class="ava">${c.init}</div>
+      <div class="ci"><b>${c.name}</b><span>${last?(last.me?'Vy: ':'')+last.text:'Nová konverzace'}</span></div>
+    </button>`;}).join('');
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);
+  const head=document.getElementById('chatHead'),body=document.getElementById('chatBody');
+  if(!c){head.innerHTML='';body.innerHTML='';return;}
+  c.unread=0;
+  head.innerHTML=`<div class="ava">${c.init}</div><div><b>${c.name}</b><span>Online</span></div>`;
+  body.innerHTML=c.msgs.map(m=>`<div class="msg ${m.me?'me':'them'}">${m.text}<span class="mt">${m.t}</span></div>`).join('');
+  scrollChat();
+  updateAuthUI();
+}
+function scrollChat(){const b=document.getElementById('chatBody');if(b)b.scrollTop=b.scrollHeight;}
+function selectChat(id){activeChat=id;renderChat();document.getElementById('chatInput')?.focus();}
+function sendChat(e){
+  e.preventDefault();
+  const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return false;
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return false;
+  c.msgs.push({me:true,text,t:chatNow()});inp.value='';persist();renderChat();
+  const body=document.getElementById('chatBody');
+  const typing=document.createElement('div');typing.className='typing';
+  typing.textContent=c.name.split(/\s+/)[0]+' píše…';body.appendChild(typing);scrollChat();
+  setTimeout(()=>{
+    c.msgs.push({me:false,text:CHAT_REPLIES[Math.floor(Math.random()*CHAT_REPLIES.length)],t:chatNow()});
+    persist();renderChat();
+  },1300);
+  return false;
+}
+
+/* ---------- PERSISTENCE ---------- */
+const LS_KEY='zv_state';
+function persist(){
+  try{localStorage.setItem(LS_KEY,JSON.stringify({
+    conversations:CONVERSATIONS,chatSeq,reqSeq,orderSeq,
+    cgRequests:CG_REQUESTS,cgSchedule:CG_SCHEDULE,
+    orders:ORDERS,cgProfile,cgAvail,cgReviews
+  }));}catch(e){}
+}
+function loadState(){
+  try{
+    const s=JSON.parse(localStorage.getItem(LS_KEY));if(!s)return;
+    if(Array.isArray(s.conversations))CONVERSATIONS=s.conversations;
+    if(typeof s.chatSeq==='number')chatSeq=s.chatSeq;
+    if(typeof s.reqSeq==='number')reqSeq=s.reqSeq;
+    if(typeof s.orderSeq==='number')orderSeq=s.orderSeq;
+    if(Array.isArray(s.cgRequests))CG_REQUESTS=s.cgRequests;
+    if(Array.isArray(s.cgSchedule))CG_SCHEDULE=s.cgSchedule;
+    if(Array.isArray(s.orders))ORDERS=s.orders;
+    if(s.cgProfile)Object.assign(cgProfile,s.cgProfile);
+    if(Array.isArray(s.cgAvail))cgAvail=s.cgAvail;
+    if(s.cgReviews)cgReviews=s.cgReviews;
+  }catch(e){}
+}
+function resetDemo(){
+  try{localStorage.removeItem(LS_KEY);localStorage.removeItem('zv_auth');}catch(e){}
+  location.reload();
+}
+
+/* ---------- INIT ---------- */
+initTheme();
+loadState();
+updateAuthUI();
+renderHome();renderFilters();renderCare();renderCalendar();
+if(auth.loggedIn&&auth.role==='caregiver')go('cg-dashboard');
+</script>
+</body>
+</html>
