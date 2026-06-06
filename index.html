@@ -1026,9 +1026,12 @@
 <div class="view" id="view-cg-dashboard">
   <div class="wrap">
     <div class="dash-head">
-      <div>
-        <h1>Dobrý den, <span id="cgFirst">Jano</span> <span class="wave">👋</span></h1>
-        <p id="cgIntro">Tady je přehled vaší péče.</p>
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="ava" id="cgDashAva" style="width:62px;height:62px;font-size:22px">JN</div>
+        <div>
+          <h1>Dobrý den, <span id="cgFirst">Jano</span> <span class="wave">👋</span></h1>
+          <p id="cgIntro">Tady je přehled vaší péče.</p>
+        </div>
       </div>
       <button class="btn btn-gold" onclick="go('cg-profile')">Upravit profil</button>
     </div>
@@ -1645,7 +1648,7 @@ function renderCare(){
   g.innerHTML=list.map(c=>`
     <div class="care-card" onclick="openProfile(${c.id})">
       <div class="care-top">
-        <div class="ava">${c.init}</div>
+        ${avaHtml(c.init,c.photo)}
         <div style="flex:1">
           <div class="care-name">${c.name}</div>
           <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${c.loc}</div>
@@ -1671,7 +1674,7 @@ function openProfile(id){
   document.getElementById('profileGrid').innerHTML=`
     <div class="pcard">
       <div class="phead">
-        <div class="ava">${c.init}</div>
+        ${avaHtml(c.init,c.photo)}
         <div>
           <h1>${c.name}</h1>
           <div class="pmeta">
@@ -1738,7 +1741,7 @@ function updateSummary(){
   document.getElementById('summaryCard').innerHTML=`
     <h3>Souhrn objednávky</h3>
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
-      <div class="ava" style="width:46px;height:46px;font-size:16px">${c.init}</div>
+      ${avaHtml(c.init,c.photo,'width:46px;height:46px;font-size:16px')}
       <div><div style="font-family:'Playfair Display',serif;font-size:16px;color:#fff">${c.name}</div>
       <div style="font-size:12.5px;color:#A9B2BD">${c.loc} · ★ ${c.rating}</div></div>
     </div>
@@ -1808,6 +1811,20 @@ function initials(name){
   const p=name.trim().split(/\s+/);
   return ((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase()||'Z';
 }
+/* avatar: foto, nebo iniciály (velikost řeší kontextové CSS) */
+function avaHtml(init,photo,extra){
+  extra=extra||'';
+  return photo
+    ? `<div class="ava" style="${extra};background-image:url('${photo}');background-size:cover;background-position:center;color:transparent"></div>`
+    : `<div class="ava"${extra?` style="${extra}"`:''}>${init}</div>`;
+}
+function setAva(el,photo,init){
+  if(!el)return;
+  if(photo){el.textContent='';el.style.backgroundImage=`url('${photo}')`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.color='transparent';}
+  else{el.style.backgroundImage='';el.style.color='';el.textContent=init;}
+}
+/* propíše profilovou fotku pečovatelky do seznamu (Jana = id 1) */
+function syncCgPhotoToList(){ if(CAREGIVERS[0])CAREGIVERS[0].photo=cgProfile.photo; }
 
 /* ---- session ---- */
 function loginAs(name,email,role){
@@ -1852,7 +1869,7 @@ function updateAuthUI(){
   document.getElementById('accountWrap').hidden=!inn;
   document.getElementById('loginBtn').hidden=inn;
   if(inn){
-    document.getElementById('avatarInit').textContent=initials(auth.name);
+    setAva(document.getElementById('avatarInit'), auth.role==='caregiver'?cgProfile.photo:null, initials(auth.name));
     document.getElementById('avatarName').textContent=auth.name.split(/\s+/)[0];
     document.getElementById('amName').textContent=auth.name;
     document.getElementById('amEmail').textContent=auth.email;
@@ -1875,7 +1892,7 @@ function updateAuthUI(){
   else{greet.hidden=true;}
   const homeLink=auth.role==='caregiver'?"<a role=\"button\" tabindex=\"0\" onclick=\"go('cg-dashboard')\">Přehled</a>":"<a role=\"button\" tabindex=\"0\" onclick=\"go('bookings')\">Moje objednávky</a>";
   mm.innerHTML=inn
-    ? `<div class="mm-user"><div class="ava">${initials(auth.name)}</div><div><b>${auth.name}</b><span>${auth.email}</span></div></div>
+    ? `<div class="mm-user">${avaHtml(initials(auth.name),auth.role==='caregiver'?cgProfile.photo:null)}<div><b>${auth.name}</b><span>${auth.email}</span></div></div>
        ${homeLink}
        <a role="button" tabindex="0" onclick="logout()" style="color:#B23A2E">Odhlásit se</a>`
     : `<a data-v="login" role="button" tabindex="0" onclick="go('login')">Přihlásit se</a>
@@ -2065,7 +2082,7 @@ function renderOrders(tab){
   el.innerHTML=list.map(o=>{
     const c=cg(o.cid);const st=ORDER_STATUS[o.status];
     return `<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openFamilyOrder(${o.oid})">
-      <div class="ava">${c.init}</div>
+      ${avaHtml(c.init,c.photo)}
       <div class="od">
         <b>${sName(o.service)}</b>
         <div class="det">${c.name} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div>
@@ -2105,6 +2122,7 @@ function timeRange(start,hours){
 
 function renderCgDashboard(){
   if(auth.role==='caregiver'&&auth.name)cgProfile.name=auth.name;
+  setAva(document.getElementById('cgDashAva'),cgProfile.photo,initials(cgProfile.name));
   document.getElementById('cgFirst').textContent=cgFirstName().split(/\s+/)[0];
   document.getElementById('cgIntro').textContent=CG_REQUESTS.length
     ?`Máte ${CG_REQUESTS.length} ${CG_REQUESTS.length===1?'novou poptávku':'nové poptávky'} a ${CG_SCHEDULE.length} naplánovaných služeb.`
@@ -2247,7 +2265,7 @@ function onCgPhoto(e){
       const c=document.createElement('canvas');c.width=w;c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
       cgProfile.photo=c.toDataURL('image/jpeg',0.85);
-      updateCgAvatar();syncCgPreview();persist();
+      syncCgPhotoToList();updateCgAvatar();syncCgPreview();updateAuthUI();renderCare();persist();
       toast('✓ Profilová fotka nahrána');
     };
     img.src=reader.result;
@@ -2257,7 +2275,7 @@ function onCgPhoto(e){
 function removeCgPhoto(){
   cgProfile.photo=null;
   const inp=document.getElementById('cpPhotoInput');if(inp)inp.value='';
-  updateCgAvatar();syncCgPreview();persist();
+  syncCgPhotoToList();updateCgAvatar();syncCgPreview();updateAuthUI();renderCare();persist();
   toast('Profilová fotka odebrána');
 }
 function renderCgServiceChips(){
@@ -2517,6 +2535,7 @@ function loadState(){
     if(Array.isArray(s.cgSchedule))CG_SCHEDULE=s.cgSchedule;
     if(Array.isArray(s.orders))ORDERS=s.orders;
     if(s.cgProfile)Object.assign(cgProfile,s.cgProfile);
+    syncCgPhotoToList();
     if(Array.isArray(s.cgAvail))cgAvail=s.cgAvail;
     if(s.cgReviews)cgReviews=s.cgReviews;
   }catch(e){}
