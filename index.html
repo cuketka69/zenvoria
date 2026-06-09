@@ -1393,8 +1393,8 @@
         <div style="margin-top:14px">
           <label class="lbl">Doklad (osvědčení, diplom)</label>
           <label class="doc-drop" id="vfDocLabel">
-            <span id="vfDocText"><b>Nahrát soubor</b> — PDF nebo fotka dokladu</span>
-            <input type="file" accept="image/*,.pdf" id="vfDoc" hidden onchange="onVerifyDoc(event)">
+            <span id="vfDocText"><b>Nahrát soubor</b> — PDF, Word, obrázek nebo sken dokladu</span>
+            <input type="file" accept="image/*,.pdf,.doc,.docx,.odt,.rtf,.txt,.heic" id="vfDoc" hidden onchange="onVerifyDoc(event)">
           </label>
         </div>
         <div style="margin-top:14px"><label class="lbl">Reference / doporučení (volitelné)</label><textarea class="inp" id="vfRefs" placeholder="Kontakt na referenci nebo odkaz na doporučení…"></textarea></div>
@@ -2889,7 +2889,7 @@ function renderCgVerify(){
   const setv=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
   setv('vfName',auth.name||cgProfile.name);
   setv('vfLoc',cgProfile.loc||'Praha 6');
-  document.getElementById('vfDocText').innerHTML='<b>Nahrát soubor</b> — PDF nebo fotka dokladu';
+  document.getElementById('vfDocText').innerHTML='<b>Nahrát soubor</b> — PDF, Word, obrázek nebo sken dokladu';
   document.getElementById('vfSelfieText').innerHTML='<b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte';
   verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
   const form=document.getElementById('cgVerifyForm');
@@ -2991,7 +2991,7 @@ function renderAdminVerify(){
         <div class="rd">${v.loc} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
         <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">🛡️ Identita:</b> ${v.docType||'—'}${v.docNum?` č. ${v.docNum}`:''}${v.phone?` · ☎ ${v.phone}`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">🤳 ${v.selfie} ⬇</a>`:''}</div>
         <div class="rd"><b style="color:var(--navy-800)">🎓 Osvědčení:</b> ${v.cert} — ${v.issuer} (platnost ${v.validUntil})</div>
-        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">📎 ${v.fileName} ⬇</a> · <b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
+        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">${docIcon(v.fileName)} ${v.fileName} ⬇</a> · <b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
         ${v.refs?`<div class="rd"><b style="color:var(--navy-800)">Reference:</b> ${v.refs}</div>`:''}
         ${v.note?`<div class="rd" style="margin-top:6px;font-style:italic">„${v.note}"</div>`:''}
         <span class="rs">Podáno ${fmtDate(v.date)}</span>
@@ -3008,6 +3008,15 @@ function renderAdminVerify(){
       <td>${v.cert}</td><td>${fmtDate(v.date)}</td>
       <td style="text-align:right">${verBadge(v.status)}${v.status==='rejected'&&v.reason?`<div class="rd" style="margin-top:4px">${v.reason}</div>`:''}</td>
     </tr>`).join('')}</tbody></table>`:'<div class="empty">Zatím žádné zpracované žádosti.</div>';
+}
+/* ikona podle přípony souboru */
+function docIcon(name){
+  const e=(name||'').toLowerCase().split('.').pop();
+  if(['jpg','jpeg','png','gif','webp','heic','bmp'].includes(e))return '🖼️';
+  if(e==='pdf')return '📕';
+  if(['doc','docx','odt','rtf'].includes(e))return '📝';
+  if(e==='txt')return '📄';
+  return '📎';
 }
 /* stažení nahraného dokladu / selfie pro kontrolu adminem */
 function downloadVer(id,which){
