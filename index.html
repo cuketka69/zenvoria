@@ -638,6 +638,7 @@
   .badge.wait{color:var(--gold-deep);background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.35)}
   .badge.bad{color:#B23A2E;background:#FBF3F1;border:1px solid #E3C9C4}
   .badge.off{color:var(--muted);background:var(--cream);border:1px solid var(--line)}
+  .badge.gold{color:var(--navy-900);background:var(--gold);border:1px solid var(--gold);box-shadow:0 6px 16px -10px rgba(201,162,51,.7)}
   /* ověřovací banner u pečovatelky */
   .verify-banner{display:flex;align-items:center;gap:16px;border-radius:18px;padding:18px 22px;margin-bottom:26px;border:1px solid var(--line)}
   .verify-banner.wait{background:linear-gradient(135deg,rgba(201,162,51,.14),rgba(201,162,51,.04));border-color:rgba(201,162,51,.4)}
@@ -3153,7 +3154,7 @@ function rejectVerification(id){
 function renderAdminCaregivers(){
   document.getElementById('admCgCount').textContent=CAREGIVERS.length;
   document.getElementById('admCgBody').innerHTML=CAREGIVERS.map(c=>{
-    const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge ok">Ověřená</span>':'<span class="badge wait">Neověřená</span>');
+    const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge gold">✓ Ověřená</span>':'<span class="badge wait">Neověřená</span>');
     return `<tr>
       <td><div class="u-cell">${avaHtml(c.init,c.photo)}<div><b>${c.name}</b><span>★ ${c.rating} · ${c.exp} let praxe</span></div></div></td>
       <td>${c.loc}</td><td>${c.rate} Kč</td><td>${badge}</td>
