@@ -1299,6 +1299,10 @@
           </div>
           <div id="cpRateWrap"><label class="lbl" id="cpRateLbl">Hodinová sazba (Kč)</label><input class="inp" type="number" id="cpRate" min="150" max="9000" step="10" oninput="syncCgPreview()"></div>
         </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Cena za km dopravy (Kč)</label><input class="inp" type="number" id="cpKmPrice" min="0" max="50" step="1" placeholder="0 = doprava v ceně" oninput="syncCgPreview()"></div>
+          <div></div>
+        </div>
         <div style="margin-top:14px">
           <label class="lbl">O mně <span style="float:right;font-weight:400" id="cpBioCount">0 / 500</span></label>
           <textarea class="inp" id="cpBio" maxlength="500" oninput="syncCgPreview()"></textarea>
@@ -1914,10 +1918,12 @@ CAREGIVERS.forEach(c=>{
   if(c.priceType===undefined)c.priceType='hod'; // hod | den | indiv
   if(c.dayRate===undefined)c.dayRate=c.rate*8;
   if(c.radius===undefined)c.radius=10; // dojezdová vzdálenost v km
+  if(c.kmPrice===undefined)c.kmPrice=0; // cena za km dopravy (0 = v ceně)
 });
 /* demo: ukázka různých typů ceny */
 (function(){const a=CAREGIVERS.find(x=>x.id===4);if(a){a.priceType='den';a.dayRate=1900;}
-  const b=CAREGIVERS.find(x=>x.id===6);if(b)b.priceType='indiv';})();
+  const b=CAREGIVERS.find(x=>x.id===6);if(b)b.priceType='indiv';
+  const d=CAREGIVERS.find(x=>x.id===2);if(d)d.kmPrice=9;})();
 /* demo: někteří mají PREMIUM tarif (vyšší zobrazení + odznak 💎) */
 [1,2,5].forEach(id=>{const c=CAREGIVERS.find(x=>x.id===id);if(c)c.plan='premium';});
 const c1=CAREGIVERS.find(x=>x.id===1);if(c1)c1.langs=['Čeština','Angličtina'];
@@ -2223,6 +2229,7 @@ function openProfile(id){
       <h3 style="margin-bottom:4px">Objednat péči</h3>
       <p style="color:var(--muted);font-size:13.5px;margin-bottom:18px">Vyberte si termín a my zajistíme zbytek.</p>
       <div class="row"><span class="l">Cena</span><span class="r">${priceLabel(c)}</span></div>
+      <div class="row"><span class="l">Doprava</span><span class="r">${kmLabel(c)}</span></div>
       <div class="row"><span class="l">Dojezd</span><span class="r">${c.loc} do ${c.radius} km</span></div>
       <div class="row"><span class="l">Dostupnost</span><span class="r" style="color:var(--gold-deep)">Tento týden</span></div>
       <div class="row"><span class="l">Reakce</span><span class="r">do 2 hodin</span></div>
@@ -2769,6 +2776,8 @@ function priceShort(c){
   if(c.priceType==='den')return `<b>${(c.dayRate||c.rate*8).toLocaleString('cs-CZ')} Kč</b> <span>/ den</span>`;
   return `<b>${c.rate} Kč</b> <span>/ hod</span>`;
 }
+/* doprava: cena za km, 0 = v ceně */
+function kmLabel(c){return (c.kmPrice&&c.kmPrice>0)?`${c.kmPrice} Kč / km`:'V ceně';}
 /* odznaky pečovatelky pro karty a profil */
 function cgBadges(c,opts){
   opts=opts||{};const b=[];
@@ -2962,7 +2971,7 @@ function approveVerification(id){
     CAREGIVERS.push({id:++cgSeq,name:v.name,email:v.email,init:v.init,loc:v.loc,rate:v.rate,
       rating:5.0,reviews:0,exp:v.exp,services:v.services.slice(),verified:true,cert:true,idVerified:true,
       suspended:false,status:'verified',plan:cgPlanMap[v.email]||'start',langs:['Čeština'],
-      priceType:'hod',dayRate:v.rate*8,radius:10,bio:v.bio||''});
+      priceType:'hod',dayRate:v.rate*8,radius:10,kmPrice:0,bio:v.bio||''});
   }
   cgStatusMap[v.email]='verified';
   persist();renderAdminVerify();renderNav();renderCare();
@@ -3052,7 +3061,7 @@ function renderAdminOrders(){
 /* ---------- CAREGIVER PORTAL ---------- */
 const cgProfile={
   name:'Jana Novotná',loc:'Praha 6',rate:250,exp:5,rating:4.9,reviews:128,photo:null,
-  priceType:'hod',dayRate:2000,radius:10,
+  priceType:'hod',dayRate:2000,radius:10,kmPrice:0,
   services:['osobni','lekar','spolecnost'],
   bio:'Jsem pečovatelka s více než 5 lety praxe v péči o seniory. Nabízím laskavý přístup, spolehlivost a individuální péči. Ráda doprovázím k lékaři a věnuji se i společnosti a povídání.'
 };
@@ -3211,6 +3220,7 @@ function renderCgProfile(){
   document.getElementById('cpRate').value=cgProfile.rate;
   document.getElementById('cpExp').value=cgProfile.exp;
   document.getElementById('cpRadius').value=cgProfile.radius;
+  document.getElementById('cpKmPrice').value=cgProfile.kmPrice||0;
   document.getElementById('cpPriceType').value=cgProfile.priceType||'hod';
   if(cgProfile.priceType==='den')document.getElementById('cpRate').value=cgProfile.dayRate;
   document.getElementById('cpBio').value=cgProfile.bio;
@@ -3307,6 +3317,7 @@ function saveCgProfile(){
   cgProfile.loc=document.getElementById('cpLoc').value;
   cgProfile.exp=+document.getElementById('cpExp').value||cgProfile.exp;
   cgProfile.radius=+document.getElementById('cpRadius').value||cgProfile.radius;
+  cgProfile.kmPrice=Math.max(0,+document.getElementById('cpKmPrice').value||0);
   cgProfile.priceType=document.getElementById('cpPriceType').value;
   const rv=+document.getElementById('cpRate').value||0;
   if(cgProfile.priceType==='den')cgProfile.dayRate=rv||cgProfile.dayRate;
@@ -3316,7 +3327,7 @@ function saveCgProfile(){
   const me=CAREGIVERS.find(x=>x.email===auth.email)||CAREGIVERS[0];
   if(me){me.loc=cgProfile.loc;me.rate=cgProfile.rate;me.exp=cgProfile.exp;me.bio=cgProfile.bio;
     me.radius=cgProfile.radius;me.priceType=cgProfile.priceType;me.dayRate=cgProfile.dayRate;
-    me.services=cgProfile.services.slice();}
+    me.kmPrice=cgProfile.kmPrice;me.services=cgProfile.services.slice();}
   if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role);}
   persist();renderCare();
   toast('✓ Profil byl uložen a zveřejněn');
