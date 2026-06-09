@@ -1124,6 +1124,9 @@
           <div class="step-h"><div class="step-num">3</div><b>Adresa a poznámka</b></div>
           <label class="lbl">Adresa</label>
           <input class="inp" id="bkAddr" placeholder="Ulice a číslo, Praha" value="Veleslavínská 123, Praha 6">
+          <div style="margin-top:14px" id="bkKmWrap"><label class="lbl">Vzdálenost dojezdu (km)</label>
+            <input class="inp" type="number" id="bkKm" min="0" max="80" step="1" value="0" oninput="updateSummary()">
+          </div>
           <div style="margin-top:14px"><label class="lbl">Poznámka pro pečovatelku</label>
             <textarea class="inp" id="bkNote" placeholder="Např. Ráda bych doprovod k lékaři.">Ráda bych doprovod k lékaři.</textarea>
           </div>
@@ -2178,6 +2181,7 @@ function renderCare(){
       <div class="care-tags">
         ${cgBadges(c)}
         ${c.services.slice(0,2).map(s=>`<span class="chip">${sName(s)}</span>`).join('')}
+        ${c.kmPrice>0?`<span class="chip">🚗 ${c.kmPrice} Kč/km</span>`:''}
       </div>
       <div class="care-foot">
         <div class="price">${priceShort(c)}</div>
@@ -2251,6 +2255,10 @@ function openBooking(id){
   const dateEl=document.getElementById('bkDate');
   dateEl.min=todayISO();
   dateEl.value=todayISO();
+  // pole vzdálenosti jen když pečovatel účtuje dopravu
+  const kmWrap=document.getElementById('bkKmWrap');
+  document.getElementById('bkKm').value=0;
+  if(kmWrap)kmWrap.style.display=(c.kmPrice&&c.kmPrice>0)?'':'none';
   updateSummary();go('booking');
 }
 function pickService(s){state.bkService=s;
@@ -2258,7 +2266,10 @@ function pickService(s){state.bkService=s;
 function pickHours(h){state.bkHours=h;
   document.querySelectorAll('#bkHours .opt').forEach(o=>o.classList.toggle('on',o.textContent===h+' hodin'));updateSummary();}
 function updateSummary(){
-  const c=cg(state.caregiverId);const sub=c.rate*state.bkHours;const fee=Math.round(sub*0.0);const total=sub+fee;
+  const c=cg(state.caregiverId);const sub=c.rate*state.bkHours;
+  const km=Math.max(0,+(document.getElementById('bkKm')||{}).value||0);
+  const transport=(c.kmPrice&&c.kmPrice>0)?km*c.kmPrice:0;
+  const total=sub+transport;
   const d=document.getElementById('bkDate').value;const t=document.getElementById('bkTime').value;
   const dateStr=d?new Date(d).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'}):'—';
   document.getElementById('summaryCard').innerHTML=`
@@ -2271,7 +2282,8 @@ function updateSummary(){
     <div class="row"><span class="l">Služba</span><span class="r">${sName(state.bkService)}</span></div>
     <div class="row"><span class="l">Datum</span><span class="r">${dateStr}</span></div>
     <div class="row"><span class="l">Čas</span><span class="r">${t} (${state.bkHours} h)</span></div>
-    <div class="row"><span class="l">Sazba</span><span class="r">${c.rate} Kč / hod</span></div>
+    <div class="row"><span class="l">Péče</span><span class="r">${sub.toLocaleString('cs-CZ')} Kč (${c.rate} Kč/hod)</span></div>
+    ${transport>0?`<div class="row"><span class="l">Doprava</span><span class="r">${transport.toLocaleString('cs-CZ')} Kč (${km} km × ${c.kmPrice} Kč)</span></div>`:''}
     <div class="grand"><span class="l" style="font-size:15px;color:#fff">Celkem</span><span class="big">${total.toLocaleString('cs-CZ')} Kč</span></div>
     <button class="btn btn-gold btn-block" style="margin-top:22px" onclick="confirmBooking()">Potvrdit objednávku</button>
     <p style="font-size:11.5px;color:#8E9A8F;text-align:center;margin-top:12px">Platba proběhne až po potvrzení pečovatelkou.</p>`;
@@ -2287,9 +2299,10 @@ function confirmBooking(){
   if(addr.length<5){toast('⚠️ Zadejte prosím platnou adresu.');document.getElementById('bkAddr').focus();return;}
   const note=document.getElementById('bkNote').value.trim();
   const hours=state.bkHours;
+  const km=Math.max(0,+document.getElementById('bkKm').value||0);
   const oid=++orderSeq;
   // objednávka rodiny (čeká na potvrzení pečovatelkou)
-  ORDERS.unshift({oid,cid:c.id,service:state.bkService,hours,date,time,addr,note,status:'pending'});
+  ORDERS.unshift({oid,cid:c.id,service:state.bkService,hours,date,time,addr,note,km,status:'pending'});
   // propojená poptávka pro pečovatelku
   const famName=auth.loggedIn?auth.name:'Marie Horáková';
   CG_REQUESTS.unshift({id:++reqSeq,oid,fam:famName,init:initials(famName),service:state.bkService,date,time,hours,addr});
@@ -2679,7 +2692,7 @@ function renderCalendar(){
 }
 function calMove(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--}if(calMonth>11){calMonth=0;calYear++}renderCalendar();}
 function setOrderTab(el,tab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');renderOrders(tab);}
-function orderPrice(o){return cg(o.cid).rate*o.hours;}
+function orderPrice(o){const c=cg(o.cid);const transport=(c.kmPrice&&o.km)?c.kmPrice*o.km:0;return c.rate*o.hours+transport;}
 function renderOrders(tab){
   const want=tab==='up'?['pending','confirmed']:['done','declined','cancelled'];
   const list=ORDERS.filter(o=>want.includes(o.status));
@@ -3369,7 +3382,8 @@ function openFamilyOrder(oid){
   const o=ORDERS.find(x=>x.oid===oid);if(!o)return;const c=cg(o.cid);
   curOrder={oid:o.oid,cid:o.cid,viewer:'family',title:sName(o.service),status:o.status,rated:!!o.rated,
     cpName:c.name,cpInit:c.init,cpRole:'Pečovatelka',cpChatRole:'caregiver',
-    dateLabel:fmtDate(o.date),timeLabel:timeRange(o.time,o.hours),hours:o.hours,price:orderPrice(o),addr:o.addr,note:o.note,
+    dateLabel:fmtDate(o.date),timeLabel:timeRange(o.time,o.hours),hours:o.hours,price:orderPrice(o),
+    rate:c.rate,km:o.km||0,transport:(c.kmPrice&&o.km)?c.kmPrice*o.km:0,addr:o.addr,note:o.note,
     back:'bookings',backLabel:'Zpět na objednávky'};
   renderOrderDetail();go('order-detail');
 }
@@ -3378,7 +3392,7 @@ function openCgOrder(i){
   curOrder={viewer:'caregiver',title:sName(j.service),status:'confirmed',
     cpName:j.fam,cpInit:j.init,cpRole:'Klient',cpChatRole:'family',
     dateLabel:fmtDate(j.date),timeLabel:timeRange(j.time,j.hours),hours:j.hours,price:j.hours*cgProfile.rate,
-    addr:'Adresa bude sdílena před službou',note:'',
+    rate:cgProfile.rate,transport:0,addr:'Adresa bude sdílena před službou',note:'',
     back:'cg-requests',backLabel:'Zpět na poptávky'};
   renderOrderDetail();go('order-detail');
 }
@@ -3443,8 +3457,9 @@ function renderOrderDetail(){
     </div>
     <div class="pcard book-aside">
       <h3 style="margin-bottom:14px">Souhrn</h3>
-      <div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Sazba</span><span style="font-weight:600;color:var(--navy-900)">${Math.round(o.price/o.hours)} Kč / hod</span></div>
+      <div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Sazba</span><span style="font-weight:600;color:var(--navy-900)">${o.rate||Math.round(o.price/o.hours)} Kč / hod</span></div>
       <div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Délka</span><span style="font-weight:600;color:var(--navy-900)">${o.hours} h</span></div>
+      ${o.transport>0?`<div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Doprava</span><span style="font-weight:600;color:var(--navy-900)">${o.transport.toLocaleString('cs-CZ')} Kč (${o.km} km)</span></div>`:''}
       <div class="total-row"><span class="l" style="color:var(--muted)">Celkem</span><span class="big">${o.price.toLocaleString('cs-CZ')} Kč</span></div>
       <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openChat('${o.cpName}','${o.cpInit}','${o.cpChatRole}')">Napsat zprávu</button>
       ${action}
