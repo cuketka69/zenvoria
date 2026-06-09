@@ -640,6 +640,40 @@
     font-size:13.5px;cursor:pointer;transition:.18s;background:var(--cream)}
   .doc-drop:hover{border-color:var(--gold);color:var(--navy-800)}
   .doc-drop b{color:var(--gold-deep)}
+  /* odznaky pečovatelky */
+  .chip.badge-id{background:rgba(62,155,95,.12);border:1px solid rgba(62,155,95,.32);color:#2E7D46;font-weight:600}
+  .chip.badge-top{background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.4);color:var(--gold-deep);font-weight:600}
+  .chip.badge-prem{background:linear-gradient(135deg,rgba(201,162,51,.22),rgba(201,162,51,.06));border:1px solid var(--gold);color:var(--gold-deep);font-weight:700}
+  .care-card.is-premium{border-color:rgba(201,162,51,.5)}
+  .care-card.is-premium::after{content:"💎 PREMIUM";position:absolute;top:0;right:0;font-size:10px;font-weight:800;letter-spacing:.05em;
+    color:var(--navy-900);background:linear-gradient(135deg,var(--gold),var(--gold-deep));padding:4px 10px;border-bottom-left-radius:12px}
+  .care-card{position:relative}
+  /* ceník / tarify */
+  .plan-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;padding-bottom:50px}
+  .plan-card{background:var(--white);border:1px solid var(--line);border-radius:22px;padding:30px 28px;box-shadow:var(--shadow-sm);position:relative;display:flex;flex-direction:column}
+  .plan-card.featured{border:2px solid var(--gold);box-shadow:var(--shadow)}
+  .plan-card .pl-tag{position:absolute;top:-13px;left:28px;background:linear-gradient(135deg,var(--gold),var(--gold-deep));color:var(--navy-900);font-size:11.5px;font-weight:800;letter-spacing:.06em;padding:5px 14px;border-radius:20px}
+  .plan-card h3{font-family:'Playfair Display',serif;font-size:24px;color:var(--navy-900);margin-bottom:6px}
+  .plan-card .pl-price{font-family:'Playfair Display',serif;font-size:38px;color:var(--navy-900);line-height:1;margin:8px 0 4px}
+  .plan-card .pl-price span{font-size:15px;color:var(--muted);font-family:inherit}
+  .plan-card .pl-sub{font-size:13.5px;color:var(--muted);margin-bottom:20px}
+  .plan-card ul{list-style:none;margin:0 0 24px;padding:0;display:flex;flex-direction:column;gap:11px;flex:1}
+  .plan-card li{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:var(--navy-800)}
+  .plan-card li::before{content:"✔";color:var(--gold-deep);font-weight:800;flex:0 0 auto}
+  .plan-current{text-align:center;font-size:13px;font-weight:700;color:#2E7D46;padding:13px;border:1px solid rgba(62,155,95,.3);background:rgba(62,155,95,.08);border-radius:13px}
+  @media(max-width:680px){.plan-grid{grid-template-columns:1fr}}
+  /* stav-pruh ověření v adminu */
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 22px;font-size:12.5px}
+  .flow .fl-step{padding:6px 12px;border-radius:20px;background:var(--cream);border:1px solid var(--line);color:var(--muted);font-weight:600}
+  .flow .fl-ar{color:var(--gold-deep);font-weight:800}
+  /* hodnocení podle kritérií */
+  .rate-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .rate-row:last-child{border-bottom:none}
+  .rate-row .rr-l{font-size:14px;font-weight:600;color:var(--navy-800)}
+  .rate-row .rr-stars{display:inline-flex;gap:3px}
+  .rate-row .rr-stars button{background:none;border:none;cursor:pointer;font-size:22px;line-height:1;color:#D8D2C6;padding:0;transition:.12s}
+  .rate-row .rr-stars button.on{color:var(--gold)}
+  .rate-row .rr-stars button:hover{transform:scale(1.15)}
 
   .avail-day{display:flex;align-items:center;justify-content:space-between;padding:13px 4px;border-bottom:1px solid var(--line)}
   .avail-day:last-child{border:none}
@@ -1167,6 +1201,7 @@
           <div class="qa">
             <button class="qa-item" onclick="go('cg-calendar')"><span class="qa-ic">📅</span><span class="qa-l">Nastavit dostupnost</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('cg-profile')"><span class="qa-ic">👤</span><span class="qa-l">Upravit veřejný profil</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('pricing')"><span class="qa-ic">💎</span><span class="qa-l">Předplatné a tarify</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')"><span class="qa-ic">🎓</span><span class="qa-l">Vzdělávání</span><span class="qa-ar">›</span></button>
           </div>
         </div>
@@ -1278,7 +1313,7 @@
     <div id="cgVerifyBanner"></div>
     <div class="profile-grid">
       <form class="pcard" id="cgVerifyForm" novalidate onsubmit="return submitVerify(event)">
-        <h3>Doklady a kvalifikace</h3>
+        <h3>Základní údaje</h3>
         <div class="grid2" style="margin-top:6px">
           <div><label class="lbl">Jméno a příjmení</label><input class="inp" id="vfName" placeholder="Jana Nováková"></div>
           <div><label class="lbl">Lokalita</label>
@@ -1292,6 +1327,26 @@
         <div class="grid2" style="margin-top:14px">
           <div><label class="lbl">Hodinová sazba (Kč)</label><input class="inp" type="number" id="vfRate" min="150" max="600" step="10" value="240"></div>
           <div><label class="lbl">Roky praxe</label><input class="inp" type="number" id="vfExp" min="0" max="40" value="3"></div>
+        </div>
+        <div class="pdiv"></div>
+        <h3>Ověření identity <span class="badge wait" style="font-size:11px">povinné</span></h3>
+        <p style="color:var(--muted);font-size:13px;margin:4px 0 12px">Doklad a selfie slouží výhradně k ověření totožnosti (Zenvoria Verified).</p>
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Telefon</label><input class="inp" id="vfPhone" type="tel" placeholder="+420 777 123 456"></div>
+          <div><label class="lbl">Typ dokladu</label>
+            <select class="inp" id="vfDocType"><option value="op">Občanský průkaz</option><option value="pas">Cestovní pas</option></select>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Číslo dokladu</label><input class="inp" id="vfDocNum" placeholder="např. 123456789"></div>
+          <div></div>
+        </div>
+        <div style="margin-top:14px">
+          <label class="lbl">Selfie kontrola (fotka obličeje s dokladem)</label>
+          <label class="doc-drop" id="vfSelfieLabel">
+            <span id="vfSelfieText"><b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte</span>
+            <input type="file" accept="image/*" id="vfSelfie" hidden onchange="onVerifySelfie(event)">
+          </label>
         </div>
         <div class="pdiv"></div>
         <h3>Osvědčení / certifikace</h3>
@@ -1310,7 +1365,12 @@
             <input type="file" accept="image/*,.pdf" id="vfDoc" hidden onchange="onVerifyDoc(event)">
           </label>
         </div>
+        <div style="margin-top:14px"><label class="lbl">Reference / doporučení (volitelné)</label><textarea class="inp" id="vfRefs" placeholder="Kontakt na referenci nebo odkaz na doporučení…"></textarea></div>
         <div style="margin-top:14px"><label class="lbl">Poznámka pro správce (volitelné)</label><textarea class="inp" id="vfNote" placeholder="Cokoli, co bychom měli vědět…"></textarea></div>
+        <label class="set-row" style="margin-top:14px;align-items:flex-start;gap:10px;display:flex">
+          <input type="checkbox" id="vfRules" style="margin-top:3px">
+          <span style="font-size:13.5px;color:var(--navy-800)">Potvrzuji, že uvedené údaje jsou pravdivé, doklady patří mně a souhlasím s <a role="button" tabindex="0" style="color:var(--gold-deep)" onclick="openLegal('terms')">pravidly platformy</a>.</span>
+        </label>
         <div class="set-err" id="vfErr" style="margin-top:12px"></div>
         <button type="submit" class="btn btn-gold" style="margin-top:18px" id="vfSubmitBtn">Odeslat k ověření</button>
       </form>
@@ -1350,6 +1410,10 @@
       <div class="chat-main">
         <div class="chat-head" id="chatHead"></div>
         <div class="chat-body" id="chatBody"></div>
+        <div style="display:flex;gap:8px;padding:10px 14px 0">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="sendTerm()">📅 Poslat termín</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="videoCall()">📹 Videohovor</button>
+        </div>
         <form class="chat-input" onsubmit="return sendChat(event)">
           <input id="chatInput" placeholder="Napište zprávu…" autocomplete="off" aria-label="Napsat zprávu">
           <button class="chat-send" type="submit" aria-label="Odeslat">
@@ -1557,6 +1621,10 @@
           <div id="famUpcoming"></div>
           <button class="btn btn-ghost btn-block" style="margin-top:6px" onclick="go('bookings')">Všechny objednávky</button>
         </div>
+        <div class="panel">
+          <div class="panel-h"><b>Důvěra a bezpečí</b><span class="badge ok">🛡️</span></div>
+          <div id="famTrust"></div>
+        </div>
       </div>
       <div>
         <div class="panel">
@@ -1617,6 +1685,7 @@
 <div class="view" id="view-admin-verify">
   <div class="wrap">
     <div class="page-head"><h1>Žádosti o ověření</h1><p>Zkontrolujte doklady a kvalifikaci pečovatelek. Schválené se zobrazí rodinám ve vyhledávání.</p></div>
+    <div class="flow"><span class="fl-step">Registrace</span><span class="fl-ar">→</span><span class="fl-step">Ověření</span><span class="fl-ar">→</span><span class="fl-step">Kontrola</span><span class="fl-ar">→</span><span class="fl-step">Schválení</span><span class="fl-ar">→</span><span class="fl-step">Aktivní profil</span></div>
     <div class="panel">
       <div class="panel-h"><b>Čeká na schválení</b><span class="count" id="admVerCount">0</span></div>
       <div id="admVerQueue"></div>
@@ -1658,6 +1727,16 @@
       <div class="panel-h"><b>Všechny objednávky</b><span class="count" id="admOrdCount">0</span></div>
       <div class="table-scroll"><table class="adm-table"><thead><tr><th>Služba</th><th>Pečovatelka</th><th>Termín</th><th>Stav</th></tr></thead><tbody id="admOrdBody"></tbody></table></div>
     </div>
+  </div>
+</div>
+
+<!-- ============ CENÍK / TARIFY ============ -->
+<div class="view" id="view-pricing">
+  <div class="wrap">
+    <div class="page-head"><h1>Předplatné pro pečovatelky</h1><p>Vyberte si tarif, který odpovídá vašim potřebám. Můžete kdykoli změnit.</p></div>
+    <div id="planCurrentNote"></div>
+    <div class="plan-grid" id="planGrid"></div>
+    <p style="text-align:center;color:var(--muted);font-size:13px;padding-bottom:40px">Ceny jsou uvedeny za měsíc vč. DPH. V demu je změna tarifu okamžitá a nezávazná.</p>
   </div>
 </div>
 
@@ -1730,10 +1809,10 @@
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
     </button>
     <h3 id="ratingTitle">Ohodnotit péči</h3>
-    <p class="msub">Jak jste byli spokojeni? Vaše hodnocení pomáhá ostatním rodinám.</p>
-    <div class="star-pick" id="starPick"></div>
-    <textarea class="inp" id="ratingText" placeholder="Napište pár slov o péči…"></textarea>
-    <button class="btn btn-gold btn-block" onclick="submitRating()">Odeslat hodnocení</button>
+    <p class="msub">Ohodnoťte jednotlivé oblasti. Vaše hodnocení pomáhá ostatním rodinám.</p>
+    <div id="ratingCriteria"></div>
+    <textarea class="inp" id="ratingText" placeholder="Napište pár slov o péči…" style="margin-top:14px"></textarea>
+    <button class="btn btn-gold btn-block" onclick="submitRating()" style="margin-top:14px">Odeslat hodnocení</button>
   </div>
 </div>
 
@@ -1749,7 +1828,7 @@
         <p style="font-size:14px;max-width:300px">Péče s lidskostí. Ověřené pečovatelky pro vaše blízké — bezpečně, rychle a s důvěrou.</p>
       </div>
       <div><h5>Aplikace</h5><a role="button" tabindex="0" onclick="go('search')">Hledat péči</a><a role="button" tabindex="0" onclick="go('home');scrollTo2('howto')">Služby</a><a role="button" tabindex="0" onclick="go('bookings')">Moje objednávky</a><a role="button" tabindex="0" onclick="go('home');scrollTo2('howto')">Jak to funguje</a></div>
-      <div><h5>Pro pečovatelky</h5><a role="button" tabindex="0" onclick="go('register');pickRole('caregiver')">Registrace</a><a role="button" tabindex="0" onclick="toast('🛡️ Ověření probíhá do 48 hodin od registrace.')">Ověření</a><a role="button" tabindex="0" onclick="go('login')">Kalendář dostupnosti</a><a role="button" tabindex="0" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')">Vzdělávání</a></div>
+      <div><h5>Pro pečovatelky</h5><a role="button" tabindex="0" onclick="go('register');pickRole('caregiver')">Registrace</a><a role="button" tabindex="0" onclick="goVerify()">Ověření</a><a role="button" tabindex="0" onclick="go('pricing')">Ceník a tarify</a><a role="button" tabindex="0" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')">Vzdělávání</a></div>
       <div><h5>Společnost</h5><a role="button" tabindex="0" onclick="toast('💛 ZENVORIA — péče s lidskostí od roku 2026.')">O nás</a><a role="button" tabindex="0" onclick="toast('🔒 Bezpečí: ověřené doklady, pojištění a zabezpečené platby.')">Bezpečí</a><a role="button" tabindex="0" onclick="toast('✉️ Kontakt: podpora@zenvoria.cz · +420 800 123 456')">Kontakt</a><a role="button" tabindex="0" onclick="toast('🚨 SOS linka 24/7: +420 800 999 111')">SOS 24/7</a></div>
     </div>
     <div class="foot-legal">
@@ -1787,7 +1866,9 @@ const SERVICES=[
   {id:'nocni',name:'Noční péče',icon:'M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z'},
   {id:'nemocnice',name:'Péče v nemocnici',icon:'M5 8h14v12H5V8ZM9 4h6v4H9V4ZM12 11v6M9 14h6'},
   {id:'rehab',name:'Rehabilitace a cvičení',icon:'M4 12h2l2-5 4 10 2-5h6'},
-  {id:'spolecnost',name:'Společnost a povídání',icon:'M4 5h16v10H9l-5 4V5Z'}
+  {id:'spolecnost',name:'Společnost a povídání',icon:'M4 5h16v10H9l-5 4V5Z'},
+  {id:'hygiena',name:'Hygiena',icon:'M7 13h10v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6ZM6 13h12M9 13V7a3 3 0 0 1 6 0'},
+  {id:'nakupy',name:'Nákupy',icon:'M6 6h15l-1.5 9h-12L6 6ZM6 6 5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z'}
 ];
 const VALUES=['Lidskost','Důvěra','Respekt','Bezpečí','Profesionalita'];
 const VAL_ICONS=['M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','m5 12 4 4 10-10','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'];
@@ -1812,21 +1893,40 @@ let CAREGIVERS=[
    services:['rehab','domaci','spolecnost'],verified:true,cert:false,
    bio:'Zaměřuji se na rehabilitační cvičení a aktivní trávení času. Pomáhám seniorům udržet kondici i dobrou náladu. Práce s lidmi je mé poslání.'}
 ];
-/* všechny seedované pečovatelky jsou ověřené a aktivní */
-CAREGIVERS.forEach(c=>{if(c.status===undefined)c.status='verified';if(c.suspended===undefined)c.suspended=false;});
+/* všechny seedované pečovatelky jsou ověřené a aktivní; tarif: start|premium */
+CAREGIVERS.forEach(c=>{
+  if(c.status===undefined)c.status='verified';
+  if(c.suspended===undefined)c.suspended=false;
+  if(c.idVerified===undefined)c.idVerified=true; // ověřená totožnost (🛡️)
+  if(c.plan===undefined)c.plan='start';
+  if(c.langs===undefined)c.langs=['Čeština'];
+});
+/* demo: někteří mají PREMIUM tarif (vyšší zobrazení + odznak 💎) */
+[1,2,5].forEach(id=>{const c=CAREGIVERS.find(x=>x.id===id);if(c)c.plan='premium';});
+const c1=CAREGIVERS.find(x=>x.id===1);if(c1)c1.langs=['Čeština','Angličtina'];
 let cgSeq=6;
+/* tarif přihlášené pečovatelky podle e-mailu */
+let cgPlanMap={'pecovatelka@zenvoria.cz':'premium'};
+const PLANS={
+  start:{name:'START',price:190,badge:'🟢',
+    feats:['Profil v aplikaci','Ověření identity','Přijímání rezervací','Kalendář dostupnosti','Chat s rodinami','Hodnocení klientů']},
+  premium:{name:'PREMIUM',price:390,badge:'💎',
+    feats:['Vše ze START','Vyšší zobrazení ve vyhledávání','Odznak PREMIUM','Neomezené poptávky','Statistiky profilu','Prioritní podpora','Video představení']}
+};
 
 /* ---------- ADMIN: fronta žádostí o ověření ---------- */
 /* stav žádosti: submitted | approved | rejected */
 let VERIFICATIONS=[
   {id:301,name:'Kateřina Pospíšilová',email:'katerina.p@email.cz',init:'KP',loc:'Praha 8',rate:240,exp:4,
-   services:['osobni','domaci'],cert:'Kurz pečovatelství č. 2024/118',issuer:'Diakonie ČCE',validUntil:'2028-09-01',
-   fileName:'osvedceni-pospisilova.pdf',note:'Hledám práci na zkrácený úvazek, ideálně Praha 8 a okolí.',
+   phone:'+420 776 220 118',docType:'Občanský průkaz',docNum:'234567890',selfie:'selfie-pospisilova.jpg',
+   services:['osobni','domaci','nakupy'],cert:'Kurz pečovatelství č. 2024/118',issuer:'Diakonie ČCE',validUntil:'2028-09-01',
+   fileName:'osvedceni-pospisilova.pdf',refs:'Domov seniorů Háje — vrchní sestra (na vyžádání)',note:'Hledám práci na zkrácený úvazek, ideálně Praha 8 a okolí.',
    bio:'Mám čtyřletou praxi v domácí péči o seniory. Jsem trpělivá, spolehlivá a mám ráda povídání.',
    status:'submitted',date:'2026-06-07'},
   {id:302,name:'Veronika Holá',email:'veronika.hola@email.cz',init:'VH',loc:'Praha 10',rate:260,exp:7,
-   services:['nocni','rehab'],cert:'Zdravotnický asistent',issuer:'SZŠ Praha 10',validUntil:'—',
-   fileName:'diplom-hola.jpg',note:'',
+   phone:'+420 605 778 901',docType:'Cestovní pas',docNum:'CZ4471902',selfie:'selfie-hola.jpg',
+   services:['nocni','rehab','hygiena'],cert:'Zdravotnický asistent',issuer:'SZŠ Praha 10',validUntil:'—',
+   fileName:'diplom-hola.jpg',refs:'',note:'',
    bio:'Sedm let praxe v lůžkovém zařízení, specializace na noční péči a rehabilitaci.',
    status:'submitted',date:'2026-06-08'}
 ];
@@ -1901,6 +2001,7 @@ function go(v){
   if(v==='admin-caregivers')renderAdminCaregivers();
   if(v==='admin-users')renderAdminUsers();
   if(v==='admin-orders')renderAdminOrders();
+  if(v==='pricing')renderPricing();
   if(v==='settings')renderSettings();
   if(v==='forgot')resetForgot();
 }
@@ -2035,12 +2136,14 @@ function renderCare(){
   const sorters={'price-asc':(a,b)=>a.rate-b.rate,'price-desc':(a,b)=>b.rate-a.rate,
     'rating':(a,b)=>b.rating-a.rating,'exp':(a,b)=>b.exp-a.exp};
   if(sorters[sortBy])list.sort(sorters[sortBy]);
+  // Premium pečovatelky mají vyšší zobrazení v doporučeném řazení
+  if(!sorters[sortBy])list.sort((a,b)=>(b.plan==='premium')-(a.plan==='premium'));
   const cnt=document.getElementById('careCount');
   if(cnt){const n=list.length;cnt.textContent=n+' '+(n===1?'pečovatelka':(n>=2&&n<=4?'pečovatelky':'pečovatelek'));}
   const g=document.getElementById('careGrid');
   if(!list.length){g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted)">Žádná pečovatelka neodpovídá filtru.</div>`;return;}
   g.innerHTML=list.map(c=>`
-    <div class="care-card" onclick="openProfile(${c.id})">
+    <div class="care-card ${c.plan==='premium'?'is-premium':''}" onclick="openProfile(${c.id})">
       <div class="care-top">
         ${avaHtml(c.init,c.photo)}
         <div style="flex:1">
@@ -2050,7 +2153,7 @@ function renderCare(){
         </div>
       </div>
       <div class="care-tags">
-        ${c.verified?'<span class="chip gold"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#A98821" stroke-width="1.8"/></svg>Ověřená</span>':''}
+        ${cgBadges(c)}
         ${c.services.slice(0,2).map(s=>`<span class="chip">${sName(s)}</span>`).join('')}
       </div>
       <div class="care-foot">
@@ -2075,8 +2178,9 @@ function openProfile(id){
             <span class="stars">★★★★★ <b style="color:var(--navy-900)">${c.rating}</b> <span style="color:var(--muted)">(${c.reviews} hodnocení)</span></span>
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            ${c.verified?'<span class="chip gold"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#A98821" stroke-width="1.8"/><path d="m9 12 2 2 4-4" stroke="#A98821" stroke-width="1.8" stroke-linecap="round"/></svg>Ověřená pečovatelka</span>':''}
-            ${c.cert?'<span class="chip">Certifikát pečovatelky</span>':''}
+            ${cgBadges(c)}
+            ${c.cert?'<span class="chip">🎓 Ověřené vzdělání</span>':''}
+            ${(c.langs||[]).map(l=>`<span class="chip">🗣️ ${l}</span>`).join('')}
           </div>
         </div>
       </div>
@@ -2600,7 +2704,23 @@ function renderFamilyDash(){
   document.getElementById('famStats').innerHTML=stats.map(s=>`
     <div class="stat"><div class="stat-top"><span class="sl">${s.l}</span><div class="si">${sIcon(s.ic)}</div></div><div class="sv">${s.v}</div></div>`).join('');
   document.getElementById('famUpcoming').innerHTML=up.length?up.slice(0,4).map(famOrderRow).join(''):'<div class="empty">Žádné nadcházející objednávky.</div>';
-  const rec=CAREGIVERS.slice().sort((a,b)=>b.rating-a.rating).slice(0,3);
+  // Důvěra a bezpečí: kdo přijde, kdy, historie péče, SOS
+  const next=ORDERS.filter(o=>['pending','confirmed'].includes(o.status)).sort((a,b)=>a.date.localeCompare(b.date))[0];
+  const trust=document.getElementById('famTrust');
+  if(trust){
+    const nc=next&&cg(next.cid);
+    trust.innerHTML=`
+      ${nc?`<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openProfile(${nc.id})">
+        ${avaHtml(nc.init,nc.photo)}
+        <div class="od"><b>Přijde: ${nc.name}</b><div class="det">${fmtDate(next.date)} · ${next.time} · ${cgBadges(nc,{max:1})||'ověřená'}</div></div>
+        <div class="ost"><span class="status ok">★ ${nc.rating}</span></div>
+      </div>`:'<div class="empty" style="padding:14px">Zatím nemáte naplánovanou péči.</div>'}
+      <div class="qa" style="margin-top:10px">
+        <button class="qa-item" onclick="go('bookings')"><span class="qa-ic">🕓</span><span class="qa-l">Historie péče (${done} dokončených)</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="toast('🚨 SOS linka 24/7: +420 800 999 111')"><span class="qa-ic">🚨</span><span class="qa-l">SOS linka 24/7</span><span class="qa-ar">›</span></button>
+      </div>`;
+  }
+  const rec=CAREGIVERS.slice().filter(c=>c.verified&&!c.suspended).sort((a,b)=>(b.plan==='premium')-(a.plan==='premium')||b.rating-a.rating).slice(0,3);
   document.getElementById('famRecommended').innerHTML=rec.map(c=>`
     <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openProfile(${c.id})">
       ${avaHtml(c.init,c.photo)}
@@ -2618,6 +2738,53 @@ function cgStatus(){
   if(!auth.loggedIn||auth.role!=='caregiver')return 'none';
   return cgStatusMap[auth.email]||'pending';
 }
+/* tarif přihlášené pečovatelky */
+function cgPlan(){return cgPlanMap[auth.email]||'start';}
+/* odznaky pečovatelky pro karty a profil */
+function cgBadges(c,opts){
+  opts=opts||{};const b=[];
+  if(c.idVerified&&c.verified)b.push('<span class="chip badge-id">🛡️ Ověřená identita</span>');
+  if(c.rating>=4.85)b.push('<span class="chip badge-top">⭐ Top hodnocení</span>');
+  if(c.plan==='premium')b.push('<span class="chip badge-prem">💎 Premium</span>');
+  return b.slice(0,opts.max||b.length).join('');
+}
+
+/* ---- CENÍK / PŘEDPLATNÉ ---- */
+function renderPricing(){
+  const isCg=auth.loggedIn&&auth.role==='caregiver';
+  const cur=isCg?cgPlan():null;
+  const note=document.getElementById('planCurrentNote');
+  note.innerHTML=isCg
+    ?`<div class="verify-banner ok" style="margin-bottom:24px"><span class="vb-ic">${PLANS[cur].badge}</span><div class="vb-t"><b>Váš aktuální tarif: ${PLANS[cur].name}</b><span>${cur==='premium'?'Máte vyšší zobrazení a odznak Premium.':'Přejděte na PREMIUM pro vyšší zobrazení a více poptávek.'}</span></div></div>`
+    :`<div class="verify-banner wait" style="margin-bottom:24px"><span class="vb-ic">👩‍⚕️</span><div class="vb-t"><b>Jste pečovatelka?</b><span>Zaregistrujte se a vyberte si tarif. Ceník je informativní.</span></div></div>`;
+  document.getElementById('planGrid').innerHTML=['start','premium'].map(key=>{
+    const p=PLANS[key];const featured=key==='premium';
+    let action;
+    if(isCg){action=cur===key
+      ?'<div class="plan-current">✓ Váš aktuální tarif</div>'
+      :`<button class="btn ${featured?'btn-gold':'btn-ghost'} btn-block" onclick="setPlan('${key}')">${key==='premium'?'Přejít na PREMIUM':'Přejít na START'}</button>`;}
+    else{action=`<button class="btn ${featured?'btn-gold':'btn-ghost'} btn-block" onclick="go('register');pickRole('caregiver')">Začít s ${p.name}</button>`;}
+    return `<div class="plan-card ${featured?'featured':''}">
+      ${featured?'<span class="pl-tag">NEJOBLÍBENĚJŠÍ</span>':''}
+      <h3>${p.badge} ${p.name}</h3>
+      <div class="pl-price">${p.price} Kč <span>/ měsíc</span></div>
+      <div class="pl-sub">${featured?'Pro pečovatelky, které chtějí být více vidět.':'Pro pečovatelky, které začínají.'}</div>
+      <ul>${p.feats.map(f=>`<li>${f}</li>`).join('')}</ul>
+      ${action}
+    </div>`;}).join('');
+}
+function setPlan(key){
+  if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
+  cgPlanMap[auth.email]=key;
+  const c=CAREGIVERS.find(x=>x.email===auth.email);if(c)c.plan=key;
+  persist();renderPricing();renderCare();
+  toast(key==='premium'?'💎 Aktivován tarif PREMIUM!':'Tarif změněn na START.');
+}
+/* odkaz „Ověření" — pečovatelku pošle na formulář, ostatní na přihlášení */
+function goVerify(){
+  if(auth.loggedIn&&auth.role==='caregiver')go('cg-verify');
+  else{toast('🛡️ Přihlaste se jako pečovatelka a dokončete ověření.');go('login');}
+}
 const VER_BANNER={
   verified:{cls:'ok',ic:'✅',t:'Jste ověřená pečovatelka',s:'Váš profil je viditelný rodinám ve vyhledávání.'},
   submitted:{cls:'wait',ic:'⏳',t:'Žádost čeká na schválení',s:'Správce kontroluje vaše doklady, zpravidla do 48 hodin.'},
@@ -2625,11 +2792,13 @@ const VER_BANNER={
   pending:{cls:'wait',ic:'📝',t:'Dokončete své ověření',s:'Vyplňte formulář a nahrejte osvědčení, abyste se zobrazili rodinám.'}
 };
 let verifyDocName='';
+let verifySelfieName='';
 
 /* ---- formulář ověření (pečovatelka) ---- */
 function renderCgVerify(){
   const st=cgStatus();
-  const b=VER_BANNER[st]||VER_BANNER.pending;
+  let b=VER_BANNER[st]||VER_BANNER.pending;
+  if(st==='verified'&&cgPlan()==='premium')b={cls:'ok',ic:'💎',t:'Premium ověřená pečovatelka',s:'Máte odznak Premium a vyšší zobrazení ve vyhledávání.'};
   const rej=VERIFICATIONS.filter(v=>v.email===auth.email&&v.status==='rejected').slice(-1)[0];
   const reason=(st==='rejected'&&rej&&rej.reason)?` Důvod: ${rej.reason}`:'';
   document.getElementById('cgVerifyBanner').innerHTML=
@@ -2638,6 +2807,9 @@ function renderCgVerify(){
   const setv=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
   setv('vfName',auth.name||cgProfile.name);
   setv('vfLoc',cgProfile.loc||'Praha 6');
+  document.getElementById('vfDocText').innerHTML='<b>Nahrát soubor</b> — PDF nebo fotka dokladu';
+  document.getElementById('vfSelfieText').innerHTML='<b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte';
+  verifyDocName='';verifySelfieName='';
   const form=document.getElementById('cgVerifyForm');
   const btn=document.getElementById('vfSubmitBtn');
   const locked=(st==='verified'||st==='submitted');
@@ -2650,25 +2822,37 @@ function onVerifyDoc(e){
   verifyDocName=f.name;
   document.getElementById('vfDocText').innerHTML=`📎 <b>${f.name}</b> — připraveno k odeslání`;
 }
+function onVerifySelfie(e){
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  verifySelfieName=f.name;
+  document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${f.name}</b> — selfie připraveno`;
+}
 function submitVerify(e){
   e.preventDefault();
   const g=id=>document.getElementById(id).value.trim();
   const err=document.getElementById('vfErr');err.textContent='';
-  const name=g('vfName'),cert=g('vfCert'),issuer=g('vfIssuer');
+  const name=g('vfName'),phone=g('vfPhone'),docNum=g('vfDocNum'),cert=g('vfCert'),issuer=g('vfIssuer');
   if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte celé jméno a příjmení.';return false;}
+  if(!isPhone(phone)){err.textContent='Zadejte platné telefonní číslo.';return false;}
+  if(!docNum){err.textContent='Zadejte číslo dokladu totožnosti.';return false;}
+  if(!verifySelfieName){err.textContent='Nahrajte prosím selfie pro ověření totožnosti.';return false;}
   if(!cert){err.textContent='Uveďte název osvědčení nebo kurzu.';return false;}
   if(!issuer){err.textContent='Uveďte, kdo osvědčení vystavil.';return false;}
   if(!verifyDocName){err.textContent='Nahrajte prosím doklad (osvědčení nebo diplom).';return false;}
+  if(!document.getElementById('vfRules').checked){err.textContent='Potvrďte prosím pravdivost údajů a souhlas s pravidly.';return false;}
+  // kontrola duplicity účtu (demo): stejný e-mail už nesmí mít čekající žádost
+  if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){err.textContent='Už máte žádost čekající na schválení.';return false;}
   const rec={
     id:++verSeq,name,email:auth.email,init:initials(name),loc:g('vfLoc'),
-    rate:+g('vfRate')||240,exp:+g('vfExp')||0,
+    rate:+g('vfRate')||240,exp:+g('vfExp')||0,phone,
+    docType:document.getElementById('vfDocType').value==='pas'?'Cestovní pas':'Občanský průkaz',docNum,selfie:verifySelfieName,
     services:cgProfile.services.slice(),cert,issuer,validUntil:g('vfValid')||'—',
-    fileName:verifyDocName,note:g('vfNote'),bio:cgProfile.bio,
+    fileName:verifyDocName,refs:g('vfRefs'),note:g('vfNote'),bio:cgProfile.bio,
     status:'submitted',date:new Date().toISOString().slice(0,10)
   };
   VERIFICATIONS.unshift(rec);
   cgStatusMap[auth.email]='submitted';
-  verifyDocName='';
+  verifyDocName='';verifySelfieName='';
   persist();
   toast('🛡️ Žádost odeslána správci k ověření.');
   renderCgVerify();renderNav();
@@ -2719,8 +2903,10 @@ function renderAdminVerify(){
       <div class="ri">
         <b>${v.name}</b>
         <div class="rd">${v.loc} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
-        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">Osvědčení:</b> ${v.cert} — ${v.issuer} (platnost ${v.validUntil})</div>
+        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">🛡️ Identita:</b> ${v.docType||'—'}${v.docNum?` č. ${v.docNum}`:''}${v.phone?` · ☎ ${v.phone}`:''}${v.selfie?` · 🤳 ${v.selfie}`:''}</div>
+        <div class="rd"><b style="color:var(--navy-800)">🎓 Osvědčení:</b> ${v.cert} — ${v.issuer} (platnost ${v.validUntil})</div>
         <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> 📎 ${v.fileName} · <b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
+        ${v.refs?`<div class="rd"><b style="color:var(--navy-800)">Reference:</b> ${v.refs}</div>`:''}
         ${v.note?`<div class="rd" style="margin-top:6px;font-style:italic">„${v.note}"</div>`:''}
         <span class="rs">Podáno ${fmtDate(v.date)}</span>
       </div>
@@ -2742,11 +2928,11 @@ function approveVerification(id){
   v.status='approved';
   // přidat (nebo aktualizovat) pečovatelku ve veřejném seznamu
   let c=CAREGIVERS.find(x=>x.email===v.email);
-  if(c){c.verified=true;c.suspended=false;c.status='verified';}
+  if(c){c.verified=true;c.suspended=false;c.status='verified';c.idVerified=true;}
   else{
     CAREGIVERS.push({id:++cgSeq,name:v.name,email:v.email,init:v.init,loc:v.loc,rate:v.rate,
-      rating:5.0,reviews:0,exp:v.exp,services:v.services.slice(),verified:true,cert:true,
-      suspended:false,status:'verified',bio:v.bio||''});
+      rating:5.0,reviews:0,exp:v.exp,services:v.services.slice(),verified:true,cert:true,idVerified:true,
+      suspended:false,status:'verified',plan:cgPlanMap[v.email]||'start',langs:['Čeština'],bio:v.bio||''});
   }
   cgStatusMap[v.email]='verified';
   persist();renderAdminVerify();renderNav();renderCare();
@@ -2851,6 +3037,9 @@ let CG_SCHEDULE=[
 ];
 const DAYS_CZ=['Pondělí','Úterý','Středa','Čtvrtek','Pátek','Sobota','Neděle'];
 let cgAvail=[true,true,true,true,true,false,false];
+/* časové sloty dostupnosti pro každý den: ranní 08–12, odpolední 12–18, večerní 18–22 */
+const TIME_SLOTS=[{k:'r',l:'08–12'},{k:'o',l:'12–18'},{k:'v',l:'18–22'}];
+let cgSlots=[0,1,2,3,4,5,6].map(i=>({r:cgAvail[i],o:cgAvail[i],v:i<5}));
 
 function cgFirstName(){return (auth.role==='caregiver'&&auth.name)?auth.name:cgProfile.name;}
 function fmtDate(iso){return new Date(iso).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'});}
@@ -2960,8 +3149,14 @@ function renderCgCalendar(){
   }
   document.getElementById('cgCalDays').innerHTML=html;
   document.getElementById('cgAvail').innerHTML=DAYS_CZ.map((d,i)=>`
-    <div class="avail-day"><span class="ad-name">${d}</span>
-      <label class="switch"><input type="checkbox" ${cgAvail[i]?'checked':''} onchange="toggleAvail(${i},this.checked)" aria-label="Dostupnost ${d}"><span class="track"></span><span class="thumb"></span></label>
+    <div class="avail-day" style="flex-direction:column;align-items:stretch">
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+        <span class="ad-name">${d}</span>
+        <label class="switch"><input type="checkbox" ${cgAvail[i]?'checked':''} onchange="toggleAvail(${i},this.checked)" aria-label="Dostupnost ${d}"><span class="track"></span><span class="thumb"></span></label>
+      </div>
+      ${cgAvail[i]?`<div style="display:flex;gap:6px;width:100%;margin-top:8px">
+        ${TIME_SLOTS.map(s=>`<button type="button" class="cg-serv ${cgSlots[i][s.k]?'on':''}" style="flex:1;padding:6px 8px;font-size:12px" onclick="toggleSlot(${i},'${s.k}')">${s.l}</button>`).join('')}
+      </div>`:''}
     </div>`).join('');
   const jobs=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date));
   document.getElementById('cgCalJobs').innerHTML=jobs.length?jobs.map(j=>`
@@ -2969,7 +3164,13 @@ function renderCgCalendar(){
       <div class="od"><b style="font-size:15px">${sName(j.service)}</b><div class="det">${fmtDate(j.date)} · ${timeRange(j.time,j.hours)}</div></div></div>`).join(''):'<div class="empty">Žádné naplánované služby v tomto období.</div>';
 }
 function cgCalMove(dir){cgCalMonth+=dir;if(cgCalMonth<0){cgCalMonth=11;cgCalYear--}if(cgCalMonth>11){cgCalMonth=0;cgCalYear++}renderCgCalendar();}
-function toggleAvail(i,val){cgAvail[i]=val;persist();toast(val?`✓ ${DAYS_CZ[i]} — nyní dostupná`:`${DAYS_CZ[i]} — označeno jako nedostupné`);}
+function toggleAvail(i,val){
+  cgAvail[i]=val;
+  if(val&&!(cgSlots[i].r||cgSlots[i].o||cgSlots[i].v)){cgSlots[i]={r:true,o:true,v:true};}
+  persist();renderCgCalendar();
+  toast(val?`✓ ${DAYS_CZ[i]} — nyní dostupná`:`${DAYS_CZ[i]} — označeno jako nedostupné`);
+}
+function toggleSlot(i,k){cgSlots[i][k]=!cgSlots[i][k];persist();renderCgCalendar();}
 
 /* caregiver profile editing */
 function renderCgProfile(){
@@ -3185,31 +3386,42 @@ function renderOrderDetail(){
     </div>`;
 }
 
-/* ---------- RATING ---------- */
-let ratingTarget={cid:null,oid:null,stars:5};
+/* ---------- RATING (4 kritéria) ---------- */
+const RATE_CRITERIA=[
+  {k:'dochvilnost',l:'Dochvilnost'},
+  {k:'komunikace',l:'Komunikace'},
+  {k:'pece',l:'Péče'},
+  {k:'doporuceni',l:'Doporučení'}
+];
+let ratingTarget={cid:null,oid:null,scores:{dochvilnost:5,komunikace:5,pece:5,doporuceni:5}};
 function openRating(cid,oid){
-  ratingTarget={cid,oid,stars:5};
+  ratingTarget={cid,oid,scores:{dochvilnost:5,komunikace:5,pece:5,doporuceni:5}};
   document.getElementById('ratingTitle').textContent='Ohodnotit: '+cg(cid).name;
   document.getElementById('ratingText').value='';
   renderStars();
   document.getElementById('ratingModal').classList.add('open');
   document.body.style.overflow='hidden';
-  setTimeout(()=>document.querySelector('#starPick .star')?.focus(),60);
 }
 function closeRating(){
   const m=document.getElementById('ratingModal');
   if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
 }
-function setStars(n){ratingTarget.stars=n;renderStars();}
+function setStars(crit,n){ratingTarget.scores[crit]=n;renderStars();}
 function renderStars(){
-  document.getElementById('starPick').innerHTML=[1,2,3,4,5].map(n=>
-    `<button type="button" class="star ${n<=ratingTarget.stars?'on':''}" aria-label="${n} z 5 hvězd" onclick="setStars(${n})">★</button>`).join('');
+  document.getElementById('ratingCriteria').innerHTML=RATE_CRITERIA.map(c=>`
+    <div class="rate-row">
+      <span class="rr-l">${c.l}</span>
+      <span class="rr-stars" role="group" aria-label="${c.l}">${[1,2,3,4,5].map(n=>
+        `<button type="button" class="${n<=ratingTarget.scores[c.k]?'on':''}" aria-label="${n} z 5" onclick="setStars('${c.k}',${n})">★</button>`).join('')}</span>
+    </div>`).join('');
 }
 function submitRating(){
-  const {cid,oid,stars}=ratingTarget;
+  const {cid,oid,scores}=ratingTarget;
+  const vals=RATE_CRITERIA.map(c=>scores[c.k]);
+  const stars=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
   const text=document.getElementById('ratingText').value.trim()||'Spokojenost s péčí.';
   const name=auth.loggedIn?auth.name:'Vy';
-  (cgReviews[cid]=cgReviews[cid]||[]).unshift({init:initials(name),name,stars,text});
+  (cgReviews[cid]=cgReviews[cid]||[]).unshift({init:initials(name),name,stars,text,scores:{...scores}});
   const o=ORDERS.find(x=>x.oid===oid);if(o)o.rated=true;
   if(curOrder&&curOrder.oid===oid)curOrder.rated=true;
   persist();closeRating();
@@ -3256,6 +3468,14 @@ function renderChat(){
   scrollChat();
   updateAuthUI();
 }
+function sendTerm(){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c){toast('Vyberte konverzaci.');return;}
+  const d=new Date(Date.now()+2*86400000);
+  const navrh=`📅 Návrh termínu: ${d.toLocaleDateString('cs-CZ',{day:'numeric',month:'long'})} v 10:00 (4 h). Vyhovuje?`;
+  c.msgs.push({me:true,text:navrh,t:chatNow()});persist();renderChat();
+  setTimeout(()=>{c.msgs.push({me:false,text:'Termín mi vyhovuje, potvrzuji. 🙂',t:chatNow()});persist();renderChat();},1300);
+}
+function videoCall(){toast('📹 Videohovory spouštíme již brzy.');}
 function scrollChat(){const b=document.getElementById('chatBody');if(b)b.scrollTop=b.scrollHeight;}
 function selectChat(id){activeChat=id;renderChat();document.getElementById('chatInput')?.focus();}
 function sendChat(e){
@@ -3279,9 +3499,9 @@ function persist(){
   try{localStorage.setItem(LS_KEY,JSON.stringify({
     conversations:CONVERSATIONS,chatSeq,reqSeq,orderSeq,
     cgRequests:CG_REQUESTS,cgSchedule:CG_SCHEDULE,
-    orders:ORDERS,cgProfile,cgAvail,cgReviews,settings:appSettings,
+    orders:ORDERS,cgProfile,cgAvail,cgSlots,cgReviews,settings:appSettings,
     caregivers:CAREGIVERS,cgSeq,verifications:VERIFICATIONS,verSeq,
-    users:USERS,userSeq,cgStatusMap
+    users:USERS,userSeq,cgStatusMap,cgPlanMap
   }));}catch(e){}
 }
 function loadState(){
@@ -3297,6 +3517,7 @@ function loadState(){
     if(s.cgProfile)Object.assign(cgProfile,s.cgProfile);
     syncCgPhotoToList();
     if(Array.isArray(s.cgAvail))cgAvail=s.cgAvail;
+    if(Array.isArray(s.cgSlots))cgSlots=s.cgSlots;
     if(s.cgReviews)cgReviews=s.cgReviews;
     if(s.settings)Object.assign(appSettings,s.settings);
     if(Array.isArray(s.caregivers)){CAREGIVERS=s.caregivers;syncCgPhotoToList();}
@@ -3306,6 +3527,7 @@ function loadState(){
     if(Array.isArray(s.users))USERS=s.users;
     if(typeof s.userSeq==='number')userSeq=s.userSeq;
     if(s.cgStatusMap)cgStatusMap=s.cgStatusMap;
+    if(s.cgPlanMap)cgPlanMap=s.cgPlanMap;
   }catch(e){}
 }
 function resetDemo(){
