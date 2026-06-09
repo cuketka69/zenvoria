@@ -677,6 +677,9 @@
   .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 22px;font-size:12.5px}
   .flow .fl-step{padding:6px 12px;border-radius:20px;background:var(--cream);border:1px solid var(--line);color:var(--muted);font-weight:600}
   .flow .fl-ar{color:var(--gold-deep);font-weight:800}
+  /* odkaz na stažení dokladu */
+  .doc-link{color:var(--gold-deep);font-weight:600;cursor:pointer;border-bottom:1px dashed rgba(169,136,33,.5);padding-bottom:1px}
+  .doc-link:hover{color:var(--gold);border-bottom-style:solid}
   /* hodnocení podle kritérií */
   .rate-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
   .rate-row:last-child{border-bottom:none}
@@ -2855,6 +2858,23 @@ const VER_BANNER={
 };
 let verifyDocName='';
 let verifySelfieName='';
+let verifyDocData='';
+let verifySelfieData='';
+/* obsah nahraných souborů (data URL) — v paměti, klíč `${verId}:doc` / `:selfie` */
+const DOC_BLOBS={};
+/* načte soubor jako data URL; obrázky zmenší kvůli velikosti */
+function readVerifyFile(file,cb){
+  if(file.type&&file.type.startsWith('image/')){
+    const r=new FileReader();
+    r.onload=function(){const img=new Image();img.onload=function(){
+      const max=1400;let w=img.width,h=img.height;
+      if(w>h){if(w>max){h=Math.round(h*max/w);w=max;}}else{if(h>max){w=Math.round(w*max/h);h=max;}}
+      const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+      cb(c.toDataURL('image/jpeg',0.82));
+    };img.src=r.result;};
+    r.readAsDataURL(file);
+  }else{const r=new FileReader();r.onload=function(){cb(r.result);};r.readAsDataURL(file);}
+}
 
 /* ---- formulář ověření (pečovatelka) ---- */
 function renderCgVerify(){
@@ -2871,7 +2891,7 @@ function renderCgVerify(){
   setv('vfLoc',cgProfile.loc||'Praha 6');
   document.getElementById('vfDocText').innerHTML='<b>Nahrát soubor</b> — PDF nebo fotka dokladu';
   document.getElementById('vfSelfieText').innerHTML='<b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte';
-  verifyDocName='';verifySelfieName='';
+  verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
   const form=document.getElementById('cgVerifyForm');
   const btn=document.getElementById('vfSubmitBtn');
   const locked=(st==='verified'||st==='submitted');
@@ -2881,13 +2901,15 @@ function renderCgVerify(){
 }
 function onVerifyDoc(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
-  verifyDocName=f.name;
+  verifyDocName=f.name;verifyDocData='';
   document.getElementById('vfDocText').innerHTML=`📎 <b>${f.name}</b> — připraveno k odeslání`;
+  readVerifyFile(f,d=>{verifyDocData=d;});
 }
 function onVerifySelfie(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
-  verifySelfieName=f.name;
+  verifySelfieName=f.name;verifySelfieData='';
   document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${f.name}</b> — selfie připraveno`;
+  readVerifyFile(f,d=>{verifySelfieData=d;});
 }
 function submitVerify(e){
   e.preventDefault();
@@ -2913,8 +2935,10 @@ function submitVerify(e){
     status:'submitted',date:new Date().toISOString().slice(0,10)
   };
   VERIFICATIONS.unshift(rec);
+  if(verifyDocData)DOC_BLOBS[rec.id+':doc']=verifyDocData;
+  if(verifySelfieData)DOC_BLOBS[rec.id+':selfie']=verifySelfieData;
   cgStatusMap[auth.email]='submitted';
-  verifyDocName='';verifySelfieName='';
+  verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
   persist();
   toast('🛡️ Žádost odeslána správci k ověření.');
   renderCgVerify();renderNav();
@@ -2965,9 +2989,9 @@ function renderAdminVerify(){
       <div class="ri">
         <b>${v.name}</b>
         <div class="rd">${v.loc} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
-        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">🛡️ Identita:</b> ${v.docType||'—'}${v.docNum?` č. ${v.docNum}`:''}${v.phone?` · ☎ ${v.phone}`:''}${v.selfie?` · 🤳 ${v.selfie}`:''}</div>
+        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">🛡️ Identita:</b> ${v.docType||'—'}${v.docNum?` č. ${v.docNum}`:''}${v.phone?` · ☎ ${v.phone}`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">🤳 ${v.selfie} ⬇</a>`:''}</div>
         <div class="rd"><b style="color:var(--navy-800)">🎓 Osvědčení:</b> ${v.cert} — ${v.issuer} (platnost ${v.validUntil})</div>
-        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> 📎 ${v.fileName} · <b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
+        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">📎 ${v.fileName} ⬇</a> · <b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
         ${v.refs?`<div class="rd"><b style="color:var(--navy-800)">Reference:</b> ${v.refs}</div>`:''}
         ${v.note?`<div class="rd" style="margin-top:6px;font-style:italic">„${v.note}"</div>`:''}
         <span class="rs">Podáno ${fmtDate(v.date)}</span>
@@ -2984,6 +3008,27 @@ function renderAdminVerify(){
       <td>${v.cert}</td><td>${fmtDate(v.date)}</td>
       <td style="text-align:right">${verBadge(v.status)}${v.status==='rejected'&&v.reason?`<div class="rd" style="margin-top:4px">${v.reason}</div>`:''}</td>
     </tr>`).join('')}</tbody></table>`:'<div class="empty">Zatím žádné zpracované žádosti.</div>';
+}
+/* stažení nahraného dokladu / selfie pro kontrolu adminem */
+function downloadVer(id,which){
+  const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
+  const name=which==='selfie'?v.selfie:v.fileName;
+  const data=DOC_BLOBS[id+':'+which];
+  let href,fname=name||(which+'.txt');
+  if(data){href=data;}
+  else{
+    const txt=`ZENVORIA — ukázkový doklad (demo)\n\n`+
+      `Pečovatelka: ${v.name}\nE-mail: ${v.email}\nTelefon: ${v.phone||'—'}\n`+
+      `Typ souboru: ${which==='selfie'?'Selfie pro ověření identity':'Doklad / osvědčení'}\n`+
+      `Název: ${name||'—'}\nDoklad totožnosti: ${v.docType||'—'} č. ${v.docNum||'—'}\n\n`+
+      `Pozn.: Skutečný soubor nahrála pečovatelka ve svém prohlížeči. Tento zástupný soubor `+
+      `se generuje u demo žádostí nebo po obnovení stránky.`;
+    href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
+    fname=(name?name.replace(/\.[^.]+$/,''):'demo-doklad')+'.txt';
+  }
+  const a=document.createElement('a');a.href=href;a.download=fname;
+  document.body.appendChild(a);a.click();a.remove();
+  toast('⬇️ Stahuji '+fname);
 }
 function approveVerification(id){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
