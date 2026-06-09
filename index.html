@@ -603,10 +603,20 @@
   .req .ri .rs{display:inline-block;font-size:12px;font-weight:600;color:var(--gold-deep);margin-top:6px}
   .req-actions{display:flex;gap:8px;flex:0 0 auto}
   .btn-sm{padding:9px 15px;font-size:13px;border-radius:10px}
-  .btn-accept{background:var(--navy-900);color:var(--cream)}
-  .btn-accept:hover{background:var(--navy-800)}
-  .btn-decline{background:transparent;color:#B23A2E;border:1px solid #E3C9C4}
-  .btn-decline:hover{background:#FBF3F1}
+  .btn-accept,.btn-decline{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:600;border:1px solid transparent}
+  .btn-accept svg,.btn-decline svg{flex:0 0 auto}
+  .btn-accept{background:linear-gradient(135deg,#0A5C38,#00603A);color:#fff;
+    box-shadow:0 9px 22px -11px rgba(0,96,58,.75)}
+  .btn-accept:hover{background:linear-gradient(135deg,#0C6B41,#0A7548);transform:translateY(-1px);
+    box-shadow:0 12px 26px -10px rgba(0,96,58,.85)}
+  .btn-accept:active{transform:translateY(0)}
+  .btn-decline{background:rgba(178,58,46,.06);color:#C0392B;border-color:rgba(192,57,43,.45)}
+  .btn-decline:hover{background:linear-gradient(135deg,#C0392B,#A12F23);color:#fff;border-color:transparent;
+    transform:translateY(-1px);box-shadow:0 10px 24px -11px rgba(192,57,43,.7)}
+  .btn-decline:active{transform:translateY(0)}
+  html[data-theme="dark"] .btn-accept{color:#fff}
+  html[data-theme="dark"] .btn-decline{background:rgba(240,183,174,.08);color:#F0B7AE;border-color:rgba(240,183,174,.35)}
+  html[data-theme="dark"] .btn-decline:hover{color:#fff}
   @media(max-width:520px){.req{flex-wrap:wrap}.req-actions{width:100%}.btn-sm{flex:1}}
 
   /* ---------- ADMIN PANEL ---------- */
@@ -2963,8 +2973,8 @@ function renderAdminVerify(){
         <span class="rs">Podáno ${fmtDate(v.date)}</span>
       </div>
       <div class="req-actions">
-        <button class="btn btn-sm btn-accept" onclick="approveVerification(${v.id})">Schválit</button>
-        <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})">Zamítnout</button>
+        <button class="btn btn-sm btn-accept" onclick="approveVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 5 5 9-11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Schválit</button>
+        <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Zamítnout</button>
       </div>
     </div>`).join(''):'<div class="empty">Žádné čekající žádosti. 🎉</div>';
   document.getElementById('admVerDone').innerHTML=done.length?`
