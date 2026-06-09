@@ -1288,10 +1288,21 @@
           </div>
         </div>
         <div class="grid2" style="margin-top:14px">
-          <div><label class="lbl">Hodinová sazba (Kč)</label><input class="inp" type="number" id="cpRate" min="150" max="600" step="10" oninput="syncCgPreview()"></div>
           <div><label class="lbl">Roky praxe</label><input class="inp" type="number" id="cpExp" min="0" max="40" oninput="syncCgPreview()"></div>
+          <div><label class="lbl">Dojezdová vzdálenost (km)</label><input class="inp" type="number" id="cpRadius" min="1" max="60" step="1" oninput="syncCgPreview()"></div>
         </div>
-        <div style="margin-top:14px"><label class="lbl">O mně</label><textarea class="inp" id="cpBio" oninput="syncCgPreview()"></textarea></div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Způsob účtování</label>
+            <select class="inp" id="cpPriceType" onchange="syncCgPreview()">
+              <option value="hod">Za hodinu</option><option value="den">Za den</option><option value="indiv">Individuální nabídka</option>
+            </select>
+          </div>
+          <div id="cpRateWrap"><label class="lbl" id="cpRateLbl">Hodinová sazba (Kč)</label><input class="inp" type="number" id="cpRate" min="150" max="9000" step="10" oninput="syncCgPreview()"></div>
+        </div>
+        <div style="margin-top:14px">
+          <label class="lbl">O mně <span style="float:right;font-weight:400" id="cpBioCount">0 / 500</span></label>
+          <textarea class="inp" id="cpBio" maxlength="500" oninput="syncCgPreview()"></textarea>
+        </div>
         <div class="pdiv"></div>
         <h3>Nabízené služby</h3>
         <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vyberte služby, které nabízíte.</p>
@@ -1900,7 +1911,13 @@ CAREGIVERS.forEach(c=>{
   if(c.idVerified===undefined)c.idVerified=true; // ověřená totožnost (🛡️)
   if(c.plan===undefined)c.plan='start';
   if(c.langs===undefined)c.langs=['Čeština'];
+  if(c.priceType===undefined)c.priceType='hod'; // hod | den | indiv
+  if(c.dayRate===undefined)c.dayRate=c.rate*8;
+  if(c.radius===undefined)c.radius=10; // dojezdová vzdálenost v km
 });
+/* demo: ukázka různých typů ceny */
+(function(){const a=CAREGIVERS.find(x=>x.id===4);if(a){a.priceType='den';a.dayRate=1900;}
+  const b=CAREGIVERS.find(x=>x.id===6);if(b)b.priceType='indiv';})();
 /* demo: někteří mají PREMIUM tarif (vyšší zobrazení + odznak 💎) */
 [1,2,5].forEach(id=>{const c=CAREGIVERS.find(x=>x.id===id);if(c)c.plan='premium';});
 const c1=CAREGIVERS.find(x=>x.id===1);if(c1)c1.langs=['Čeština','Angličtina'];
@@ -2157,7 +2174,7 @@ function renderCare(){
         ${c.services.slice(0,2).map(s=>`<span class="chip">${sName(s)}</span>`).join('')}
       </div>
       <div class="care-foot">
-        <div class="price"><b>${c.rate} Kč</b> <span>/ hod</span></div>
+        <div class="price">${priceShort(c)}</div>
         <button class="btn btn-gold" style="padding:9px 16px" onclick="event.stopPropagation();openProfile(${c.id})">Zobrazit profil</button>
       </div>
     </div>`).join('');
@@ -2185,7 +2202,7 @@ function openProfile(id){
         </div>
       </div>
       <div class="pchips">
-        <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#C9A233" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#C9A233" stroke-width="1.6"/></svg>${c.loc} a okolí</div>
+        <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#C9A233" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#C9A233" stroke-width="1.6"/></svg>${c.loc} · dojezd do ${c.radius} km</div>
         <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#C9A233" stroke-width="1.6"/><path d="M12 8v4l3 2" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round"/></svg>${c.exp} let praxe</div>
         <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#C9A233" stroke-width="1.6"/></svg>Ověřené doklady</div>
         <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 8h14v12H5V8ZM9 4h6v4H9V4Z" stroke="#C9A233" stroke-width="1.6"/></svg>Pojištěná péče</div>
@@ -2205,10 +2222,11 @@ function openProfile(id){
     <div class="pcard book-aside">
       <h3 style="margin-bottom:4px">Objednat péči</h3>
       <p style="color:var(--muted);font-size:13.5px;margin-bottom:18px">Vyberte si termín a my zajistíme zbytek.</p>
-      <div class="row"><span class="l">Cena za hodinu</span><span class="r">${c.rate} Kč</span></div>
+      <div class="row"><span class="l">Cena</span><span class="r">${priceLabel(c)}</span></div>
+      <div class="row"><span class="l">Dojezd</span><span class="r">${c.loc} do ${c.radius} km</span></div>
       <div class="row"><span class="l">Dostupnost</span><span class="r" style="color:var(--gold-deep)">Tento týden</span></div>
       <div class="row"><span class="l">Reakce</span><span class="r">do 2 hodin</span></div>
-      <div class="total-row"><span class="l">Od</span><span class="big">${c.rate} Kč<span style="font-size:14px;color:var(--muted)"> / hod</span></span></div>
+      <div class="total-row"><span class="l">${c.priceType==='indiv'?'Cena':'Od'}</span><span class="big">${c.priceType==='indiv'?'Dohodou':priceShort(c).replace(/<b>|<\/b>/g,'')}</span></div>
       <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openBooking(${c.id})">Objednat službu</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openChat('${c.name}','${c.init}','caregiver')">Napsat zprávu</button>
     </div>`;
@@ -2740,6 +2758,17 @@ function cgStatus(){
 }
 /* tarif přihlášené pečovatelky */
 function cgPlan(){return cgPlanMap[auth.email]||'start';}
+/* zobrazení ceny dle typu: za hodinu / za den / individuální */
+function priceLabel(c){
+  if(c.priceType==='indiv')return 'Individuální nabídka';
+  if(c.priceType==='den')return `${(c.dayRate||c.rate*8).toLocaleString('cs-CZ')} Kč / den`;
+  return `${c.rate} Kč / hod`;
+}
+function priceShort(c){
+  if(c.priceType==='indiv')return '<b>Individuální</b>';
+  if(c.priceType==='den')return `<b>${(c.dayRate||c.rate*8).toLocaleString('cs-CZ')} Kč</b> <span>/ den</span>`;
+  return `<b>${c.rate} Kč</b> <span>/ hod</span>`;
+}
 /* odznaky pečovatelky pro karty a profil */
 function cgBadges(c,opts){
   opts=opts||{};const b=[];
@@ -2932,7 +2961,8 @@ function approveVerification(id){
   else{
     CAREGIVERS.push({id:++cgSeq,name:v.name,email:v.email,init:v.init,loc:v.loc,rate:v.rate,
       rating:5.0,reviews:0,exp:v.exp,services:v.services.slice(),verified:true,cert:true,idVerified:true,
-      suspended:false,status:'verified',plan:cgPlanMap[v.email]||'start',langs:['Čeština'],bio:v.bio||''});
+      suspended:false,status:'verified',plan:cgPlanMap[v.email]||'start',langs:['Čeština'],
+      priceType:'hod',dayRate:v.rate*8,radius:10,bio:v.bio||''});
   }
   cgStatusMap[v.email]='verified';
   persist();renderAdminVerify();renderNav();renderCare();
@@ -3022,6 +3052,7 @@ function renderAdminOrders(){
 /* ---------- CAREGIVER PORTAL ---------- */
 const cgProfile={
   name:'Jana Novotná',loc:'Praha 6',rate:250,exp:5,rating:4.9,reviews:128,photo:null,
+  priceType:'hod',dayRate:2000,radius:10,
   services:['osobni','lekar','spolecnost'],
   bio:'Jsem pečovatelka s více než 5 lety praxe v péči o seniory. Nabízím laskavý přístup, spolehlivost a individuální péči. Ráda doprovázím k lékaři a věnuji se i společnosti a povídání.'
 };
@@ -3179,6 +3210,9 @@ function renderCgProfile(){
   document.getElementById('cpLoc').value=cgProfile.loc;
   document.getElementById('cpRate').value=cgProfile.rate;
   document.getElementById('cpExp').value=cgProfile.exp;
+  document.getElementById('cpRadius').value=cgProfile.radius;
+  document.getElementById('cpPriceType').value=cgProfile.priceType||'hod';
+  if(cgProfile.priceType==='den')document.getElementById('cpRate').value=cgProfile.dayRate;
   document.getElementById('cpBio').value=cgProfile.bio;
   renderCgServiceChips();
   updateCgAvatar();
@@ -3240,6 +3274,17 @@ function syncCgPreview(){
   const loc=document.getElementById('cpLoc').value;
   const rate=document.getElementById('cpRate').value||0;
   const exp=document.getElementById('cpExp').value||0;
+  const radius=document.getElementById('cpRadius').value||10;
+  const priceType=document.getElementById('cpPriceType').value;
+  // popisek sazby + skrytí pole u individuální nabídky
+  const rateLbl=document.getElementById('cpRateLbl');
+  const rateWrap=document.getElementById('cpRateWrap');
+  if(rateLbl)rateLbl.textContent=priceType==='den'?'Denní sazba (Kč)':'Hodinová sazba (Kč)';
+  if(rateWrap)rateWrap.style.visibility=priceType==='indiv'?'hidden':'visible';
+  // počítadlo znaků bio
+  const bioEl=document.getElementById('cpBio');const cnt=document.getElementById('cpBioCount');
+  if(cnt&&bioEl)cnt.textContent=`${bioEl.value.length} / 500`;
+  const priceHTML=priceType==='indiv'?'<b>Individuální</b>':(priceType==='den'?`<b>${(+rate).toLocaleString('cs-CZ')} Kč</b> <span>/ den</span>`:`<b>${rate} Kč</b> <span>/ hod</span>`);
   const servs=cgProfile.services.map(s=>`<span class="chip">${sName(s)}</span>`).join('');
   const avaStyle=cgProfile.photo?` style="background-image:url('${cgProfile.photo}');background-size:cover;background-position:center;color:transparent"`:'';
   if(!cgProfile.photo)updateCgAvatar();
@@ -3249,22 +3294,31 @@ function syncCgPreview(){
         <div class="ava"${avaStyle}>${cgProfile.photo?'':initials(name)}</div>
         <div style="flex:1">
           <div class="care-name">${name}</div>
-          <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${loc}</div>
+          <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${loc} · dojezd do ${radius} km</div>
           <div class="care-meta"><span class="stars">★</span><b style="color:var(--navy-900)">${cgProfile.rating}</b><span>(${cgProfile.reviews}) · ${exp} let praxe</span></div>
         </div>
       </div>
-      <div class="care-tags"><span class="chip gold">Ověřená</span>${servs}</div>
-      <div class="care-foot"><div class="price"><b>${rate} Kč</b> <span>/ hod</span></div><button class="btn btn-gold" style="padding:9px 16px">Zobrazit profil</button></div>
+      <div class="care-tags"><span class="chip badge-id">🛡️ Ověřená identita</span>${servs}</div>
+      <div class="care-foot"><div class="price">${priceHTML}</div><button class="btn btn-gold" style="padding:9px 16px">Zobrazit profil</button></div>
     </div>`;
 }
 function saveCgProfile(){
   cgProfile.name=document.getElementById('cpName').value.trim()||cgProfile.name;
   cgProfile.loc=document.getElementById('cpLoc').value;
-  cgProfile.rate=+document.getElementById('cpRate').value||cgProfile.rate;
   cgProfile.exp=+document.getElementById('cpExp').value||cgProfile.exp;
-  cgProfile.bio=document.getElementById('cpBio').value.trim();
+  cgProfile.radius=+document.getElementById('cpRadius').value||cgProfile.radius;
+  cgProfile.priceType=document.getElementById('cpPriceType').value;
+  const rv=+document.getElementById('cpRate').value||0;
+  if(cgProfile.priceType==='den')cgProfile.dayRate=rv||cgProfile.dayRate;
+  else if(cgProfile.priceType==='hod')cgProfile.rate=rv||cgProfile.rate;
+  cgProfile.bio=document.getElementById('cpBio').value.trim().slice(0,500);
+  // propsat změny do veřejné karty pečovatelky (Jana = id 1 / dle e-mailu)
+  const me=CAREGIVERS.find(x=>x.email===auth.email)||CAREGIVERS[0];
+  if(me){me.loc=cgProfile.loc;me.rate=cgProfile.rate;me.exp=cgProfile.exp;me.bio=cgProfile.bio;
+    me.radius=cgProfile.radius;me.priceType=cgProfile.priceType;me.dayRate=cgProfile.dayRate;
+    me.services=cgProfile.services.slice();}
   if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role);}
-  persist();
+  persist();renderCare();
   toast('✓ Profil byl uložen a zveřejněn');
 }
 
