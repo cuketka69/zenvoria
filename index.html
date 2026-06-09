@@ -608,6 +608,39 @@
   .btn-decline:hover{background:#FBF3F1}
   @media(max-width:520px){.req{flex-wrap:wrap}.req-actions{width:100%}.btn-sm{flex:1}}
 
+  /* ---------- ADMIN PANEL ---------- */
+  .adm-table{width:100%;border-collapse:collapse;font-size:14px}
+  .adm-table th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    font-weight:700;padding:0 12px 12px;border-bottom:1px solid var(--line)}
+  .adm-table td{padding:14px 12px;border-bottom:1px solid var(--line);color:var(--navy-800);vertical-align:middle}
+  .adm-table tr:last-child td{border-bottom:none}
+  .adm-table tr:hover td{background:rgba(201,162,51,.05)}
+  .adm-table .u-cell{display:flex;align-items:center;gap:11px}
+  .adm-table .u-cell .ava{width:38px;height:38px;font-size:14px;flex:0 0 auto}
+  .adm-table .u-cell b{color:var(--navy-900);font-size:14px}
+  .adm-table .u-cell span{display:block;font-size:12px;color:var(--muted)}
+  .adm-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .table-scroll{overflow-x:auto}
+  @media(max-width:640px){.adm-table th:nth-child(3),.adm-table td:nth-child(3){display:none}}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap}
+  .badge.ok{color:#2E7D46;background:rgba(62,155,95,.13);border:1px solid rgba(62,155,95,.3)}
+  .badge.wait{color:var(--gold-deep);background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.35)}
+  .badge.bad{color:#B23A2E;background:#FBF3F1;border:1px solid #E3C9C4}
+  .badge.off{color:var(--muted);background:var(--cream);border:1px solid var(--line)}
+  /* ověřovací banner u pečovatelky */
+  .verify-banner{display:flex;align-items:center;gap:16px;border-radius:18px;padding:18px 22px;margin-bottom:26px;border:1px solid var(--line)}
+  .verify-banner.wait{background:linear-gradient(135deg,rgba(201,162,51,.14),rgba(201,162,51,.04));border-color:rgba(201,162,51,.4)}
+  .verify-banner.ok{background:rgba(62,155,95,.09);border-color:rgba(62,155,95,.3)}
+  .verify-banner.bad{background:#FBF3F1;border-color:#E3C9C4}
+  .verify-banner .vb-ic{font-size:26px;flex:0 0 auto}
+  .verify-banner .vb-t{flex:1;min-width:0}
+  .verify-banner .vb-t b{display:block;color:var(--navy-900);font-size:15.5px}
+  .verify-banner .vb-t span{font-size:13.5px;color:var(--muted)}
+  .doc-drop{border:1.5px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--muted);
+    font-size:13.5px;cursor:pointer;transition:.18s;background:var(--cream)}
+  .doc-drop:hover{border-color:var(--gold);color:var(--navy-800)}
+  .doc-drop b{color:var(--gold-deep)}
+
   .avail-day{display:flex;align-items:center;justify-content:space-between;padding:13px 4px;border-bottom:1px solid var(--line)}
   .avail-day:last-child{border:none}
   .avail-day .ad-name{font-size:14.5px;font-weight:500;color:var(--navy-800)}
@@ -1110,6 +1143,7 @@
       </div>
       <button class="btn btn-gold" onclick="go('cg-profile')">Upravit profil</button>
     </div>
+    <div id="cgVerifyNotice"></div>
     <div class="stat-grid" id="cgStats"></div>
     <div class="dash-grid">
       <div>
@@ -1237,6 +1271,64 @@
   </div>
 </div>
 
+<!-- ============ CAREGIVER · VERIFICATION ============ -->
+<div class="view" id="view-cg-verify">
+  <div class="wrap">
+    <div class="page-head"><h1>Ověření pečovatelky</h1><p>Než vás zpřístupníme rodinám, ověříme vaši totožnost a kvalifikaci. Vyplňte formulář a nahrajte osvědčení — správce ho zkontroluje, zpravidla do 48 hodin.</p></div>
+    <div id="cgVerifyBanner"></div>
+    <div class="profile-grid">
+      <form class="pcard" id="cgVerifyForm" novalidate onsubmit="return submitVerify(event)">
+        <h3>Doklady a kvalifikace</h3>
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Jméno a příjmení</label><input class="inp" id="vfName" placeholder="Jana Nováková"></div>
+          <div><label class="lbl">Lokalita</label>
+            <select class="inp" id="vfLoc">
+              <option>Praha 2</option><option>Praha 3</option><option>Praha 4</option>
+              <option>Praha 5</option><option>Praha 6</option><option>Praha 7</option>
+              <option>Praha 8</option><option>Praha 9</option><option>Praha 10</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Hodinová sazba (Kč)</label><input class="inp" type="number" id="vfRate" min="150" max="600" step="10" value="240"></div>
+          <div><label class="lbl">Roky praxe</label><input class="inp" type="number" id="vfExp" min="0" max="40" value="3"></div>
+        </div>
+        <div class="pdiv"></div>
+        <h3>Osvědčení / certifikace</h3>
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Název osvědčení nebo kurzu</label><input class="inp" id="vfCert" placeholder="Kurz pečovatelství č. …"></div>
+          <div><label class="lbl">Vystaveno (instituce)</label><input class="inp" id="vfIssuer" placeholder="Diakonie ČCE"></div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Platnost do</label><input class="inp" type="date" id="vfValid"></div>
+          <div></div>
+        </div>
+        <div style="margin-top:14px">
+          <label class="lbl">Doklad (osvědčení, diplom)</label>
+          <label class="doc-drop" id="vfDocLabel">
+            <span id="vfDocText"><b>Nahrát soubor</b> — PDF nebo fotka dokladu</span>
+            <input type="file" accept="image/*,.pdf" id="vfDoc" hidden onchange="onVerifyDoc(event)">
+          </label>
+        </div>
+        <div style="margin-top:14px"><label class="lbl">Poznámka pro správce (volitelné)</label><textarea class="inp" id="vfNote" placeholder="Cokoli, co bychom měli vědět…"></textarea></div>
+        <div class="set-err" id="vfErr" style="margin-top:12px"></div>
+        <button type="submit" class="btn btn-gold" style="margin-top:18px" id="vfSubmitBtn">Odeslat k ověření</button>
+      </form>
+      <div class="pcard book-aside">
+        <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#7A736A" stroke-width="1.6"/></svg>Jak ověření probíhá</div>
+        <ol style="margin:0;padding-left:20px;color:var(--navy-800);font-size:14px;line-height:1.9">
+          <li>Vyplníte formulář a nahrajete osvědčení.</li>
+          <li>Správce zkontroluje doklady a totožnost.</li>
+          <li>Po schválení získáte odznak <b>„Ověřená"</b> a objevíte se ve vyhledávání rodinám.</li>
+          <li>Při zamítnutí vám dáme vědět důvod a můžete žádost upravit a odeslat znovu.</li>
+        </ol>
+        <div class="pdiv"></div>
+        <p style="font-size:13px;color:var(--muted)">Vaše doklady zpracováváme v souladu s GDPR a slouží výhradně k ověření.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ ORDER DETAIL ============ -->
 <div class="view" id="view-order-detail">
   <div class="wrap">
@@ -1290,7 +1382,9 @@
       <div class="auth-demo">
         <b>Demo účty</b> — údaje rodiny jsou předvyplněné, stačí kliknout na <b>Přihlásit se</b>.<br>
         <b>Rodina:</b> <code>demo@zenvoria.cz</code> · Heslo: <code>demo123</code><br>
-        <b>Pečovatelka (Jana Novotná):</b> <code>pecovatelka@zenvoria.cz</code> · Heslo: <code>demo123</code>
+        <b>Pečovatelka (ověřená):</b> <code>pecovatelka@zenvoria.cz</code> · Heslo: <code>demo123</code><br>
+        <b>Pečovatelka (neověřená):</b> <code>nova@zenvoria.cz</code> · Heslo: <code>demo123</code><br>
+        <b>Správce systému:</b> <code>spravce@zenvoria.cz</code> · Heslo: <code>demo123</code>
       </div>
 
       <div class="auth-field" id="lf-email">
@@ -1482,6 +1576,91 @@
   </div>
 </div>
 
+<!-- ============ ADMIN · DASHBOARD ============ -->
+<div class="view" id="view-admin-dash">
+  <div class="wrap">
+    <div class="dash-head">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="ava" id="admDashAva">SS</div>
+        <div>
+          <h1>Správa systému <span class="wave">🛡️</span></h1>
+          <p id="admIntro">Přehled platformy ZENVORIA.</p>
+        </div>
+      </div>
+      <button class="btn btn-gold" onclick="go('admin-verify')">Žádosti o ověření</button>
+    </div>
+    <div class="stat-grid" id="admStats"></div>
+    <div class="dash-grid">
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Čekající žádosti o ověření</b><span class="count" id="admPendBadge">0</span></div>
+          <div id="admPendPreview"></div>
+          <button class="btn btn-ghost btn-block" style="margin-top:6px" onclick="go('admin-verify')">Zobrazit všechny žádosti</button>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Rychlé akce</b></div>
+          <div class="qa">
+            <button class="qa-item" onclick="go('admin-verify')"><span class="qa-ic">🛡️</span><span class="qa-l">Ověřit pečovatelky</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-caregivers')"><span class="qa-ic">👩‍⚕️</span><span class="qa-l">Správa pečovatelek</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-users')"><span class="qa-ic">👥</span><span class="qa-l">Správa uživatelů</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-orders')"><span class="qa-ic">📋</span><span class="qa-l">Objednávky platformy</span><span class="qa-ar">›</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · VERIFICATIONS ============ -->
+<div class="view" id="view-admin-verify">
+  <div class="wrap">
+    <div class="page-head"><h1>Žádosti o ověření</h1><p>Zkontrolujte doklady a kvalifikaci pečovatelek. Schválené se zobrazí rodinám ve vyhledávání.</p></div>
+    <div class="panel">
+      <div class="panel-h"><b>Čeká na schválení</b><span class="count" id="admVerCount">0</span></div>
+      <div id="admVerQueue"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><b>Zpracované žádosti</b></div>
+      <div class="table-scroll"><div id="admVerDone"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · CAREGIVERS ============ -->
+<div class="view" id="view-admin-caregivers">
+  <div class="wrap">
+    <div class="page-head"><h1>Pečovatelky</h1><p>Spravujte ověřené pečovatelky. Pozastavená pečovatelka se nezobrazuje rodinám.</p></div>
+    <div class="panel">
+      <div class="panel-h"><b>Všechny pečovatelky</b><span class="count" id="admCgCount">0</span></div>
+      <div class="table-scroll"><table class="adm-table"><thead><tr><th>Pečovatelka</th><th>Lokalita</th><th>Sazba</th><th>Stav</th><th style="text-align:right">Akce</th></tr></thead><tbody id="admCgBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · USERS ============ -->
+<div class="view" id="view-admin-users">
+  <div class="wrap">
+    <div class="page-head"><h1>Uživatelé</h1><p>Spravujte účty rodin využívajících platformu.</p></div>
+    <div class="panel">
+      <div class="panel-h"><b>Rodiny</b><span class="count" id="admUsrCount">0</span></div>
+      <div class="table-scroll"><table class="adm-table"><thead><tr><th>Uživatel</th><th>Registrace</th><th>Objednávek</th><th>Stav</th><th style="text-align:right">Akce</th></tr></thead><tbody id="admUsrBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · ORDERS ============ -->
+<div class="view" id="view-admin-orders">
+  <div class="wrap">
+    <div class="page-head"><h1>Objednávky platformy</h1><p>Přehled všech objednávek napříč ZENVORIA.</p></div>
+    <div class="panel">
+      <div class="panel-h"><b>Všechny objednávky</b><span class="count" id="admOrdCount">0</span></div>
+      <div class="table-scroll"><table class="adm-table"><thead><tr><th>Služba</th><th>Pečovatelka</th><th>Termín</th><th>Stav</th></tr></thead><tbody id="admOrdBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ NASTAVENÍ ============ -->
 <div class="view" id="view-settings">
   <div class="wrap set-wrap">
@@ -1613,7 +1792,7 @@ const SERVICES=[
 const VALUES=['Lidskost','Důvěra','Respekt','Bezpečí','Profesionalita'];
 const VAL_ICONS=['M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','m5 12 4 4 10-10','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'];
 
-const CAREGIVERS=[
+let CAREGIVERS=[
   {id:1,name:'Jana Novotná',init:'JN',loc:'Praha 6',rate:250,rating:4.9,reviews:128,exp:5,
    services:['osobni','lekar','spolecnost'],verified:true,cert:true,
    bio:'Jsem pečovatelka s více než 5 lety praxe v péči o seniory. Nabízím laskavý přístup, spolehlivost a individuální péči. Ráda doprovázím k lékaři a věnuji se i společnosti a povídání.'},
@@ -1633,6 +1812,37 @@ const CAREGIVERS=[
    services:['rehab','domaci','spolecnost'],verified:true,cert:false,
    bio:'Zaměřuji se na rehabilitační cvičení a aktivní trávení času. Pomáhám seniorům udržet kondici i dobrou náladu. Práce s lidmi je mé poslání.'}
 ];
+/* všechny seedované pečovatelky jsou ověřené a aktivní */
+CAREGIVERS.forEach(c=>{if(c.status===undefined)c.status='verified';if(c.suspended===undefined)c.suspended=false;});
+let cgSeq=6;
+
+/* ---------- ADMIN: fronta žádostí o ověření ---------- */
+/* stav žádosti: submitted | approved | rejected */
+let VERIFICATIONS=[
+  {id:301,name:'Kateřina Pospíšilová',email:'katerina.p@email.cz',init:'KP',loc:'Praha 8',rate:240,exp:4,
+   services:['osobni','domaci'],cert:'Kurz pečovatelství č. 2024/118',issuer:'Diakonie ČCE',validUntil:'2028-09-01',
+   fileName:'osvedceni-pospisilova.pdf',note:'Hledám práci na zkrácený úvazek, ideálně Praha 8 a okolí.',
+   bio:'Mám čtyřletou praxi v domácí péči o seniory. Jsem trpělivá, spolehlivá a mám ráda povídání.',
+   status:'submitted',date:'2026-06-07'},
+  {id:302,name:'Veronika Holá',email:'veronika.hola@email.cz',init:'VH',loc:'Praha 10',rate:260,exp:7,
+   services:['nocni','rehab'],cert:'Zdravotnický asistent',issuer:'SZŠ Praha 10',validUntil:'—',
+   fileName:'diplom-hola.jpg',note:'',
+   bio:'Sedm let praxe v lůžkovém zařízení, specializace na noční péči a rehabilitaci.',
+   status:'submitted',date:'2026-06-08'}
+];
+let verSeq=302;
+/* stav ověření přihlášené pečovatelky podle e-mailu: none|submitted|verified|rejected */
+let cgStatusMap={'pecovatelka@zenvoria.cz':'verified'};
+
+/* ---------- ADMIN: uživatelé (rodiny) pro správu ---------- */
+/* stav: active | suspended */
+let USERS=[
+  {id:1,name:'Marie Horáková',email:'demo@zenvoria.cz',init:'MH',joined:'2026-04-12',orders:5,status:'active'},
+  {id:2,name:'Petr Marek',email:'petr.marek@email.cz',init:'PM',joined:'2026-05-03',orders:2,status:'active'},
+  {id:3,name:'Eva Horká',email:'eva.horka@email.cz',init:'EH',joined:'2026-05-19',orders:1,status:'active'},
+  {id:4,name:'Tomáš Svoboda',email:'tomas.s@email.cz',init:'TS',joined:'2026-05-28',orders:0,status:'active'}
+];
+let userSeq=4;
 
 const REVIEWS=[
   {init:'PM',name:'Petr M.',stars:5,text:'Maminka je nadšená. Velmi laskavá a spolehlivá. Doporučuji.'},
@@ -1683,8 +1893,14 @@ function go(v){
   if(v==='cg-requests')renderCgRequests();
   if(v==='cg-calendar')renderCgCalendar();
   if(v==='cg-profile')renderCgProfile();
+  if(v==='cg-verify')renderCgVerify();
   if(v==='chat')renderChat();
   if(v==='fam-dash')renderFamilyDash();
+  if(v==='admin-dash')renderAdminDash();
+  if(v==='admin-verify')renderAdminVerify();
+  if(v==='admin-caregivers')renderAdminCaregivers();
+  if(v==='admin-users')renderAdminUsers();
+  if(v==='admin-orders')renderAdminOrders();
   if(v==='settings')renderSettings();
   if(v==='forgot')resetForgot();
 }
@@ -1809,6 +2025,7 @@ function renderCare(){
   const onlyVer=(document.getElementById('onlyVerified')||{}).checked;
   const sortBy=(document.getElementById('sortBy')||{}).value||'rec';
   let list=CAREGIVERS.filter(c=>{
+    if(!c.verified||c.suspended)return false; // rodiny vidí jen ověřené a aktivní pečovatelky
     const matchF=!activeFilter||c.services.includes(activeFilter);
     const matchL=!loc||c.loc===loc;
     const matchQ=!q||c.name.toLowerCase().includes(q)||c.loc.toLowerCase().includes(q)||
@@ -1967,7 +2184,9 @@ const isPhone=v=>/^[0-9+\s/]+$/.test((v||'').trim())&&(v||'').replace(/[^0-9]/g,
 /* Demo účty (e-mail → údaje). Heslo pro oba: demo123 */
 const ACCOUNTS={
   'demo@zenvoria.cz':{pw:'demo123',name:'Marie Horáková',role:'family'},
-  'pecovatelka@zenvoria.cz':{pw:'demo123',name:'Jana Novotná',role:'caregiver'}
+  'pecovatelka@zenvoria.cz':{pw:'demo123',name:'Jana Novotná',role:'caregiver'},
+  'nova@zenvoria.cz':{pw:'demo123',name:'Tereza Malá',role:'caregiver'},
+  'spravce@zenvoria.cz':{pw:'demo123',name:'Správce systému',role:'admin'}
 };
 
 function pickRole(role){
@@ -2069,7 +2288,15 @@ const NAV_CAREGIVER=[
   {v:'cg-dashboard',label:'Přehled',fn:"go('cg-dashboard')"},
   {v:'cg-requests',label:'Poptávky',fn:"go('cg-requests')"},
   {v:'cg-calendar',label:'Kalendář',fn:"go('cg-calendar')"},
+  {v:'cg-verify',label:'Ověření',fn:"go('cg-verify')"},
   {v:'cg-profile',label:'Můj profil',fn:"go('cg-profile')"}
+];
+const NAV_ADMIN=[
+  {v:'admin-dash',label:'Přehled',fn:"go('admin-dash')"},
+  {v:'admin-verify',label:'Žádosti o ověření',fn:"go('admin-verify')"},
+  {v:'admin-caregivers',label:'Pečovatelky',fn:"go('admin-caregivers')"},
+  {v:'admin-users',label:'Uživatelé',fn:"go('admin-users')"},
+  {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"}
 ];
 const NAV_FAMILY=[
   {v:'fam-dash',label:'Přehled',fn:"go('fam-dash')"},
@@ -2077,24 +2304,33 @@ const NAV_FAMILY=[
   {v:'bookings',label:'Moje objednávky',fn:"go('bookings')"},
   {v:'chat',label:'Zprávy',fn:"go('chat')"}
 ];
+/* kam přesměrovat po přihlášení / kliknutí na logo */
+function landingView(){
+  return auth.role==='caregiver'?'cg-dashboard':(auth.role==='admin'?'admin-dash':'fam-dash');
+}
 function goHome(){
-  if(auth.loggedIn&&auth.role==='caregiver')go('cg-dashboard');
-  else if(auth.loggedIn)go('fam-dash');
+  if(auth.loggedIn)go(landingView());
   else go('home');
 }
+/* počet čekajících žádostí o ověření */
+function pendingVerCount(){return VERIFICATIONS.filter(v=>v.status==='submitted').length;}
 function renderNav(){
   const isCg=auth.loggedIn&&auth.role==='caregiver';
-  const navset=isCg?NAV_CAREGIVER:(auth.loggedIn?NAV_FAMILY:NAV_GUEST);
+  const isAdmin=auth.loggedIn&&auth.role==='admin';
+  const navset=isAdmin?NAV_ADMIN:(isCg?NAV_CAREGIVER:(auth.loggedIn?NAV_FAMILY:NAV_GUEST));
   const html=navset.map(l=>{
-    const badge=(l.v==='cg-requests'&&CG_REQUESTS.length)?`<span class="nav-badge">${CG_REQUESTS.length}</span>`
-      :(l.v==='chat'&&chatUnread())?`<span class="nav-badge">${chatUnread()}</span>`:'';
+    let badge='';
+    if(l.v==='cg-requests'&&CG_REQUESTS.length)badge=`<span class="nav-badge">${CG_REQUESTS.length}</span>`;
+    else if(l.v==='chat'&&chatUnread())badge=`<span class="nav-badge">${chatUnread()}</span>`;
+    else if(l.v==='cg-verify'&&cgStatus()!=='verified')badge=`<span class="nav-badge">!</span>`;
+    else if(l.v==='admin-verify'&&pendingVerCount())badge=`<span class="nav-badge">${pendingVerCount()}</span>`;
     return `<a data-v="${l.v}" role="button" tabindex="0" onclick="${l.fn}">${l.label}${badge}</a>`;
   }).join('');
   document.getElementById('navlinks').innerHTML=html;
   document.getElementById('mmLinks').innerHTML=html;
-  document.getElementById('navCta').hidden=isCg;
+  document.getElementById('navCta').hidden=isCg||isAdmin;
   const dot=document.getElementById('notifDot');
-  if(dot)dot.hidden=!(chatUnread()>0||(isCg&&CG_REQUESTS.length>0));
+  if(dot)dot.hidden=!(chatUnread()>0||(isCg&&CG_REQUESTS.length>0)||(isAdmin&&pendingVerCount()>0));
 }
 function updateAuthUI(){
   const inn=auth.loggedIn;
@@ -2106,12 +2342,20 @@ function updateAuthUI(){
     document.getElementById('avatarName').textContent=auth.name.split(/\s+/)[0];
     document.getElementById('amName').textContent=auth.name;
     document.getElementById('amEmail').textContent=auth.email;
-    document.getElementById('amBadgeText').textContent=auth.role==='caregiver'?'Účet pečovatelky':'Účet rodiny';
+    document.getElementById('amBadgeText').textContent=auth.role==='caregiver'?'Účet pečovatelky':(auth.role==='admin'?'Správce systému':'Účet rodiny');
     const mi=(fn,label,path)=>`<a role="menuitem" tabindex="0" onclick="${fn}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">${path}</svg>${label}</a>`;
     const chatIcon='<path d="M4 5h16v11H9l-5 4V5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/>';
+    const gridIcon='<rect x="4" y="4" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/>';
+    const shieldIcon='<path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#7A736A" stroke-width="1.6"/>';
     const unread=chatUnread();const zpr='Zprávy'+(unread?` <span class="nav-badge">${unread}</span>`:'');
-    document.getElementById('amLinks').innerHTML=auth.role==='caregiver'
-      ? mi("go('cg-dashboard')",'Přehled','<rect x="4" y="4" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="#7A736A" stroke-width="1.6"/>')
+    const pv=pendingVerCount();const zad='Žádosti o ověření'+(pv?` <span class="nav-badge">${pv}</span>`:'');
+    document.getElementById('amLinks').innerHTML=auth.role==='admin'
+      ? mi("go('admin-dash')",'Přehled',gridIcon)
+        +mi("go('admin-verify')",zad,shieldIcon)
+        +mi("go('admin-caregivers')",'Pečovatelky','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
+        +mi("go('admin-users')",'Uživatelé','<circle cx="9" cy="8" r="3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M16 7a3 3 0 0 1 0 6m5 6c0-2.4-1.6-4.2-4-4.8" stroke="#7A736A" stroke-width="1.6"/>')
+      : auth.role==='caregiver'
+      ? mi("go('cg-dashboard')",'Přehled',gridIcon)
         +mi("go('cg-requests')",'Poptávky','<path d="M3 6h18v12H3z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('chat')",zpr,chatIcon)
         +mi("go('cg-profile')",'Můj profil','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
@@ -2123,7 +2367,7 @@ function updateAuthUI(){
   const greet=document.getElementById('homeGreeting');
   if(inn&&auth.role==='family'){greet.hidden=false;greet.innerHTML=`👋 Vítejte zpět, <b style="color:var(--navy-900)">${auth.name.split(/\s+/)[0]}</b>`;}
   else{greet.hidden=true;}
-  const homeLink=auth.role==='caregiver'?"<a role=\"button\" tabindex=\"0\" onclick=\"go('cg-dashboard')\">Přehled</a>":"<a role=\"button\" tabindex=\"0\" onclick=\"go('bookings')\">Moje objednávky</a>";
+  const homeLink=(auth.role==='caregiver'||auth.role==='admin')?`<a role="button" tabindex="0" onclick="go('${landingView()}')">Přehled</a>`:"<a role=\"button\" tabindex=\"0\" onclick=\"go('bookings')\">Moje objednávky</a>";
   mm.innerHTML=inn
     ? `<div class="mm-user">${avaHtml(initials(auth.name),auth.role==='caregiver'?cgProfile.photo:null)}<div><b>${auth.name}</b><span>${auth.email}</span></div></div>
        ${homeLink}
@@ -2161,7 +2405,7 @@ function submitLogin(e){
   if(acc){loginAs(acc.name,key,acc.role);}
   else{const base=email.value.split('@')[0].replace(/[._-]/g,' ');loginAs(base.charAt(0).toUpperCase()+base.slice(1),key,'family');}
   toast(`✓ Vítejte zpět, <b>${auth.name.split(/\s+/)[0]}</b>!`);
-  go(auth.role==='caregiver'?'cg-dashboard':'fam-dash');
+  go(landingView());
   return false;
 }
 function submitRegister(e){
@@ -2176,8 +2420,8 @@ function submitRegister(e){
   if(firstBad){firstBad[1].focus();return false;}
   if(tBad){document.getElementById('regTerms').focus();return false;}
   loginAs(name.value.trim(),email.value.trim().toLowerCase(),regRole);
-  toast(regRole==='caregiver'?'✓ Účet pečovatelky vytvořen. Ověření do 48 hodin.':'✓ Účet vytvořen. Vítejte v ZENVORIA!');
-  go(regRole==='caregiver'?'cg-dashboard':'fam-dash');
+  toast(regRole==='caregiver'?'✓ Účet pečovatelky vytvořen. Dokončete prosím ověření.':'✓ Účet vytvořen. Vítejte v ZENVORIA!');
+  go(landingView());
   return false;
 }
 function submitForgot(e){
@@ -2365,6 +2609,230 @@ function renderFamilyDash(){
     </div>`).join('');
 }
 
+/* ====================================================================
+   OVĚŘENÍ PEČOVATELEK + ADMIN PANEL
+   ==================================================================== */
+const sName2=id=>SERVICES.find(s=>s.id===id)?.name||id;
+/* stav ověření přihlášené pečovatelky */
+function cgStatus(){
+  if(!auth.loggedIn||auth.role!=='caregiver')return 'none';
+  return cgStatusMap[auth.email]||'pending';
+}
+const VER_BANNER={
+  verified:{cls:'ok',ic:'✅',t:'Jste ověřená pečovatelka',s:'Váš profil je viditelný rodinám ve vyhledávání.'},
+  submitted:{cls:'wait',ic:'⏳',t:'Žádost čeká na schválení',s:'Správce kontroluje vaše doklady, zpravidla do 48 hodin.'},
+  rejected:{cls:'bad',ic:'⚠️',t:'Žádost byla zamítnuta',s:'Upravte prosím údaje a odešlete znovu.'},
+  pending:{cls:'wait',ic:'📝',t:'Dokončete své ověření',s:'Vyplňte formulář a nahrejte osvědčení, abyste se zobrazili rodinám.'}
+};
+let verifyDocName='';
+
+/* ---- formulář ověření (pečovatelka) ---- */
+function renderCgVerify(){
+  const st=cgStatus();
+  const b=VER_BANNER[st]||VER_BANNER.pending;
+  const rej=VERIFICATIONS.filter(v=>v.email===auth.email&&v.status==='rejected').slice(-1)[0];
+  const reason=(st==='rejected'&&rej&&rej.reason)?` Důvod: ${rej.reason}`:'';
+  document.getElementById('cgVerifyBanner').innerHTML=
+    `<div class="verify-banner ${b.cls}"><span class="vb-ic">${b.ic}</span><div class="vb-t"><b>${b.t}</b><span>${b.s}${reason}</span></div></div>`;
+  // prefill
+  const setv=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
+  setv('vfName',auth.name||cgProfile.name);
+  setv('vfLoc',cgProfile.loc||'Praha 6');
+  const form=document.getElementById('cgVerifyForm');
+  const btn=document.getElementById('vfSubmitBtn');
+  const locked=(st==='verified'||st==='submitted');
+  form.querySelectorAll('input,textarea,select,button').forEach(el=>el.disabled=locked);
+  if(btn){btn.disabled=locked;btn.textContent=st==='rejected'?'Odeslat znovu':'Odeslat k ověření';}
+  document.getElementById('vfErr').textContent='';
+}
+function onVerifyDoc(e){
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  verifyDocName=f.name;
+  document.getElementById('vfDocText').innerHTML=`📎 <b>${f.name}</b> — připraveno k odeslání`;
+}
+function submitVerify(e){
+  e.preventDefault();
+  const g=id=>document.getElementById(id).value.trim();
+  const err=document.getElementById('vfErr');err.textContent='';
+  const name=g('vfName'),cert=g('vfCert'),issuer=g('vfIssuer');
+  if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte celé jméno a příjmení.';return false;}
+  if(!cert){err.textContent='Uveďte název osvědčení nebo kurzu.';return false;}
+  if(!issuer){err.textContent='Uveďte, kdo osvědčení vystavil.';return false;}
+  if(!verifyDocName){err.textContent='Nahrajte prosím doklad (osvědčení nebo diplom).';return false;}
+  const rec={
+    id:++verSeq,name,email:auth.email,init:initials(name),loc:g('vfLoc'),
+    rate:+g('vfRate')||240,exp:+g('vfExp')||0,
+    services:cgProfile.services.slice(),cert,issuer,validUntil:g('vfValid')||'—',
+    fileName:verifyDocName,note:g('vfNote'),bio:cgProfile.bio,
+    status:'submitted',date:new Date().toISOString().slice(0,10)
+  };
+  VERIFICATIONS.unshift(rec);
+  cgStatusMap[auth.email]='submitted';
+  verifyDocName='';
+  persist();
+  toast('🛡️ Žádost odeslána správci k ověření.');
+  renderCgVerify();renderNav();
+  return false;
+}
+
+/* ---- ADMIN: dashboard ---- */
+function renderAdminDash(){
+  setAva(document.getElementById('admDashAva'),null,initials(auth.name||'Správce systému'));
+  const pend=pendingVerCount();
+  const verified=CAREGIVERS.filter(c=>c.verified&&!c.suspended).length;
+  document.getElementById('admIntro').textContent=pend
+    ?`Čeká na vás ${pend} ${pend===1?'žádost':(pend<5?'žádosti':'žádostí')} o ověření.`
+    :'Žádné čekající žádosti o ověření.';
+  const stats=[
+    {ic:'M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z',v:pend,l:'Čeká na ověření'},
+    {ic:'M20 6 9 17l-5-5',v:verified,l:'Ověřené pečovatelky'},
+    {ic:'M9 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20c0-3.5 3-6 6-6s6 2.5 6 6',v:USERS.length,l:'Registrované rodiny'},
+    {ic:'M4 5h16v15H4zM8 2v4M16 2v4M4 9h16',v:ORDERS.length,l:'Objednávek celkem'}
+  ];
+  document.getElementById('admStats').innerHTML=stats.map(s=>`
+    <div class="stat"><div class="stat-top"><span class="sl">${s.l}</span><div class="si">${sIcon(s.ic)}</div></div><div class="sv">${s.v}</div></div>`).join('');
+  document.getElementById('admPendBadge').textContent=pend;
+  const q=VERIFICATIONS.filter(v=>v.status==='submitted');
+  document.getElementById('admPendPreview').innerHTML=q.length
+    ?q.slice(0,4).map(v=>`
+      <div class="req">
+        <div class="ava">${v.init}</div>
+        <div class="ri"><b>${v.name}</b><div class="rd">${v.loc} · ${v.exp} let praxe · ${fmtDate(v.date)}</div><span class="rs">${v.cert}</span></div>
+        <div class="req-actions"><button class="btn btn-sm btn-accept" onclick="go('admin-verify')">Zkontrolovat</button></div>
+      </div>`).join('')
+    :'<div class="empty">Žádné čekající žádosti.</div>';
+}
+
+/* ---- ADMIN: fronta ověření ---- */
+function verBadge(st){
+  return st==='approved'?'<span class="badge ok">Schváleno</span>'
+    :st==='rejected'?'<span class="badge bad">Zamítnuto</span>'
+    :'<span class="badge wait">Čeká</span>';
+}
+function renderAdminVerify(){
+  const q=VERIFICATIONS.filter(v=>v.status==='submitted');
+  const done=VERIFICATIONS.filter(v=>v.status!=='submitted');
+  document.getElementById('admVerCount').textContent=q.length;
+  document.getElementById('admVerQueue').innerHTML=q.length?q.map(v=>`
+    <div class="req" style="align-items:flex-start">
+      <div class="ava">${v.init}</div>
+      <div class="ri">
+        <b>${v.name}</b>
+        <div class="rd">${v.loc} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
+        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">Osvědčení:</b> ${v.cert} — ${v.issuer} (platnost ${v.validUntil})</div>
+        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> 📎 ${v.fileName} · <b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
+        ${v.note?`<div class="rd" style="margin-top:6px;font-style:italic">„${v.note}"</div>`:''}
+        <span class="rs">Podáno ${fmtDate(v.date)}</span>
+      </div>
+      <div class="req-actions">
+        <button class="btn btn-sm btn-accept" onclick="approveVerification(${v.id})">Schválit</button>
+        <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})">Zamítnout</button>
+      </div>
+    </div>`).join(''):'<div class="empty">Žádné čekající žádosti. 🎉</div>';
+  document.getElementById('admVerDone').innerHTML=done.length?`
+    <table class="adm-table"><thead><tr><th>Pečovatelka</th><th>Osvědčení</th><th>Datum</th><th style="text-align:right">Výsledek</th></tr></thead><tbody>
+    ${done.slice().reverse().map(v=>`<tr>
+      <td><div class="u-cell"><div class="ava">${v.init}</div><div><b>${v.name}</b><span>${v.loc}</span></div></div></td>
+      <td>${v.cert}</td><td>${fmtDate(v.date)}</td>
+      <td style="text-align:right">${verBadge(v.status)}${v.status==='rejected'&&v.reason?`<div class="rd" style="margin-top:4px">${v.reason}</div>`:''}</td>
+    </tr>`).join('')}</tbody></table>`:'<div class="empty">Zatím žádné zpracované žádosti.</div>';
+}
+function approveVerification(id){
+  const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
+  v.status='approved';
+  // přidat (nebo aktualizovat) pečovatelku ve veřejném seznamu
+  let c=CAREGIVERS.find(x=>x.email===v.email);
+  if(c){c.verified=true;c.suspended=false;c.status='verified';}
+  else{
+    CAREGIVERS.push({id:++cgSeq,name:v.name,email:v.email,init:v.init,loc:v.loc,rate:v.rate,
+      rating:5.0,reviews:0,exp:v.exp,services:v.services.slice(),verified:true,cert:true,
+      suspended:false,status:'verified',bio:v.bio||''});
+  }
+  cgStatusMap[v.email]='verified';
+  persist();renderAdminVerify();renderNav();renderCare();
+  toast(`✅ ${v.name} byla ověřena a zveřejněna.`);
+}
+function rejectVerification(id){
+  const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
+  const reason=prompt('Důvod zamítnutí (uvidí ho pečovatelka):','Nečitelné nebo neplatné osvědčení.');
+  if(reason===null)return;
+  v.status='rejected';v.reason=reason.trim()||'Bez uvedení důvodu.';
+  cgStatusMap[v.email]='rejected';
+  persist();renderAdminVerify();renderNav();
+  toast(`⚠️ Žádost ${v.name} byla zamítnuta.`);
+}
+
+/* ---- ADMIN: pečovatelky ---- */
+function renderAdminCaregivers(){
+  document.getElementById('admCgCount').textContent=CAREGIVERS.length;
+  document.getElementById('admCgBody').innerHTML=CAREGIVERS.map(c=>{
+    const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge ok">Ověřená</span>':'<span class="badge wait">Neověřená</span>');
+    return `<tr>
+      <td><div class="u-cell">${avaHtml(c.init,c.photo)}<div><b>${c.name}</b><span>★ ${c.rating} · ${c.exp} let praxe</span></div></div></td>
+      <td>${c.loc}</td><td>${c.rate} Kč</td><td>${badge}</td>
+      <td><div class="adm-actions">
+        <button class="btn btn-sm ${c.suspended?'btn-accept':'btn-decline'}" onclick="toggleSuspendCg(${c.id})">${c.suspended?'Obnovit':'Pozastavit'}</button>
+        <button class="btn btn-sm btn-decline" onclick="removeCaregiver(${c.id})">Odebrat</button>
+      </div></td>
+    </tr>`;}).join('');
+}
+function toggleSuspendCg(id){
+  const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
+  c.suspended=!c.suspended;
+  persist();renderAdminCaregivers();renderCare();
+  toast(c.suspended?`⏸️ ${c.name} pozastavena.`:`▶️ ${c.name} obnovena.`);
+}
+function removeCaregiver(id){
+  const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
+  if(!confirm(`Opravdu odebrat pečovatelku ${c.name}? Akce je nevratná.`))return;
+  CAREGIVERS=CAREGIVERS.filter(x=>x.id!==id);
+  if(c.email)cgStatusMap[c.email]='rejected';
+  persist();renderAdminCaregivers();renderCare();
+  toast(`🗑️ ${c.name} odebrána.`);
+}
+
+/* ---- ADMIN: uživatelé (rodiny) ---- */
+function renderAdminUsers(){
+  document.getElementById('admUsrCount').textContent=USERS.length;
+  document.getElementById('admUsrBody').innerHTML=USERS.map(u=>{
+    const badge=u.status==='suspended'?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
+    return `<tr>
+      <td><div class="u-cell"><div class="ava">${u.init}</div><div><b>${u.name}</b><span>${u.email}</span></div></div></td>
+      <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${badge}</td>
+      <td><div class="adm-actions">
+        <button class="btn btn-sm ${u.status==='suspended'?'btn-accept':'btn-decline'}" onclick="toggleSuspendUser(${u.id})">${u.status==='suspended'?'Obnovit':'Pozastavit'}</button>
+        <button class="btn btn-sm btn-decline" onclick="removeUser(${u.id})">Odebrat</button>
+      </div></td>
+    </tr>`;}).join('');
+}
+function toggleSuspendUser(id){
+  const u=USERS.find(x=>x.id===id);if(!u)return;
+  u.status=u.status==='suspended'?'active':'suspended';
+  persist();renderAdminUsers();
+  toast(u.status==='suspended'?`⏸️ ${u.name} pozastaven.`:`▶️ ${u.name} obnoven.`);
+}
+function removeUser(id){
+  const u=USERS.find(x=>x.id===id);if(!u)return;
+  if(!confirm(`Opravdu odebrat uživatele ${u.name}? Akce je nevratná.`))return;
+  USERS=USERS.filter(x=>x.id!==id);
+  persist();renderAdminUsers();
+  toast(`🗑️ ${u.name} odebrán.`);
+}
+
+/* ---- ADMIN: objednávky ---- */
+function renderAdminOrders(){
+  document.getElementById('admOrdCount').textContent=ORDERS.length;
+  document.getElementById('admOrdBody').innerHTML=ORDERS.slice().reverse().map(o=>{
+    const c=cg(o.cid);const st=ORDER_STATUS[o.status]||{cls:'pending',label:o.status};
+    const cls=st.cls==='ok'?'ok':(st.cls==='done'?'ok':(st.cls==='declined'?'bad':'wait'));
+    return `<tr>
+      <td><b>${sName(o.service)}</b><div class="rd" style="font-size:12px;color:var(--muted)">${o.hours} h</div></td>
+      <td>${c?c.name:'—'}</td>
+      <td>${fmtDate(o.date)} · ${o.time}</td>
+      <td><span class="badge ${cls}">${st.label}</span></td>
+    </tr>`;}).join('');
+}
+
 /* ---------- CAREGIVER PORTAL ---------- */
 const cgProfile={
   name:'Jana Novotná',loc:'Praha 6',rate:250,exp:5,rating:4.9,reviews:128,photo:null,
@@ -2393,6 +2861,12 @@ function timeRange(start,hours){
 
 function renderCgDashboard(){
   if(auth.role==='caregiver'&&auth.name)cgProfile.name=auth.name;
+  const st=cgStatus();const notice=document.getElementById('cgVerifyNotice');
+  if(notice){
+    if(st==='verified'){notice.innerHTML='';}
+    else{const b=VER_BANNER[st]||VER_BANNER.pending;
+      notice.innerHTML=`<div class="verify-banner ${b.cls}"><span class="vb-ic">${b.ic}</span><div class="vb-t"><b>${b.t}</b><span>${b.s}</span></div><button class="btn btn-sm btn-gold" onclick="go('cg-verify')">${st==='submitted'?'Zobrazit stav':'Ověřit se'}</button></div>`;}
+  }
   setAva(document.getElementById('cgDashAva'),cgProfile.photo,initials(cgProfile.name));
   document.getElementById('cgFirst').textContent=cgFirstName().split(/\s+/)[0];
   document.getElementById('cgIntro').textContent=CG_REQUESTS.length
@@ -2805,7 +3279,9 @@ function persist(){
   try{localStorage.setItem(LS_KEY,JSON.stringify({
     conversations:CONVERSATIONS,chatSeq,reqSeq,orderSeq,
     cgRequests:CG_REQUESTS,cgSchedule:CG_SCHEDULE,
-    orders:ORDERS,cgProfile,cgAvail,cgReviews,settings:appSettings
+    orders:ORDERS,cgProfile,cgAvail,cgReviews,settings:appSettings,
+    caregivers:CAREGIVERS,cgSeq,verifications:VERIFICATIONS,verSeq,
+    users:USERS,userSeq,cgStatusMap
   }));}catch(e){}
 }
 function loadState(){
@@ -2823,6 +3299,13 @@ function loadState(){
     if(Array.isArray(s.cgAvail))cgAvail=s.cgAvail;
     if(s.cgReviews)cgReviews=s.cgReviews;
     if(s.settings)Object.assign(appSettings,s.settings);
+    if(Array.isArray(s.caregivers)){CAREGIVERS=s.caregivers;syncCgPhotoToList();}
+    if(typeof s.cgSeq==='number')cgSeq=s.cgSeq;
+    if(Array.isArray(s.verifications))VERIFICATIONS=s.verifications;
+    if(typeof s.verSeq==='number')verSeq=s.verSeq;
+    if(Array.isArray(s.users))USERS=s.users;
+    if(typeof s.userSeq==='number')userSeq=s.userSeq;
+    if(s.cgStatusMap)cgStatusMap=s.cgStatusMap;
   }catch(e){}
 }
 function resetDemo(){
@@ -2835,7 +3318,7 @@ initTheme();
 loadState();
 updateAuthUI();
 renderHome();renderFilters();renderCare();renderCalendar();
-if(auth.loggedIn)go(auth.role==='caregiver'?'cg-dashboard':'fam-dash');
+if(auth.loggedIn)go(landingView());
 </script>
 </body>
 </html>
