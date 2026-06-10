@@ -1784,13 +1784,14 @@
     <div class="page-head"><h1>Tarify a ceny předplatného</h1><p>Nastavte měsíční cenu tarifů pro pečovatelky. Změna se ihned projeví v ceníku i u plateb.</p></div>
     <div class="profile-grid">
       <form class="pcard" onsubmit="return saveAdminPlans(event)">
-        <h3>Ceny předplatného (Kč / měsíc)</h3>
-        <div class="grid2" style="margin-top:10px">
-          <div><label class="lbl">🟢 START</label><input class="inp" type="number" id="apStart" min="0" max="9999" step="10"></div>
-          <div><label class="lbl">💎 PREMIUM</label><input class="inp" type="number" id="apPremium" min="0" max="9999" step="10"></div>
+        <h3>Cena předplatného PREMIUM</h3>
+        <p style="color:var(--muted);font-size:13.5px;margin:4px 0 14px">Tarif <b>START je zdarma</b> a přiřadí se pečovatelce automaticky po schválení ověření — nenastavuje se. Nastavujete pouze měsíční cenu PREMIUM.</p>
+        <div class="grid2">
+          <div><label class="lbl">💎 PREMIUM (Kč / měsíc)</label><input class="inp" type="number" id="apPremium" min="0" max="9999" step="10"></div>
+          <div></div>
         </div>
         <div class="set-err" id="apErr" style="margin-top:10px"></div>
-        <button class="btn btn-gold" type="submit" style="margin-top:18px">Uložit ceny</button>
+        <button class="btn btn-gold" type="submit" style="margin-top:18px">Uložit cenu</button>
       </form>
       <div class="pcard book-aside">
         <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#7A736A" stroke-width="1.6"/></svg>Přehled tarifů</div>
@@ -2034,9 +2035,10 @@ const PLANS={
   premium:{name:'PREMIUM',badge:'💎',
     feats:['Vše ze START','Vyšší zobrazení ve vyhledávání','Odznak PREMIUM','Neomezené poptávky','Statistiky profilu','Prioritní podpora','Video představení']}
 };
-/* ceny tarifů (Kč/měsíc) — nastavitelné správcem */
-let planPrices={start:190,premium:390};
-const planPrice=k=>planPrices[k]||0;
+/* ceny tarifů (Kč/měsíc). START je vždy zdarma; nastavuje se jen PREMIUM. */
+let planPrices={start:0,premium:390};
+const planPrice=k=>k==='start'?0:(planPrices[k]||0);
+const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' Kč / měsíc':'Zdarma';
 
 /* ---------- ADMIN: fronta žádostí o ověření ---------- */
 /* stav žádosti: submitted | approved | rejected */
@@ -2923,8 +2925,8 @@ function renderPricing(){
     return `<div class="plan-card ${featured?'featured':''}">
       ${featured?'<span class="pl-tag">NEJOBLÍBENĚJŠÍ</span>':''}
       <h3>${p.badge} ${p.name}</h3>
-      <div class="pl-price">${planPrice(key).toLocaleString('cs-CZ')} Kč <span>/ měsíc</span></div>
-      <div class="pl-sub">${featured?'Pro pečovatelky, které chtějí být více vidět.':'Pro pečovatelky, které začínají.'}</div>
+      <div class="pl-price">${planPrice(key)>0?planPrice(key).toLocaleString('cs-CZ')+' Kč <span>/ měsíc</span>':'Zdarma'}</div>
+      <div class="pl-sub">${featured?'Pro pečovatelky, které chtějí být více vidět.':'Základní tarif zdarma — automaticky po ověření.'}</div>
       <ul>${p.feats.map(f=>`<li>${f}</li>`).join('')}</ul>
       ${action}
     </div>`;}).join('');
@@ -3380,13 +3382,12 @@ function renderAdminOrders(){
 
 /* ---- ADMIN: ceny tarifů ---- */
 function renderAdminPlans(){
-  document.getElementById('apStart').value=planPrices.start;
   document.getElementById('apPremium').value=planPrices.premium;
   document.getElementById('apErr').textContent='';
   document.getElementById('adminPlanPreview').innerHTML=['start','premium'].map(k=>`
     <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;font-size:14.5px;border-bottom:1px solid var(--line)">
       <span>${PLANS[k].badge} ${PLANS[k].name}</span>
-      <b style="color:var(--navy-900)">${planPrice(k).toLocaleString('cs-CZ')} Kč / měsíc</b>
+      <b style="color:var(--navy-900)">${planPriceLabel(k)}</b>
     </div>`).join('');
   const premCount=Object.values(cgPlanMap).filter(p=>p==='premium').length;
   document.getElementById('apPremCount').textContent=premCount;
@@ -3394,12 +3395,12 @@ function renderAdminPlans(){
 }
 function saveAdminPlans(e){
   e.preventDefault();
-  const s=+document.getElementById('apStart').value,p=+document.getElementById('apPremium').value;
+  const p=+document.getElementById('apPremium').value;
   const err=document.getElementById('apErr');err.textContent='';
-  if(!(s>=0)||!(p>=0)){err.textContent='Zadejte platné ceny.';return false;}
-  planPrices.start=s;planPrices.premium=p;
+  if(!(p>=0)){err.textContent='Zadejte platnou cenu.';return false;}
+  planPrices.premium=p;planPrices.start=0;
   persist();renderAdminPlans();
-  toast('✓ Ceny tarifů uloženy.');
+  toast('✓ Cena PREMIUM uložena.');
   return false;
 }
 
@@ -3962,6 +3963,7 @@ function loadState(){
     if(s.cgStatusMap)cgStatusMap=s.cgStatusMap;
     if(s.cgPlanMap)cgPlanMap=s.cgPlanMap;
     if(s.planPrices)Object.assign(planPrices,s.planPrices);
+    planPrices.start=0; // START je vždy zdarma
   }catch(e){}
 }
 function resetDemo(){
