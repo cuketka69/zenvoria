@@ -2118,8 +2118,8 @@ const planPrice=k=>k==='start'?0:(planPrices[k]||0);
 const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' Kč / měsíc':'Zdarma';
 /* SVG diamant se zeleným obrysem (ostrý, škálovatelný) */
 const diamondSVG=(s,col)=>`<svg width="${s||14}" height="${s||14}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 22 2.5 9.5 6 3.5H18l3.5 6L12 22Z" stroke="${col||'#0A5A34'}" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.5 9.5h19M6 3.5 9 9.5M18 3.5 15 9.5M9 9.5 12 3.5 15 9.5M9 9.5 12 22 15 9.5" stroke="${col||'#0A5A34'}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-/* ikona tarifu: PREMIUM = zelený diamant (premium.webp), START = 🟢 */
-const planIcon=(k,h)=>k==='premium'?`<img src="premium.webp" alt="" height="${h||16}" style="vertical-align:-2px">`:'🟢';
+/* ikona tarifu: PREMIUM = zelený SVG diamant (jasnější zelená kvůli tmavým kartám/bannerům), START = 🟢 */
+const planIcon=(k,h)=>k==='premium'?diamondSVG(h||16,'#13A552'):'🟢';
 
 /* ---------- ADMIN: fronta žádostí o ověření ---------- */
 /* stav žádosti: submitted | approved | rejected */
@@ -3021,7 +3021,7 @@ function cgBadges(c,opts){
   opts=opts||{};const b=[];
   if(c.idVerified&&c.verified)b.push('<span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>');
   if(c.rating>=4.85)b.push('<span class="chip badge-top">⭐ Top hodnocení</span>');
-  if(c.plan==='premium')b.push('<span class="chip badge-prem"><img src="premium.webp" alt="" width="15" height="12" style="vertical-align:-2px;margin-right:3px">Premium</span>');
+  if(c.plan==='premium')b.push(`<span class="chip badge-prem">${diamondSVG(13)}<span style="margin-left:4px">Premium</span></span>`);
   return b.slice(0,opts.max||b.length).join('');
 }
 
@@ -3137,7 +3137,7 @@ function readVerifyFile(file,cb){
 function renderCgVerify(){
   const st=cgStatus();
   let b=VER_BANNER[st]||VER_BANNER.pending;
-  if(st==='verified'&&cgPlan()==='premium')b={cls:'ok',ic:'<img src="premium.webp" alt="" height="30" style="vertical-align:middle">',t:'Premium ověřená pečovatelka',s:'Máte odznak Premium a vyšší zobrazení ve vyhledávání.'};
+  if(st==='verified'&&cgPlan()==='premium')b={cls:'ok',ic:diamondSVG(30,'#13A552'),t:'Premium ověřená pečovatelka',s:'Máte odznak Premium a vyšší zobrazení ve vyhledávání.'};
   const rej=VERIFICATIONS.filter(v=>v.email===auth.email&&v.status==='rejected').slice(-1)[0];
   const reason=(st==='rejected'&&rej&&rej.reason)?` Důvod: ${rej.reason}`:'';
   document.getElementById('cgVerifyBanner').innerHTML=
