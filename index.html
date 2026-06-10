@@ -275,6 +275,29 @@
   .dd-opt{padding:9px 12px;border-radius:9px;font-size:14px;color:var(--navy-800);cursor:pointer;white-space:nowrap;transition:.12s}
   .dd-opt:hover{background:var(--cream)}
   .dd-opt.sel{background:rgba(201,162,51,.18);color:var(--navy-900);font-weight:600}
+  /* ---------- O NÁS ---------- */
+  .about{position:relative;overflow:hidden}
+  .about::before{content:"";position:absolute;top:-120px;right:-120px;width:360px;height:360px;border-radius:50%;
+    background:radial-gradient(circle,rgba(201,162,51,.16),transparent 70%);pointer-events:none}
+  .about::after{content:"";position:absolute;bottom:-140px;left:-120px;width:380px;height:380px;border-radius:50%;
+    background:radial-gradient(circle,rgba(19,165,82,.12),transparent 70%);pointer-events:none}
+  .about .wrap{position:relative;z-index:1}
+  .about-lead{max-width:720px;margin:0 auto;text-align:center;color:var(--navy-800);font-size:16.5px;line-height:1.85}
+  .about-feats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:40px}
+  .about-feat{background:var(--white);border:1px solid var(--line);border-radius:20px;padding:28px 24px;box-shadow:var(--shadow-sm);transition:.22s;position:relative;overflow:hidden}
+  .about-feat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--gold),var(--gold-deep));opacity:0;transition:.22s}
+  .about-feat:hover{transform:translateY(-5px);box-shadow:var(--shadow);border-color:rgba(201,162,51,.45)}
+  .about-feat:hover::before{opacity:1}
+  .about-feat .af-ic{width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;
+    background:linear-gradient(140deg,rgba(201,162,51,.28),rgba(201,162,51,.07));border:1px solid rgba(201,162,51,.32)}
+  .about-feat h4{font-family:'Playfair Display',serif;font-size:18.5px;color:var(--navy-900);margin-bottom:7px}
+  .about-feat p{font-size:14px;color:var(--muted);line-height:1.65}
+  .about-stats{display:flex;flex-wrap:wrap;margin-top:22px;border:1px solid var(--line);border-radius:20px;background:var(--white);box-shadow:var(--shadow-sm);overflow:hidden}
+  .about-stat{flex:1 1 140px;text-align:center;padding:26px 18px;border-right:1px solid var(--line)}
+  .about-stat:last-child{border-right:none}
+  .about-stat .as-v{font-family:'Playfair Display',serif;font-size:33px;color:var(--gold-deep);line-height:1}
+  .about-stat .as-l{color:var(--muted);font-size:13px;margin-top:8px;letter-spacing:.02em}
+  @media(max-width:560px){.about-stat{flex-basis:50%;border-bottom:1px solid var(--line)}.about-stat:nth-child(2){border-right:none}}
   .sort-row input[type=range]{accent-color:var(--gold);cursor:pointer}
   .sort-row input[type=checkbox]{accent-color:var(--gold);cursor:pointer}
 
@@ -1102,31 +1125,42 @@
   </section>
 
   <!-- o nás -->
-  <section class="block" id="onas" style="background:var(--white)">
+  <section class="block about" id="onas" style="background:linear-gradient(180deg,var(--cream),var(--white))">
     <div class="wrap">
       <div class="sec-head">
         <span class="eyebrow">O nás</span>
         <h2>Péče s lidským přístupem od roku 2026.</h2>
       </div>
-      <p style="max-width:760px;margin:0 auto;text-align:center;color:var(--navy-800);font-size:16px;line-height:1.85">
+      <p class="about-lead">
         ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Věříme, že kvalitní péče o seniory
         stojí na <b style="color:var(--navy-900)">důvěře, lidskosti a bezpečí</b> — proto každou pečovatelku pečlivě
-        ověřujeme, kontrolujeme doklady i reference a stojíme při vás na každém kroku. Naším cílem je, abyste měli
-        klid a vaši blízcí péči, jakou si zaslouží.
+        ověřujeme, kontrolujeme doklady i reference a stojíme při vás na každém kroku.
       </p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:18px;margin:38px auto 0;max-width:840px">
-        <div style="text-align:center;background:var(--cream);border:1px solid var(--line);border-radius:18px;padding:26px 16px">
-          <div style="font-family:'Playfair Display',serif;font-size:34px;color:var(--gold-deep);line-height:1">2026</div>
-          <div style="color:var(--muted);font-size:13.5px;margin-top:8px">Rok založení</div>
+      <div class="about-feats">
+        <div class="about-feat">
+          <div class="af-ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
+          <h4>Lidskost na prvním místě</h4>
+          <p>Ke každé rodině i seniorovi přistupujeme s empatií, trpělivostí a respektem.</p>
         </div>
-        <div style="text-align:center;background:var(--cream);border:1px solid var(--line);border-radius:18px;padding:26px 16px">
-          <div style="font-family:'Playfair Display',serif;font-size:34px;color:var(--gold-deep);line-height:1">100 %</div>
-          <div style="color:var(--muted);font-size:13.5px;margin-top:8px">Ověřené pečovatelky</div>
+        <div class="about-feat">
+          <div class="af-ic"><img src="verify.webp" alt="" width="26" height="31"></div>
+          <h4>Ověřená důvěra</h4>
+          <p>Totožnost, doklady i certifikace pečovatelek prověřuje náš tým — zveřejníme jen ověřené.</p>
         </div>
-        <div style="text-align:center;background:var(--cream);border:1px solid var(--line);border-radius:18px;padding:26px 16px">
-          <div style="font-family:'Playfair Display',serif;font-size:34px;color:var(--gold-deep);line-height:1">24/7</div>
-          <div style="color:var(--muted);font-size:13.5px;margin-top:8px">SOS podpora a důvěra</div>
+        <div class="about-feat">
+          <div class="af-ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <h4>Bezpečí a klid</h4>
+          <p>Pojištěná péče, zabezpečené platby a SOS linka 24/7 — pro klid celé rodiny.</p>
         </div>
+      </div>
+      <div class="about-stats">
+        <div class="about-stat"><div class="as-v">2026</div><div class="as-l">Rok založení</div></div>
+        <div class="about-stat"><div class="as-v">100 %</div><div class="as-l">Ověřené pečovatelky</div></div>
+        <div class="about-stat"><div class="as-v">★ 4,9</div><div class="as-l">Průměrné hodnocení</div></div>
+        <div class="about-stat"><div class="as-v">24/7</div><div class="as-l">SOS podpora</div></div>
+      </div>
+      <div style="text-align:center;margin-top:34px">
+        <button class="btn btn-gold" onclick="go('search')">Najít pečovatelku</button>
       </div>
     </div>
   </section>
