@@ -200,7 +200,7 @@
   .svc-top::before{content:"";position:absolute;top:0;left:-65%;width:55%;height:100%;z-index:2;pointer-events:none;
     background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);transform:skewX(-18deg);transition:left .8s ease}
   .svc-card:hover .svc-top::before{left:135%}
-  .svc-ic{position:absolute;left:24px;bottom:-26px;z-index:3;width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;
+  .svc-ic{position:absolute;left:24px;top:158px;z-index:3;width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;
     background:linear-gradient(145deg,var(--gold-soft),var(--gold-deep));border:1px solid var(--gold);box-shadow:0 8px 20px -8px rgba(0,0,0,.55);transition:transform .28s ease,box-shadow .28s ease}
   .svc-ic svg *{stroke:#0C2419}
   .svc-card:hover .svc-ic{transform:translateY(-3px) scale(1.08);box-shadow:0 0 0 4px rgba(201,162,51,.22),0 10px 22px -8px rgba(0,0,0,.6)}
@@ -2489,8 +2489,8 @@ function renderHome(){
     `<div class="svc-card">
       <div class="svc-top">
         <div class="svc-img" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp'),linear-gradient(135deg,#1a5236,#0c2419)"></div>
-        <div class="svc-ic">${sIcon(s.icon)}</div>
       </div>
+      <div class="svc-ic">${sIcon(s.icon)}</div>
       <div class="svc-body">
         <h4>${s.name}</h4>
         <p>${s.desc||''}</p>
