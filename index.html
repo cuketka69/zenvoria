@@ -2115,6 +2115,8 @@ const PLANS={
 let planPrices={start:0,premium:390};
 const planPrice=k=>k==='start'?0:(planPrices[k]||0);
 const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' Kč / měsíc':'Zdarma';
+/* ikona tarifu: PREMIUM = zelený diamant (premium.webp), START = 🟢 */
+const planIcon=(k,h)=>k==='premium'?`<img src="premium.webp" alt="" height="${h||16}" style="vertical-align:-2px">`:'🟢';
 
 /* ---------- ADMIN: fronta žádostí o ověření ---------- */
 /* stav žádosti: submitted | approved | rejected */
@@ -3025,7 +3027,7 @@ function renderPricing(){
   const cur=isCg?cgPlan():null;
   const note=document.getElementById('planCurrentNote');
   note.innerHTML=isCg
-    ?`<div class="verify-banner ok" style="margin-bottom:24px"><span class="vb-ic">${PLANS[cur].badge}</span><div class="vb-t"><b>Váš aktuální tarif: ${PLANS[cur].name}</b><span>${cur==='premium'?'Máte vyšší zobrazení a odznak Premium.':'Přejděte na PREMIUM pro vyšší zobrazení a více poptávek.'}</span></div></div>`
+    ?`<div class="verify-banner ok" style="margin-bottom:24px"><span class="vb-ic">${planIcon(cur,30)}</span><div class="vb-t"><b>Váš aktuální tarif: ${PLANS[cur].name}</b><span>${cur==='premium'?'Máte vyšší zobrazení a odznak Premium.':'Přejděte na PREMIUM pro vyšší zobrazení a více poptávek.'}</span></div></div>`
     :`<div class="verify-banner wait" style="margin-bottom:24px"><span class="vb-ic">👩‍⚕️</span><div class="vb-t"><b>Jste pečovatelka?</b><span>Zaregistrujte se a vyberte si tarif. Ceník je informativní.</span></div></div>`;
   document.getElementById('planGrid').innerHTML=['start','premium'].map(key=>{
     const p=PLANS[key];const featured=key==='premium';
@@ -3038,7 +3040,7 @@ function renderPricing(){
     else{action=`<button class="btn ${featured?'btn-gold':'btn-ghost'} btn-block" onclick="go('register');pickRole('caregiver')">Začít s ${p.name}</button>`;}
     return `<div class="plan-card ${featured?'featured':''}">
       ${featured?'<span class="pl-tag">NEJOBLÍBENĚJŠÍ</span>':''}
-      <h3>${p.badge} ${p.name}</h3>
+      <h3>${planIcon(key,22)} ${p.name}</h3>
       <div class="pl-price">${planPrice(key)>0?planPrice(key).toLocaleString('cs-CZ')+' Kč <span>/ měsíc</span>':'Zdarma'}</div>
       <div class="pl-sub">${featured?'Pro pečovatelky, které chtějí být více vidět.':'Základní tarif zdarma — automaticky po ověření.'}</div>
       <ul>${p.feats.map(f=>`<li>${f}</li>`).join('')}</ul>
@@ -3131,7 +3133,7 @@ function readVerifyFile(file,cb){
 function renderCgVerify(){
   const st=cgStatus();
   let b=VER_BANNER[st]||VER_BANNER.pending;
-  if(st==='verified'&&cgPlan()==='premium')b={cls:'ok',ic:'💎',t:'Premium ověřená pečovatelka',s:'Máte odznak Premium a vyšší zobrazení ve vyhledávání.'};
+  if(st==='verified'&&cgPlan()==='premium')b={cls:'ok',ic:'<img src="premium.webp" alt="" height="30" style="vertical-align:middle">',t:'Premium ověřená pečovatelka',s:'Máte odznak Premium a vyšší zobrazení ve vyhledávání.'};
   const rej=VERIFICATIONS.filter(v=>v.email===auth.email&&v.status==='rejected').slice(-1)[0];
   const reason=(st==='rejected'&&rej&&rej.reason)?` Důvod: ${rej.reason}`:'';
   document.getElementById('cgVerifyBanner').innerHTML=
@@ -3526,7 +3528,7 @@ function renderAdminPlans(){
   document.getElementById('apErr').textContent='';
   document.getElementById('adminPlanPreview').innerHTML=['start','premium'].map(k=>`
     <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;font-size:14.5px;border-bottom:1px solid var(--line)">
-      <span>${PLANS[k].badge} ${PLANS[k].name}</span>
+      <span>${planIcon(k,15)} ${PLANS[k].name}</span>
       <b style="color:var(--navy-900)">${planPriceLabel(k)}</b>
     </div>`).join('');
   const premCount=Object.values(cgPlanMap).filter(p=>p==='premium').length;
