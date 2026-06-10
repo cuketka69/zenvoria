@@ -187,6 +187,9 @@
     border:1px solid rgba(255,255,255,.07);border-radius:20px;display:flex;flex-direction:column;
     transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}
   .svc-card:hover{transform:translateY(-6px);box-shadow:0 24px 50px -20px rgba(0,0,0,.55);border-color:rgba(201,162,51,.4)}
+  .svc-card::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;z-index:4;
+    background:linear-gradient(90deg,var(--gold-soft),var(--gold-deep));transform:scaleX(0);transform-origin:left;transition:transform .45s ease}
+  .svc-card:hover::before{transform:scaleX(1)}
   .svc-top{height:185px;position:relative;overflow:hidden;background-color:#0C2419;background-size:cover;background-position:center;background-repeat:no-repeat;transition:background-size .5s ease}
   .svc-card:hover .svc-top{background-size:114%}
   .svc-top::after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(to bottom,rgba(8,20,14,.1),rgba(12,36,25,.94));transition:background .3s ease}
