@@ -258,6 +258,23 @@
   select option{background:var(--white);color:var(--ink)}
   select option:checked{background:var(--gold);color:var(--navy-900)}
   .field select,.sort-row select{cursor:pointer}
+  /* ---------- VLASTNÍ ROZBALOVAČKA (custom select) ---------- */
+  .dd{position:relative}
+  .dd-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;
+    font-family:inherit;font-size:14.5px;color:var(--ink);cursor:pointer;background:none;border:none;padding:0}
+  .dd-lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dd-car{color:var(--muted);flex:0 0 auto;display:flex;transition:.2s}
+  .dd.open .dd-car{transform:rotate(180deg);color:var(--gold-deep)}
+  .dd-bordered .dd-btn{border:1px solid var(--line);border-radius:10px;background:var(--white);padding:8px 12px}
+  .dd-inp .dd-btn{border:1px solid var(--line);border-radius:12px;background:var(--cream);padding:12px 14px;font-size:15px}
+  .dd-bordered.open .dd-btn,.dd-inp.open .dd-btn{border-color:var(--gold)}
+  .dd-menu{position:absolute;top:calc(100% + 8px);left:0;min-width:100%;width:max-content;max-width:320px;
+    background:var(--white);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;
+    z-index:70;max-height:300px;overflow:auto;opacity:0;transform:translateY(-6px);pointer-events:none;transition:.16s ease}
+  .dd.open .dd-menu{opacity:1;transform:none;pointer-events:auto}
+  .dd-opt{padding:9px 12px;border-radius:9px;font-size:14px;color:var(--navy-800);cursor:pointer;white-space:nowrap;transition:.12s}
+  .dd-opt:hover{background:var(--cream)}
+  .dd-opt.sel{background:rgba(201,162,51,.18);color:var(--navy-900);font-weight:600}
   .sort-row input[type=range]{accent-color:var(--gold);cursor:pointer}
   .sort-row input[type=checkbox]{accent-color:var(--gold);cursor:pointer}
 
@@ -2248,7 +2265,7 @@ function toggleMenu(open){
 
 /* ---------- KEYBOARD ACTIVATION (role=button) ---------- */
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeAccountMenu();return;}
+  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeAccountMenu();closeAllDD();return;}
   if((e.key==='Enter'||e.key===' ')){
     const el=e.target;
     const r=el&&el.getAttribute&&el.getAttribute('role');
@@ -2257,6 +2274,34 @@ document.addEventListener('keydown',e=>{
     }
   }
 });
+
+/* ---------- VLASTNÍ ROZBALOVAČKA ---------- */
+function closeAllDD(){document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));}
+function enhanceSelect(sel){
+  if(!sel||sel.dataset.enh)return; sel.dataset.enh='1';
+  const wrap=document.createElement('div');
+  wrap.className='dd'+(sel.closest('.sort-row')?' dd-bordered':(sel.classList.contains('inp')?' dd-inp':''));
+  const btn=document.createElement('button'); btn.type='button'; btn.className='dd-btn'; btn.setAttribute('aria-haspopup','listbox');
+  const lbl=document.createElement('span'); lbl.className='dd-lbl';
+  const car=document.createElement('span'); car.className='dd-car';
+  car.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  btn.appendChild(lbl); btn.appendChild(car);
+  const menu=document.createElement('div'); menu.className='dd-menu'; menu.setAttribute('role','listbox');
+  const sync=()=>{lbl.textContent=sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:'';};
+  Array.from(sel.options).forEach((o,i)=>{
+    const it=document.createElement('div'); it.className='dd-opt'+(i===sel.selectedIndex?' sel':''); it.textContent=o.text; it.setAttribute('role','option');
+    it.onclick=()=>{sel.selectedIndex=i;sync();menu.querySelectorAll('.dd-opt').forEach(x=>x.classList.remove('sel'));it.classList.add('sel');wrap.classList.remove('open');sel.dispatchEvent(new Event('change',{bubbles:true}));};
+    menu.appendChild(it);
+  });
+  btn.onclick=e=>{e.stopPropagation();const op=wrap.classList.contains('open');closeAllDD();if(!op)wrap.classList.add('open');};
+  wrap.appendChild(btn); wrap.appendChild(menu);
+  sel.style.display='none'; sel.parentNode.insertBefore(wrap,sel.nextSibling); sync();
+  // refresh popisku + zvýraznění (po programové změně hodnoty)
+  sel._ddRefresh=()=>{sync();const items=menu.querySelectorAll('.dd-opt');items.forEach((x,i)=>x.classList.toggle('sel',i===sel.selectedIndex));};
+  sel.addEventListener('change',sel._ddRefresh);
+}
+function ddRefresh(){document.querySelectorAll('select[data-enh]').forEach(s=>s._ddRefresh&&s._ddRefresh());}
+document.addEventListener('click',e=>{if(!e.target.closest('.dd'))closeAllDD();});
 
 /* ---------- TOAST ---------- */
 let toastT;
@@ -3107,6 +3152,7 @@ function renderCgVerify(){
   form.querySelectorAll('input,textarea,select,button').forEach(el=>el.disabled=locked);
   if(btn){btn.disabled=locked;btn.textContent=st==='rejected'?'Odeslat znovu':'Odeslat k ověření';}
   document.getElementById('vfErr').textContent='';
+  ddRefresh();
 }
 function onVerifyDoc(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
@@ -3717,6 +3763,7 @@ function renderCgProfile(){
   renderCgServiceChips();
   updateCgAvatar();
   syncCgPreview();
+  ddRefresh();
 }
 function updateCgAvatar(){
   const el=document.getElementById('cpAvatar');
@@ -4155,6 +4202,7 @@ initTheme();
 loadState();
 updateAuthUI();
 renderHome();renderFilters();renderCare();renderCalendar();
+document.querySelectorAll('select').forEach(enhanceSelect);
 if(auth.loggedIn)go(landingView());
 </script>
 </body>
