@@ -253,6 +253,11 @@
   .sort-row select{border:1px solid var(--line);background:var(--white);border-radius:10px;padding:8px 12px;
     font-family:inherit;font-size:13.5px;color:var(--ink);outline:none;cursor:pointer}
   .sort-row select:focus{border-color:var(--gold)}
+  /* sjednocení nativních rozbalovaček s tmavým motivem */
+  select{accent-color:var(--gold)}
+  select option{background:var(--white);color:var(--ink)}
+  select option:checked{background:var(--gold);color:var(--navy-900)}
+  .field select,.sort-row select{cursor:pointer}
   .sort-row input[type=range]{accent-color:var(--gold);cursor:pointer}
   .sort-row input[type=checkbox]{accent-color:var(--gold);cursor:pointer}
 
