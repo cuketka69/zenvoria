@@ -308,6 +308,19 @@
   .about-stat .as-v{font-family:'Playfair Display',serif;font-size:33px;color:var(--gold-deep);line-height:1}
   .about-stat .as-l{color:var(--muted);font-size:13px;margin-top:8px;letter-spacing:.02em}
   @media(max-width:560px){.about-stat{flex-basis:50%;border-bottom:1px solid var(--line)}.about-stat:nth-child(2){border-right:none}}
+  /* O nás — 3 foto-karty (2 nahoře, 1 široká dole) */
+  .about-photos{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:40px}
+  .ap-card{position:relative;min-height:320px;border-radius:22px;overflow:hidden;display:flex;align-items:flex-end;
+    padding:30px;background:var(--navy-800) center/cover no-repeat;box-shadow:var(--shadow-sm);transition:.25s}
+  .ap-card::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(4,18,12,.94),rgba(4,18,12,.4) 55%,rgba(4,18,12,.05))}
+  .ap-card:hover{transform:translateY(-5px);box-shadow:var(--shadow)}
+  .ap-inner{position:relative;z-index:1;max-width:460px}
+  .ap-tag{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--gold-soft);margin-bottom:11px}
+  .ap-card h4{font-family:'Playfair Display',serif;font-size:24px;color:#fff;margin-bottom:9px;line-height:1.15}
+  .ap-card p{font-size:14px;color:rgba(255,255,255,.82);line-height:1.6}
+  .ap-wide{grid-column:1 / -1;min-height:360px}
+  @media(max-width:680px){.about-photos{grid-template-columns:1fr}.ap-wide{grid-column:auto}}
   .sort-row input[type=range]{accent-color:var(--gold);cursor:pointer}
   .sort-row input[type=checkbox]{accent-color:var(--gold);cursor:pointer}
 
@@ -1082,28 +1095,28 @@
         stojí na <b style="color:var(--navy-900)">důvěře, lidskosti a bezpečí</b> — proto každou pečovatelku pečlivě
         ověřujeme, kontrolujeme doklady i reference a stojíme při vás na každém kroku.
       </p>
-      <div class="about-feats">
-        <div class="about-feat">
-          <div class="af-ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
-          <h4>Lidskost na prvním místě</h4>
-          <p>Ke každé rodině i seniorovi přistupujeme s empatií, trpělivostí a respektem.</p>
-        </div>
-        <div class="about-feat">
-          <div class="af-ic"><img src="verify.webp" alt="" width="26" height="31"></div>
-          <h4>Ověřená důvěra</h4>
-          <p>Totožnost, doklady i certifikace pečovatelek prověřuje náš tým — zveřejníme jen ověřené.</p>
-        </div>
-        <div class="about-feat">
-          <div class="af-ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-          <h4>Bezpečí a klid</h4>
-          <p>Pojištěná péče, zabezpečené platby a SOS linka 24/7 — pro klid celé rodiny.</p>
-        </div>
-      </div>
-      <div class="about-stats">
-        <div class="about-stat"><div class="as-v">2026</div><div class="as-l">Rok založení</div></div>
-        <div class="about-stat"><div class="as-v">100 %</div><div class="as-l">Ověřené pečovatelky</div></div>
-        <div class="about-stat"><div class="as-v">★ 4,9</div><div class="as-l">Průměrné hodnocení</div></div>
-        <div class="about-stat"><div class="as-v">24/7</div><div class="as-l">SOS podpora</div></div>
+      <div class="about-photos">
+        <article class="ap-card" style="background-image:url('about-1.webp'),url('hero.png');background-position:center 20%">
+          <div class="ap-inner">
+            <span class="ap-tag">● Náš přístup</span>
+            <h4>Lidskost na prvním místě</h4>
+            <p>Ke každé rodině i seniorovi přistupujeme s empatií, trpělivostí a respektem — péče má být především lidská.</p>
+          </div>
+        </article>
+        <article class="ap-card" style="background-image:url('about-2.webp'),url('hero.png');background-position:center 30%">
+          <div class="ap-inner">
+            <span class="ap-tag">● Ověření</span>
+            <h4>Prověřené pečovatelky</h4>
+            <p>Totožnost, doklady i certifikace prověřuje náš tým. Rodinám zpřístupníme jen ověřené pečovatelky.</p>
+          </div>
+        </article>
+        <article class="ap-card ap-wide" style="background-image:url('about-3.webp'),url('hero.png');background-position:center 35%">
+          <div class="ap-inner">
+            <span class="ap-tag">● Jistota</span>
+            <h4>Bezpečí a klid pro celou rodinu</h4>
+            <p>Pojištěná péče, zabezpečené platby a SOS linka 24/7. Vy máte klid, vaši blízcí péči, jakou si zaslouží.</p>
+          </div>
+        </article>
       </div>
       <div style="text-align:center;margin-top:34px">
         <button class="btn btn-gold" onclick="go('search')">Najít pečovatelku</button>
