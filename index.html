@@ -2469,8 +2469,10 @@ function initTheme(){applyTheme('dark');}
 /* ---------- HOME RENDER ---------- */
 /* mapování id služby → název obrázku (kde se liší) */
 const SVC_IMG={lekar:'doktor',domaci:'domacipece',pomoc:'pomocvdomacnosti',rehab:'Rehabilitace'};
+/* hlavních 6 služeb na úvodní stránce */
+const MAIN_SERVICES=['osobni','lekar','domaci','nakupy','nocni','nemocnice'];
 function renderHome(){
-  document.getElementById('servGrid').innerHTML=SERVICES.slice(0,6).map(s=>
+  document.getElementById('servGrid').innerHTML=MAIN_SERVICES.map(id=>SERVICES.find(s=>s.id===id)).filter(Boolean).map(s=>
     `<div class="svc-card">
       <div class="svc-top" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp'),linear-gradient(135deg,#1a5236,#0c2419)">
         <div class="svc-ic">${sIcon(s.icon)}</div>
