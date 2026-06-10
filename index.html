@@ -190,8 +190,10 @@
   .svc-card::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;z-index:4;
     background:linear-gradient(90deg,var(--gold-soft),var(--gold-deep));transform:scaleX(0);transform-origin:left;transition:transform .45s ease}
   .svc-card:hover::before{transform:scaleX(1)}
-  .svc-top{height:185px;position:relative;overflow:hidden;background-color:#0C2419;background-size:cover;background-position:center;background-repeat:no-repeat;transition:background-size .5s ease}
-  .svc-card:hover .svc-top{background-size:114%}
+  .svc-top{height:185px;position:relative;overflow:hidden;background-color:#0C2419}
+  .svc-img{position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;background-repeat:no-repeat;
+    transform:scale(1);transition:transform .6s cubic-bezier(.2,.7,.2,1);will-change:transform}
+  .svc-card:hover .svc-img{transform:scale(1.08)}
   .svc-top::after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(to bottom,rgba(8,20,14,.1),rgba(12,36,25,.94));transition:background .3s ease}
   .svc-card:hover .svc-top::after{background:linear-gradient(to bottom,rgba(8,20,14,.02),rgba(12,36,25,.78))}
   /* světelný přejezd (shine) */
@@ -2484,7 +2486,8 @@ const MAIN_SERVICES=['osobni','lekar','domaci','nakupy','nocni','nemocnice'];
 function renderHome(){
   document.getElementById('servGrid').innerHTML=MAIN_SERVICES.map(id=>SERVICES.find(s=>s.id===id)).filter(Boolean).map(s=>
     `<div class="svc-card">
-      <div class="svc-top" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp'),linear-gradient(135deg,#1a5236,#0c2419)">
+      <div class="svc-top">
+        <div class="svc-img" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp'),linear-gradient(135deg,#1a5236,#0c2419)"></div>
         <div class="svc-ic">${sIcon(s.icon)}</div>
       </div>
       <div class="svc-body">
