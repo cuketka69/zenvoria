@@ -182,14 +182,24 @@
   .sec-head p{color:var(--muted);margin-top:12px;font-size:16px}
 
   /* services grid */
-  .serv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-  .serv{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:24px 20px;
-    text-align:center;transition:.22s;cursor:pointer}
-  .serv:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:rgba(201,162,51,.5)}
-  .serv .ring{width:58px;height:58px;border-radius:50%;border:1.5px solid var(--gold);
-    display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
-  .serv b{display:block;font-size:14.5px;color:var(--navy-900);font-weight:600}
-  .serv span{font-size:12.5px;color:var(--muted)}
+  .serv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:26px}
+  /* karty služeb (foto/hlavička + kolečko s ikonou + text + tlačítko) */
+  .svc-card{background:var(--white);border:1px solid var(--line);border-radius:20px;overflow:hidden;
+    box-shadow:var(--shadow-sm);transition:.22s;text-align:center;display:flex;flex-direction:column}
+  .svc-card:hover{transform:translateY(-6px);box-shadow:var(--shadow);border-color:rgba(201,162,51,.45)}
+  .svc-top{height:118px;position:relative;background:linear-gradient(135deg,var(--navy-700),var(--navy-900))}
+  .svc-top::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(201,162,51,.22),transparent 60%)}
+  .svc-ic{position:absolute;left:50%;bottom:-28px;transform:translateX(-50%);width:58px;height:58px;border-radius:50%;
+    background:var(--white);border:1px solid rgba(201,162,51,.45);display:flex;align-items:center;justify-content:center;
+    box-shadow:var(--shadow-sm);z-index:1}
+  .svc-body{padding:42px 22px 26px;display:flex;flex-direction:column;flex:1}
+  .svc-card h4{font-family:'Playfair Display',serif;font-size:18.5px;color:var(--navy-900);margin-bottom:9px}
+  .svc-card p{font-size:13.5px;color:var(--muted);line-height:1.65;margin-bottom:20px;flex:1}
+  .svc-btn{align-self:center;display:inline-flex;align-items:center;gap:7px;background:var(--gold);color:var(--navy-900);
+    font-family:inherit;font-weight:700;font-size:13px;border:none;border-radius:24px;padding:10px 22px;cursor:pointer;transition:.18s}
+  .svc-btn span{display:inline-block;transition:.18s}
+  .svc-btn:hover{background:var(--gold-soft)}
+  .svc-btn:hover span{transform:translateX(3px)}
 
   /* audience cards */
   .aud-section{position:relative;overflow:hidden;background:#091C13}
@@ -2117,16 +2127,16 @@
 <script>
 /* ---------- DATA ---------- */
 const SERVICES=[
-  {id:'osobni',name:'Osobní péče',icon:'M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'},
-  {id:'lekar',name:'Doprovod k lékaři',icon:'M9 3h6v3h3v6h-3v3H9v-3H6V6h3V3Z'},
-  {id:'domaci',name:'Domácí péče',icon:'M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z'},
-  {id:'pomoc',name:'Pomoc v domácnosti',icon:'M3 13h18M5 13V7l7-4 7 4v6M9 21v-5h6v5'},
-  {id:'nocni',name:'Noční péče',icon:'M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z'},
-  {id:'nemocnice',name:'Péče v nemocnici',icon:'M5 8h14v12H5V8ZM9 4h6v4H9V4ZM12 11v6M9 14h6'},
-  {id:'rehab',name:'Rehabilitace a cvičení',icon:'M4 12h2l2-5 4 10 2-5h6'},
-  {id:'spolecnost',name:'Společnost a povídání',icon:'M4 5h16v10H9l-5 4V5Z'},
-  {id:'hygiena',name:'Hygiena',icon:'M7 13h10v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6ZM6 13h12M9 13V7a3 3 0 0 1 6 0'},
-  {id:'nakupy',name:'Nákupy',icon:'M6 6h15l-1.5 9h-12L6 6ZM6 6 5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z'}
+  {id:'osobni',name:'Osobní péče',icon:'M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7',desc:'Pomoc s běžnými denními činnostmi, mobilitou a osobní pohodou seniora.'},
+  {id:'lekar',name:'Doprovod k lékaři',icon:'M9 3h6v3h3v6h-3v3H9v-3H6V6h3V3Z',desc:'Bezpečný doprovod na vyšetření, k lékaři i na úřady — s trpělivostí.'},
+  {id:'domaci',name:'Domácí péče',icon:'M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z',desc:'Komplexní péče v pohodlí domova podle individuálních potřeb klienta.'},
+  {id:'pomoc',name:'Pomoc v domácnosti',icon:'M3 13h18M5 13V7l7-4 7 4v6M9 21v-5h6v5',desc:'Úklid, vaření a běžný chod domácnosti, ať má senior klid a pohodlí.'},
+  {id:'nocni',name:'Noční péče',icon:'M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z',desc:'Dohled a péče během noci — jistota a klid pro seniora i celou rodinu.'},
+  {id:'nemocnice',name:'Péče v nemocnici',icon:'M5 8h14v12H5V8ZM9 4h6v4H9V4ZM12 11v6M9 14h6',desc:'Doprovod a podpora během hospitalizace i po návratu z nemocnice.'},
+  {id:'rehab',name:'Rehabilitace a cvičení',icon:'M4 12h2l2-5 4 10 2-5h6',desc:'Šetrné cvičení a rehabilitace pro udržení kondice a soběstačnosti.'},
+  {id:'spolecnost',name:'Společnost a povídání',icon:'M4 5h16v10H9l-5 4V5Z',desc:'Lidský kontakt, povídání a společné chvíle proti samotě a nudě.'},
+  {id:'hygiena',name:'Hygiena',icon:'M7 13h10v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6ZM6 13h12M9 13V7a3 3 0 0 1 6 0',desc:'Citlivá pomoc s osobní hygienou a péčí o tělo s respektem a důstojností.'},
+  {id:'nakupy',name:'Nákupy',icon:'M6 6h15l-1.5 9h-12L6 6ZM6 6 5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z',desc:'Zajištění nákupů, léků a pochůzek, aby měl senior vše potřebné doma.'}
 ];
 const VALUES=['Lidskost','Důvěra','Respekt','Bezpečí','Profesionalita'];
 const VAL_ICONS=['M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','m5 12 4 4 10-10','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'];
@@ -2397,8 +2407,13 @@ function initTheme(){applyTheme('dark');}
 /* ---------- HOME RENDER ---------- */
 function renderHome(){
   document.getElementById('servGrid').innerHTML=SERVICES.map(s=>
-    `<div class="serv" onclick="filterByService('${s.id}')">
-      <div class="ring">${sIcon(s.icon)}</div><b>${s.name}</b>
+    `<div class="svc-card">
+      <div class="svc-top"><div class="svc-ic">${sIcon(s.icon)}</div></div>
+      <div class="svc-body">
+        <h4>${s.name}</h4>
+        <p>${s.desc||''}</p>
+        <button class="svc-btn" onclick="filterByService('${s.id}')">Zobrazit pečovatelky <span>→</span></button>
+      </div>
     </div>`).join('');
   document.getElementById('valuesRow').innerHTML=VALUES.map((v,i)=>
     `<div class="val"><div class="vc">${sIcon(VAL_ICONS[i])}</div><b>${v}</b></div>`).join('');
