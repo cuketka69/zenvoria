@@ -807,6 +807,10 @@
   .modal-card p.msub{color:var(--muted);font-size:14px;margin-bottom:20px}
   .modal-x{position:absolute;top:16px;right:16px;background:none;border:none;cursor:pointer;color:var(--muted);padding:6px;display:flex}
   .modal-x:hover{color:var(--navy-900)}
+  .cf-ic{width:62px;height:62px;margin:0 auto 14px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:30px;background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.35)}
+  .cf-actions{display:flex;gap:10px;margin-top:24px}
+  .cf-actions .btn{flex:1}
   .star-pick{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
   .star{background:none;border:none;font-size:40px;line-height:1;color:#DAD3C6;cursor:pointer;transition:.14s;padding:0}
   .star.on{color:var(--gold)}
@@ -1859,6 +1863,20 @@
   </div>
 </div>
 
+<!-- ============ POTVRZOVACÍ MODAL ============ -->
+<div class="modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="modal-scrim" onclick="closeConfirm()"></div>
+  <div class="modal-card" style="text-align:center">
+    <div class="cf-ic" id="confirmIcon">⚠️</div>
+    <h3 id="confirmTitle">Opravdu pokračovat?</h3>
+    <p class="msub" id="confirmMsg" style="margin-bottom:0"></p>
+    <div class="cf-actions">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Zrušit</button>
+      <button class="btn btn-gold" id="confirmOkBtn" onclick="confirmProceed()">Potvrdit</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ FOOTER ============ -->
 <footer>
   <div class="wrap">
@@ -2112,7 +2130,7 @@ function toggleMenu(open){
 
 /* ---------- KEYBOARD ACTIVATION (role=button) ---------- */
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){toggleMenu(false);closeRating();closeAccountMenu();return;}
+  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closeAccountMenu();return;}
   if((e.key==='Enter'||e.key===' ')){
     const el=e.target;
     const r=el&&el.getAttribute&&el.getAttribute('role');
@@ -2440,10 +2458,13 @@ function exportData(){
   }catch(e){toast('⚠️ Export se nezdařil');}
 }
 function deleteAccount(){
-  if(!confirm('Opravdu chcete smazat účet? V demu se tím smažou všechna lokální data a akce je nevratná.'))return;
-  try{localStorage.removeItem(LS_KEY);localStorage.removeItem('zv_auth');}catch(e){}
-  toast('Účet byl smazán.');
-  setTimeout(()=>location.reload(),700);
+  askConfirm({title:'Smazat účet?',icon:'🗑️',
+    message:'Tím se smažou všechna lokální data a akce je nevratná.',
+    confirmLabel:'Smazat účet',danger:true,onConfirm:()=>{
+      try{localStorage.removeItem(LS_KEY);localStorage.removeItem('zv_auth');}catch(e){}
+      toast('Účet byl smazán.');
+      setTimeout(()=>location.reload(),700);
+    }});
 }
 const NAV_GUEST=[
   {v:'home',label:'Domů',fn:"go('home')"},
@@ -3189,17 +3210,24 @@ function renderAdminCaregivers(){
 }
 function toggleSuspendCg(id){
   const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
-  c.suspended=!c.suspended;
-  persist();renderAdminCaregivers();renderCare();
-  toast(c.suspended?`⏸️ ${c.name} pozastavena.`:`▶️ ${c.name} obnovena.`);
+  const doIt=()=>{c.suspended=!c.suspended;persist();renderAdminCaregivers();renderCare();
+    toast(c.suspended?`⏸️ ${c.name} pozastavena.`:`▶️ ${c.name} obnovena.`);};
+  if(!c.suspended){
+    askConfirm({title:'Pozastavit pečovatelku?',icon:'⏸️',
+      message:`${c.name} se přestane zobrazovat rodinám, dokud ji znovu neobnovíte.`,
+      confirmLabel:'Pozastavit',danger:true,onConfirm:doIt});
+  }else doIt();
 }
 function removeCaregiver(id){
   const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
-  if(!confirm(`Opravdu odebrat pečovatelku ${c.name}? Akce je nevratná.`))return;
-  CAREGIVERS=CAREGIVERS.filter(x=>x.id!==id);
-  if(c.email)cgStatusMap[c.email]='rejected';
-  persist();renderAdminCaregivers();renderCare();
-  toast(`🗑️ ${c.name} odebrána.`);
+  askConfirm({title:'Odebrat pečovatelku?',icon:'🗑️',
+    message:`Opravdu chcete odebrat pečovatelku ${c.name}? Tato akce je nevratná.`,
+    confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
+      CAREGIVERS=CAREGIVERS.filter(x=>x.id!==id);
+      if(c.email)cgStatusMap[c.email]='rejected';
+      persist();renderAdminCaregivers();renderCare();
+      toast(`🗑️ ${c.name} odebrána.`);
+    }});
 }
 
 /* ---- ADMIN: uživatelé (rodiny) ---- */
@@ -3218,16 +3246,23 @@ function renderAdminUsers(){
 }
 function toggleSuspendUser(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
-  u.status=u.status==='suspended'?'active':'suspended';
-  persist();renderAdminUsers();
-  toast(u.status==='suspended'?`⏸️ ${u.name} pozastaven.`:`▶️ ${u.name} obnoven.`);
+  const doIt=()=>{u.status=u.status==='suspended'?'active':'suspended';persist();renderAdminUsers();
+    toast(u.status==='suspended'?`⏸️ ${u.name} pozastaven.`:`▶️ ${u.name} obnoven.`);};
+  if(u.status!=='suspended'){
+    askConfirm({title:'Pozastavit uživatele?',icon:'⏸️',
+      message:`Účet ${u.name} bude pozastaven, dokud ho znovu neobnovíte.`,
+      confirmLabel:'Pozastavit',danger:true,onConfirm:doIt});
+  }else doIt();
 }
 function removeUser(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
-  if(!confirm(`Opravdu odebrat uživatele ${u.name}? Akce je nevratná.`))return;
-  USERS=USERS.filter(x=>x.id!==id);
-  persist();renderAdminUsers();
-  toast(`🗑️ ${u.name} odebrán.`);
+  askConfirm({title:'Odebrat uživatele?',icon:'🗑️',
+    message:`Opravdu chcete odebrat uživatele ${u.name}? Tato akce je nevratná.`,
+    confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
+      USERS=USERS.filter(x=>x.id!==id);
+      persist();renderAdminUsers();
+      toast(`🗑️ ${u.name} odebrán.`);
+    }});
 }
 
 /* ---- ADMIN: objednávky ---- */
@@ -3659,6 +3694,27 @@ function closeRating(){
   const m=document.getElementById('ratingModal');
   if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
 }
+/* ---------- POTVRZOVACÍ MODAL ---------- */
+let confirmCb=null;
+function askConfirm(o){
+  o=o||{};
+  document.getElementById('confirmTitle').textContent=o.title||'Opravdu pokračovat?';
+  document.getElementById('confirmMsg').textContent=o.message||'';
+  document.getElementById('confirmIcon').textContent=o.icon||'⚠️';
+  const ok=document.getElementById('confirmOkBtn');
+  ok.textContent=o.confirmLabel||'Potvrdit';
+  ok.className='btn '+(o.danger?'btn-decline':'btn-gold');
+  confirmCb=typeof o.onConfirm==='function'?o.onConfirm:null;
+  const m=document.getElementById('confirmModal');
+  m.classList.add('open');document.body.style.overflow='hidden';
+  setTimeout(()=>ok.focus(),60);
+}
+function closeConfirm(){
+  const m=document.getElementById('confirmModal');
+  if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
+  confirmCb=null;
+}
+function confirmProceed(){const cb=confirmCb;closeConfirm();if(cb)cb();}
 function setStars(crit,n){ratingTarget.scores[crit]=n;renderStars();}
 function renderStars(){
   document.getElementById('ratingCriteria').innerHTML=RATE_CRITERIA.map(c=>`
