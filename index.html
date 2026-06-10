@@ -2116,6 +2116,8 @@ const PLANS={
 let planPrices={start:0,premium:390};
 const planPrice=k=>k==='start'?0:(planPrices[k]||0);
 const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' Kč / měsíc':'Zdarma';
+/* SVG diamant se zeleným obrysem (ostrý, škálovatelný) */
+const diamondSVG=(s,col)=>`<svg width="${s||14}" height="${s||14}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 22 2.5 9.5 6 3.5H18l3.5 6L12 22Z" stroke="${col||'#0A5A34'}" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.5 9.5h19M6 3.5 9 9.5M18 3.5 15 9.5M9 9.5 12 3.5 15 9.5M9 9.5 12 22 15 9.5" stroke="${col||'#0A5A34'}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 /* ikona tarifu: PREMIUM = zelený diamant (premium.webp), START = 🟢 */
 const planIcon=(k,h)=>k==='premium'?`<img src="premium.webp" alt="" height="${h||16}" style="vertical-align:-2px">`:'🟢';
 
@@ -2375,7 +2377,7 @@ function renderCare(){
   if(!list.length){g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted)">Žádná pečovatelka neodpovídá filtru.</div>`;return;}
   g.innerHTML=list.map(c=>`
     <div class="care-card ${c.plan==='premium'?'is-premium':''}" onclick="openProfile(${c.id})">
-      ${c.plan==='premium'?'<span class="prem-ribbon"><img src="premium.webp" alt="" width="12" height="10">PREMIUM</span>':''}
+      ${c.plan==='premium'?`<span class="prem-ribbon">${diamondSVG(13)}PREMIUM</span>`:''}
       <div class="care-top">
         ${avaHtml(c.init,c.photo)}
         <div style="flex:1">
