@@ -681,6 +681,16 @@
   /* odkaz na stažení dokladu */
   .doc-link{color:var(--gold-deep);font-weight:600;cursor:pointer;border-bottom:1px dashed rgba(169,136,33,.5);padding-bottom:1px}
   .doc-link:hover{color:var(--gold);border-bottom-style:solid}
+  /* plnicí efekt tlačítka stahování + stav „staženo" */
+  .btn.dl-busy{color:var(--navy-900);border-color:var(--gold);cursor:default;
+    background-color:transparent;background-image:linear-gradient(90deg,var(--gold),var(--gold-soft));
+    background-repeat:no-repeat;background-size:0% 100%;animation:dlfill .95s ease forwards}
+  .btn.dl-busy:hover{transform:none}
+  @keyframes dlfill{from{background-size:0% 100%}to{background-size:100% 100%}}
+  .btn.dl-done{background:linear-gradient(135deg,#0A5C38,#00603A);color:#fff;border-color:transparent;cursor:default;
+    box-shadow:0 9px 22px -11px rgba(0,96,58,.75)}
+  .btn.dl-done:hover{transform:none}
+  @media (prefers-reduced-motion:reduce){.btn.dl-busy{animation-duration:.01s}}
   /* hodnocení podle kritérií */
   .rate-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
   .rate-row:last-child{border-bottom:none}
@@ -2998,7 +3008,7 @@ function renderAdminVerify(){
         <span class="rs">Podáno ${fmtDate(v.date)}</span>
       </div>
       <div class="req-actions">
-        <button class="btn btn-sm btn-ghost" onclick="downloadDossier(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Stáhnout .zip</button>
+        <button class="btn btn-sm btn-ghost" onclick="downloadWithFx(this,()=>downloadDossier(${v.id}))"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Stáhnout .zip</button>
         <button class="btn btn-sm btn-gold" onclick="approveVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 5 5 9-11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Schválit</button>
         <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Zamítnout</button>
       </div>
@@ -3060,6 +3070,19 @@ function xlsxFromRows(rows){
   ]);
 }
 function slug(s){return (s||'zadost').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase();}
+/* plnicí efekt tlačítka → stažení → „✓ Staženo" → návrat */
+function downloadWithFx(btn,fn){
+  if(!btn){fn();return;}
+  if(btn.classList.contains('dl-busy')||btn.classList.contains('dl-done'))return;
+  const orig=btn.innerHTML;
+  btn.disabled=true;btn.classList.add('dl-busy');
+  setTimeout(()=>{
+    try{fn();}catch(e){}
+    btn.classList.remove('dl-busy');btn.classList.add('dl-done');
+    btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 5 5 9-11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Staženo';
+    setTimeout(()=>{btn.classList.remove('dl-done');btn.innerHTML=orig;btn.disabled=false;},1700);
+  },950);
+}
 /* stáhne ZIP složku: Excel s údaji + přiložené soubory (doklad, selfie) */
 function downloadDossier(id){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
