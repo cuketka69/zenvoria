@@ -3581,6 +3581,9 @@ function updateCgAvatar(){
   if(cgProfile.photo){
     el.textContent='';
     el.style.backgroundImage=`url('${cgProfile.photo}')`;
+    el.style.backgroundSize='cover';
+    el.style.backgroundPosition='center';
+    el.style.backgroundRepeat='no-repeat';
     el.style.color='transparent';
     if(rm)rm.style.display='';
   }else{
