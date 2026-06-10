@@ -181,8 +181,7 @@
   .sec-head p{color:var(--muted);margin-top:12px;font-size:16px}
 
   /* services grid */
-  .serv-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:22px}
-  @media(max-width:1080px){.serv-grid{grid-template-columns:repeat(2,1fr)}}
+  .serv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:26px}
   /* karty služeb — čistá tmavá karta se zlatou ikonou */
   .svc-card{position:relative;overflow:hidden;background:linear-gradient(165deg,#15402C,#0C2419);
     border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:28px 26px;display:flex;flex-direction:column;
