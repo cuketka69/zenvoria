@@ -1389,6 +1389,13 @@
           <div></div>
         </div>
         <div style="margin-top:14px">
+          <label class="lbl">Foto dokladu totožnosti (občanský průkaz / pas)</label>
+          <label class="doc-drop" id="vfIdLabel">
+            <span id="vfIdText"><b>Nahrát foto dokladu</b> — přední strana občanky nebo pasu</span>
+            <input type="file" accept="image/*,.pdf" id="vfIdDoc" hidden onchange="onVerifyId(event)">
+          </label>
+        </div>
+        <div style="margin-top:14px">
           <label class="lbl">Selfie kontrola (fotka obličeje s dokladem)</label>
           <label class="doc-drop" id="vfSelfieLabel">
             <span id="vfSelfieText"><b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte</span>
@@ -2044,13 +2051,13 @@ const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' K�
 /* stav žádosti: submitted | approved | rejected */
 let VERIFICATIONS=[
   {id:301,name:'Kateřina Pospíšilová',email:'katerina.p@email.cz',init:'KP',loc:'Praha 8',rate:240,exp:4,
-   phone:'+420 776 220 118',docType:'Občanský průkaz',docNum:'234567890',selfie:'selfie-pospisilova.jpg',
+   phone:'+420 776 220 118',docType:'Občanský průkaz',docNum:'234567890',idFile:'obcanka-pospisilova.jpg',selfie:'selfie-pospisilova.jpg',
    services:['osobni','domaci','nakupy'],cert:'Kurz pečovatelství č. 2024/118',issuer:'Diakonie ČCE',validUntil:'2028-09-01',
    fileName:'osvedceni-pospisilova.pdf',refs:'Domov seniorů Háje — vrchní sestra (na vyžádání)',note:'Hledám práci na zkrácený úvazek, ideálně Praha 8 a okolí.',
    bio:'Mám čtyřletou praxi v domácí péči o seniory. Jsem trpělivá, spolehlivá a mám ráda povídání.',
    status:'submitted',date:'2026-06-07'},
   {id:302,name:'Veronika Holá',email:'veronika.hola@email.cz',init:'VH',loc:'Praha 10',rate:260,exp:7,
-   phone:'+420 605 778 901',docType:'Cestovní pas',docNum:'CZ4471902',selfie:'selfie-hola.jpg',
+   phone:'+420 605 778 901',docType:'Cestovní pas',docNum:'CZ4471902',idFile:'pas-hola.jpg',selfie:'selfie-hola.jpg',
    services:['nocni','rehab','hygiena'],cert:'Zdravotnický asistent',issuer:'SZŠ Praha 10',validUntil:'—',
    fileName:'diplom-hola.jpg',refs:'',note:'',
    bio:'Sedm let praxe v lůžkovém zařízení, specializace na noční péči a rehabilitaci.',
@@ -2993,6 +3000,8 @@ let verifyDocName='';
 let verifySelfieName='';
 let verifyDocData='';
 let verifySelfieData='';
+let verifyIdName='';
+let verifyIdData='';
 /* obsah nahraných souborů (data URL) — v paměti, klíč `${verId}:doc` / `:selfie` */
 const DOC_BLOBS={};
 /* načte soubor jako data URL; obrázky zmenší kvůli velikosti */
@@ -3024,7 +3033,8 @@ function renderCgVerify(){
   setv('vfLoc',cgProfile.loc||'Praha 6');
   document.getElementById('vfDocText').innerHTML='<b>Nahrát soubor</b> — PDF, Word, obrázek nebo sken dokladu';
   document.getElementById('vfSelfieText').innerHTML='<b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte';
-  verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
+  document.getElementById('vfIdText').innerHTML='<b>Nahrát foto dokladu</b> — přední strana občanky nebo pasu';
+  verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';verifyIdName='';verifyIdData='';
   const form=document.getElementById('cgVerifyForm');
   const btn=document.getElementById('vfSubmitBtn');
   const locked=(st==='verified'||st==='submitted');
@@ -3044,6 +3054,12 @@ function onVerifySelfie(e){
   document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${f.name}</b> — selfie připraveno`;
   readVerifyFile(f,d=>{verifySelfieData=d;});
 }
+function onVerifyId(e){
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  verifyIdName=f.name;verifyIdData='';
+  document.getElementById('vfIdText').innerHTML=`🪪 <b>${f.name}</b> — doklad připraven`;
+  readVerifyFile(f,d=>{verifyIdData=d;});
+}
 function submitVerify(e){
   e.preventDefault();
   const g=id=>document.getElementById(id).value.trim();
@@ -3052,6 +3068,7 @@ function submitVerify(e){
   if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte celé jméno a příjmení.';return false;}
   if(!isPhone(phone)){err.textContent='Zadejte platné telefonní číslo.';return false;}
   if(!docNum){err.textContent='Zadejte číslo dokladu totožnosti.';return false;}
+  if(!verifyIdName){err.textContent='Nahrajte prosím foto dokladu totožnosti (občanka/pas).';return false;}
   if(!verifySelfieName){err.textContent='Nahrajte prosím selfie pro ověření totožnosti.';return false;}
   if(!cert){err.textContent='Uveďte název osvědčení nebo kurzu.';return false;}
   if(!issuer){err.textContent='Uveďte, kdo osvědčení vystavil.';return false;}
@@ -3062,7 +3079,8 @@ function submitVerify(e){
   const rec={
     id:++verSeq,name,email:auth.email,init:initials(name),loc:g('vfLoc'),
     rate:+g('vfRate')||240,exp:+g('vfExp')||0,phone,
-    docType:document.getElementById('vfDocType').value==='pas'?'Cestovní pas':'Občanský průkaz',docNum,selfie:verifySelfieName,
+    docType:document.getElementById('vfDocType').value==='pas'?'Cestovní pas':'Občanský průkaz',docNum,
+    idFile:verifyIdName,selfie:verifySelfieName,
     services:cgProfile.services.slice(),cert,issuer,validUntil:g('vfValid')||'—',
     fileName:verifyDocName,refs:g('vfRefs'),note:g('vfNote'),bio:cgProfile.bio,
     status:'submitted',date:new Date().toISOString().slice(0,10)
@@ -3070,8 +3088,9 @@ function submitVerify(e){
   VERIFICATIONS.unshift(rec);
   if(verifyDocData)DOC_BLOBS[rec.id+':doc']=verifyDocData;
   if(verifySelfieData)DOC_BLOBS[rec.id+':selfie']=verifySelfieData;
+  if(verifyIdData)DOC_BLOBS[rec.id+':idcard']=verifyIdData;
   cgStatusMap[auth.email]='submitted';
-  verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
+  verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';verifyIdName='';verifyIdData='';
   persist();
   toast('🛡️ Žádost odeslána správci k ověření.');
   renderCgVerify();renderNav();
@@ -3122,7 +3141,7 @@ function renderAdminVerify(){
       <div class="ri">
         <b>${v.name}</b>
         <div class="rd">${v.loc} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
-        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">🛡️ Identita:</b> ${v.docType||'—'}${v.docNum?` č. ${v.docNum}`:''}${v.phone?` · ☎ ${v.phone}`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">🤳 ${v.selfie} ⬇</a>`:''}</div>
+        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">🛡️ Identita:</b> ${v.docType||'—'}${v.docNum?` č. ${v.docNum}`:''}${v.phone?` · ☎ ${v.phone}`:''}${v.idFile?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idcard')">🪪 ${v.idFile} ⬇</a>`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">🤳 ${v.selfie} ⬇</a>`:''}</div>
         <div class="rd"><b style="color:var(--navy-800)">🎓 Osvědčení:</b> ${v.cert} — ${v.issuer} (platnost ${v.validUntil})</div>
         <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">${docIcon(v.fileName)} ${v.fileName} ⬇</a> · <b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
         ${v.refs?`<div class="rd"><b style="color:var(--navy-800)">Reference:</b> ${v.refs}</div>`:''}
@@ -3214,7 +3233,7 @@ function downloadDossier(id){
     ['',''],
     ['Jméno',v.name],['E-mail',v.email],['Telefon',v.phone||''],
     ['Lokalita',v.loc],['Hodinová sazba (Kč)',String(v.rate)],['Praxe (let)',String(v.exp)],
-    ['Doklad totožnosti',(v.docType||'')+(v.docNum?' č. '+v.docNum:'')],['Selfie (soubor)',v.selfie||''],
+    ['Doklad totožnosti',(v.docType||'')+(v.docNum?' č. '+v.docNum:'')],['Foto dokladu (soubor)',v.idFile||''],['Selfie (soubor)',v.selfie||''],
     ['Osvědčení',v.cert||''],['Vystavil',v.issuer||''],['Platnost do',v.validUntil||''],
     ['Doklad (soubor)',v.fileName||''],['Služby',(v.services||[]).map(sName2).join(', ')],
     ['Reference',v.refs||''],['Poznámka',v.note||''],
@@ -3222,8 +3241,8 @@ function downloadDossier(id){
   ];
   const files=[{name:'udaje.xlsx',data:xlsxFromRows(rows)}];
   // přílohy do podsložky "prilohy/"
-  [['doc',v.fileName],['selfie',v.selfie]].forEach(([k,nm])=>{
-    if(!nm&&k==='selfie'&&!v.selfie)return;
+  [['doc',v.fileName],['idcard',v.idFile],['selfie',v.selfie]].forEach(([k,nm])=>{
+    if(!nm&&!DOC_BLOBS[id+':'+k])return;
     const blob=DOC_BLOBS[id+':'+k];
     if(blob){files.push({name:'prilohy/'+(nm||k),data:dataURLtoBytes(blob)});}
     else{
@@ -3251,7 +3270,7 @@ function docIcon(name){
 /* stažení nahraného dokladu / selfie pro kontrolu adminem */
 function downloadVer(id,which){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
-  const name=which==='selfie'?v.selfie:v.fileName;
+  const name=which==='selfie'?v.selfie:(which==='idcard'?v.idFile:v.fileName);
   const data=DOC_BLOBS[id+':'+which];
   let href,fname=name||(which+'.txt');
   if(data){href=data;}
