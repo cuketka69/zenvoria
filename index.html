@@ -181,7 +181,7 @@
   .sec-head p{color:var(--muted);margin-top:12px;font-size:16px}
 
   /* services grid */
-  .serv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:26px}
+  .serv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
   /* karty služeb — fotka nahoře, zlatá ikona, text + tlačítko */
   .svc-card{position:relative;overflow:hidden;background:linear-gradient(165deg,#15402C,#0C2419);
     border:1px solid rgba(255,255,255,.07);border-radius:20px;display:flex;flex-direction:column;
@@ -1188,6 +1188,9 @@
         <p>Od osobní péče po doprovod k lékaři — vyberte si přesně to, co je třeba.</p>
       </div>
       <div class="serv-grid" id="servGrid"></div>
+      <div style="text-align:center;margin-top:38px">
+        <button class="btn btn-gold" onclick="go('search')">Všechny služby <span style="display:inline-block;margin-left:4px">→</span></button>
+      </div>
     </div>
   </section>
 
@@ -2467,7 +2470,7 @@ function initTheme(){applyTheme('dark');}
 /* mapování id služby → název obrázku (kde se liší) */
 const SVC_IMG={lekar:'doktor',domaci:'domacipece',pomoc:'pomocvdomacnosti',rehab:'Rehabilitace'};
 function renderHome(){
-  document.getElementById('servGrid').innerHTML=SERVICES.map(s=>
+  document.getElementById('servGrid').innerHTML=SERVICES.slice(0,6).map(s=>
     `<div class="svc-card">
       <div class="svc-top" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp'),linear-gradient(135deg,#1a5236,#0c2419)">
         <div class="svc-ic">${sIcon(s.icon)}</div>
