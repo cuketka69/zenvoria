@@ -446,6 +446,13 @@
   .theme-toggle{background:none;border:1px solid var(--line);border-radius:10px;width:42px;height:42px;
     cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--navy-800);flex:0 0 auto;transition:.18s}
   .theme-toggle:hover{border-color:var(--gold);color:var(--gold-deep)}
+  .msg-btn{position:relative}
+  .msg-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:10px;
+    background:#D9534F;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;
+    border:2px solid var(--white);line-height:1}
+  .msg-btn.has-unread{border-color:var(--gold);color:var(--gold-deep)}
+  @keyframes msgpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+  .msg-badge{animation:msgpulse 1.8s ease-in-out infinite}
   .menu-toggle{display:none;background:none;border:1px solid var(--line);border-radius:10px;
     width:42px;height:42px;cursor:pointer;align-items:center;justify-content:center;color:var(--navy-900)}
   .mobile-menu{position:fixed;inset:0;z-index:80;visibility:hidden;pointer-events:none}
@@ -912,6 +919,10 @@
       <a data-v="bookings" role="button" tabindex="0" onclick="go('bookings')">Moje objednávky</a>
     </nav>
     <div class="nav-right">
+      <button class="theme-toggle msg-btn" id="msgBtn" aria-label="Zprávy" onclick="go('chat')" hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6.5h18v11H3z" stroke="currentColor" stroke-width="1.7"/><path d="m3.5 7 8.5 6 8.5-6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        <span class="msg-badge" id="msgBadge" hidden>0</span>
+      </button>
       <button class="theme-toggle" id="themeToggle" aria-label="Přepnout světlý/tmavý režim" onclick="toggleTheme()">
         <svg id="themeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"></svg>
       </button>
@@ -2597,6 +2608,17 @@ function updateAuthUI(){
   renderNav();
   document.getElementById('accountWrap').hidden=!inn;
   document.getElementById('loginBtn').hidden=inn;
+  // obálka zpráv v headeru — jen pro přihlášené rodiny/pečovatelky (admin nemá chat)
+  const msgBtn=document.getElementById('msgBtn');
+  if(msgBtn){
+    const hasChat=inn&&auth.role!=='admin';
+    msgBtn.hidden=!hasChat;
+    const u=chatUnread();
+    const badge=document.getElementById('msgBadge');
+    msgBtn.classList.toggle('has-unread',hasChat&&u>0);
+    if(badge){badge.hidden=!(hasChat&&u>0);badge.textContent=u>9?'9+':u;}
+    msgBtn.setAttribute('aria-label',u>0?`Zprávy — ${u} nepřečtené`:'Zprávy');
+  }
   if(inn){
     setAva(document.getElementById('avatarInit'), auth.role==='caregiver'?cgProfile.photo:null, initials(auth.name));
     document.getElementById('avatarName').textContent=auth.name.split(/\s+/)[0];
