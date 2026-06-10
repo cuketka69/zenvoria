@@ -182,22 +182,21 @@
 
   /* services grid */
   .serv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:26px}
-  /* karty služeb (foto/hlavička + kolečko s ikonou + text + tlačítko) */
-  .svc-card{background:var(--white);border:1px solid var(--line);border-radius:20px;overflow:hidden;
-    box-shadow:var(--shadow-sm);transition:.22s;text-align:center;display:flex;flex-direction:column}
-  .svc-card:hover{transform:translateY(-6px);box-shadow:var(--shadow);border-color:rgba(201,162,51,.45)}
-  .svc-top{height:118px;position:relative;background:linear-gradient(135deg,var(--navy-700),var(--navy-900))}
-  .svc-top::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(201,162,51,.22),transparent 60%)}
-  .svc-ic{position:absolute;left:50%;bottom:-28px;transform:translateX(-50%);width:58px;height:58px;border-radius:50%;
-    background:var(--white);border:1px solid rgba(201,162,51,.45);display:flex;align-items:center;justify-content:center;
-    box-shadow:var(--shadow-sm);z-index:1}
-  .svc-body{padding:42px 22px 26px;display:flex;flex-direction:column;flex:1}
-  .svc-card h4{font-family:'Playfair Display',serif;font-size:18.5px;color:var(--navy-900);margin-bottom:9px}
-  .svc-card p{font-size:13.5px;color:var(--muted);line-height:1.65;margin-bottom:20px;flex:1}
-  .svc-btn{align-self:center;display:inline-flex;align-items:center;gap:7px;background:var(--gold);color:var(--navy-900);
-    font-family:inherit;font-weight:700;font-size:13px;border:none;border-radius:24px;padding:10px 22px;cursor:pointer;transition:.18s}
-  .svc-btn span{display:inline-block;transition:.18s}
-  .svc-btn:hover{background:var(--gold-soft)}
+  /* karty služeb — čistá tmavá karta se zlatou ikonou */
+  .svc-card{position:relative;overflow:hidden;background:linear-gradient(165deg,#15402C,#0C2419);
+    border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:28px 26px;display:flex;flex-direction:column;
+    transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}
+  .svc-card::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--gold-soft),var(--gold-deep));transform:scaleX(0);transform-origin:left;transition:transform .3s ease}
+  .svc-card:hover{transform:translateY(-6px);box-shadow:0 24px 50px -20px rgba(0,0,0,.55);border-color:rgba(201,162,51,.4)}
+  .svc-card:hover::before{transform:scaleX(1)}
+  .svc-ic{width:52px;height:52px;border-radius:15px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+    background:linear-gradient(145deg,rgba(201,162,51,.3),rgba(201,162,51,.08));border:1px solid rgba(201,162,51,.4)}
+  .svc-card h4{font-family:'Playfair Display',serif;font-size:19px;color:#fff;margin-bottom:9px}
+  .svc-card p{font-size:13.5px;color:rgba(255,255,255,.66);line-height:1.65;margin-bottom:20px;flex:1}
+  .svc-btn{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--gold-soft);
+    font-family:inherit;font-weight:700;font-size:13px;border:1px solid rgba(201,162,51,.4);border-radius:24px;padding:9px 18px;cursor:pointer;transition:.2s}
+  .svc-btn span{display:inline-block;transition:.2s}
+  .svc-btn:hover{background:var(--gold);color:var(--navy-900);border-color:var(--gold)}
   .svc-btn:hover span{transform:translateX(3px)}
 
   /* audience cards */
@@ -2466,12 +2465,10 @@ function initTheme(){applyTheme('dark');}
 function renderHome(){
   document.getElementById('servGrid').innerHTML=SERVICES.map(s=>
     `<div class="svc-card">
-      <div class="svc-top"><div class="svc-ic">${sIcon(s.icon)}</div></div>
-      <div class="svc-body">
-        <h4>${s.name}</h4>
-        <p>${s.desc||''}</p>
-        <button class="svc-btn" onclick="filterByService('${s.id}')">Zobrazit pečovatelky <span>→</span></button>
-      </div>
+      <div class="svc-ic">${sIcon(s.icon)}</div>
+      <h4>${s.name}</h4>
+      <p>${s.desc||''}</p>
+      <button class="svc-btn" onclick="filterByService('${s.id}')">Zobrazit pečovatelky <span>→</span></button>
     </div>`).join('');
   document.getElementById('valuesRow').innerHTML=VALUES.map((v,i)=>
     `<div class="val"><div class="vc">${sIcon(VAL_ICONS[i])}</div><b>${v}</b></div>`).join('');
