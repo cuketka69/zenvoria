@@ -1443,6 +1443,7 @@
         <button type="submit" class="btn btn-gold" style="margin-top:18px" id="vfSubmitBtn">Odeslat k ověření</button>
       </form>
       <div class="pcard book-aside">
+        <img src="verify.webp" alt="Ověření Zenvoria" width="72" height="87" style="display:block;margin:4px auto 16px">
         <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#7A736A" stroke-width="1.6"/></svg>Jak ověření probíhá</div>
         <ol style="margin:0;padding-left:20px;color:var(--navy-800);font-size:14px;line-height:1.9">
           <li>Vyplníte formulář a nahrajete osvědčení.</li>
@@ -1754,7 +1755,10 @@
 <!-- ============ ADMIN · VERIFICATIONS ============ -->
 <div class="view" id="view-admin-verify">
   <div class="wrap">
-    <div class="page-head"><h1>Žádosti o ověření</h1><p>Zkontrolujte doklady a kvalifikaci pečovatelek. Schválené se zobrazí rodinám ve vyhledávání.</p></div>
+    <div class="page-head" style="display:flex;align-items:center;gap:16px">
+      <img src="verify.webp" alt="" width="40" height="48" style="flex:0 0 auto">
+      <div><h1>Žádosti o ověření</h1><p>Zkontrolujte doklady a kvalifikaci pečovatelek. Schválené se zobrazí rodinám ve vyhledávání.</p></div>
+    </div>
     <div class="flow"><span class="fl-step">Registrace</span><span class="fl-ar">→</span><span class="fl-step">Ověření</span><span class="fl-ar">→</span><span class="fl-step">Kontrola</span><span class="fl-ar">→</span><span class="fl-step">Schválení</span><span class="fl-ar">→</span><span class="fl-step">Aktivní profil</span></div>
     <div class="panel">
       <div class="panel-h"><b>Čeká na schválení</b><span class="count" id="admVerCount">0</span></div>
@@ -2959,7 +2963,7 @@ function kmLabel(c){return (c.kmPrice&&c.kmPrice>0)?`${c.kmPrice} Kč / km`:'V c
 /* odznaky pečovatelky pro karty a profil */
 function cgBadges(c,opts){
   opts=opts||{};const b=[];
-  if(c.idVerified&&c.verified)b.push('<span class="chip badge-id">🛡️ Ověřená identita</span>');
+  if(c.idVerified&&c.verified)b.push('<span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>');
   if(c.rating>=4.85)b.push('<span class="chip badge-top">⭐ Top hodnocení</span>');
   if(c.plan==='premium')b.push('<span class="chip badge-prem">💎 Premium</span>');
   return b.slice(0,opts.max||b.length).join('');
@@ -3792,7 +3796,7 @@ function syncCgPreview(){
           <div class="care-meta"><span class="stars">★</span><b style="color:var(--navy-900)">${cgProfile.rating}</b><span>(${cgProfile.reviews}) · ${exp} let praxe</span></div>
         </div>
       </div>
-      <div class="care-tags"><span class="chip badge-id">🛡️ Ověřená identita</span>${servs}</div>
+      <div class="care-tags"><span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>${servs}</div>
       <div class="care-foot"><div class="price">${priceHTML}</div><button class="btn btn-gold" style="padding:9px 16px">Zobrazit profil</button></div>
     </div>`;
 }
