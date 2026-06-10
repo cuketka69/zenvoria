@@ -2464,10 +2464,12 @@ function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-th
 function initTheme(){applyTheme('dark');}
 
 /* ---------- HOME RENDER ---------- */
+/* mapování id služby → název obrázku (kde se liší) */
+const SVC_IMG={lekar:'doktor',domaci:'domacipece',pomoc:'pomocvdomacnosti',rehab:'Rehabilitace'};
 function renderHome(){
   document.getElementById('servGrid').innerHTML=SERVICES.map(s=>
     `<div class="svc-card">
-      <div class="svc-top" style="background-image:url('${s.id}.webp'),linear-gradient(135deg,#1a5236,#0c2419)">
+      <div class="svc-top" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp'),linear-gradient(135deg,#1a5236,#0c2419)">
         <div class="svc-ic">${sIcon(s.icon)}</div>
       </div>
       <div class="svc-body">
