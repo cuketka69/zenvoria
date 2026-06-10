@@ -684,7 +684,7 @@
   /* odznaky pečovatelky */
   .chip.badge-id{background:rgba(62,155,95,.12);border:1px solid rgba(62,155,95,.32);color:#2E7D46;font-weight:600}
   .chip.badge-top{background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.4);color:var(--gold-deep);font-weight:600}
-  .chip.badge-prem{background:linear-gradient(135deg,rgba(201,162,51,.22),rgba(201,162,51,.06));border:1px solid var(--gold);color:var(--gold-deep);font-weight:700}
+  .chip.badge-prem{background:var(--gold);border:1px solid var(--gold);color:var(--navy-900);font-weight:700}
   .care-card.is-premium{border-color:rgba(201,162,51,.5)}
   .care-card.is-premium::after{content:"💎 PREMIUM";position:absolute;top:0;right:0;font-size:10px;font-weight:800;letter-spacing:.05em;
     color:var(--navy-900);background:linear-gradient(135deg,var(--gold),var(--gold-deep));padding:4px 10px;border-bottom-left-radius:12px}
@@ -3015,7 +3015,7 @@ function cgBadges(c,opts){
   opts=opts||{};const b=[];
   if(c.idVerified&&c.verified)b.push('<span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>');
   if(c.rating>=4.85)b.push('<span class="chip badge-top">⭐ Top hodnocení</span>');
-  if(c.plan==='premium')b.push('<span class="chip badge-prem">💎 Premium</span>');
+  if(c.plan==='premium')b.push('<span class="chip badge-prem"><img src="premium.webp" alt="" width="15" height="12" style="vertical-align:-2px;margin-right:3px">Premium</span>');
   return b.slice(0,opts.max||b.length).join('');
 }
 
