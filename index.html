@@ -1481,11 +1481,11 @@
       <div class="chat-main">
         <div class="chat-head" id="chatHead"></div>
         <div class="chat-body" id="chatBody"></div>
-        <div style="display:flex;gap:8px;padding:10px 14px 0">
+        <div style="display:flex;gap:8px;padding:10px 14px 0" id="chatActions">
           <button type="button" class="btn btn-ghost btn-sm" onclick="sendTerm()">📅 Poslat termín</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="videoCall()">📹 Videohovor</button>
         </div>
-        <form class="chat-input" onsubmit="return sendChat(event)">
+        <form class="chat-input" id="chatForm" onsubmit="return sendChat(event)">
           <input id="chatInput" placeholder="Napište zprávu…" autocomplete="off" aria-label="Napsat zprávu">
           <button class="chat-send" type="submit" aria-label="Odeslat">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 20 4l-6 16-3-7-7-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
@@ -1744,6 +1744,7 @@
             <button class="qa-item" onclick="go('admin-verify')"><span class="qa-ic">🛡️</span><span class="qa-l">Ověřit pečovatelky</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-caregivers')"><span class="qa-ic">👩‍⚕️</span><span class="qa-l">Správa pečovatelek</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-users')"><span class="qa-ic">👥</span><span class="qa-l">Správa uživatelů</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-broadcast')"><span class="qa-ic">✉️</span><span class="qa-l">Rozeslat zprávu</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-plans')"><span class="qa-ic">💎</span><span class="qa-l">Ceny předplatného</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-orders')"><span class="qa-ic">📋</span><span class="qa-l">Objednávky platformy</span><span class="qa-ar">›</span></button>
           </div>
@@ -1798,6 +1799,34 @@
     <div class="panel">
       <div class="panel-h"><b>Všechny objednávky</b><span class="count" id="admOrdCount">0</span></div>
       <div class="table-scroll"><table class="adm-table"><thead><tr><th>Služba</th><th>Pečovatelka</th><th>Termín</th><th>Stav</th></tr></thead><tbody id="admOrdBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · HROMADNÉ ZPRÁVY ============ -->
+<div class="view" id="view-admin-broadcast">
+  <div class="wrap">
+    <div class="page-head"><h1>Rozeslat zprávu</h1><p>Pošlete oznámení všem, vybrané skupině, nebo konkrétním osobám. Doručí se do jejich Zpráv.</p></div>
+    <div class="dash-grid dash-grid-2">
+      <form class="panel" onsubmit="return sendBroadcast(event)">
+        <div class="panel-h"><b>Nová zpráva</b></div>
+        <label class="lbl">Komu</label>
+        <select class="inp" id="bcAudience" onchange="renderBcRecipients()">
+          <option value="all">Všem (pečovatelky i rodiny)</option>
+          <option value="caregivers">Všem pečovatelkám</option>
+          <option value="families">Všem rodinám</option>
+          <option value="specific">Vybraným osobám…</option>
+        </select>
+        <div id="bcRecipients" style="margin-top:12px"></div>
+        <label class="lbl" style="margin-top:14px">Zpráva</label>
+        <textarea class="inp" id="bcText" placeholder="Text oznámení…" style="min-height:120px"></textarea>
+        <div class="set-err" id="bcErr" style="margin-top:10px"></div>
+        <button class="btn btn-gold btn-block" type="submit" style="margin-top:14px">Odeslat zprávu</button>
+      </form>
+      <div class="panel">
+        <div class="panel-h"><b>Odeslané zprávy</b><span class="count" id="bcSentCount">0</span></div>
+        <div id="bcSentList"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -2152,6 +2181,7 @@ function go(v){
   if(v==='admin-users')renderAdminUsers();
   if(v==='admin-orders')renderAdminOrders();
   if(v==='admin-plans')renderAdminPlans();
+  if(v==='admin-broadcast')renderAdminBroadcast();
   if(v==='pricing')renderPricing();
   if(v==='settings')renderSettings();
   if(v==='forgot')resetForgot();
@@ -2566,6 +2596,7 @@ const NAV_ADMIN=[
   {v:'admin-verify',label:'Žádosti o ověření',fn:"go('admin-verify')"},
   {v:'admin-caregivers',label:'Pečovatelky',fn:"go('admin-caregivers')"},
   {v:'admin-users',label:'Uživatelé',fn:"go('admin-users')"},
+  {v:'admin-broadcast',label:'Zprávy',fn:"go('admin-broadcast')"},
   {v:'admin-plans',label:'Tarify',fn:"go('admin-plans')"},
   {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"}
 ];
@@ -2605,6 +2636,7 @@ function renderNav(){
 }
 function updateAuthUI(){
   const inn=auth.loggedIn;
+  ensureBroadcastConvo();
   renderNav();
   document.getElementById('accountWrap').hidden=!inn;
   document.getElementById('loginBtn').hidden=inn;
@@ -3464,6 +3496,56 @@ function saveAdminPlans(e){
   return false;
 }
 
+/* ---- ADMIN: hromadné zprávy ---- */
+function audienceLabel(b){
+  if(b.audience==='all')return 'Všem';
+  if(b.audience==='caregivers')return 'Všem pečovatelkám';
+  if(b.audience==='families')return 'Všem rodinám';
+  return `Vybraným (${(b.emails||[]).length})`;
+}
+function renderBcRecipients(){
+  const wrap=document.getElementById('bcRecipients');
+  const aud=document.getElementById('bcAudience').value;
+  if(aud!=='specific'){wrap.innerHTML='';return;}
+  const cgs=CAREGIVERS.filter(c=>c.email).map(c=>({email:c.email,name:c.name,role:'Pečovatelka'}));
+  const fams=USERS.filter(u=>u.email).map(u=>({email:u.email,name:u.name,role:'Rodina'}));
+  const all=[...cgs,...fams];
+  wrap.innerHTML=`<div style="max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:10px">
+    ${all.map(p=>`<label class="set-row" style="padding:8px 4px;cursor:pointer">
+      <span style="display:flex;align-items:center;gap:8px"><input type="checkbox" class="bc-rcpt" value="${p.email}"> <b style="font-weight:600;color:var(--navy-900)">${p.name}</b> <span style="color:var(--muted);font-size:12px">· ${p.role}</span></span>
+    </label>`).join('')||'<div class="empty">Žádní příjemci.</div>'}
+  </div>`;
+}
+function renderAdminBroadcast(){
+  document.getElementById('bcText').value='';
+  document.getElementById('bcErr').textContent='';
+  renderBcRecipients();
+  const list=BROADCASTS.slice().reverse();
+  document.getElementById('bcSentCount').textContent=BROADCASTS.length;
+  document.getElementById('bcSentList').innerHTML=list.length?list.map(b=>`
+    <div class="req" style="align-items:flex-start">
+      <div class="ava">ZV</div>
+      <div class="ri"><b>${audienceLabel(b)}</b><div class="rd" style="margin-top:4px">${b.text}</div><span class="rs">${fmtDate(b.date)} · ${b.t}</span></div>
+    </div>`).join(''):'<div class="empty">Zatím jste neodeslali žádnou zprávu.</div>';
+}
+function sendBroadcast(e){
+  e.preventDefault();
+  const aud=document.getElementById('bcAudience').value;
+  const text=document.getElementById('bcText').value.trim();
+  const err=document.getElementById('bcErr');err.textContent='';
+  if(!text){err.textContent='Napište prosím text zprávy.';return false;}
+  let emails=[];
+  if(aud==='specific'){
+    emails=Array.from(document.querySelectorAll('.bc-rcpt:checked')).map(el=>el.value);
+    if(!emails.length){err.textContent='Vyberte alespoň jednoho příjemce.';return false;}
+  }
+  BROADCASTS.push({id:++bcSeq,audience:aud,emails,text,date:new Date().toISOString().slice(0,10),t:chatNow()});
+  persist();renderAdminBroadcast();
+  const n=aud==='specific'?emails.length:(aud==='caregivers'?'pečovatelkám':(aud==='families'?'rodinám':'všem'));
+  toast(`✉️ Zpráva odeslána ${aud==='specific'?n+' příjemcům':n}.`);
+  return false;
+}
+
 /* ---------- CAREGIVER PORTAL ---------- */
 const cgProfile={
   name:'Jana Novotná',loc:'Praha 6',rate:250,exp:5,rating:4.9,reviews:128,photo:null,
@@ -3939,6 +4021,29 @@ let CONVERSATIONS=[
 ];
 function chatUnread(){return CONVERSATIONS.reduce((s,c)=>s+(c.unread||0),0);}
 let activeChat=1,chatSeq=2;
+/* ---- HROMADNÉ ZPRÁVY OD SPRÁVCE (broadcast) ---- */
+let BROADCASTS=[]; // {id,audience:'all'|'caregivers'|'families'|'specific',emails:[],text,date,t}
+let bcSeq=0;
+let bcSeen=[]; // id broadcastů, které už příjemce viděl
+function broadcastsFor(){
+  if(!auth.loggedIn||auth.role==='admin')return [];
+  return BROADCASTS.filter(b=>b.audience==='all'
+    ||(b.audience==='caregivers'&&auth.role==='caregiver')
+    ||(b.audience==='families'&&auth.role==='family')
+    ||(b.audience==='specific'&&(b.emails||[]).includes(auth.email)));
+}
+/* konverzace „ZENVORIA Podpora" (id -1) — přestaví se podle příjemce, jen ke čtení */
+function ensureBroadcastConvo(){
+  let c=CONVERSATIONS.find(x=>x.id===-1);
+  const list=broadcastsFor();
+  if(!auth.loggedIn||auth.role==='admin'||!list.length){
+    if(c)CONVERSATIONS=CONVERSATIONS.filter(x=>x.id!==-1);return;
+  }
+  if(!c){c={id:-1,name:'ZENVORIA Podpora',init:'ZV',role:'admin',readonly:true};CONVERSATIONS.unshift(c);}
+  c.msgs=list.map(b=>({me:false,text:b.text,t:b.t}));
+  c.readonly=true;
+  c.unread=(activeChat===-1)?0:list.filter(b=>!bcSeen.includes(b.id)).length;
+}
 const CHAT_REPLIES=['Děkuji za zprávu, ozvu se co nejdříve.','Jistě, ráda pomůžu. Domluvíme detaily?',
   'Rozumím, zařídím to. 🙂','To zní dobře, potvrzuji termín.','Díky, budu se těšit!'];
 function chatNow(){return new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'});}
@@ -3949,6 +4054,7 @@ function openChat(name,init,role){
   setTimeout(()=>document.getElementById('chatInput')?.focus(),140);
 }
 function renderChat(){
+  ensureBroadcastConvo();
   if(!CONVERSATIONS.find(c=>c.id===activeChat))activeChat=CONVERSATIONS[0]&&CONVERSATIONS[0].id;
   document.getElementById('chatList').innerHTML='<div class="chat-list-h">Konverzace</div>'+CONVERSATIONS.map(c=>{
     const last=c.msgs[c.msgs.length-1];
@@ -3960,8 +4066,13 @@ function renderChat(){
   const head=document.getElementById('chatHead'),body=document.getElementById('chatBody');
   if(!c){head.innerHTML='';body.innerHTML='';return;}
   c.unread=0;
-  head.innerHTML=`<div class="ava">${c.init}</div><div><b>${c.name}</b><span>Online</span></div>`;
+  if(c.id===-1){broadcastsFor().forEach(b=>{if(!bcSeen.includes(b.id))bcSeen.push(b.id);});persist();}
+  head.innerHTML=`<div class="ava">${c.init}</div><div><b>${c.name}</b><span>${c.readonly?'Oznámení od ZENVORIA':'Online'}</span></div>`;
   body.innerHTML=c.msgs.map(m=>`<div class="msg ${m.me?'me':'them'}">${m.text}<span class="mt">${m.t}</span></div>`).join('');
+  // u oznámení (jen ke čtení) schovat vstup i akce
+  const actions=document.getElementById('chatActions'),form=document.getElementById('chatForm');
+  if(actions)actions.style.display=c.readonly?'none':'';
+  if(form)form.style.display=c.readonly?'none':'';
   scrollChat();
   updateAuthUI();
 }
@@ -3998,7 +4109,7 @@ function persist(){
     cgRequests:CG_REQUESTS,cgSchedule:CG_SCHEDULE,
     orders:ORDERS,cgProfile,cgAvail,cgSlots,cgReviews,settings:appSettings,
     caregivers:CAREGIVERS,cgSeq,verifications:VERIFICATIONS,verSeq,
-    users:USERS,userSeq,cgStatusMap,cgPlanMap,planPrices
+    users:USERS,userSeq,cgStatusMap,cgPlanMap,planPrices,broadcasts:BROADCASTS,bcSeq,bcSeen
   }));}catch(e){}
 }
 function loadState(){
@@ -4027,6 +4138,9 @@ function loadState(){
     if(s.cgPlanMap)cgPlanMap=s.cgPlanMap;
     if(s.planPrices)Object.assign(planPrices,s.planPrices);
     planPrices.start=0; // START je vždy zdarma
+    if(Array.isArray(s.broadcasts))BROADCASTS=s.broadcasts;
+    if(typeof s.bcSeq==='number')bcSeq=s.bcSeq;
+    if(Array.isArray(s.bcSeen))bcSeen=s.bcSeen;
   }catch(e){}
 }
 function resetDemo(){
