@@ -151,9 +151,9 @@
     background:linear-gradient(140deg,var(--navy-800),var(--navy-900));box-shadow:inset 0 0 0 2px rgba(201,162,51,.45)}
 
   /* ---------- HERO ---------- */
-  .hero{position:relative;overflow:hidden;padding:48px 0;min-height:calc(100vh - 74px);display:flex;align-items:center;background:#091C13}
-  .hero-bg{position:absolute;top:-40%;left:0;width:100%;height:180%;z-index:0;
-    background:url("hero.png") center/cover no-repeat;will-change:transform}
+  .hero{position:relative;overflow:hidden;padding:48px 0;min-height:calc(100vh - 74px);display:flex;align-items:center;
+    background:linear-gradient(90deg,rgba(6,26,17,.9),rgba(6,26,17,.5) 50%,rgba(6,26,17,.12)),url("hero.png") center/cover fixed}
+  .hero-bg{display:none}
   .hero::before{content:"";position:absolute;inset:0;z-index:1;
     background:linear-gradient(90deg,rgba(7,20,14,.95) 0%,rgba(7,20,14,.82) 40%,rgba(7,20,14,.5) 72%,rgba(7,20,14,.62) 100%)}
   .hero>.wrap{width:100%;position:relative;z-index:2}
