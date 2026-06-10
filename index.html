@@ -923,9 +923,6 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6.5h18v11H3z" stroke="currentColor" stroke-width="1.7"/><path d="m3.5 7 8.5 6 8.5-6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
         <span class="msg-badge" id="msgBadge" hidden>0</span>
       </button>
-      <button class="theme-toggle" id="themeToggle" aria-label="Přepnout světlý/tmavý režim" onclick="toggleTheme()">
-        <svg id="themeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"></svg>
-      </button>
       <button class="btn btn-ghost" id="loginBtn" onclick="go('login')">Přihlásit se</button>
       <button class="btn btn-gold" id="navCta" onclick="go('search')">Najít pečovatelku</button>
       <div class="account" id="accountWrap" hidden>
@@ -2269,11 +2266,7 @@ function applyTheme(t){
   try{localStorage.setItem('zv_theme',dark?'dark':'light');}catch(e){}
 }
 function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');}
-function initTheme(){
-  let t;try{t=localStorage.getItem('zv_theme');}catch(e){}
-  if(!t)t='dark';
-  applyTheme(t);
-}
+function initTheme(){applyTheme('dark');}
 
 /* ---------- HOME RENDER ---------- */
 function renderHome(){
