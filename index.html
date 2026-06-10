@@ -1720,6 +1720,7 @@
             <button class="qa-item" onclick="go('admin-verify')"><span class="qa-ic">🛡️</span><span class="qa-l">Ověřit pečovatelky</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-caregivers')"><span class="qa-ic">👩‍⚕️</span><span class="qa-l">Správa pečovatelek</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-users')"><span class="qa-ic">👥</span><span class="qa-l">Správa uživatelů</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-plans')"><span class="qa-ic">💎</span><span class="qa-l">Ceny předplatného</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-orders')"><span class="qa-ic">📋</span><span class="qa-l">Objednávky platformy</span><span class="qa-ar">›</span></button>
           </div>
         </div>
@@ -1773,6 +1774,31 @@
     <div class="panel">
       <div class="panel-h"><b>Všechny objednávky</b><span class="count" id="admOrdCount">0</span></div>
       <div class="table-scroll"><table class="adm-table"><thead><tr><th>Služba</th><th>Pečovatelka</th><th>Termín</th><th>Stav</th></tr></thead><tbody id="admOrdBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · TARIFY (ceny) ============ -->
+<div class="view" id="view-admin-plans">
+  <div class="wrap">
+    <div class="page-head"><h1>Tarify a ceny předplatného</h1><p>Nastavte měsíční cenu tarifů pro pečovatelky. Změna se ihned projeví v ceníku i u plateb.</p></div>
+    <div class="profile-grid">
+      <form class="pcard" onsubmit="return saveAdminPlans(event)">
+        <h3>Ceny předplatného (Kč / měsíc)</h3>
+        <div class="grid2" style="margin-top:10px">
+          <div><label class="lbl">🟢 START</label><input class="inp" type="number" id="apStart" min="0" max="9999" step="10"></div>
+          <div><label class="lbl">💎 PREMIUM</label><input class="inp" type="number" id="apPremium" min="0" max="9999" step="10"></div>
+        </div>
+        <div class="set-err" id="apErr" style="margin-top:10px"></div>
+        <button class="btn btn-gold" type="submit" style="margin-top:18px">Uložit ceny</button>
+      </form>
+      <div class="pcard book-aside">
+        <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#7A736A" stroke-width="1.6"/></svg>Přehled tarifů</div>
+        <div id="adminPlanPreview"></div>
+        <div class="pdiv"></div>
+        <div class="row" style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px"><span style="color:var(--muted)">Premium pečovatelek</span><span style="font-weight:700;color:var(--navy-900)" id="apPremCount">0</span></div>
+        <div class="row" style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px"><span style="color:var(--muted)">Odhad měsíčních tržeb</span><span style="font-weight:700;color:var(--navy-900)" id="apRevenue">0 Kč</span></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1877,6 +1903,32 @@
   </div>
 </div>
 
+<!-- ============ PLATBA PŘEDPLATNÉHO ============ -->
+<div class="modal" id="payModal" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+  <div class="modal-scrim" onclick="closePay()"></div>
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Zavřít" onclick="closePay()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <div class="cf-ic" style="background:linear-gradient(135deg,rgba(201,162,51,.22),rgba(201,162,51,.06))">💎</div>
+    <h3 id="payTitle">Předplatné PREMIUM</h3>
+    <p class="msub" id="paySub">Měsíční předplatné</p>
+    <form id="payForm" novalidate onsubmit="return payConfirm(event)">
+      <label class="lbl">Číslo karty</label>
+      <input class="inp" id="payCard" inputmode="numeric" maxlength="23" placeholder="1234 5678 9012 3456" autocomplete="cc-number" oninput="fmtCard(this)">
+      <div class="grid2" style="margin-top:12px">
+        <div><label class="lbl">Platnost</label><input class="inp" id="payExp" maxlength="5" placeholder="MM/RR" autocomplete="cc-exp" oninput="fmtExp(this)"></div>
+        <div><label class="lbl">CVC</label><input class="inp" id="payCvc" inputmode="numeric" maxlength="4" placeholder="123" autocomplete="cc-csc"></div>
+      </div>
+      <label class="lbl" style="margin-top:12px">Jméno držitele karty</label>
+      <input class="inp" id="payName" placeholder="Jméno Příjmení" autocomplete="cc-name">
+      <div class="set-err" id="payErr" style="margin-top:10px"></div>
+      <button class="btn btn-gold btn-block" type="submit" id="payBtn" style="margin-top:16px">Zaplatit</button>
+      <p style="font-size:11.5px;color:var(--muted);text-align:center;margin-top:10px">🔒 Zabezpečená platba kartou. V demu se nestrhne žádná částka.</p>
+    </form>
+  </div>
+</div>
+
 <!-- ============ FOOTER ============ -->
 <footer>
   <div class="wrap">
@@ -1977,11 +2029,14 @@ let cgSeq=6;
 /* tarif přihlášené pečovatelky podle e-mailu */
 let cgPlanMap={'pecovatelka@zenvoria.cz':'premium'};
 const PLANS={
-  start:{name:'START',price:190,badge:'🟢',
+  start:{name:'START',badge:'🟢',
     feats:['Profil v aplikaci','Ověření identity','Přijímání rezervací','Kalendář dostupnosti','Chat s rodinami','Hodnocení klientů']},
-  premium:{name:'PREMIUM',price:390,badge:'💎',
+  premium:{name:'PREMIUM',badge:'💎',
     feats:['Vše ze START','Vyšší zobrazení ve vyhledávání','Odznak PREMIUM','Neomezené poptávky','Statistiky profilu','Prioritní podpora','Video představení']}
 };
+/* ceny tarifů (Kč/měsíc) — nastavitelné správcem */
+let planPrices={start:190,premium:390};
+const planPrice=k=>planPrices[k]||0;
 
 /* ---------- ADMIN: fronta žádostí o ověření ---------- */
 /* stav žádosti: submitted | approved | rejected */
@@ -2070,6 +2125,7 @@ function go(v){
   if(v==='admin-caregivers')renderAdminCaregivers();
   if(v==='admin-users')renderAdminUsers();
   if(v==='admin-orders')renderAdminOrders();
+  if(v==='admin-plans')renderAdminPlans();
   if(v==='pricing')renderPricing();
   if(v==='settings')renderSettings();
   if(v==='forgot')resetForgot();
@@ -2130,7 +2186,7 @@ function toggleMenu(open){
 
 /* ---------- KEYBOARD ACTIVATION (role=button) ---------- */
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closeAccountMenu();return;}
+  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeAccountMenu();return;}
   if((e.key==='Enter'||e.key===' ')){
     const el=e.target;
     const r=el&&el.getAttribute&&el.getAttribute('role');
@@ -2484,6 +2540,7 @@ const NAV_ADMIN=[
   {v:'admin-verify',label:'Žádosti o ověření',fn:"go('admin-verify')"},
   {v:'admin-caregivers',label:'Pečovatelky',fn:"go('admin-caregivers')"},
   {v:'admin-users',label:'Uživatelé',fn:"go('admin-users')"},
+  {v:'admin-plans',label:'Tarify',fn:"go('admin-plans')"},
   {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"}
 ];
 const NAV_FAMILY=[
@@ -2859,23 +2916,65 @@ function renderPricing(){
     let action;
     if(isCg){action=cur===key
       ?'<div class="plan-current">✓ Váš aktuální tarif</div>'
-      :`<button class="btn ${featured?'btn-gold':'btn-ghost'} btn-block" onclick="setPlan('${key}')">${key==='premium'?'Přejít na PREMIUM':'Přejít na START'}</button>`;}
+      :(key==='premium'
+        ? `<button class="btn btn-gold btn-block" onclick="openPayment()">Zaplatit a aktivovat PREMIUM</button>`
+        : `<button class="btn btn-ghost btn-block" onclick="setPlan('start')">Přejít na START</button>`);}
     else{action=`<button class="btn ${featured?'btn-gold':'btn-ghost'} btn-block" onclick="go('register');pickRole('caregiver')">Začít s ${p.name}</button>`;}
     return `<div class="plan-card ${featured?'featured':''}">
       ${featured?'<span class="pl-tag">NEJOBLÍBENĚJŠÍ</span>':''}
       <h3>${p.badge} ${p.name}</h3>
-      <div class="pl-price">${p.price} Kč <span>/ měsíc</span></div>
+      <div class="pl-price">${planPrice(key).toLocaleString('cs-CZ')} Kč <span>/ měsíc</span></div>
       <div class="pl-sub">${featured?'Pro pečovatelky, které chtějí být více vidět.':'Pro pečovatelky, které začínají.'}</div>
       <ul>${p.feats.map(f=>`<li>${f}</li>`).join('')}</ul>
       ${action}
     </div>`;}).join('');
+  const pm=document.getElementById('planPayInfo');
+  if(pm)pm.textContent='';
 }
+/* aktivace/změna tarifu (po zaplacení nebo downgrade na START) */
 function setPlan(key){
   if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
-  cgPlanMap[auth.email]=key;
-  const c=CAREGIVERS.find(x=>x.email===auth.email);if(c)c.plan=key;
-  persist();renderPricing();renderCare();
-  toast(key==='premium'?'💎 Aktivován tarif PREMIUM!':'Tarif změněn na START.');
+  const apply=()=>{cgPlanMap[auth.email]=key;const c=CAREGIVERS.find(x=>x.email===auth.email);if(c)c.plan=key;
+    persist();renderPricing();renderCare();
+    toast(key==='premium'?'💎 Aktivován tarif PREMIUM!':'Tarif změněn na START.');};
+  if(key==='start'&&cgPlan()==='premium'){
+    askConfirm({title:'Přejít na START?',icon:'⬇️',
+      message:'Přijdete o odznak Premium a vyšší zobrazení ve vyhledávání.',
+      confirmLabel:'Přejít na START',onConfirm:apply});
+  }else apply();
+}
+/* ---- PLATBA PŘEDPLATNÉHO PREMIUM ---- */
+function openPayment(){
+  if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
+  document.getElementById('paySub').textContent=`Měsíční předplatné · ${planPrice('premium').toLocaleString('cs-CZ')} Kč / měsíc`;
+  document.getElementById('payBtn').textContent=`Zaplatit ${planPrice('premium').toLocaleString('cs-CZ')} Kč`;
+  ['payCard','payExp','payCvc','payName'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('payErr').textContent='';
+  const m=document.getElementById('payModal');m.classList.add('open');document.body.style.overflow='hidden';
+  setTimeout(()=>document.getElementById('payCard').focus(),60);
+}
+function closePay(){const m=document.getElementById('payModal');if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}}
+function fmtCard(el){el.value=el.value.replace(/\D/g,'').slice(0,19).replace(/(.{4})/g,'$1 ').trim();}
+function fmtExp(el){let v=el.value.replace(/\D/g,'').slice(0,4);if(v.length>=3)v=v.slice(0,2)+'/'+v.slice(2);el.value=v;}
+function payConfirm(e){
+  e.preventDefault();
+  const card=document.getElementById('payCard').value.replace(/\s/g,'');
+  const exp=document.getElementById('payExp').value;
+  const cvc=document.getElementById('payCvc').value.trim();
+  const name=document.getElementById('payName').value.trim();
+  const err=document.getElementById('payErr');err.textContent='';
+  if(card.length<13||!/^\d+$/.test(card)){err.textContent='Zadejte platné číslo karty.';return false;}
+  if(!/^\d{2}\/\d{2}$/.test(exp)){err.textContent='Zadejte platnost ve formátu MM/RR.';return false;}
+  if(!/^\d{3,4}$/.test(cvc)){err.textContent='Zadejte CVC (3–4 číslice).';return false;}
+  if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte jméno držitele karty.';return false;}
+  const btn=document.getElementById('payBtn');const orig=btn.textContent;
+  btn.disabled=true;btn.textContent='Zpracovávám platbu…';
+  setTimeout(()=>{
+    btn.disabled=false;btn.textContent=orig;
+    closePay();
+    setPlan('premium');
+  },1100);
+  return false;
 }
 /* odkaz „Ověření" — pečovatelku pošle na formulář, ostatní na přihlášení */
 function goVerify(){
@@ -3277,6 +3376,31 @@ function renderAdminOrders(){
       <td>${fmtDate(o.date)} · ${o.time}</td>
       <td><span class="badge ${cls}">${st.label}</span></td>
     </tr>`;}).join('');
+}
+
+/* ---- ADMIN: ceny tarifů ---- */
+function renderAdminPlans(){
+  document.getElementById('apStart').value=planPrices.start;
+  document.getElementById('apPremium').value=planPrices.premium;
+  document.getElementById('apErr').textContent='';
+  document.getElementById('adminPlanPreview').innerHTML=['start','premium'].map(k=>`
+    <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;font-size:14.5px;border-bottom:1px solid var(--line)">
+      <span>${PLANS[k].badge} ${PLANS[k].name}</span>
+      <b style="color:var(--navy-900)">${planPrice(k).toLocaleString('cs-CZ')} Kč / měsíc</b>
+    </div>`).join('');
+  const premCount=Object.values(cgPlanMap).filter(p=>p==='premium').length;
+  document.getElementById('apPremCount').textContent=premCount;
+  document.getElementById('apRevenue').textContent=(premCount*planPrice('premium')).toLocaleString('cs-CZ')+' Kč';
+}
+function saveAdminPlans(e){
+  e.preventDefault();
+  const s=+document.getElementById('apStart').value,p=+document.getElementById('apPremium').value;
+  const err=document.getElementById('apErr');err.textContent='';
+  if(!(s>=0)||!(p>=0)){err.textContent='Zadejte platné ceny.';return false;}
+  planPrices.start=s;planPrices.premium=p;
+  persist();renderAdminPlans();
+  toast('✓ Ceny tarifů uloženy.');
+  return false;
 }
 
 /* ---------- CAREGIVER PORTAL ---------- */
@@ -3810,7 +3934,7 @@ function persist(){
     cgRequests:CG_REQUESTS,cgSchedule:CG_SCHEDULE,
     orders:ORDERS,cgProfile,cgAvail,cgSlots,cgReviews,settings:appSettings,
     caregivers:CAREGIVERS,cgSeq,verifications:VERIFICATIONS,verSeq,
-    users:USERS,userSeq,cgStatusMap,cgPlanMap
+    users:USERS,userSeq,cgStatusMap,cgPlanMap,planPrices
   }));}catch(e){}
 }
 function loadState(){
@@ -3837,6 +3961,7 @@ function loadState(){
     if(typeof s.userSeq==='number')userSeq=s.userSeq;
     if(s.cgStatusMap)cgStatusMap=s.cgStatusMap;
     if(s.cgPlanMap)cgPlanMap=s.cgPlanMap;
+    if(s.planPrices)Object.assign(planPrices,s.planPrices);
   }catch(e){}
 }
 function resetDemo(){
