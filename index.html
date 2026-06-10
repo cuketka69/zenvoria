@@ -275,29 +275,31 @@
   .dd-opt{padding:9px 12px;border-radius:9px;font-size:14px;color:var(--navy-800);cursor:pointer;white-space:nowrap;transition:.12s}
   .dd-opt:hover{background:var(--cream)}
   .dd-opt.sel{background:rgba(201,162,51,.18);color:var(--navy-900);font-weight:600}
-  /* ---------- O NÁS ---------- */
-  .about{position:relative;overflow:hidden}
-  .about::before{content:"";position:absolute;top:-120px;right:-120px;width:360px;height:360px;border-radius:50%;
-    background:radial-gradient(circle,rgba(201,162,51,.16),transparent 70%);pointer-events:none}
-  .about::after{content:"";position:absolute;bottom:-140px;left:-120px;width:380px;height:380px;border-radius:50%;
-    background:radial-gradient(circle,rgba(19,165,82,.12),transparent 70%);pointer-events:none}
+  /* ---------- O NÁS (pevné hero pozadí) ---------- */
+  .about{position:relative;overflow:hidden;
+    background:linear-gradient(rgba(6,26,17,.82),rgba(6,26,17,.9)),url("hero.png") center/cover fixed}
   .about .wrap{position:relative;z-index:1}
-  .about-lead{max-width:720px;margin:0 auto;text-align:center;color:var(--navy-800);font-size:16.5px;line-height:1.85}
+  .about .eyebrow{color:var(--gold-soft)}
+  .about h2{color:#fff}
+  .about-lead{max-width:720px;margin:0 auto;text-align:center;color:rgba(255,255,255,.88);font-size:16.5px;line-height:1.85}
   .about-feats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:40px}
-  .about-feat{background:var(--white);border:1px solid var(--line);border-radius:20px;padding:28px 24px;box-shadow:var(--shadow-sm);transition:.22s;position:relative;overflow:hidden}
+  .about-feat{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:28px 24px;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:.22s;position:relative;overflow:hidden}
   .about-feat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--gold),var(--gold-deep));opacity:0;transition:.22s}
-  .about-feat:hover{transform:translateY(-5px);box-shadow:var(--shadow);border-color:rgba(201,162,51,.45)}
+  .about-feat:hover{transform:translateY(-5px);background:rgba(255,255,255,.1);border-color:rgba(201,162,51,.5)}
   .about-feat:hover::before{opacity:1}
   .about-feat .af-ic{width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;
-    background:linear-gradient(140deg,rgba(201,162,51,.28),rgba(201,162,51,.07));border:1px solid rgba(201,162,51,.32)}
-  .about-feat h4{font-family:'Playfair Display',serif;font-size:18.5px;color:var(--navy-900);margin-bottom:7px}
-  .about-feat p{font-size:14px;color:var(--muted);line-height:1.65}
-  .about-stats{display:flex;flex-wrap:wrap;margin-top:22px;border:1px solid var(--line);border-radius:20px;background:var(--white);box-shadow:var(--shadow-sm);overflow:hidden}
-  .about-stat{flex:1 1 140px;text-align:center;padding:26px 18px;border-right:1px solid var(--line)}
+    background:linear-gradient(140deg,rgba(201,162,51,.32),rgba(201,162,51,.1));border:1px solid rgba(201,162,51,.4)}
+  .about-feat h4{font-family:'Playfair Display',serif;font-size:18.5px;color:#fff;margin-bottom:7px}
+  .about-feat p{font-size:14px;color:rgba(255,255,255,.7);line-height:1.65}
+  .about-stats{display:flex;flex-wrap:wrap;margin-top:22px;border:1px solid rgba(255,255,255,.16);border-radius:20px;
+    background:rgba(255,255,255,.06);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);overflow:hidden}
+  .about-stat{flex:1 1 140px;text-align:center;padding:26px 18px;border-right:1px solid rgba(255,255,255,.14)}
   .about-stat:last-child{border-right:none}
-  .about-stat .as-v{font-family:'Playfair Display',serif;font-size:33px;color:var(--gold-deep);line-height:1}
-  .about-stat .as-l{color:var(--muted);font-size:13px;margin-top:8px;letter-spacing:.02em}
-  @media(max-width:560px){.about-stat{flex-basis:50%;border-bottom:1px solid var(--line)}.about-stat:nth-child(2){border-right:none}}
+  .about-stat .as-v{font-family:'Playfair Display',serif;font-size:33px;color:var(--gold-soft);line-height:1}
+  .about-stat .as-l{color:rgba(255,255,255,.7);font-size:13px;margin-top:8px;letter-spacing:.02em}
+  @media(max-width:560px){.about-stat{flex-basis:50%;border-bottom:1px solid rgba(255,255,255,.14)}.about-stat:nth-child(2){border-right:none}
+    .about{background-attachment:scroll}}
   .sort-row input[type=range]{accent-color:var(--gold);cursor:pointer}
   .sort-row input[type=checkbox]{accent-color:var(--gold);cursor:pointer}
 
@@ -1061,7 +1063,7 @@
   </section>
 
   <!-- o nás -->
-  <section class="block about" id="onas" style="background:linear-gradient(180deg,var(--cream),var(--white))">
+  <section class="block about" id="onas">
     <div class="wrap">
       <div class="sec-head">
         <span class="eyebrow">O nás</span>
