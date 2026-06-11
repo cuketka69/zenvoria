@@ -562,12 +562,12 @@ app.post('/api/admin/cleanup-test-data', requireRole('admin'), h(async (_req, re
   const janaConvRows = await restSelect(T.conversations, `select=id&name=eq.${encodeURIComponent('Jana Novotná')}&limit=1`);
   const janaConv = janaConvRows && janaConvRows[0];
   if (janaConv) {
-    const testMsgs = await restSelect(
-      T.messages,
-      `select=id,text,t&conversation_id=eq.${Number(janaConv.id)}` +
-        `&or=(text.eq.${encodeURIComponent('Test produkčního chatu z rodinného účtu.')},text.eq.${encodeURIComponent('Děkuji za zprávu, ozvu se co nejdříve.')})`
+    const convoMsgs = await restSelect(T.messages, `select=id,text,t&conversation_id=eq.${Number(janaConv.id)}`);
+    const testMsgs = (convoMsgs || []).filter((msg) =>
+      msg.text === 'Test produkčního chatu z rodinného účtu.' ||
+      msg.text === 'Děkuji za zprávu, ozvu se co nejdříve.'
     );
-    for (const msg of testMsgs || []) {
+    for (const msg of testMsgs) {
       if (msg.text === 'Děkuji za zprávu, ozvu se co nejdříve.' && ['9:24', '9:30', '9:32'].includes(msg.t)) continue;
       await restDelete(T.messages, `id=eq.${Number(msg.id)}`);
       cleaned.messages += 1;
