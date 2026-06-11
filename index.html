@@ -787,10 +787,10 @@
   .doc-link{color:var(--gold-deep);font-weight:600;cursor:pointer;border-bottom:1px dashed rgba(169,136,33,.5);padding-bottom:1px}
   .doc-link:hover{color:var(--gold);border-bottom-style:solid}
   /* plnicí efekt tlačítka stahování + stav „staženo" */
-  .btn.dl-busy{color:var(--navy-900);border-color:var(--gold);cursor:default;
+  .btn.dl-busy,.svc-btn.dl-busy{color:var(--navy-900);border-color:var(--gold);cursor:default;
     background-color:transparent;background-image:linear-gradient(90deg,var(--gold),var(--gold-soft));
     background-repeat:no-repeat;background-size:0% 100%;animation:dlfill .95s ease forwards}
-  .btn.dl-busy:hover{transform:none}
+  .btn.dl-busy:hover,.svc-btn.dl-busy:hover{transform:none}
   @keyframes dlfill{from{background-size:0% 100%}to{background-size:100% 100%}}
   .btn.dl-done{background:linear-gradient(135deg,#0E7A45,#11984E);color:#fff;border-color:transparent;cursor:default;
     box-shadow:0 9px 22px -11px rgba(17,152,78,.8)}
@@ -2496,7 +2496,7 @@ function renderHome(){
       <div class="svc-body">
         <h4>${s.name}</h4>
         <p>${s.desc||''}</p>
-        <button class="svc-btn" onclick="filterByService('${s.id}')">Zobrazit pečovatelky <span>→</span></button>
+        <button class="svc-btn" onclick="fillThen(this,()=>filterByService('${s.id}'))">Zobrazit pečovatelky <span>→</span></button>
       </div>
     </div>`).join('');
   document.getElementById('valuesRow').innerHTML=VALUES.map((v,i)=>
