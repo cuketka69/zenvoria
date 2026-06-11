@@ -1,0 +1,20 @@
+{
+  "name": "zenvoria",
+  "version": "1.0.0",
+  "description": "ZENVORIA — marketplace pečovatelek. Statický frontend + Node/Express backend napojený na Supabase (PostgREST, service_role).",
+  "type": "commonjs",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2"
+  }
+}

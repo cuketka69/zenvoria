@@ -2674,15 +2674,15 @@ function confirmBooking(){
   const note=document.getElementById('bkNote').value.trim();
   const hours=state.bkHours;
   const km=Math.max(0,+document.getElementById('bkKm').value||0);
-  const oid=++orderSeq;
-  // objednávka rodiny (čeká na potvrzení pečovatelkou)
-  ORDERS.unshift({oid,cid:c.id,service:state.bkService,hours,date,time,addr,note,km,status:'pending'});
-  // propojená poptávka pro pečovatelku
-  const famName=auth.loggedIn?auth.name:'Marie Horáková';
-  CG_REQUESTS.unshift({id:++reqSeq,oid,fam:famName,init:initials(famName),service:state.bkService,date,time,hours,addr});
-  persist();
-  toast(`✓ Objednávka u <b>${c.name}</b> odeslána — čeká na potvrzení`,'success');
-  setTimeout(()=>go('bookings'),900);
+  if(!auth.loggedIn){toast('Pro objednávku se prosím přihlaste.');go('login');return;}
+  api('/orders',{method:'POST',body:{cid:c.id,service:state.bkService,hours,date,time,addr,note,km}})
+    .then(r=>{const o=r.order;
+      ORDERS.unshift({oid:o.oid,cid:c.id,service:state.bkService,hours,date,time,addr,note,km,status:'pending'});
+      orderSeq=Math.max(orderSeq,o.oid);
+      toast(`✓ Objednávka u <b>${c.name}</b> odeslána — čeká na potvrzení`,'success');
+      setTimeout(()=>go('bookings'),900);
+    })
+    .catch(e=>toast('⚠️ Objednávku se nepodařilo odeslat: '+e.message,'declined'));
 }
 
 /* ---------- DATE HELPER ---------- */
@@ -2741,13 +2741,14 @@ function syncCgPhotoToList(){ if(CAREGIVERS[0])CAREGIVERS[0].photo=cgProfile.pho
 /* ---- session ---- */
 function loginAs(name,email,role){
   auth.loggedIn=true;auth.name=name;auth.email=email;auth.role=role||'family';
-  try{localStorage.setItem('zv_auth',JSON.stringify({name,email,role:auth.role}));}catch(e){}
   updateAuthUI();
 }
-function logout(){
+async function logout(){
+  try{await api('/auth/logout',{method:'POST'});}catch(e){}
   auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';
-  try{localStorage.removeItem('zv_auth');}catch(e){}
-  closeAccountMenu();updateAuthUI();
+  closeAccountMenu();
+  await apiSync(bootstrap());
+  updateAuthUI();renderCare();
   toast('👋 Byli jste odhlášeni.');
   go('home');
 }
@@ -2765,16 +2766,19 @@ function renderSettings(){
   document.getElementById('setRole').textContent=auth.role==='caregiver'?'Účet pečovatelky':'Účet rodiny';
   setAva(document.getElementById('setAva'),auth.role==='caregiver'?cgProfile.photo:null,initials(name));
 }
-function toggleSetting(key,el){appSettings[key]=el.checked;persist();toast('✓ Nastavení uloženo');}
-function changePassword(e){
+function toggleSetting(key,el){appSettings[key]=el.checked;if(auth.loggedIn)apiSync(api('/users/me/settings',{method:'PATCH',body:{settings:appSettings}}));toast('✓ Nastavení uloženo');}
+async function changePassword(e){
   e.preventDefault();
   const cur=document.getElementById('pwCurrent'),nw=document.getElementById('pwNew'),cf=document.getElementById('pwConfirm');
   const err=document.getElementById('pwErr');err.textContent='';
   if(!cur.value){err.textContent='Zadejte současné heslo.';cur.focus();return false;}
   if(nw.value.length<6){err.textContent='Nové heslo musí mít alespoň 6 znaků.';nw.focus();return false;}
   if(nw.value!==cf.value){err.textContent='Hesla se neshodují.';cf.focus();return false;}
-  cur.value=nw.value=cf.value='';
-  toast('✓ Heslo bylo změněno');
+  try{
+    await api('/auth/change-password',{method:'POST',body:{current:cur.value,next:nw.value}});
+    cur.value=nw.value=cf.value='';
+    toast('✓ Heslo bylo změněno');
+  }catch(e2){err.textContent=e2.message||'Změna hesla se nezdařila.';}
   return false;
 }
 function exportData(){
@@ -2919,7 +2923,7 @@ function closeAccountMenu(){
 }
 document.addEventListener('click',e=>{if(!e.target.closest('#accountWrap'))closeAccountMenu();});
 
-function submitLogin(e){
+async function submitLogin(e){
   e.preventDefault();
   const email=document.getElementById('loginEmail'),pw=document.getElementById('loginPw');
   const eBad=!isEmail(email.value),pBad=pw.value.length<6;
@@ -2928,19 +2932,21 @@ function submitLogin(e){
   if(eBad){email.focus();return false;}
   if(pBad){pw.focus();return false;}
   const key=email.value.trim().toLowerCase();
-  const acc=ACCOUNTS[key];
-  if(acc&&acc.pw!==pw.value){
+  try{
+    const r=await api('/auth/login',{method:'POST',body:{email:key,password:pw.value}});
+    loginAs(r.user.name,r.user.email,r.user.role);
+    if(r.user.settings)Object.assign(appSettings,r.user.settings);
+    await apiSync(bootstrap());updateAuthUI();renderCare();
+    toast(`✓ Vítejte zpět, <b>${auth.name.split(/\s+/)[0]}</b>!`);
+    go(landingView());
+  }catch(err){
     setFieldError('lf-pw',true);
-    document.getElementById('lf-pw-err').textContent='Nesprávné heslo (pro demo účet je to demo123).';
-    pw.focus();return false;
+    document.getElementById('lf-pw-err').textContent=err.message||'Přihlášení se nezdařilo.';
+    pw.focus();
   }
-  if(acc){loginAs(acc.name,key,acc.role);}
-  else{const base=email.value.split('@')[0].replace(/[._-]/g,' ');loginAs(base.charAt(0).toUpperCase()+base.slice(1),key,'family');}
-  toast(`✓ Vítejte zpět, <b>${auth.name.split(/\s+/)[0]}</b>!`);
-  go(landingView());
   return false;
 }
-function submitRegister(e){
+async function submitRegister(e){
   e.preventDefault();
   const name=document.getElementById('regName'),email=document.getElementById('regEmail'),
     phone=document.getElementById('regPhone'),pw=document.getElementById('regPw'),terms=document.getElementById('regTerms');
@@ -2951,9 +2957,17 @@ function submitRegister(e){
   const firstBad=[[nBad,name],[eBad,email],[phBad,phone],[pBad,pw]].find(x=>x[0]);
   if(firstBad){firstBad[1].focus();return false;}
   if(tBad){document.getElementById('regTerms').focus();return false;}
-  loginAs(name.value.trim(),email.value.trim().toLowerCase(),regRole);
-  toast(regRole==='caregiver'?'✓ Účet pečovatelky vytvořen. Dokončete prosím ověření.':'✓ Účet vytvořen. Vítejte v ZENVORIA!');
-  go(landingView());
+  try{
+    const r=await api('/auth/register',{method:'POST',body:{name:name.value.trim(),email:email.value.trim().toLowerCase(),password:pw.value,role:regRole}});
+    loginAs(r.user.name,r.user.email,r.user.role);
+    await apiSync(bootstrap());updateAuthUI();renderCare();
+    toast(regRole==='caregiver'?'✓ Účet pečovatelky vytvořen. Dokončete prosím ověření.':'✓ Účet vytvořen. Vítejte v ZENVORIA!');
+    go(landingView());
+  }catch(err){
+    setFieldError('rf-email',true);
+    document.getElementById('rf-email-err')&&(document.getElementById('rf-email-err').textContent=err.message);
+    toast('⚠️ '+(err.message||'Registrace se nezdařila.'),'declined');
+  }
   return false;
 }
 function submitForgot(e){
@@ -3052,11 +3066,7 @@ document.addEventListener('input',e=>{
   const f=e.target.closest('.auth-field');
   if(f)f.classList.remove('invalid');
 });
-/* restore session */
-(function restoreAuth(){
-  try{const s=JSON.parse(localStorage.getItem('zv_auth'));
-    if(s&&s.email){auth.loggedIn=true;auth.name=s.name;auth.email=s.email;auth.role=s.role||'family';}}catch(e){}
-})();
+/* session se obnovuje ze serveru přes /api/auth/me v initApp() */
 
 /* ---------- CALENDAR ---------- */
 const TODAY=new Date();
@@ -3221,8 +3231,8 @@ function renderPricing(){
 /* aktivace/změna tarifu (po zaplacení nebo downgrade na START) */
 function setPlan(key){
   if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
-  const apply=()=>{cgPlanMap[auth.email]=key;const c=CAREGIVERS.find(x=>x.email===auth.email);if(c)c.plan=key;
-    persist();renderPricing();renderCare();
+  const apply=()=>{cgPlanMap[auth.email]=key;const c=CAREGIVERS.find(x=>x.email===auth.email);if(c){c.plan=key;apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{plan:key}}));}
+    renderPricing();renderCare();
     toast(key==='premium'?'💎 Aktivován tarif PREMIUM!':'Tarif změněn na START.');};
   if(key==='start'&&cgPlan()==='premium'){
     askConfirm({title:'Přejít na START?',icon:'⬇️',
@@ -3381,6 +3391,7 @@ function submitVerify(e){
   if(verifyIdFrontData)DOC_BLOBS[rec.id+':idfront']=verifyIdFrontData;
   if(verifyIdBackData)DOC_BLOBS[rec.id+':idback']=verifyIdBackData;
   cgStatusMap[auth.email]='submitted';
+  apiSync(api('/verifications',{method:'POST',body:rec}).then(r=>{if(r&&r.verification)rec.id=r.verification.id;}));
   verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
   verifyIdFrontName='';verifyIdFrontData='';verifyIdBackName='';verifyIdBackData='';
   persist();
@@ -3599,7 +3610,8 @@ function approveVerification(id){
       priceType:'hod',dayRate:v.rate*8,radius:10,kmPrice:0,bio:v.bio||''});
   }
   cgStatusMap[v.email]='verified';
-  persist();renderAdminVerify();renderNav();renderCare();
+  apiSync(api('/verifications/'+id+'/approve',{method:'POST'}).then(()=>bootstrap()).then(()=>{renderAdminVerify();renderNav();renderCare();}));
+  renderAdminVerify();renderNav();renderCare();
   toast(`✅ ${v.name} byla ověřena a zveřejněna.`);
 }
 function rejectVerification(id){
@@ -3608,7 +3620,8 @@ function rejectVerification(id){
   if(reason===null)return;
   v.status='rejected';v.reason=reason.trim()||'Bez uvedení důvodu.';
   cgStatusMap[v.email]='rejected';
-  persist();renderAdminVerify();renderNav();
+  apiSync(api('/verifications/'+id+'/reject',{method:'POST'}));
+  renderAdminVerify();renderNav();
   toast(`⚠️ Žádost ${v.name} byla zamítnuta.`);
 }
 
@@ -3628,7 +3641,9 @@ function renderAdminCaregivers(){
 }
 function toggleSuspendCg(id){
   const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
-  const doIt=()=>{c.suspended=!c.suspended;persist();renderAdminCaregivers();renderCare();
+  const doIt=()=>{c.suspended=!c.suspended;
+    apiSync(api('/caregivers/'+id,{method:'PATCH',body:{suspended:c.suspended}}));
+    renderAdminCaregivers();renderCare();
     toast(c.suspended?`⏸️ ${c.name} pozastavena.`:`▶️ ${c.name} obnovena.`);};
   if(!c.suspended){
     askConfirm({title:'Pozastavit pečovatelku?',icon:'⏸️',
@@ -3643,7 +3658,8 @@ function removeCaregiver(id){
     confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
       CAREGIVERS=CAREGIVERS.filter(x=>x.id!==id);
       if(c.email)cgStatusMap[c.email]='rejected';
-      persist();renderAdminCaregivers();renderCare();
+      apiSync(api('/caregivers/'+id,{method:'DELETE'}));
+      renderAdminCaregivers();renderCare();
       toast(`🗑️ ${c.name} odebrána.`);
     }});
 }
@@ -3664,7 +3680,9 @@ function renderAdminUsers(){
 }
 function toggleSuspendUser(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
-  const doIt=()=>{u.status=u.status==='suspended'?'active':'suspended';persist();renderAdminUsers();
+  const doIt=()=>{u.status=u.status==='suspended'?'active':'suspended';
+    apiSync(api('/users/'+u.id,{method:'PATCH',body:{status:u.status}}));
+    renderAdminUsers();
     toast(u.status==='suspended'?`⏸️ ${u.name} pozastaven.`:`▶️ ${u.name} obnoven.`);};
   if(u.status!=='suspended'){
     askConfirm({title:'Pozastavit uživatele?',icon:'⏸️',
@@ -3678,7 +3696,8 @@ function removeUser(id){
     message:`Opravdu chcete odebrat uživatele ${u.name}? Tato akce je nevratná.`,
     confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
       USERS=USERS.filter(x=>x.id!==id);
-      persist();renderAdminUsers();
+      apiSync(api('/users/'+id,{method:'DELETE'}));
+      renderAdminUsers();
       toast(`🗑️ ${u.name} odebrán.`);
     }});
 }
@@ -3716,7 +3735,8 @@ function saveAdminPlans(e){
   const err=document.getElementById('apErr');err.textContent='';
   if(!(p>=0)){err.textContent='Zadejte platnou cenu.';return false;}
   planPrices.premium=p;planPrices.start=0;
-  persist();renderAdminPlans();
+  apiSync(api('/settings/planPrices',{method:'PUT',body:{value:planPrices}}));
+  renderAdminPlans();
   toast('✓ Cena PREMIUM uložena.');
   return false;
 }
@@ -3764,8 +3784,17 @@ function sendBroadcast(e){
     emails=Array.from(document.querySelectorAll('.bc-rcpt:checked')).map(el=>el.value);
     if(!emails.length){err.textContent='Vyberte alespoň jednoho příjemce.';return false;}
   }
-  BROADCASTS.push({id:++bcSeq,audience:aud,emails,text,date:new Date().toISOString().slice(0,10),t:chatNow()});
-  persist();renderAdminBroadcast();
+  const draft={id:++bcSeq,audience:aud,emails,text,date:new Date().toISOString().slice(0,10),t:chatNow()};
+  BROADCASTS.push(draft);
+  apiSync(api('/broadcasts',{method:'POST',body:{audience:aud,emails,text,t:draft.t}}).then(r=>{
+    if(r&&r.broadcast){
+      const i=BROADCASTS.findIndex(b=>b.id===draft.id);
+      if(i>=0)BROADCASTS[i]=r.broadcast;
+      bcSeq=Math.max(bcSeq,r.broadcast.id||0);
+      renderAdminBroadcast();
+    }
+  }));
+  renderAdminBroadcast();
   const n=aud==='specific'?emails.length:(aud==='caregivers'?'pečovatelkám':(aud==='families'?'rodinám':'všem'));
   toast(`✉️ Zpráva odeslána ${aud==='specific'?n+' příjemcům':n}.`);
   return false;
@@ -3869,12 +3898,14 @@ function acceptRequest(id){
   const r=CG_REQUESTS.splice(i,1)[0];
   CG_SCHEDULE.push({fam:r.fam,init:r.init,service:r.service,date:r.date,time:r.time,hours:r.hours});
   if(r.oid){const o=ORDERS.find(x=>x.oid===r.oid);if(o)o.status='confirmed';}
+  apiSync(api('/requests/'+id+'/accept',{method:'POST'}));
   toast(`✓ Poptávka od <b>${r.fam}</b> přijata`,'success');refreshCg();
 }
 function declineRequest(id){
   const i=CG_REQUESTS.findIndex(r=>r.id===id);if(i<0)return;
   const r=CG_REQUESTS.splice(i,1)[0];
   if(r.oid){const o=ORDERS.find(x=>x.oid===r.oid);if(o)o.status='declined';}
+  apiSync(api('/requests/'+id+'/decline',{method:'POST'}));
   toast(`Poptávka od ${r.fam} byla odmítnuta`,'info');refreshCg();
 }
 function refreshCg(){
@@ -3917,13 +3948,18 @@ function renderCgCalendar(){
       <div class="od"><b style="font-size:15px">${sName(j.service)}</b><div class="det">${fmtDate(j.date)} · ${timeRange(j.time,j.hours)}</div></div></div>`).join(''):'<div class="empty">Žádné naplánované služby v tomto období.</div>';
 }
 function cgCalMove(dir){cgCalMonth+=dir;if(cgCalMonth<0){cgCalMonth=11;cgCalYear--}if(cgCalMonth>11){cgCalMonth=0;cgCalYear++}renderCgCalendar();}
+function saveCgAvail(){
+  const c=CAREGIVERS.find(x=>x.email===auth.email);if(!c)return;
+  const avail=cgSlots.map((s,i)=>cgAvail[i]?{r:!!s.r,o:!!s.o,v:!!s.v}:{r:false,o:false,v:false});
+  apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{avail}}));
+}
 function toggleAvail(i,val){
   cgAvail[i]=val;
   if(val&&!(cgSlots[i].r||cgSlots[i].o||cgSlots[i].v)){cgSlots[i]={r:true,o:true,v:true};}
-  persist();renderCgCalendar();
+  saveCgAvail();renderCgCalendar();
   toast(val?`✓ ${DAYS_CZ[i]} — nyní dostupná`:`${DAYS_CZ[i]} — označeno jako nedostupné`);
 }
-function toggleSlot(i,k){cgSlots[i][k]=!cgSlots[i][k];persist();renderCgCalendar();}
+function toggleSlot(i,k){cgSlots[i][k]=!cgSlots[i][k];saveCgAvail();renderCgCalendar();}
 
 /* caregiver profile editing */
 function renderCgProfile(){
@@ -3974,7 +4010,9 @@ function onCgPhoto(e){
       const c=document.createElement('canvas');c.width=w;c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
       cgProfile.photo=c.toDataURL('image/jpeg',0.85);
-      syncCgPhotoToList();updateCgAvatar();syncCgPreview();updateAuthUI();renderCare();persist();
+      const me=CAREGIVERS.find(x=>x.email===auth.email);
+      if(me){me.photo=cgProfile.photo;apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{photo:cgProfile.photo}}));}
+      syncCgPhotoToList();updateCgAvatar();syncCgPreview();updateAuthUI();renderCare();
       toast('✓ Profilová fotka nahrána');
     };
     img.src=reader.result;
@@ -3984,7 +4022,9 @@ function onCgPhoto(e){
 function removeCgPhoto(){
   cgProfile.photo=null;
   const inp=document.getElementById('cpPhotoInput');if(inp)inp.value='';
-  syncCgPhotoToList();updateCgAvatar();syncCgPreview();updateAuthUI();renderCare();persist();
+  const me=CAREGIVERS.find(x=>x.email===auth.email);
+  if(me){me.photo=null;apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{photo:null}}));}
+  syncCgPhotoToList();updateCgAvatar();syncCgPreview();updateAuthUI();renderCare();
   toast('Profilová fotka odebrána');
 }
 function renderCgServiceChips(){
@@ -4042,11 +4082,16 @@ function saveCgProfile(){
   cgProfile.bio=document.getElementById('cpBio').value.trim().slice(0,500);
   // propsat změny do veřejné karty pečovatelky (Jana = id 1 / dle e-mailu)
   const me=CAREGIVERS.find(x=>x.email===auth.email)||CAREGIVERS[0];
-  if(me){me.loc=cgProfile.loc;me.rate=cgProfile.rate;me.exp=cgProfile.exp;me.bio=cgProfile.bio;
+  if(me){me.name=cgProfile.name;me.photo=cgProfile.photo||null;me.loc=cgProfile.loc;me.rate=cgProfile.rate;me.exp=cgProfile.exp;me.bio=cgProfile.bio;
     me.radius=cgProfile.radius;me.priceType=cgProfile.priceType;me.dayRate=cgProfile.dayRate;
     me.kmPrice=cgProfile.kmPrice;me.services=cgProfile.services.slice();}
   if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role);}
-  persist();renderCare();
+  if(me&&me.id){apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{
+    name:cgProfile.name,loc:cgProfile.loc,rate:cgProfile.rate,exp:me.exp,bio:cgProfile.bio,
+    services:cgProfile.services,radius:cgProfile.radius,priceType:cgProfile.priceType,
+    dayRate:cgProfile.dayRate,kmPrice:cgProfile.kmPrice,photo:cgProfile.photo||null
+  }}));}
+  renderCare();
   toast('✓ Profil byl uložen a zveřejněn');
 }
 
@@ -4102,7 +4147,8 @@ function openCgOrder(i){
 }
 function cancelOrder(oid){
   const o=ORDERS.find(x=>x.oid===oid);if(!o)return;
-  o.status='cancelled';persist();
+  o.status='cancelled';
+  apiSync(api('/orders/'+oid,{method:'PATCH',body:{status:'cancelled'}}));
   toast('Objednávka byla zrušena','info');
   setTimeout(()=>go('bookings'),700);
 }
@@ -4229,7 +4275,8 @@ function submitRating(){
   (cgReviews[cid]=cgReviews[cid]||[]).unshift({init:initials(name),name,stars,text,scores:{...scores}});
   const o=ORDERS.find(x=>x.oid===oid);if(o)o.rated=true;
   if(curOrder&&curOrder.oid===oid)curOrder.rated=true;
-  persist();closeRating();
+  apiSync(api('/reviews',{method:'POST',body:{caregiverId:cid,init:initials(name),name,stars,text}}));
+  closeRating();
   toast('⭐ Děkujeme za vaše hodnocení!','success');
   if(document.getElementById('view-order-detail').classList.contains('active'))renderOrderDetail();
 }
@@ -4246,7 +4293,7 @@ let CONVERSATIONS=[
   ]}
 ];
 function chatUnread(){return CONVERSATIONS.reduce((s,c)=>s+(c.unread||0),0);}
-let activeChat=1,chatSeq=2;
+let activeChat=1,chatSeq=2,chatTmpSeq=-2;
 /* ---- HROMADNÉ ZPRÁVY OD SPRÁVCE (broadcast) ---- */
 let BROADCASTS=[]; // {id,audience:'all'|'caregivers'|'families'|'specific',emails:[],text,date,t}
 let bcSeq=0;
@@ -4275,7 +4322,21 @@ const CHAT_REPLIES=['Děkuji za zprávu, ozvu se co nejdříve.','Jistě, ráda 
 function chatNow(){return new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'});}
 function openChat(name,init,role){
   let c=CONVERSATIONS.find(x=>x.name===name);
-  if(!c){c={id:++chatSeq,name,init:init||initials(name),role:role||'caregiver',msgs:[]};CONVERSATIONS.unshift(c);persist();}
+  if(!c){
+    c={id:auth.loggedIn?chatTmpSeq--:++chatSeq,name,init:init||initials(name),role:role||'caregiver',msgs:[]};
+    CONVERSATIONS.unshift(c);
+    if(auth.loggedIn){
+      apiSync(api('/conversations',{method:'POST',body:{name,init:c.init,role:c.role}}).then(r=>{
+        if(r&&r.conversation){
+          const oldId=c.id;
+          c.id=r.conversation.id;
+          chatSeq=Math.max(chatSeq,c.id);
+          if(activeChat===oldId)activeChat=c.id;
+          renderChat();
+        }
+      }));
+    }
+  }
   activeChat=c.id;go('chat');
   setTimeout(()=>document.getElementById('chatInput')?.focus(),140);
 }
@@ -4306,8 +4367,14 @@ function sendTerm(){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c){toast('Vyberte konverzaci.');return;}
   const d=new Date(Date.now()+2*86400000);
   const navrh=`📅 Návrh termínu: ${d.toLocaleDateString('cs-CZ',{day:'numeric',month:'long'})} v 10:00 (4 h). Vyhovuje?`;
-  c.msgs.push({me:true,text:navrh,t:chatNow()});persist();renderChat();
-  setTimeout(()=>{c.msgs.push({me:false,text:'Termín mi vyhovuje, potvrzuji. 🙂',t:chatNow()});persist();renderChat();},1300);
+  const sent={me:true,text:navrh,t:chatNow()};
+  c.msgs.push(sent);renderChat();
+  if(auth.loggedIn&&c.id>0)apiSync(api('/conversations/'+c.id+'/messages',{method:'POST',body:sent}));
+  setTimeout(()=>{
+    const reply={me:false,text:'Termín mi vyhovuje, potvrzuji. 🙂',t:chatNow()};
+    c.msgs.push(reply);renderChat();
+    if(auth.loggedIn&&c.id>0)apiSync(api('/conversations/'+c.id+'/messages',{method:'POST',body:reply}));
+  },1300);
 }
 function videoCall(){toast('📹 Videohovory spouštíme již brzy.');}
 function scrollChat(){const b=document.getElementById('chatBody');if(b)b.scrollTop=b.scrollHeight;}
@@ -4316,72 +4383,94 @@ function sendChat(e){
   e.preventDefault();
   const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return false;
   const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return false;
-  c.msgs.push({me:true,text,t:chatNow()});inp.value='';persist();renderChat();
+  const sent={me:true,text,t:chatNow()};
+  c.msgs.push(sent);inp.value='';renderChat();
+  if(auth.loggedIn&&c.id>0)apiSync(api('/conversations/'+c.id+'/messages',{method:'POST',body:sent}));
   const body=document.getElementById('chatBody');
   const typing=document.createElement('div');typing.className='typing';
   typing.textContent=c.name.split(/\s+/)[0]+' píše…';body.appendChild(typing);scrollChat();
   setTimeout(()=>{
-    c.msgs.push({me:false,text:CHAT_REPLIES[Math.floor(Math.random()*CHAT_REPLIES.length)],t:chatNow()});
-    persist();renderChat();
+    const reply={me:false,text:CHAT_REPLIES[Math.floor(Math.random()*CHAT_REPLIES.length)],t:chatNow()};
+    c.msgs.push(reply);renderChat();
+    if(auth.loggedIn&&c.id>0)apiSync(api('/conversations/'+c.id+'/messages',{method:'POST',body:reply}));
   },1300);
   return false;
 }
 
 /* ---------- PERSISTENCE ---------- */
-const LS_KEY='zv_state';
-function persist(){
-  try{localStorage.setItem(LS_KEY,JSON.stringify({
-    conversations:CONVERSATIONS,chatSeq,reqSeq,orderSeq,
-    cgRequests:CG_REQUESTS,cgSchedule:CG_SCHEDULE,
-    orders:ORDERS,cgProfile,cgAvail,cgSlots,cgReviews,settings:appSettings,
-    caregivers:CAREGIVERS,cgSeq,verifications:VERIFICATIONS,verSeq,
-    users:USERS,userSeq,cgStatusMap,cgPlanMap,planPrices,broadcasts:BROADCASTS,bcSeq,bcSeen
-  }));}catch(e){}
+/* ====================================================================
+   API KLIENT + NAPOJENÍ NA SERVER (Supabase přes náš /api)
+   Data žijí v databázi; persist() už nepíše do localStorage.
+   ==================================================================== */
+async function api(path,opts){
+  const res=await fetch('/api'+path,{
+    method:(opts&&opts.method)||'GET',
+    headers:{'Content-Type':'application/json'},
+    credentials:'include',
+    body:opts&&opts.body!=null?JSON.stringify(opts.body):undefined
+  });
+  let data=null;try{data=await res.json();}catch(e){}
+  if(!res.ok)throw new Error((data&&data.error)||('Chyba '+res.status));
+  return data;
 }
-function loadState(){
-  try{
-    const s=JSON.parse(localStorage.getItem(LS_KEY));if(!s)return;
-    if(Array.isArray(s.conversations))CONVERSATIONS=s.conversations;
-    if(typeof s.chatSeq==='number')chatSeq=s.chatSeq;
-    if(typeof s.reqSeq==='number')reqSeq=s.reqSeq;
-    if(typeof s.orderSeq==='number')orderSeq=s.orderSeq;
-    if(Array.isArray(s.cgRequests))CG_REQUESTS=s.cgRequests;
-    if(Array.isArray(s.cgSchedule))CG_SCHEDULE=s.cgSchedule;
-    if(Array.isArray(s.orders))ORDERS=s.orders;
-    if(s.cgProfile)Object.assign(cgProfile,s.cgProfile);
-    syncCgPhotoToList();
-    if(Array.isArray(s.cgAvail))cgAvail=s.cgAvail;
-    if(Array.isArray(s.cgSlots))cgSlots=s.cgSlots;
-    if(s.cgReviews)cgReviews=s.cgReviews;
-    if(s.settings)Object.assign(appSettings,s.settings);
-    if(Array.isArray(s.caregivers)){CAREGIVERS=s.caregivers;syncCgPhotoToList();}
-    if(typeof s.cgSeq==='number')cgSeq=s.cgSeq;
-    if(Array.isArray(s.verifications))VERIFICATIONS=s.verifications;
-    if(typeof s.verSeq==='number')verSeq=s.verSeq;
-    if(Array.isArray(s.users))USERS=s.users;
-    if(typeof s.userSeq==='number')userSeq=s.userSeq;
-    if(s.cgStatusMap)cgStatusMap=s.cgStatusMap;
-    if(s.cgPlanMap)cgPlanMap=s.cgPlanMap;
-    if(s.planPrices)Object.assign(planPrices,s.planPrices);
-    planPrices.start=0; // START je vždy zdarma
-    if(Array.isArray(s.broadcasts))BROADCASTS=s.broadcasts;
-    if(typeof s.bcSeq==='number')bcSeq=s.bcSeq;
-    if(Array.isArray(s.bcSeen))bcSeen=s.bcSeen;
-  }catch(e){}
+/* fire-and-forget zápis na server s hláškou při chybě */
+function apiSync(p){return Promise.resolve(p).catch(e=>{console.error('[api]',e);toast('⚠️ Uložení do databáze se nezdařilo: '+e.message,'declined');});}
+/* persist() je teď no-op — stav se ukládá přímo přes konkrétní /api volání */
+function persist(){}
+
+/* odvodí cgStatusMap / cgPlanMap z dat (pečovatelky + žádosti) */
+function deriveCgMaps(){
+  cgStatusMap={};cgPlanMap={};
+  CAREGIVERS.forEach(c=>{if(c.email){cgStatusMap[c.email]=c.verified?'verified':'pending';cgPlanMap[c.email]=c.plan||'start';}});
+  VERIFICATIONS.forEach(v=>{if(!v.email)return;
+    if(v.status==='submitted'&&cgStatusMap[v.email]!=='verified')cgStatusMap[v.email]='submitted';
+    if(v.status==='rejected'&&cgStatusMap[v.email]!=='verified')cgStatusMap[v.email]='rejected';});
 }
-function resetDemo(){
-  try{localStorage.removeItem(LS_KEY);localStorage.removeItem('zv_auth');}catch(e){}
-  location.reload();
+/* načte celý stav z databáze do klientských polí */
+async function bootstrap(){
+  const d=await api('/bootstrap');
+  CAREGIVERS=d.caregivers||[];syncCgPhotoToList();
+  ORDERS=d.orders||[];
+  CG_REQUESTS=d.requests||[];
+  CG_SCHEDULE=d.schedule||[];
+  VERIFICATIONS=d.verifications||[];
+  USERS=d.users||[];
+  cgReviews=d.cgReviews||{};
+  CONVERSATIONS=d.conversations||[];
+  BROADCASTS=d.broadcasts||[];
+  if(d.planPrices)Object.assign(planPrices,d.planPrices);planPrices.start=0;
+  // seq čítače z maxim (kdyby něco generovalo id lokálně)
+  orderSeq=ORDERS.reduce((m,o)=>Math.max(m,o.oid||0),0);
+  reqSeq=CG_REQUESTS.reduce((m,r)=>Math.max(m,r.id||0),0);
+  cgSeq=CAREGIVERS.reduce((m,c)=>Math.max(m,c.id||0),0);
+  verSeq=VERIFICATIONS.reduce((m,v)=>Math.max(m,v.id||0),0);
+  chatSeq=CONVERSATIONS.reduce((m,c)=>Math.max(m,c.id||0),0);
+  bcSeq=BROADCASTS.reduce((m,b)=>Math.max(m,b.id||0),0);
+  // profil přihlášené pečovatelky z její karty
+  if(auth.loggedIn&&auth.role==='caregiver'){
+    const me=CAREGIVERS.find(c=>c.email===auth.email);
+    if(me){Object.assign(cgProfile,{name:me.name,bio:me.bio,loc:me.loc,rate:me.rate,services:me.services,langs:me.langs,photo:me.photo||cgProfile.photo});
+      if(Array.isArray(me.avail)){cgSlots=me.avail;cgAvail=me.avail.map(s=>!!(s.r||s.o||s.v));}}
+  }
+  deriveCgMaps();
 }
+function resetDemo(){location.reload();}
 
 /* ---------- INIT ---------- */
-initTheme();
-loadState();
-updateAuthUI();
-renderHome();renderFilters();renderCare();renderCalendar();
-document.querySelectorAll('select').forEach(enhanceSelect);
-initReveal();
-if(auth.loggedIn)go(landingView());
+async function initApp(){
+  initTheme();
+  try{const m=await api('/auth/me');
+    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';
+      if(m.user.settings)Object.assign(appSettings,m.user.settings);}
+  }catch(e){console.warn('auth/me',e.message);}
+  try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('⚠️ Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
+  updateAuthUI();
+  renderHome();renderFilters();renderCare();renderCalendar();
+  document.querySelectorAll('select').forEach(enhanceSelect);
+  initReveal();
+  if(auth.loggedIn)go(landingView());
+}
+initApp();
 </script>
 </body>
 </html>

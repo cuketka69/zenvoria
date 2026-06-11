@@ -144,3 +144,8 @@ vite.config.ts.timestamp-*
 
 # Local Claude config / memory
 .claude/
+
+# Local Codex / MCP / browser artifacts
+.mcp.json
+.playwright-mcp/
+_tmp_*
