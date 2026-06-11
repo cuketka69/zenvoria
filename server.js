@@ -52,6 +52,10 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 const SESSION_COOKIE = 'zv_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
 
+const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !== 'false';
+const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+
 // názvy tabulek s fallbackem (Webilio-style — lze přepsat env proměnnou)
 const T = {
   users:         process.env.TBL_USERS         || 'zenvoria_users',
@@ -76,6 +80,10 @@ if (!REST_ENABLED) {
 /* ----------------------------------------------------------------------
    2) JÁDRO KOMUNIKACE SE SUPABASE (PostgREST)
    -------------------------------------------------------------------- */
+if (MAIL_ENABLED && !RESEND_API_KEY) {
+  console.warn('[zenvoria] Email notifications are disabled because RESEND_API_KEY is missing.');
+}
+
 function fetchWithTimeout(url, opts, ms) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms || SUPABASE_REST_TIMEOUT_MS);
@@ -83,6 +91,94 @@ function fetchWithTimeout(url, opts, ms) {
 }
 
 // univerzální REST požadavek na ${SUPABASE_URL}/rest/v1/<table><?query>
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function sendMailSafe({ to, subject, text, html }) {
+  if (!MAIL_ENABLED || !RESEND_API_KEY || !to) return false;
+  try {
+    const res = await fetchWithTimeout('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: MAIL_FROM,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        text,
+        html,
+      }),
+    }, SUPABASE_REST_TIMEOUT_MS);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Resend ${res.status}: ${body || res.statusText}`);
+    }
+    return true;
+  } catch (err) {
+    console.error('[mail]', err.message);
+    return false;
+  }
+}
+
+function registrationMail(user) {
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zakazniku';
+  return {
+    subject: 'Vitejte v ZENVORIA',
+    text:
+      `Dobry den, ${user.name},\n\n` +
+      'dekujeme za registraci do ZENVORIA. Vas ucet byl uspesne vytvoren.\n\n' +
+      'Pokud jste se neregistrovali vy, odpovezte prosim na tento e-mail.\n\n' +
+      'S pozdravem,\nTym ZENVORIA',
+    html:
+      `<p>Dobry den, ${escapeHtml(firstName)},</p>` +
+      '<p>dekujeme za registraci do <b>ZENVORIA</b>. Vas ucet byl uspesne vytvoren.</p>' +
+      '<p>Pokud jste se neregistrovali vy, odpovezte prosim na tento e-mail.</p>' +
+      '<p>S pozdravem,<br>Tym ZENVORIA</p>',
+  };
+}
+
+function reservationMail({ user, order, caregiverName }) {
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zakazniku';
+  const when = [order.date, order.time].filter(Boolean).join(' v ');
+  return {
+    subject: `Potvrzeni rezervace pece na ${order.date}`,
+    text:
+      `Dobry den, ${user.name},\n\n` +
+      'dekujeme za vasi rezervaci v ZENVORIA.\n\n' +
+      `Sluzba: ${order.service}\n` +
+      `Termin: ${when}\n` +
+      `Adresa: ${order.addr}\n` +
+      `Delka: ${order.hours} h\n` +
+      (caregiverName ? `Pecovatelka: ${caregiverName}\n` : '') +
+      `Stav: ${order.status}\n` +
+      (order.note ? `Poznamka: ${order.note}\n` : '') +
+      '\nJakmile se stav rezervace zmeni, dame vam vedet.\n\n' +
+      'S pozdravem,\nTym ZENVORIA',
+    html:
+      `<p>Dobry den, ${escapeHtml(firstName)},</p>` +
+      '<p>dekujeme za vasi rezervaci v <b>ZENVORIA</b>.</p>' +
+      '<p>' +
+      `Sluzba: <b>${escapeHtml(order.service)}</b><br>` +
+      `Termin: <b>${escapeHtml(when)}</b><br>` +
+      `Adresa: ${escapeHtml(order.addr)}<br>` +
+      `Delka: ${escapeHtml(order.hours)} h<br>` +
+      (caregiverName ? `Pecovatelka: ${escapeHtml(caregiverName)}<br>` : '') +
+      `Stav: ${escapeHtml(order.status)}` +
+      (order.note ? `<br>Poznamka: ${escapeHtml(order.note)}` : '') +
+      '</p>' +
+      '<p>Jakmile se stav rezervace zmeni, dame vam vedet.</p>' +
+      '<p>S pozdravem,<br>Tym ZENVORIA</p>',
+  };
+}
+
 async function supabaseRestRequest(method, table, { query = '', body = null, prefer = '' } = {}) {
   if (!REST_ENABLED) throw new Error('Supabase REST není nakonfigurováno (chybí URL nebo service_role klíč).');
   const url = `${SUPABASE_URL}/rest/v1/${table}${query ? '?' + query : ''}`;
@@ -252,6 +348,8 @@ app.post('/api/auth/register', h(async (req, res) => {
   const init = (name.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
   const password_hash = bcrypt.hashSync(String(password), 10);
   const user = await restInsert(T.users, { email: em, password_hash, name: name.trim(), role: r, init });
+  const welcomeMail = registrationMail(user);
+  await sendMailSafe({ to: user.email, ...welcomeMail });
   setSession(res, user);
   res.json({ user: publicUser(user) });
 }));
@@ -354,6 +452,9 @@ app.post('/api/orders', requireAuth, h(async (req, res) => {
   if (b.cid == null || !b.service || !b.date || !b.time || !b.addr) return res.status(400).json({ error: 'Neúplná objednávka.' });
   const oid = await nextId(T.orders, 'oid');
   const famName = req.session.name || b.famName || 'Rodina';
+  let caregiverName = '';
+  const caregiverRows = await restSelect(T.caregivers, `id=eq.${Number(b.cid)}&select=id,name&limit=1`);
+  if (caregiverRows && caregiverRows[0]) caregiverName = caregiverRows[0].name || '';
   const order = await restInsert(T.orders, {
     oid, cid: Number(b.cid), family_email: req.session.email, fam_name: famName,
     service: b.service, hours: b.hours || 1, date: b.date, time: b.time, addr: b.addr,
@@ -365,7 +466,10 @@ app.post('/api/orders', requireAuth, h(async (req, res) => {
     id: reqId, oid, cid: Number(b.cid), fam: famName, init,
     service: b.service, date: b.date, time: b.time, hours: b.hours || 1, addr: b.addr,
   }, { prefer: 'return=minimal' });
-  res.json({ order: mapOrder(order) });
+  const orderView = mapOrder(order);
+  const confirmationMail = reservationMail({ user: req.session, order: orderView, caregiverName });
+  await sendMailSafe({ to: req.session.email, ...confirmationMail });
+  res.json({ order: orderView });
 }));
 
 // změna stavu objednávky (rodina ruší / obecná aktualizace stavu)
