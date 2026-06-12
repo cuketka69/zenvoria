@@ -1052,6 +1052,14 @@ function mapCaregiver(c) {
     photo: c.photo || null, email: c.email || null, avail: c.avail || null,
   };
 }
+function mapCaregiverForViewer(c, opts = {}) {
+  const row = mapCaregiver(c);
+  if (opts.viewer === 'admin' || opts.includePrivate) return row;
+  delete row.email;
+  delete row.avail;
+  delete row.idVerified;
+  return row;
+}
 function mapOrder(o) {
   return { oid: Number(o.oid), cid: o.cid != null ? Number(o.cid) : null, service: o.service, hours: o.hours,
     date: o.date, time: o.time, addr: o.addr, note: o.note, km: o.km || 0, status: o.status,
@@ -1403,18 +1411,44 @@ app.patch('/api/users/me/settings', requireAuth, h(async (req, res) => {
 
 /* ---------------- BOOTSTRAP (vše pro render) ---------------- */
 app.get('/api/bootstrap', h(async (req, res) => {
-  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, convs, msgs, broadcasts, settings] =
+  const viewer = !req.session
+    ? 'guest'
+    : (req.session.role === 'admin' ? 'admin' : (req.session.role === 'caregiver' ? 'caregiver' : 'family'));
+  const ownCaregiver = viewer === 'caregiver' ? await currentCaregiverRow(req) : null;
+  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings] =
     await Promise.all([
-      restSelect(T.caregivers, 'select=*&order=id.asc'),
-      restSelect(T.orders, 'select=*&order=oid.desc'),
-      restSelect(T.requests, 'select=*&order=id.desc'),
-      restSelect(T.schedule, 'select=*&order=date.asc'),
-      restSelect(T.verifications, 'select=*&order=id.asc'),
-      restSelect(T.users, 'select=id,email,name,role,status,init,joined,orders_count&order=joined.asc'),
+      viewer === 'guest'
+        ? restSelect(T.caregivers, 'select=*&verified=eq.true&suspended=eq.false&order=id.asc')
+        : restSelect(T.caregivers, 'select=*&order=id.asc'),
+      viewer === 'admin'
+        ? restSelect(T.orders, 'select=*&order=oid.desc')
+        : (viewer === 'family'
+          ? restSelect(T.orders, `family_email=eq.${encodeURIComponent(req.session.email)}&order=oid.desc`)
+          : []),
+      viewer === 'admin'
+        ? restSelect(T.requests, 'select=*&order=id.desc')
+        : (viewer === 'caregiver' && ownCaregiver
+          ? restSelect(T.requests, `cid=eq.${Number(ownCaregiver.id)}&order=id.desc`)
+          : []),
+      viewer === 'admin'
+        ? restSelect(T.schedule, 'select=*&order=date.asc')
+        : (viewer === 'caregiver' && ownCaregiver
+          ? restSelect(T.schedule, `cid=eq.${Number(ownCaregiver.id)}&order=date.asc`)
+          : []),
+      viewer === 'admin'
+        ? restSelect(T.verifications, 'select=*&order=id.asc')
+        : (viewer === 'caregiver'
+          ? restSelect(T.verifications, `email=eq.${encodeURIComponent(req.session.email)}&order=id.asc`)
+          : []),
+      viewer === 'admin'
+        ? restSelect(T.users, 'select=id,email,name,role,status,init,joined,orders_count&order=joined.asc')
+        : [],
       restSelect(T.reviews, 'select=*&order=id.asc'),
-      restSelect(T.conversations, 'select=*&order=id.asc'),
-      restSelect(T.messages, 'select=*&order=id.asc'),
-      restSelect(T.broadcasts, 'select=*&order=id.asc'),
+      viewer === 'admin'
+        ? restSelect(T.broadcasts, 'select=*&order=id.asc')
+        : (req.session
+          ? restSelect(T.broadcasts, 'select=*&order=id.asc')
+          : []),
       loadPublicSettings(),
     ]);
 
@@ -1427,24 +1461,29 @@ app.get('/api/bootstrap', h(async (req, res) => {
     else (cgReviews[r.caregiver_id] = cgReviews[r.caregiver_id] || []).push(row);
   });
 
-  // konverzace s vnořenými zprávami
-  const byConv = {};
-  (msgs || []).forEach((m) => { (byConv[m.conversation_id] = byConv[m.conversation_id] || []).push({ me: m.mine, text: m.text, t: m.t }); });
-  const conversations = (convs || []).map((c) => ({
-    id: Number(c.id), name: c.name, init: c.init, role: c.role, readonly: c.readonly, unread: c.unread || 0,
-    msgs: byConv[c.id] || [],
-  }));
+  const caregiversForViewer = (caregivers || []).map((c) => {
+    const includePrivate = viewer === 'caregiver' && ownCaregiver && Number(c.id) === Number(ownCaregiver.id);
+    return mapCaregiverForViewer(c, { viewer, includePrivate });
+  });
+  const broadcastsForViewer = (broadcasts || []).filter((b) => {
+    if (viewer === 'admin') return true;
+    if (!req.session) return false;
+    if (b.audience === 'all') return true;
+    if (b.audience === 'caregivers') return req.session.role === 'caregiver';
+    if (b.audience === 'families') return req.session.role === 'family';
+    return b.audience === 'specific' && Array.isArray(b.emails) && b.emails.includes(req.session.email);
+  });
 
   res.json({
-    caregivers: (caregivers || []).map(mapCaregiver),
+    caregivers: caregiversForViewer,
     orders: (orders || []).map(mapOrder),
     requests: (requests || []).map(mapRequest),
     schedule: (schedule || []).map((s) => ({ id: s.id, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours })),
     verifications: (verifications || []).map(mapVerification),
     users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role })),
     cgReviews, generalReviews,
-    conversations,
-    broadcasts: (broadcasts || []).map((b) => ({ id: b.id, audience: b.audience, emails: b.emails || [], text: b.text, date: b.date, t: b.t })),
+    conversations: [],
+    broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
     planPrices: settings.planPrices || { start: 0, premium: 390 },
     settings,
   });
@@ -1452,7 +1491,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
 
 /* ---------------- OBJEDNÁVKY / POPTÁVKY ---------------- */
 // rodina vytvoří objednávku + propojenou poptávku pro pečovatelku
-app.post('/api/orders', requireAuth, h(async (req, res) => {
+app.post('/api/orders', requireRole('family', 'admin'), h(async (req, res) => {
   const b = req.body || {};
   if (b.cid == null || !b.service || !b.date || !b.time || !b.addr) return res.status(400).json({ error: 'Neúplná objednávka.' });
   const oid = await nextId(T.orders, 'oid');
@@ -1482,6 +1521,13 @@ app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
   const status = (req.body || {}).status;
   const allowed = ['pending', 'confirmed', 'done', 'declined', 'cancelled'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Neplatný stav.' });
+  const current = await restSelect(T.orders, `oid=eq.${Number(req.params.oid)}&limit=1`);
+  const order = current && current[0];
+  if (!order) return res.status(404).json({ error: 'Objednávka nenalezena.' });
+  const isAdmin = req.session && req.session.role === 'admin';
+  if (!isAdmin && String(order.family_email || '').toLowerCase() !== String(req.session.email || '').toLowerCase()) {
+    return res.status(403).json({ error: 'Tuto objednávku nemůžete upravit.' });
+  }
   const rows = await restUpdate(T.orders, `oid=eq.${Number(req.params.oid)}`, { status });
   res.json({ order: rows && rows[0] ? mapOrder(rows[0]) : null });
 }));
@@ -1509,6 +1555,12 @@ app.post('/api/requests/:id/accept', requireRole('caregiver', 'admin'), h(async 
   const rows = await restSelect(T.requests, `id=eq.${id}&limit=1`);
   const r = rows && rows[0];
   if (!r) return res.status(404).json({ error: 'Poptávka nenalezena.' });
+  if (req.session.role !== 'admin') {
+    const ownCaregiver = await currentCaregiverRow(req);
+    if (!ownCaregiver || Number(r.cid) !== Number(ownCaregiver.id)) {
+      return res.status(403).json({ error: 'Tuto poptávku nemůžete přijmout.' });
+    }
+  }
   if (r.oid != null) await restUpdate(T.orders, `oid=eq.${r.oid}`, { status: 'confirmed' }, { prefer: 'return=minimal' });
   await restInsert(T.schedule, { cid: r.cid, fam: r.fam, init: r.init, service: r.service, date: r.date, time: r.time, hours: r.hours }, { prefer: 'return=minimal' });
   await restDelete(T.requests, `id=eq.${id}`);
@@ -1522,6 +1574,12 @@ app.post('/api/requests/:id/decline', requireRole('caregiver', 'admin'), h(async
   const rows = await restSelect(T.requests, `id=eq.${id}&limit=1`);
   const r = rows && rows[0];
   if (!r) return res.status(404).json({ error: 'Poptávka nenalezena.' });
+  if (req.session.role !== 'admin') {
+    const ownCaregiver = await currentCaregiverRow(req);
+    if (!ownCaregiver || Number(r.cid) !== Number(ownCaregiver.id)) {
+      return res.status(403).json({ error: 'Tuto poptávku nemůžete odmítnout.' });
+    }
+  }
   if (r.oid != null) await restUpdate(T.orders, `oid=eq.${r.oid}`, { status: 'declined' }, { prefer: 'return=minimal' });
   await restDelete(T.requests, `id=eq.${id}`);
   await notifyOrderStatus(r, false);
@@ -1621,6 +1679,13 @@ app.post('/api/broadcasts', requireRole('admin'), h(async (req, res) => {
 app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   const id = Number(req.params.id);
   const b = req.body || {};
+  const isAdmin = req.session && req.session.role === 'admin';
+  if (!isAdmin) {
+    const ownCaregiver = await currentCaregiverRow(req);
+    if (!ownCaregiver || Number(ownCaregiver.id) !== id) {
+      return res.status(403).json({ error: 'Tento profil nemůžete upravit.' });
+    }
+  }
   const patch = {};
   // jen povolená pole
   const map = { name: 'name', loc: 'loc', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
@@ -1628,12 +1693,12 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     photo: 'photo', avail: 'avail', suspended: 'suspended', status: 'status' };
   for (const k in map) if (b[k] !== undefined) patch[map[k]] = b[k];
   // pozastavení / mazání smí jen admin
-  if ((b.suspended !== undefined || b.status !== undefined) && req.session.role !== 'admin') {
+  if ((b.suspended !== undefined || b.status !== undefined) && !isAdmin) {
     return res.status(403).json({ error: 'Pozastavení smí jen správce.' });
   }
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   const rows = await restUpdate(T.caregivers, `id=eq.${id}`, patch);
-  if (req.session.role === 'admin' && (b.suspended !== undefined || b.status !== undefined)) {
+  if (isAdmin && (b.suspended !== undefined || b.status !== undefined)) {
     fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { suspended: b.suspended, status: b.status } });
   }
   res.json({ caregiver: rows && rows[0] ? mapCaregiver(rows[0]) : null });
@@ -1645,6 +1710,10 @@ async function caregiverByEmail(email) {
   if (!email) return null;
   const rows = await restSelect(T.caregivers, `email=eq.${encodeURIComponent(String(email).toLowerCase())}&limit=1`);
   return (rows && rows[0]) || null;
+}
+async function currentCaregiverRow(req) {
+  if (!req.session || !req.session.email) return null;
+  return caregiverByEmail(req.session.email);
 }
 // zapíše tarif (a Stripe id) do DB — hledá pečovatelku podle e-mailu nebo stripe_customer_id
 async function setCaregiverPlan({ email, customerId, subscriptionId, plan, status }) {
