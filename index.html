@@ -124,6 +124,15 @@
     transform-origin:left center;transform:scaleX(0);animation:navfill .85s ease forwards}
   @keyframes navfill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   @media (prefers-reduced-motion:reduce){.nav-links a.nav-busy::after,.mobile-menu .panel a.nav-busy::after{animation-duration:.01s}}
+  /* stránka „Jak to funguje" */
+  .howto-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px;margin-top:8px}
+  .ht-card{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:28px 24px;transition:.2s}
+  .ht-card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+  .ht-num{width:46px;height:46px;border-radius:50%;background:var(--navy-900);color:var(--gold);display:flex;
+    align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:20px;font-weight:700;margin-bottom:16px}
+  .ht-card h3{font-family:'Playfair Display',serif;font-size:20px;color:var(--navy-900);margin-bottom:8px}
+  .ht-card p{font-size:14px;color:var(--muted);line-height:1.65}
+  .howto-cta{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:40px}
   .nav-right{display:flex;align-items:center;gap:10px;flex:0 0 auto}
   .nav-right .btn{border-radius:999px}
   .btn{
@@ -1020,7 +1029,7 @@
     <nav class="nav-links" id="navlinks" aria-label="Hlavní navigace">
       <a data-v="home" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home')})">Domů</a>
       <a data-v="search" role="button" tabindex="0" onclick="navProgress(this,()=>{go('search')})">Hledat péči</a>
-      <a data-v="howto" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home');scrollTo2('howto')})">Jak to funguje</a>
+      <a data-v="howto" role="button" tabindex="0" onclick="navProgress(this,()=>{go('howto')})">Jak to funguje</a>
     </nav>
     <div class="nav-right">
       <button class="theme-toggle msg-btn" id="msgBtn" aria-label="Zprávy" onclick="go('chat')" hidden>
@@ -1067,7 +1076,7 @@
     <div id="mmLinks">
       <a data-v="home" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home')})">Domů</a>
       <a data-v="search" role="button" tabindex="0" onclick="navProgress(this,()=>{go('search')})">Hledat péči</a>
-      <a data-v="howto" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home');scrollTo2('howto')})">Jak to funguje</a>
+      <a data-v="howto" role="button" tabindex="0" onclick="navProgress(this,()=>{go('howto')})">Jak to funguje</a>
     </div>
     <div class="mm-divider"></div>
     <div id="mmAuth">
@@ -1091,7 +1100,7 @@
         <p class="lead">ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Jednoduše, bezpečně a s lidským přístupem.</p>
         <div class="hero-cta">
           <button class="btn btn-gold" onclick="go('search')">Najít pečovatelku</button>
-          <button class="btn btn-ghost" onclick="fillThen(this,()=>{go('home');scrollTo2('howto')})">Jak to funguje</button>
+          <button class="btn btn-ghost" onclick="fillThen(this,()=>{go('howto')})">Jak to funguje</button>
         </div>
         <div class="trust-row">
           <div class="trust">
@@ -1267,6 +1276,70 @@
       </label>
     </div>
     <div class="care-grid" id="careGrid"></div>
+  </div>
+</div>
+
+<!-- ============ JAK TO FUNGUJE ============ -->
+<div class="view" id="view-howto">
+  <div class="wrap">
+    <div class="page-head">
+      <h1>Jak to funguje</h1>
+      <p>Od vyhledání ověřené pečovatelky až po klidnou péči — ve čtyřech jednoduchých krocích.</p>
+    </div>
+
+    <div class="sec-head" style="margin-top:10px">
+      <span class="eyebrow">Pro rodiny</span>
+      <h2>Najděte péči ve čtyřech krocích</h2>
+    </div>
+    <div class="howto-steps">
+      <div class="ht-card">
+        <div class="ht-num">1</div>
+        <h3>Vyhledejte pečovatelku</h3>
+        <p>Zadejte lokalitu a typ péče. Procházejte profily ověřených pečovatelek ve svém okolí.</p>
+      </div>
+      <div class="ht-card">
+        <div class="ht-num">2</div>
+        <h3>Vyberte si tu pravou</h3>
+        <p>Prohlédněte si zkušenosti, recenze a dostupnost v kalendáři. Můžete si nezávazně napsat přes chat.</p>
+      </div>
+      <div class="ht-card">
+        <div class="ht-num">3</div>
+        <h3>Rezervujte online</h3>
+        <p>Vyberte termín a službu, bezpečně zaplaťte a potvrďte objednávku — vše na pár kliknutí.</p>
+      </div>
+      <div class="ht-card">
+        <div class="ht-num">4</div>
+        <h3>Užijte si klid</h3>
+        <p>Sledujte průběh péče, komunikujte přes chat a mějte přehled 24/7. Na blízké je postaráno.</p>
+      </div>
+    </div>
+
+    <div class="sec-head" style="margin-top:54px">
+      <span class="eyebrow">Pro pečovatelky</span>
+      <h2>Začněte pomáhat ve třech krocích</h2>
+    </div>
+    <div class="howto-steps">
+      <div class="ht-card">
+        <div class="ht-num">1</div>
+        <h3>Zaregistrujte se a ověřte</h3>
+        <p>Vytvořte si profil, nahrajte doklady a certifikace. Náš tým vás rychle ověří.</p>
+      </div>
+      <div class="ht-card">
+        <div class="ht-num">2</div>
+        <h3>Nastavte nabídku a kalendář</h3>
+        <p>Vyberte služby, které nabízíte, ceny a dostupné termíny ve svém kalendáři.</p>
+      </div>
+      <div class="ht-card">
+        <div class="ht-num">3</div>
+        <h3>Přijímejte poptávky</h3>
+        <p>Rodiny vás osloví, vy potvrdíte termín. Platby probíhají bezpečně přes aplikaci.</p>
+      </div>
+    </div>
+
+    <div class="howto-cta">
+      <button class="btn btn-gold" onclick="go('search')">Najít pečovatelku</button>
+      <button class="btn btn-navy" onclick="go('register');pickRole('caregiver')">Stát se pečovatelkou</button>
+    </div>
   </div>
 </div>
 
@@ -2208,7 +2281,7 @@
         </div>
         <p style="font-size:14px;max-width:300px">Péče s lidskostí. Ověřené pečovatelky pro vaše blízké — bezpečně, rychle a s důvěrou.</p>
       </div>
-      <div><h5>Aplikace</h5><a role="button" tabindex="0" onclick="go('search')">Hledat péči</a><a role="button" tabindex="0" onclick="go('home');scrollTo2('onas')">O nás</a><a role="button" tabindex="0" onclick="go('bookings')">Moje objednávky</a><a role="button" tabindex="0" onclick="go('home');scrollTo2('howto')">Jak to funguje</a></div>
+      <div><h5>Aplikace</h5><a role="button" tabindex="0" onclick="go('search')">Hledat péči</a><a role="button" tabindex="0" onclick="go('home');scrollTo2('onas')">O nás</a><a role="button" tabindex="0" onclick="go('bookings')">Moje objednávky</a><a role="button" tabindex="0" onclick="go('howto')">Jak to funguje</a></div>
       <div><h5>Pro pečovatelky</h5><a role="button" tabindex="0" onclick="go('register');pickRole('caregiver')">Registrace</a><a role="button" tabindex="0" onclick="goVerify()">Ověření</a><a role="button" tabindex="0" onclick="go('pricing')">Ceník a tarify</a><a role="button" tabindex="0" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')">Vzdělávání</a></div>
       <div><h5>Společnost</h5><a role="button" tabindex="0" onclick="toast('🔒 Bezpečí: ověřené doklady, pojištění a zabezpečené platby.')">Bezpečí</a><a role="button" tabindex="0" onclick="toast('✉️ Kontakt: podpora@zenvoria.cz · +420 800 123 456')">Kontakt</a><a role="button" tabindex="0" onclick="toast('🚨 SOS linka 24/7: +420 800 999 111')">SOS 24/7</a></div>
     </div>
@@ -2890,7 +2963,7 @@ function deleteAccount(){
 const NAV_GUEST=[
   {v:'home',label:'Domů',fn:"go('home')"},
   {v:'search',label:'Hledat péči',fn:"go('search')"},
-  {v:'howto',label:'Jak to funguje',fn:"go('home');scrollTo2('howto')"}
+  {v:'howto',label:'Jak to funguje',fn:"go('howto')"}
 ];
 const NAV_CAREGIVER=[
   {v:'cg-dashboard',label:'Přehled',fn:"go('cg-dashboard')"},
