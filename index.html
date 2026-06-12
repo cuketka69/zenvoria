@@ -5182,22 +5182,64 @@ function openChat(name,init,role){
   activeChat=c.id;go('chat');
   setTimeout(()=>document.getElementById('chatInput')?.focus(),140);
 }
+function makeChatAvatar(text){
+  const el=document.createElement('div');
+  el.className='ava';
+  el.textContent=text||'';
+  return el;
+}
 function renderChat(){
   ensureBroadcastConvo();
   if(!CONVERSATIONS.find(c=>c.id===activeChat))activeChat=CONVERSATIONS[0]&&CONVERSATIONS[0].id;
-  document.getElementById('chatList').innerHTML='<div class="chat-list-h">Konverzace</div>'+CONVERSATIONS.map(c=>{
+  const listEl=document.getElementById('chatList');
+  listEl.textContent='';
+  const listHead=document.createElement('div');
+  listHead.className='chat-list-h';
+  listHead.textContent='Konverzace';
+  listEl.appendChild(listHead);
+  CONVERSATIONS.forEach(c=>{
     const last=c.msgs[c.msgs.length-1];
-    return `<button class="chat-li ${c.id===activeChat?'on':''}" onclick="selectChat(${c.id})">
-      <div class="ava">${c.init}</div>
-      <div class="ci"><b>${c.name}</b><span>${last?(last.me?'Vy: ':'')+last.text:'Nová konverzace'}</span></div>
-    </button>`;}).join('');
+    const btn=document.createElement('button');
+    btn.className='chat-li'+(c.id===activeChat?' on':'');
+    btn.addEventListener('click',()=>selectChat(c.id));
+    btn.appendChild(makeChatAvatar(c.init));
+    const ci=document.createElement('div');
+    ci.className='ci';
+    const name=document.createElement('b');
+    name.textContent=c.name;
+    const preview=document.createElement('span');
+    preview.textContent=last?(last.me?'Vy: ':'')+last.text:'Nová konverzace';
+    ci.appendChild(name);
+    ci.appendChild(preview);
+    btn.appendChild(ci);
+    listEl.appendChild(btn);
+  });
   const c=CONVERSATIONS.find(x=>x.id===activeChat);
   const head=document.getElementById('chatHead'),body=document.getElementById('chatBody');
-  if(!c){head.innerHTML='';body.innerHTML='';return;}
+  if(!c){head.textContent='';body.textContent='';return;}
   c.unread=0;
   if(c.id===-1){broadcastsFor().forEach(b=>{if(!bcSeen.includes(b.id))bcSeen.push(b.id);});persist();}
-  head.innerHTML=`<div class="ava">${c.init}</div><div><b>${c.name}</b><span>${c.readonly?'Oznámení od ZENVORIA':'Online'}</span></div>`;
-  body.innerHTML=c.msgs.map(m=>`<div class="msg ${m.me?'me':'them'}">${m.text}<span class="mt">${m.t}</span></div>`).join('');
+  head.textContent='';
+  head.appendChild(makeChatAvatar(c.init));
+  const headMeta=document.createElement('div');
+  const headName=document.createElement('b');
+  headName.textContent=c.name;
+  const headState=document.createElement('span');
+  headState.textContent=c.readonly?'Oznámení od ZENVORIA':'Online';
+  headMeta.appendChild(headName);
+  headMeta.appendChild(headState);
+  head.appendChild(headMeta);
+  body.textContent='';
+  c.msgs.forEach(m=>{
+    const row=document.createElement('div');
+    row.className='msg '+(m.me?'me':'them');
+    row.appendChild(document.createTextNode(m.text));
+    const time=document.createElement('span');
+    time.className='mt';
+    time.textContent=m.t;
+    row.appendChild(time);
+    body.appendChild(row);
+  });
   // u oznámení (jen ke čtení) schovat vstup i akce
   const actions=document.getElementById('chatActions'),form=document.getElementById('chatForm');
   if(actions)actions.style.display=c.readonly?'none':'';
