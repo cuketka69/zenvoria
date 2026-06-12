@@ -60,14 +60,14 @@ const APP_URL = process.env.APP_URL || 'https://www.zenvoria.cz';
 
 // --- Stripe (předplatné PREMIUM pro pečovatelky) ---
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
-const STRIPE_PRICE_PREMIUM = process.env.STRIPE_PRICE_PREMIUM || ''; // ID opakované (recurring) ceny ve Stripe (price_...)
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || ''; // whsec_...
+const STRIPE_CURRENCY = (process.env.STRIPE_CURRENCY || 'czk').toLowerCase();
 let stripe = null;
 if (STRIPE_SECRET_KEY) {
   try { stripe = require('stripe')(STRIPE_SECRET_KEY); }
   catch (e) { console.error('[stripe] knihovna stripe není nainstalovaná (npm i stripe):', e.message); }
 }
-const STRIPE_ENABLED = !!(stripe && STRIPE_PRICE_PREMIUM);
+const STRIPE_ENABLED = !!stripe;
 
 function isStrongPassword(value) {
   const v = String(value || '');
@@ -994,6 +994,17 @@ async function setCaregiverPlan({ email, customerId, subscriptionId, plan, statu
   console.log('[stripe] tarif aktualizován', { id: row.id, plan, status });
 }
 
+// cena PREMIUM (Kč/měsíc) ze serverových nastavení — nikdy se nevěří částce z prohlížeče
+async function premiumPriceCZK() {
+  try {
+    const rows = await restSelect(T.settings, `key=eq.planPrices&limit=1`);
+    const v = rows && rows[0] && rows[0].value;
+    const p = v && Number(v.premium);
+    if (p && p > 0) return Math.round(p);
+  } catch (e) { console.warn('[stripe] nelze načíst cenu z nastavení:', e.message); }
+  return 390; // fallback
+}
+
 // 1) Vytvoří Stripe Checkout Session (předplatné) a vrátí URL k přesměrování
 app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) => {
   if (!STRIPE_ENABLED) return res.status(503).json({ error: 'Platby nejsou nakonfigurované.' });
@@ -1009,11 +1020,21 @@ app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) =
     await restUpdate(T.caregivers, `id=eq.${cg.id}`, { stripe_customer_id: customerId }, { prefer: 'return=minimal' });
   }
 
+  // dynamická cena z aplikace (admin → Tarify) — žádný předem vytvořený produkt ve Stripe není potřeba
+  const priceCzk = await premiumPriceCZK();
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     customer: customerId,
     client_reference_id: email,
-    line_items: [{ price: STRIPE_PRICE_PREMIUM, quantity: 1 }],
+    line_items: [{
+      quantity: 1,
+      price_data: {
+        currency: STRIPE_CURRENCY,
+        unit_amount: priceCzk * 100, // v haléřích
+        recurring: { interval: 'month' },
+        product_data: { name: 'ZENVORIA PREMIUM', description: 'Měsíční předplatné pro pečovatelky — vyšší zobrazení a odznak Premium.' },
+      },
+    }],
     allow_promotion_codes: true,
     success_url: `${APP_URL}/#pricing?paid=1`,
     cancel_url: `${APP_URL}/#pricing?canceled=1`,
