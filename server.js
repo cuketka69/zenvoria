@@ -58,6 +58,13 @@ const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const APP_URL = process.env.APP_URL || 'https://www.zenvoria.cz';
 
+function isStrongPassword(value) {
+  const v = String(value || '');
+  return v.length >= 8 && /[a-z]/.test(v) && /[A-Z]/.test(v) && /\d/.test(v);
+}
+
+const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
+
 // názvy tabulek s fallbackem (Webilio-style — lze přepsat env proměnnou)
 const T = {
   users:         process.env.TBL_USERS         || 'zenvoria_users',
@@ -517,6 +524,21 @@ function verifyResetToken(token) {
   } catch { return null; }
 }
 
+function getResetTokenState(token) {
+  if (!token || token.indexOf('.') < 0) return { ok: false, reason: 'invalid' };
+  const [data, sig] = token.split('.');
+  const expect = crypto.createHmac('sha256', SESSION_SECRET).update(`reset:${data}`).digest('base64url');
+  if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return { ok: false, reason: 'invalid' };
+  try {
+    const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
+    if (payload.purpose !== 'reset-password' || !payload.email) return { ok: false, reason: 'invalid' };
+    if (!payload.exp || Date.now() > payload.exp) return { ok: false, reason: 'expired' };
+    return { ok: true, payload };
+  } catch {
+    return { ok: false, reason: 'invalid' };
+  }
+}
+
 // middleware: načte přihlášeného uživatele z cookie do req.session
 function loadSession(req, _res, next) {
   req.session = verifySession(req.cookies && req.cookies[SESSION_COOKIE]);
@@ -594,6 +616,7 @@ async function findUserByEmail(email) {
 app.post('/api/auth/register', h(async (req, res) => {
   const { name, email, password, role } = req.body || {};
   const em = (email || '').trim().toLowerCase();
+  if (!isStrongPassword(password)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
   if (!name || !em || !password) return res.status(400).json({ error: 'Vyplňte jméno, e-mail i heslo.' });
   if (String(password).length < 6) return res.status(400).json({ error: 'Heslo musí mít alespoň 6 znaků.' });
   const r = role === 'caregiver' ? 'caregiver' : 'family';
@@ -634,12 +657,23 @@ app.post('/api/auth/forgot-password', h(async (req, res) => {
 app.post('/api/auth/reset-password', h(async (req, res) => {
   const token = String((req.body && req.body.token) || '');
   const next = String((req.body && req.body.next) || '');
+  if (!isStrongPassword(next)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
   if (!next || next.length < 6) return res.status(400).json({ error: 'Nové heslo musí mít alespoň 6 znaků.' });
   const payload = verifyResetToken(token);
   if (!payload) return res.status(400).json({ error: 'Odkaz pro obnovu hesla je neplatný nebo vypršel.' });
   const user = await findUserByEmail(payload.email);
   if (!user) return res.json({ ok: true });
   await restUpdate(T.users, `id=eq.${user.id}`, { password_hash: bcrypt.hashSync(next, 10) }, { prefer: 'return=minimal' });
+  res.json({ ok: true });
+}));
+
+app.post('/api/auth/reset-password/validate', h(async (req, res) => {
+  const token = String((req.body && req.body.token) || '');
+  const state = getResetTokenState(token);
+  if (!state.ok) return res.status(400).json({
+    error: state.reason === 'expired' ? 'Odkaz pro obnovu hesla vypršel.' : 'Odkaz pro obnovu hesla je neplatný.',
+    reason: state.reason,
+  });
   res.json({ ok: true });
 }));
 
@@ -653,6 +687,7 @@ app.get('/api/auth/me', h(async (req, res) => {
 
 app.post('/api/auth/change-password', requireAuth, h(async (req, res) => {
   const { current, next } = req.body || {};
+  if (!isStrongPassword(next)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
   if (!next || String(next).length < 6) return res.status(400).json({ error: 'Nové heslo musí mít alespoň 6 znaků.' });
   const rows = await restSelect(T.users, `id=eq.${req.session.uid}&limit=1`);
   const user = rows && rows[0];
