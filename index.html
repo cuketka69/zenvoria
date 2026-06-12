@@ -3599,9 +3599,11 @@ function renderPricing(){
     const p=PLANS[key];const featured=key==='premium';
     let action;
     if(isCg){action=cur===key
-      ?'<div class="plan-current">✓ Váš aktuální tarif</div>'
+      ?(key==='premium'
+        ? '<div class="plan-current">✓ Váš aktuální tarif</div><button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openBillingPortal(this)">Spravovat předplatné</button>'
+        : '<div class="plan-current">✓ Váš aktuální tarif</div>')
       :(key==='premium'
-        ? `<button class="btn btn-gold btn-block" onclick="openPayment()">Zaplatit a aktivovat PREMIUM</button>`
+        ? `<button class="btn btn-gold btn-block" onclick="startPremiumCheckout(this)">Zaplatit a aktivovat PREMIUM</button>`
         : `<button class="btn btn-ghost btn-block" onclick="setPlan('start')">Přejít na START</button>`);}
     else{action=`<button class="btn ${featured?'btn-gold':'btn-ghost'} btn-block" onclick="go('register');pickRole('caregiver')">Začít s ${p.name}</button>`;}
     return `<div class="plan-card ${featured?'featured':''}">
@@ -3627,7 +3629,53 @@ function setPlan(key){
       confirmLabel:'Přejít na START',onConfirm:apply});
   }else apply();
 }
-/* ---- PLATBA PŘEDPLATNÉHO PREMIUM ---- */
+/* ---- STRIPE: koupě předplatného PREMIUM ---- */
+async function startPremiumCheckout(btn){
+  if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
+  const orig=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Přesměrovávám na platbu…';}
+  try{
+    const r=await api('/billing/checkout',{method:'POST'});
+    if(r&&r.url){window.location.href=r.url;return;} // přesměrování na Stripe Checkout
+    throw new Error('Platební bránu se nepodařilo otevřít.');
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent=orig;}
+    // Stripe není nakonfigurovaný → zatím použij dosavadní (mock) platbu
+    if(/503|nakonfigurov/i.test(e.message||'')){openPayment();return;}
+    toast('⚠️ '+(e.message||'Platba se nezdařila.'),'declined');
+  }
+}
+async function openBillingPortal(btn){
+  const orig=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Otevírám…';}
+  try{
+    const r=await api('/billing/portal',{method:'POST'});
+    if(r&&r.url){window.location.href=r.url;return;}
+    throw new Error('Portál se nepodařilo otevřít.');
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent=orig;}
+    toast('⚠️ '+(e.message||'Správu předplatného se nepodařilo otevřít.'),'declined');
+  }
+}
+/* návrat ze Stripe Checkout (#pricing?paid=1) — tarif nastaví webhook, počkáme na něj */
+async function handleBillingReturn(){
+  const h=location.hash||'';
+  const q=h.indexOf('?')>=0?h.slice(h.indexOf('?')+1):'';
+  if(!/(^|&)paid=1(&|$)/.test(q)&&!/(^|&)canceled=1(&|$)/.test(q))return;
+  // vyčisti parametry z URL, ať při refreshi nehlásí znovu
+  history.replaceState({view:'pricing'},'','#pricing');
+  go('pricing');
+  if(/canceled=1/.test(q)){toast('Platba byla zrušena.');return;}
+  toast('💳 Platba proběhla. Aktivuji PREMIUM…');
+  // webhook může chvíli trvat — pár pokusů obnovit data
+  for(let i=0;i<5;i++){
+    await new Promise(r=>setTimeout(r,1500));
+    try{await bootstrap();updateAuthUI();renderCare();renderPricing();}catch(e){}
+    if(cgPlan()==='premium'){toast('💎 Aktivován tarif PREMIUM!');return;}
+  }
+  toast('Platba přijata. Aktivace tarifu se projeví za okamžik.');
+}
+/* ---- PLATBA PŘEDPLATNÉHO PREMIUM (záložní mock, dokud Stripe není zapnutý) ---- */
 function openPayment(){
   if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
   document.getElementById('paySub').textContent=`Měsíční předplatné · ${planPrice('premium').toLocaleString('cs-CZ')} Kč / měsíc`;
@@ -4985,11 +5033,13 @@ async function initApp(){
   renderHome();renderFilters();renderCare();renderCalendar();
   document.querySelectorAll('select').forEach(enhanceSelect);
   initReveal();
-  // deep-link: lze otevřít přímo konkrétní stránku přes #hash
+  // deep-link: lze otevřít přímo konkrétní stránku přes #hash (bez případného ?query)
   let deep='';
-  try{deep=(location.hash||'').replace(/^#/,'');}catch(e){}
+  try{deep=(location.hash||'').replace(/^#/,'').split('?')[0];}catch(e){}
   if(!resetPwToken&&deep&&document.getElementById('view-'+deep))go(deep);
   else if(!resetPwToken&&auth.loggedIn)go(landingView());
+  // návrat ze Stripe Checkout (#pricing?paid=1 / ?canceled=1)
+  if(!resetPwToken)handleBillingReturn();
   // výchozí stav historie, aby hned fungovalo tlačítko Zpět
   try{
     const active=document.querySelector('.view.active');

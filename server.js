@@ -58,6 +58,17 @@ const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const APP_URL = process.env.APP_URL || 'https://www.zenvoria.cz';
 
+// --- Stripe (předplatné PREMIUM pro pečovatelky) ---
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_PRICE_PREMIUM = process.env.STRIPE_PRICE_PREMIUM || ''; // ID opakované (recurring) ceny ve Stripe (price_...)
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || ''; // whsec_...
+let stripe = null;
+if (STRIPE_SECRET_KEY) {
+  try { stripe = require('stripe')(STRIPE_SECRET_KEY); }
+  catch (e) { console.error('[stripe] knihovna stripe není nainstalovaná (npm i stripe):', e.message); }
+}
+const STRIPE_ENABLED = !!(stripe && STRIPE_PRICE_PREMIUM);
+
 function isStrongPassword(value) {
   const v = String(value || '');
   return v.length >= 8 && /[a-z]/.test(v) && /[A-Z]/.test(v) && /\d/.test(v);
@@ -592,6 +603,48 @@ function mapVerification(v) {
    5) APP
    -------------------------------------------------------------------- */
 const app = express();
+
+// --- Stripe webhook (MUSÍ být před express.json — potřebuje surové tělo pro ověření podpisu) ---
+app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) => {
+  if (!STRIPE_ENABLED) return res.status(503).end();
+  let event;
+  try {
+    if (STRIPE_WEBHOOK_SECRET) {
+      event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], STRIPE_WEBHOOK_SECRET);
+    } else {
+      event = JSON.parse(req.body.toString('utf8')); // fallback bez ověření (jen pro lokální testy)
+    }
+  } catch (err) {
+    console.error('[stripe] webhook podpis selhal:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+  try {
+    const o = event.data && event.data.object;
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const email = (o.client_reference_id || (o.customer_details && o.customer_details.email) || '').toLowerCase();
+        await setCaregiverPlan({ email, customerId: o.customer, subscriptionId: o.subscription, plan: 'premium', status: 'active' });
+        break;
+      }
+      case 'customer.subscription.updated':
+      case 'customer.subscription.created': {
+        const active = ['active', 'trialing', 'past_due'].includes(o.status);
+        await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: active ? 'premium' : 'start', status: o.status });
+        break;
+      }
+      case 'customer.subscription.deleted': {
+        await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: 'start', status: 'canceled' });
+        break;
+      }
+      default: break;
+    }
+  } catch (err) {
+    console.error('[stripe] zpracování webhooku selhalo:', err.message);
+    // 200 i tak, ať Stripe neopakuje donekonečna kvůli naší chybě v DB
+  }
+  res.json({ received: true });
+});
+
 app.use(express.json({ limit: '8mb' }));
 app.use(cookieParser());
 app.use(loadSession);
@@ -914,6 +967,72 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   const rows = await restUpdate(T.caregivers, `id=eq.${id}`, patch);
   res.json({ caregiver: rows && rows[0] ? mapCaregiver(rows[0]) : null });
+}));
+
+/* ---------------- STRIPE: předplatné PREMIUM ---------------- */
+// najde řádek pečovatelky podle e-mailu přihlášeného uživatele
+async function caregiverByEmail(email) {
+  if (!email) return null;
+  const rows = await restSelect(T.caregivers, `email=eq.${encodeURIComponent(String(email).toLowerCase())}&limit=1`);
+  return (rows && rows[0]) || null;
+}
+// zapíše tarif (a Stripe id) do DB — hledá pečovatelku podle e-mailu nebo stripe_customer_id
+async function setCaregiverPlan({ email, customerId, subscriptionId, plan, status }) {
+  let row = null;
+  if (email) row = await caregiverByEmail(email);
+  if (!row && customerId) {
+    const rows = await restSelect(T.caregivers, `stripe_customer_id=eq.${encodeURIComponent(customerId)}&limit=1`);
+    row = (rows && rows[0]) || null;
+  }
+  if (!row) { console.warn('[stripe] pečovatelka nenalezena pro plán', { email, customerId }); return; }
+  const patch = {};
+  if (plan !== undefined) patch.plan = plan;
+  if (status !== undefined) patch.plan_status = status;
+  if (customerId) patch.stripe_customer_id = customerId;
+  if (subscriptionId !== undefined) patch.stripe_subscription_id = subscriptionId;
+  await restUpdate(T.caregivers, `id=eq.${row.id}`, patch, { prefer: 'return=minimal' });
+  console.log('[stripe] tarif aktualizován', { id: row.id, plan, status });
+}
+
+// 1) Vytvoří Stripe Checkout Session (předplatné) a vrátí URL k přesměrování
+app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) => {
+  if (!STRIPE_ENABLED) return res.status(503).json({ error: 'Platby nejsou nakonfigurované.' });
+  const email = req.session.email;
+  const cg = await caregiverByEmail(email);
+  if (!cg) return res.status(404).json({ error: 'Profil pečovatelky nenalezen.' });
+
+  // znovupoužij Stripe zákazníka, jinak vytvoř nového
+  let customerId = cg.stripe_customer_id || null;
+  if (!customerId) {
+    const customer = await stripe.customers.create({ email, name: cg.name || undefined, metadata: { caregiver_id: String(cg.id) } });
+    customerId = customer.id;
+    await restUpdate(T.caregivers, `id=eq.${cg.id}`, { stripe_customer_id: customerId }, { prefer: 'return=minimal' });
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    customer: customerId,
+    client_reference_id: email,
+    line_items: [{ price: STRIPE_PRICE_PREMIUM, quantity: 1 }],
+    allow_promotion_codes: true,
+    success_url: `${APP_URL}/#pricing?paid=1`,
+    cancel_url: `${APP_URL}/#pricing?canceled=1`,
+    metadata: { caregiver_id: String(cg.id), email },
+    subscription_data: { metadata: { caregiver_id: String(cg.id), email } },
+  });
+  res.json({ url: session.url });
+}));
+
+// 2) Stripe Customer Portal — správa / zrušení předplatného
+app.post('/api/billing/portal', requireRole('caregiver'), h(async (req, res) => {
+  if (!STRIPE_ENABLED) return res.status(503).json({ error: 'Platby nejsou nakonfigurované.' });
+  const cg = await caregiverByEmail(req.session.email);
+  if (!cg || !cg.stripe_customer_id) return res.status(400).json({ error: 'Žádné aktivní předplatné.' });
+  const session = await stripe.billingPortal.sessions.create({
+    customer: cg.stripe_customer_id,
+    return_url: `${APP_URL}/#pricing`,
+  });
+  res.json({ url: session.url });
 }));
 
 /* ---------------- ADMIN: uživatelé / tarify ---------------- */
