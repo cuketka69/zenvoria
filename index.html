@@ -2484,6 +2484,21 @@ CAREGIVERS.forEach(c=>{
 [1,2,5].forEach(id=>{const c=CAREGIVERS.find(x=>x.id===id);if(c)c.plan='premium';});
 const c1=CAREGIVERS.find(x=>x.id===1);if(c1)c1.langs=['Čeština','Angličtina'];
 let cgSeq=6;
+/* hezké profilové fotky (placeholder portréty) — doplní se jen tam, kde foto chybí.
+   Mění se pouze na frontendu, do databáze se nic neukládá. */
+const CG_PORTRAITS=[
+  'https://randomuser.me/api/portraits/women/44.jpg',
+  'https://randomuser.me/api/portraits/women/68.jpg',
+  'https://randomuser.me/api/portraits/women/65.jpg',
+  'https://randomuser.me/api/portraits/women/90.jpg',
+  'https://randomuser.me/api/portraits/women/12.jpg',
+  'https://randomuser.me/api/portraits/women/33.jpg',
+  'https://randomuser.me/api/portraits/women/57.jpg',
+  'https://randomuser.me/api/portraits/women/79.jpg'
+];
+function caregiverPlaceholder(id){return CG_PORTRAITS[((+id||1)-1)%CG_PORTRAITS.length];}
+function decorateCaregiverPhotos(){CAREGIVERS.forEach(c=>{if(!c.photo)c.photo=caregiverPlaceholder(c.id);});}
+decorateCaregiverPhotos();
 /* tarif přihlášené pečovatelky podle e-mailu */
 let cgPlanMap={'pecovatelka@zenvoria.cz':'premium'};
 const PLANS={
@@ -4904,7 +4919,7 @@ function deriveCgMaps(){
 /* načte celý stav z databáze do klientských polí */
 async function bootstrap(){
   const d=await api('/bootstrap');
-  CAREGIVERS=d.caregivers||[];syncCgPhotoToList();
+  CAREGIVERS=d.caregivers||[];syncCgPhotoToList();decorateCaregiverPhotos();
   ORDERS=d.orders||[];
   CG_REQUESTS=d.requests||[];
   CG_SCHEDULE=d.schedule||[];
