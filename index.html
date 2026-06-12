@@ -118,12 +118,12 @@
   .nav-links a:hover{background:rgba(255,255,255,.08)}
   .nav-links a.active{color:var(--navy-900);background:rgba(201,162,51,.22)}
   /* progress lišta pod nav odkazem (plnicí efekt) */
-  .nav-links a.nav-busy{position:relative;cursor:default}
-  .nav-links a.nav-busy::after{content:"";position:absolute;left:10px;right:10px;bottom:4px;height:2px;
+  .nav-links a.nav-busy,.mobile-menu .panel a.nav-busy{position:relative;cursor:default}
+  .nav-links a.nav-busy::after,.mobile-menu .panel a.nav-busy::after{content:"";position:absolute;left:10px;right:10px;bottom:4px;height:2px;
     border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--gold-soft));
     transform-origin:left center;transform:scaleX(0);animation:navfill .85s ease forwards}
   @keyframes navfill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-  @media (prefers-reduced-motion:reduce){.nav-links a.nav-busy::after{animation-duration:.01s}}
+  @media (prefers-reduced-motion:reduce){.nav-links a.nav-busy::after,.mobile-menu .panel a.nav-busy::after{animation-duration:.01s}}
   .nav-right{display:flex;align-items:center;gap:10px;flex:0 0 auto}
   .nav-right .btn{border-radius:999px}
   .btn{
@@ -1018,8 +1018,8 @@
       <span class="word">ZENVORIA</span>
     </div>
     <nav class="nav-links" id="navlinks" aria-label="Hlavní navigace">
-      <a data-v="home" role="button" tabindex="0" onclick="go('home')">Domů</a>
-      <a data-v="search" role="button" tabindex="0" onclick="go('search')">Hledat péči</a>
+      <a data-v="home" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home')})">Domů</a>
+      <a data-v="search" role="button" tabindex="0" onclick="navProgress(this,()=>{go('search')})">Hledat péči</a>
       <a data-v="howto" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home');scrollTo2('howto')})">Jak to funguje</a>
     </nav>
     <div class="nav-right">
@@ -1065,9 +1065,9 @@
       </button>
     </div>
     <div id="mmLinks">
-      <a data-v="home" role="button" tabindex="0" onclick="go('home')">Domů</a>
-      <a data-v="search" role="button" tabindex="0" onclick="go('search')">Hledat péči</a>
-      <a data-v="howto" role="button" tabindex="0" onclick="go('home');scrollTo2('howto')">Jak to funguje</a>
+      <a data-v="home" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home')})">Domů</a>
+      <a data-v="search" role="button" tabindex="0" onclick="navProgress(this,()=>{go('search')})">Hledat péči</a>
+      <a data-v="howto" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home');scrollTo2('howto')})">Jak to funguje</a>
     </div>
     <div class="mm-divider"></div>
     <div id="mmAuth">
@@ -2890,7 +2890,7 @@ function deleteAccount(){
 const NAV_GUEST=[
   {v:'home',label:'Domů',fn:"go('home')"},
   {v:'search',label:'Hledat péči',fn:"go('search')"},
-  {v:'howto',label:'Jak to funguje',fn:"navProgress(this,()=>{go('home');scrollTo2('howto')})"}
+  {v:'howto',label:'Jak to funguje',fn:"go('home');scrollTo2('howto')"}
 ];
 const NAV_CAREGIVER=[
   {v:'cg-dashboard',label:'Přehled',fn:"go('cg-dashboard')"},
@@ -2934,7 +2934,7 @@ function renderNav(){
     else if(l.v==='chat'&&chatUnread())badge=`<span class="nav-badge">${chatUnread()}</span>`;
     else if(l.v==='cg-verify'&&cgStatus()!=='verified')badge=`<span class="nav-badge">!</span>`;
     else if(l.v==='admin-verify'&&pendingVerCount())badge=`<span class="nav-badge">${pendingVerCount()}</span>`;
-    return `<a data-v="${l.v}" role="button" tabindex="0" onclick="${l.fn}">${l.label}${badge}</a>`;
+    return `<a data-v="${l.v}" role="button" tabindex="0" onclick="navProgress(this,()=>{${l.fn}})">${l.label}${badge}</a>`;
   }).join('');
   document.getElementById('navlinks').innerHTML=html;
   document.getElementById('mmLinks').innerHTML=html;
