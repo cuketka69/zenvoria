@@ -426,6 +426,161 @@ function forgotPasswordMail({ user, resetUrl }) {
   };
 }
 
+// ---- e-mail: aktivace předplatného PREMIUM (pečovatelce) ----
+function premiumActiveMail({ name, email, priceCzk }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  return {
+    subject: 'Vaše předplatné PREMIUM je aktivní',
+    text:
+      `Dobrý den, ${name || firstName},\n\n` +
+      'vaše měsíční předplatné ZENVORIA PREMIUM je aktivní. Děkujeme!\n\n' +
+      'Od teď máte vyšší zobrazení ve vyhledávání a odznak Premium u profilu.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Předplatné PREMIUM je aktivní — děkujeme.',
+      title: 'PREMIUM je aktivní',
+      intro: `Děkujeme, ${firstName}. Vaše měsíční předplatné ZENVORIA PREMIUM bylo úspěšně aktivováno.`,
+      bodyHtml:
+        '<p style="margin:0 0 14px 0;">Od této chvíle máte <b>vyšší zobrazení ve vyhledávání</b> a u profilu <b>odznak Premium</b>, který zvyšuje důvěru rodin.</p>' +
+        '<p style="margin:0;">Předplatné se automaticky obnovuje každý měsíc. Spravovat nebo zrušit ho můžete kdykoli ve svém účtu na Ceníku.</p>',
+      ctaLabel: 'Spravovat předplatné',
+      ctaUrl: `${APP_URL}/#pricing`,
+      ctaNote: 'Účtenku k platbě vám zasílá platební brána Stripe samostatně.',
+      facts: [
+        { label: 'Tarif', value: 'PREMIUM' },
+        { label: 'Cena', value: (priceCzk ? `${priceCzk} Kč / měsíc` : '') },
+        { label: 'Stav', value: 'Aktivní' },
+      ],
+      closingTitle: 'Děkujeme za důvěru.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail byl odeslán automaticky po aktivaci předplatného PREMIUM.',
+    }),
+  };
+}
+// ---- e-mail: předplatné PREMIUM ukončeno / zrušeno ----
+function premiumEndedMail({ name }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  return {
+    subject: 'Vaše předplatné PREMIUM bylo ukončeno',
+    text:
+      `Dobrý den, ${name || firstName},\n\n` +
+      'vaše předplatné ZENVORIA PREMIUM bylo ukončeno. Váš profil pokračuje v tarifu START.\n\n' +
+      'Kdykoli se můžete vrátit k PREMIUM na Ceníku.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Předplatné PREMIUM bylo ukončeno.',
+      title: 'PREMIUM ukončeno',
+      intro: `Dobrý den, ${firstName}. Vaše předplatné ZENVORIA PREMIUM bylo ukončeno a váš profil nyní pokračuje v bezplatném tarifu START.`,
+      bodyHtml:
+        '<p style="margin:0 0 14px 0;">Přicházíte tím o vyšší zobrazení ve vyhledávání a odznak Premium.</p>' +
+        '<p style="margin:0;">Kdykoli se můžete k PREMIUM vrátit jediným kliknutím na Ceníku.</p>',
+      ctaLabel: 'Obnovit PREMIUM',
+      ctaUrl: `${APP_URL}/#pricing`,
+      ctaNote: '',
+      facts: [{ label: 'Aktuální tarif', value: 'START (zdarma)' }],
+      closingTitle: 'Budeme se těšit zpět.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail byl odeslán automaticky po ukončení předplatného PREMIUM.',
+    }),
+  };
+}
+// ---- e-mail: problém s platbou předplatného ----
+function premiumPaymentIssueMail({ name }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  return {
+    subject: 'Problém s platbou předplatného PREMIUM',
+    text:
+      `Dobrý den, ${name || firstName},\n\n` +
+      'platbu za vaše předplatné PREMIUM se nepodařilo zpracovat.\n\n' +
+      'Aktualizujte prosím platební údaje ve svém účtu, jinak může být PREMIUM pozastaveno.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Platbu předplatného se nepodařilo zpracovat.',
+      title: 'Problém s platbou',
+      intro: `Dobrý den, ${firstName}. Platbu za vaše předplatné ZENVORIA PREMIUM se bohužel nepodařilo zpracovat.`,
+      bodyHtml:
+        '<p style="margin:0 0 14px 0;">Zkontrolujte prosím a aktualizujte své platební údaje, abyste o PREMIUM nepřišli.</p>' +
+        '<p style="margin:0;">Stripe se platbu pokusí zopakovat. Pokud potíže přetrvají, předplatné může být pozastaveno.</p>',
+      ctaLabel: 'Aktualizovat platbu',
+      ctaUrl: `${APP_URL}/#pricing`,
+      ctaNote: '',
+      facts: [{ label: 'Tarif', value: 'PREMIUM' }, { label: 'Stav platby', value: 'Neúspěšná' }],
+      closingTitle: 'Rádi vám pomůžeme.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail byl odeslán automaticky po neúspěšné platbě předplatného.',
+    }),
+  };
+}
+// ---- e-mail: objednávka přijata / odmítnuta (rodině) ----
+function orderStatusMail({ familyName, order, caregiverName, accepted }) {
+  const firstName = (familyName || '').trim().split(/\s+/)[0] || 'zákazníku';
+  const when = [order.date, order.time].filter(Boolean).join(' v ');
+  const facts = [
+    { label: 'Sluzba', value: order.service || '' },
+    { label: 'Termin', value: when || '' },
+  ];
+  if (caregiverName) facts.push({ label: 'Pecovatelka', value: caregiverName });
+  facts.push({ label: 'Stav', value: accepted ? 'Potvrzeno' : 'Odmítnuto' });
+  return {
+    subject: accepted ? `Vaše rezervace byla potvrzena (${order.date})` : `Vaše rezervace byla odmítnuta (${order.date})`,
+    text:
+      `Dobrý den, ${familyName || firstName},\n\n` +
+      (accepted
+        ? `dobrá zpráva — pečovatelka ${caregiverName || ''} potvrdila vaši rezervaci.\n`
+        : `pečovatelka ${caregiverName || ''} bohužel nemůže vaši rezervaci přijmout.\n`) +
+      `Služba: ${order.service}\nTermín: ${when}\n\n` +
+      (accepted ? 'Těšíme se na vás.\n\n' : 'Zkuste prosím vybrat jinou pečovatelku nebo termín.\n\n') +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: accepted ? 'Vaše rezervace byla potvrzena.' : 'Vaše rezervace byla odmítnuta.',
+      title: accepted ? 'Rezervace potvrzena' : 'Rezervace odmítnuta',
+      intro: accepted
+        ? `Dobrá zpráva, ${firstName}. Pečovatelka ${caregiverName || ''} potvrdila vaši rezervaci.`
+        : `Dobrý den, ${firstName}. Pečovatelka ${caregiverName || ''} bohužel nemůže vaši rezervaci přijmout.`,
+      bodyHtml: accepted
+        ? '<p style="margin:0;">Vše je domluveno. Detaily najdete ve svém účtu v sekci „Moje objednávky".</p>'
+        : '<p style="margin:0;">Nevadí — vyberte prosím jinou pečovatelku nebo jiný termín. Rádi vám pomůžeme najít vhodnou péči.</p>',
+      ctaLabel: accepted ? 'Zobrazit objednávky' : 'Najít jinou pečovatelku',
+      ctaUrl: accepted ? `${APP_URL}/#bookings` : `${APP_URL}/#search`,
+      ctaNote: '',
+      facts,
+      closingTitle: accepted ? 'Děkujeme za vaši důvěru.' : 'Jsme tu pro vás.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail informuje o změně stavu vaší rezervace v ZENVORIA.',
+    }),
+  };
+}
+// ---- e-mail: výsledek ověření (pečovatelce) ----
+function verificationResultMail({ name, approved, reason }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  return {
+    subject: approved ? 'Vaše ověření bylo schváleno' : 'Vaše žádost o ověření byla zamítnuta',
+    text:
+      `Dobrý den, ${name || firstName},\n\n` +
+      (approved
+        ? 'gratulujeme — vaše žádost o ověření byla schválena. Váš profil je nyní viditelný rodinám.\n'
+        : `vaši žádost o ověření jsme bohužel nemohli schválit.\n${reason ? 'Důvod: ' + reason + '\n' : ''}Upravte prosím údaje a odešlete znovu.\n`) +
+      '\nS pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: approved ? 'Vaše ověření bylo schváleno.' : 'Vaše žádost o ověření byla zamítnuta.',
+      title: approved ? 'Ověření schváleno' : 'Žádost zamítnuta',
+      intro: approved
+        ? `Gratulujeme, ${firstName}. Vaše žádost o ověření byla schválena.`
+        : `Dobrý den, ${firstName}. Vaši žádost o ověření jsme bohužel nemohli schválit.`,
+      bodyHtml: approved
+        ? '<p style="margin:0;">Váš profil je nyní <b>viditelný rodinám</b> ve vyhledávání. Doplňte si nabídku služeb a dostupnost v kalendáři, ať vás osloví co nejvíc rodin.</p>'
+        : `<p style="margin:0 0 14px 0;">${reason ? 'Důvod: <b>' + escapeHtml(reason) + '</b>' : 'Některé údaje nebylo možné ověřit.'}</p><p style="margin:0;">Upravte prosím své údaje či doklady a odešlete žádost znovu.</p>`,
+      ctaLabel: approved ? 'Otevřít profil' : 'Upravit a odeslat znovu',
+      ctaUrl: approved ? `${APP_URL}/#cg-profile` : `${APP_URL}/#cg-verify`,
+      ctaNote: '',
+      facts: [{ label: 'Stav ověření', value: approved ? 'Schváleno' : 'Zamítnuto' }],
+      closingTitle: approved ? 'Vítejte mezi ověřenými pečovatelkami.' : 'Rádi vám pomůžeme.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail informuje o výsledku vaší žádosti o ověření v ZENVORIA.',
+    }),
+  };
+}
+
 async function supabaseRestRequest(method, table, { query = '', body = null, prefer = '' } = {}) {
   if (!REST_ENABLED) throw new Error('Supabase REST není nakonfigurováno (chybí URL nebo service_role klíč).');
   const url = `${SUPABASE_URL}/rest/v1/${table}${query ? '?' + query : ''}`;
@@ -623,17 +778,29 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
     switch (event.type) {
       case 'checkout.session.completed': {
         const email = (o.client_reference_id || (o.customer_details && o.customer_details.email) || '').toLowerCase();
-        await setCaregiverPlan({ email, customerId: o.customer, subscriptionId: o.subscription, plan: 'premium', status: 'active' });
+        const r = await setCaregiverPlan({ email, customerId: o.customer, subscriptionId: o.subscription, plan: 'premium', status: 'active' });
+        // e-mail o aktivaci jen při skutečném přechodu na PREMIUM
+        if (r && r.prevPlan !== 'premium' && r.row.email) {
+          const priceCzk = await premiumPriceCZK();
+          await sendMailSafe({ to: r.row.email, ...premiumActiveMail({ name: r.row.name, email: r.row.email, priceCzk }) });
+        }
         break;
       }
       case 'customer.subscription.updated':
       case 'customer.subscription.created': {
         const active = ['active', 'trialing', 'past_due'].includes(o.status);
-        await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: active ? 'premium' : 'start', status: o.status });
+        const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: active ? 'premium' : 'start', status: o.status });
+        // upozornění na problém s platbou (jen při přechodu do past_due/unpaid)
+        if (r && r.row.email && ['past_due', 'unpaid'].includes(o.status) && !['past_due', 'unpaid'].includes(r.prevStatus || '')) {
+          await sendMailSafe({ to: r.row.email, ...premiumPaymentIssueMail({ name: r.row.name }) });
+        }
         break;
       }
       case 'customer.subscription.deleted': {
-        await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: 'start', status: 'canceled' });
+        const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: 'start', status: 'canceled' });
+        if (r && r.prevPlan === 'premium' && r.row.email) {
+          await sendMailSafe({ to: r.row.email, ...premiumEndedMail({ name: r.row.name }) });
+        }
         break;
       }
       default: break;
@@ -847,6 +1014,23 @@ app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
   res.json({ order: rows && rows[0] ? mapOrder(rows[0]) : null });
 }));
 
+// pošle rodině e-mail o přijetí/odmítnutí objednávky (podle poptávky r)
+async function notifyOrderStatus(r, accepted) {
+  try {
+    if (!r || r.oid == null) return;
+    const orders = await restSelect(T.orders, `oid=eq.${r.oid}&select=family_email,fam_name,service,date,time&limit=1`);
+    const ord = orders && orders[0];
+    if (!ord || !ord.family_email) return;
+    let caregiverName = '';
+    if (r.cid != null) {
+      const cgs = await restSelect(T.caregivers, `id=eq.${r.cid}&select=name&limit=1`);
+      caregiverName = (cgs && cgs[0] && cgs[0].name) || '';
+    }
+    const order = { service: r.service || ord.service, date: r.date || ord.date, time: r.time || ord.time };
+    await sendMailSafe({ to: ord.family_email, ...orderStatusMail({ familyName: ord.fam_name, order, caregiverName, accepted }) });
+  } catch (e) { console.error('[mail] notifyOrderStatus:', e.message); }
+}
+
 // pečovatelka přijme poptávku → objednávka confirmed, vznikne schedule, poptávka zmizí
 app.post('/api/requests/:id/accept', requireRole('caregiver', 'admin'), h(async (req, res) => {
   const id = Number(req.params.id);
@@ -856,6 +1040,7 @@ app.post('/api/requests/:id/accept', requireRole('caregiver', 'admin'), h(async 
   if (r.oid != null) await restUpdate(T.orders, `oid=eq.${r.oid}`, { status: 'confirmed' }, { prefer: 'return=minimal' });
   await restInsert(T.schedule, { cid: r.cid, fam: r.fam, init: r.init, service: r.service, date: r.date, time: r.time, hours: r.hours }, { prefer: 'return=minimal' });
   await restDelete(T.requests, `id=eq.${id}`);
+  await notifyOrderStatus(r, true);
   res.json({ ok: true });
 }));
 
@@ -867,6 +1052,7 @@ app.post('/api/requests/:id/decline', requireRole('caregiver', 'admin'), h(async
   if (!r) return res.status(404).json({ error: 'Poptávka nenalezena.' });
   if (r.oid != null) await restUpdate(T.orders, `oid=eq.${r.oid}`, { status: 'declined' }, { prefer: 'return=minimal' });
   await restDelete(T.requests, `id=eq.${id}`);
+  await notifyOrderStatus(r, false);
   res.json({ ok: true });
 }));
 
@@ -906,12 +1092,18 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
     await restInsert(T.caregivers, { id: newId, user_id: (uref && uref[0] && uref[0].id) || null, ...data, rating: 0, reviews: 0, plan: 'start', langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
   }
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'approved' }, { prefer: 'return=minimal' });
+  if (v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: true }) });
   res.json({ ok: true });
 }));
 
 // admin zamítne žádost
 app.post('/api/verifications/:id/reject', requireRole('admin'), h(async (req, res) => {
-  await restUpdate(T.verifications, `id=eq.${Number(req.params.id)}`, { status: 'rejected' }, { prefer: 'return=minimal' });
+  const id = Number(req.params.id);
+  const reason = (req.body && req.body.reason) || '';
+  const rows = await restSelect(T.verifications, `id=eq.${id}&select=email,name&limit=1`);
+  const v = rows && rows[0];
+  await restUpdate(T.verifications, `id=eq.${id}`, { status: 'rejected' }, { prefer: 'return=minimal' });
+  if (v && v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: false, reason }) });
   res.json({ ok: true });
 }));
 
@@ -984,7 +1176,9 @@ async function setCaregiverPlan({ email, customerId, subscriptionId, plan, statu
     const rows = await restSelect(T.caregivers, `stripe_customer_id=eq.${encodeURIComponent(customerId)}&limit=1`);
     row = (rows && rows[0]) || null;
   }
-  if (!row) { console.warn('[stripe] pečovatelka nenalezena pro plán', { email, customerId }); return; }
+  if (!row) { console.warn('[stripe] pečovatelka nenalezena pro plán', { email, customerId }); return null; }
+  const prevPlan = row.plan;
+  const prevStatus = row.plan_status;
   const patch = {};
   if (plan !== undefined) patch.plan = plan;
   if (status !== undefined) patch.plan_status = status;
@@ -992,6 +1186,7 @@ async function setCaregiverPlan({ email, customerId, subscriptionId, plan, statu
   if (subscriptionId !== undefined) patch.stripe_subscription_id = subscriptionId;
   await restUpdate(T.caregivers, `id=eq.${row.id}`, patch, { prefer: 'return=minimal' });
   console.log('[stripe] tarif aktualizován', { id: row.id, plan, status });
+  return { row, prevPlan, prevStatus };
 }
 
 // cena PREMIUM (Kč/měsíc) ze serverových nastavení — nikdy se nevěří částce z prohlížeče
