@@ -2207,6 +2207,20 @@
     <div class="page-head"><h1>Audit logy</h1><p>Přehled citlivých akcí v systému: přihlášení, změny hesla a admin zásahy.</p></div>
     <div class="panel">
       <div class="panel-h"><b>Poslední události</b><span class="count" id="admAuditCount">0</span></div>
+      <div class="grid2" style="margin:0 0 16px 0">
+        <div>
+          <label class="lbl">Hledat podle akce nebo e-mailu</label>
+          <input class="inp" id="admAuditSearch" placeholder="Např. auth.login nebo email@domena.cz" oninput="applyAdminAuditFilters()">
+        </div>
+        <div>
+          <label class="lbl">Status</label>
+          <select class="inp" id="admAuditStatus" onchange="applyAdminAuditFilters()">
+            <option value="">Všechny statusy</option>
+            <option value="success">success</option>
+            <option value="failed">failed</option>
+          </select>
+        </div>
+      </div>
       <div class="table-scroll">
         <table class="adm-table">
           <thead>
@@ -4273,40 +4287,59 @@ async function renderAdminAudit(){
   try{
     const r=await api('/admin/audit-logs?limit=80');
     AUDIT_LOGS=r.logs||[];
-    count.textContent=AUDIT_LOGS.length;
-    body.innerHTML=AUDIT_LOGS.length?AUDIT_LOGS.map(log=>{
-      const actor=log.actorEmail||log.actorId||'—';
-      const target=[log.targetType,log.targetId].filter(Boolean).join(' · ')||'—';
-      const meta=log.metadata&&typeof log.metadata==='object'
-        ?Object.entries(log.metadata).slice(0,3).map(([k,v])=>`<span class="chip">${k}: ${String(v)}</span>`).join('')
-        :'';
-      const statusCls=log.status==='success'?'ok':(log.status==='failed'?'bad':'wait');
-      return `<tr>
-        <td>
-          <b>${log.action}</b>
-          <div class="audit-meta">
-            <span class="badge ${statusCls}">${log.status}</span>
-            ${log.actorRole?`<span class="chip">${log.actorRole}</span>`:''}
-          </div>
-        </td>
-        <td>
-          <span class="mono">${actor}</span>
-          ${log.ip?`<span class="small">IP: ${log.ip}</span>`:''}
-        </td>
-        <td>
-          <span>${target}</span>
-          ${meta?`<div class="audit-meta">${meta}</div>`:''}
-        </td>
-        <td>
-          <b>${fmtDate(log.createdAt)}</b>
-          <span class="small">${new Date(log.createdAt).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
-        </td>
-      </tr>`;
-    }).join(''):'<tr><td colspan="4" class="empty">Zatím nejsou k dispozici žádné audit logy.</td></tr>';
+    applyAdminAuditFilters();
   }catch(e){
     count.textContent='0';
     body.innerHTML=`<tr><td colspan="4" class="empty">Audit logy se nepodařilo načíst: ${e.message||'neznámá chyba'}.</td></tr>`;
   }
+}
+
+function renderAdminAuditRows(list){
+  const body=document.getElementById('admAuditBody');
+  const count=document.getElementById('admAuditCount');
+  FILTERED_AUDIT_LOGS=list;
+  count.textContent=list.length;
+  body.innerHTML=list.length?list.map(log=>{
+    const actor=log.actorEmail||log.actorId||'—';
+    const target=[log.targetType,log.targetId].filter(Boolean).join(' · ')||'—';
+    const meta=log.metadata&&typeof log.metadata==='object'
+      ?Object.entries(log.metadata).slice(0,3).map(([k,v])=>`<span class="chip">${k}: ${String(v)}</span>`).join('')
+      :'';
+    const statusCls=log.status==='success'?'ok':(log.status==='failed'?'bad':'wait');
+    return `<tr>
+      <td>
+        <b>${log.action}</b>
+        <div class="audit-meta">
+          <span class="badge ${statusCls}">${log.status}</span>
+          ${log.actorRole?`<span class="chip">${log.actorRole}</span>`:''}
+        </div>
+      </td>
+      <td>
+        <span class="mono">${actor}</span>
+        ${log.ip?`<span class="small">IP: ${log.ip}</span>`:''}
+      </td>
+      <td>
+        <span>${target}</span>
+        ${meta?`<div class="audit-meta">${meta}</div>`:''}
+      </td>
+      <td>
+        <b>${fmtDate(log.createdAt)}</b>
+        <span class="small">${new Date(log.createdAt).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
+      </td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="4" class="empty">Žádné audit logy neodpovídají zvolenému filtru.</td></tr>';
+}
+
+function applyAdminAuditFilters(){
+  const q=(document.getElementById('admAuditSearch')?.value||'').trim().toLowerCase();
+  const status=(document.getElementById('admAuditStatus')?.value||'').trim().toLowerCase();
+  const filtered=AUDIT_LOGS.filter(log=>{
+    const hay=[log.action,log.actorEmail,log.actorId,log.targetType,log.targetId].filter(Boolean).join(' ').toLowerCase();
+    if(q && !hay.includes(q)) return false;
+    if(status && String(log.status||'').toLowerCase()!==status) return false;
+    return true;
+  });
+  renderAdminAuditRows(filtered);
 }
 
 /* ---- ADMIN: ceny tarifů ---- */
@@ -4407,6 +4440,7 @@ let CG_REQUESTS=[
 ];
 let reqSeq=103;
 let AUDIT_LOGS=[];
+let FILTERED_AUDIT_LOGS=[];
 let CG_SCHEDULE=[
   {fam:'Marie Nováková',init:'MN',service:'osobni',date:'2026-06-08',time:'10:00',hours:4},
   {fam:'Jan Dvořák',init:'JD',service:'nocni',date:'2026-06-09',time:'22:00',hours:8}
