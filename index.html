@@ -116,7 +116,10 @@
     transition:.18s;letter-spacing:.01em;
   }
   .nav-links a:hover{background:rgba(255,255,255,.08)}
-  .nav-links a.active{color:var(--navy-900);background:rgba(201,162,51,.22)}
+  .nav-links a.active{position:relative;color:var(--navy-900);background:rgba(201,162,51,.22)}
+  /* trvalé zlaté podtržení aktivní položky (zůstane po dojetí progress lišty) */
+  .nav-links a.active::after{content:"";position:absolute;left:10px;right:10px;bottom:4px;height:2px;
+    border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--gold-soft))}
   /* progress lišta pod nav odkazem (plnicí efekt) */
   .nav-links a.nav-busy,.mobile-menu .panel a.nav-busy{position:relative;cursor:default}
   .nav-links a.nav-busy::after,.mobile-menu .panel a.nav-busy::after{content:"";position:absolute;left:10px;right:10px;bottom:4px;height:2px;
