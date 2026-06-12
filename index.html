@@ -117,6 +117,13 @@
   }
   .nav-links a:hover{background:rgba(255,255,255,.08)}
   .nav-links a.active{color:var(--navy-900);background:rgba(201,162,51,.22)}
+  /* progress lišta pod nav odkazem (plnicí efekt) */
+  .nav-links a.nav-busy{position:relative;cursor:default}
+  .nav-links a.nav-busy::after{content:"";position:absolute;left:10px;right:10px;bottom:4px;height:2px;
+    border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--gold-soft));
+    transform-origin:left center;transform:scaleX(0);animation:navfill .85s ease forwards}
+  @keyframes navfill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @media (prefers-reduced-motion:reduce){.nav-links a.nav-busy::after{animation-duration:.01s}}
   .nav-right{display:flex;align-items:center;gap:10px;flex:0 0 auto}
   .nav-right .btn{border-radius:999px}
   .btn{
@@ -1013,7 +1020,7 @@
     <nav class="nav-links" id="navlinks" aria-label="Hlavní navigace">
       <a data-v="home" role="button" tabindex="0" onclick="go('home')">Domů</a>
       <a data-v="search" role="button" tabindex="0" onclick="go('search')">Hledat péči</a>
-      <a data-v="howto" role="button" tabindex="0" onclick="go('home');scrollTo2('howto')">Jak to funguje</a>
+      <a data-v="howto" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home');scrollTo2('howto')})">Jak to funguje</a>
     </nav>
     <div class="nav-right">
       <button class="theme-toggle msg-btn" id="msgBtn" aria-label="Zprávy" onclick="go('chat')" hidden>
@@ -2883,7 +2890,7 @@ function deleteAccount(){
 const NAV_GUEST=[
   {v:'home',label:'Domů',fn:"go('home')"},
   {v:'search',label:'Hledat péči',fn:"go('search')"},
-  {v:'howto',label:'Jak to funguje',fn:"go('home');scrollTo2('howto')"}
+  {v:'howto',label:'Jak to funguje',fn:"navProgress(this,()=>{go('home');scrollTo2('howto')})"}
 ];
 const NAV_CAREGIVER=[
   {v:'cg-dashboard',label:'Přehled',fn:"go('cg-dashboard')"},
@@ -3661,6 +3668,12 @@ function fillThen(btn,fn,delay){
   if(!btn||btn.classList.contains('dl-busy'))return;
   btn.disabled=true;btn.classList.add('dl-busy');
   setTimeout(function(){btn.classList.remove('dl-busy');btn.disabled=false;if(fn)fn();},delay||950);
+}
+/* progress lišta pod nav odkazem → poté spustí akci */
+function navProgress(el,fn,delay){
+  if(!el||el.classList.contains('nav-busy'))return;
+  el.classList.add('nav-busy');
+  setTimeout(function(){el.classList.remove('nav-busy');if(fn)fn();},delay||850);
 }
 /* plnicí efekt tlačítka → stažení → „✓ Staženo" → návrat */
 function downloadWithFx(btn,fn){
