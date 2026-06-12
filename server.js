@@ -1474,6 +1474,30 @@ app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+app.get('/api/admin/audit-logs', requireRole('admin'), h(async (req, res) => {
+  const limit = Math.min(200, Math.max(1, Number(req.query.limit || 80)));
+  const rows = await restSelect(
+    T.auditLogs,
+    `select=id,action,actor_id,actor_email,actor_role,target_type,target_id,status,ip,user_agent,metadata,created_at&order=created_at.desc&limit=${limit}`
+  );
+  res.json({
+    logs: (rows || []).map((row) => ({
+      id: row.id,
+      action: row.action,
+      actorId: row.actor_id,
+      actorEmail: row.actor_email,
+      actorRole: row.actor_role,
+      targetType: row.target_type,
+      targetId: row.target_id,
+      status: row.status,
+      ip: row.ip,
+      userAgent: row.user_agent,
+      metadata: row.metadata || null,
+      createdAt: row.created_at,
+    })),
+  });
+}));
+
 /* ----------------------------------------------------------------------
    6) STATIKA (frontend) — až po /api
    -------------------------------------------------------------------- */
