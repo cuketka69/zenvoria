@@ -1737,6 +1737,64 @@
       </div>
     </form>
     </div>
+</div>
+</div>
+
+<div class="view" id="view-reset-password">
+  <div class="auth-wrap">
+    <div class="auth-split">
+    <aside class="auth-photo" role="img" aria-label="Pečovatelka a seniorka">
+      <div class="auth-photo-cap">
+        <div class="q">„Vytvořte si nové heslo."</div>
+        <div class="a">Stačí zadat nové heslo dvakrát a přístup bude znovu aktivní.</div>
+      </div>
+    </aside>
+    <form class="auth-card" id="resetPwForm" novalidate onsubmit="return submitResetPassword(event)">
+      <div class="brand">
+        <img class="mark" src="logo.webp" alt="ZENVORIA logo" style="width:62px;height:62px" />
+        <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+      </div>
+
+      <div id="resetPwFields">
+        <h1>Nastavit nové heslo</h1>
+        <p class="sub">Zadejte nové heslo dvakrát. Odkaz z e-mailu musí být stále platný.</p>
+
+        <div class="auth-field" id="rpw-next">
+          <label class="lbl" for="resetPwNext">Nové heslo</label>
+          <div class="inp-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#7A736A" stroke-width="1.6"/></svg>
+            <input type="password" id="resetPwNext" autocomplete="new-password" placeholder="Alespoň 6 znaků" aria-describedby="rpw-next-err">
+            <button type="button" class="pw-toggle" aria-label="Zobrazit heslo" onclick="togglePw(this,'resetPwNext')">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+            </button>
+          </div>
+          <div class="err" id="rpw-next-err">Heslo musí mít alespoň 6 znaků.</div>
+        </div>
+
+        <div class="auth-field" id="rpw-confirm">
+          <label class="lbl" for="resetPwConfirm">Potvrďte nové heslo</label>
+          <div class="inp-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#7A736A" stroke-width="1.6"/></svg>
+            <input type="password" id="resetPwConfirm" autocomplete="new-password" placeholder="Zadejte stejné heslo znovu" aria-describedby="rpw-confirm-err">
+            <button type="button" class="pw-toggle" aria-label="Zobrazit heslo" onclick="togglePw(this,'resetPwConfirm')">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+            </button>
+          </div>
+          <div class="err" id="rpw-confirm-err">Hesla se musí shodovat.</div>
+        </div>
+
+        <button type="submit" class="btn btn-gold btn-block">Uložit nové heslo</button>
+        <p class="auth-alt">Vzpomněli jste si? <button type="button" class="auth-link" onclick="go('login')">Zpět na přihlášení</button></p>
+      </div>
+
+      <div id="resetPwDone" style="display:none;text-align:center">
+        <div class="auth-done-ic" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="m5 12 4.5 4.5L19 7" stroke="#11151B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h1>Heslo bylo změněno</h1>
+        <p class="sub">Vaše nové heslo je uložené. Teď se můžete přihlásit do svého účtu.</p>
+        <button type="button" class="btn btn-gold btn-block" onclick="go('login')">Přejít na přihlášení</button>
+      </div>
+    </form>
+    </div>
   </div>
 </div>
 
@@ -2333,6 +2391,7 @@ function go(v){
   if(v==='pricing')renderPricing();
   if(v==='settings')renderSettings();
   if(v==='forgot')resetForgot();
+  if(v==='reset-password')resetResetPassword(true);
 }
 function scrollTo2(id){setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}),60);}
 
@@ -2694,6 +2753,7 @@ function todayISO(){
 /* ---------- AUTH ---------- */
 let regRole='family';
 const auth={loggedIn:false,name:'',email:'',role:'family'};
+let resetPwToken='';
 const isEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v||'').trim());
 const isPhone=v=>/^[0-9+\s/]+$/.test((v||'').trim())&&(v||'').replace(/[^0-9]/g,'').length>=9;
 
@@ -2976,10 +3036,18 @@ function submitForgot(e){
   const bad=!isEmail(email.value);
   setFieldError('ff-email',bad);
   if(bad){email.focus();return false;}
-  document.getElementById('forgotEmailEcho').textContent=email.value.trim().toLowerCase();
-  document.getElementById('forgotFields').style.display='none';
-  document.getElementById('forgotDone').style.display='block';
-  toast('📧 Odeslali jsme odkaz pro obnovu hesla.');
+  api('/auth/forgot-password',{method:'POST',body:{email:email.value.trim().toLowerCase()}})
+    .then(()=>{
+      document.getElementById('forgotEmailEcho').textContent=email.value.trim().toLowerCase();
+      document.getElementById('forgotFields').style.display='none';
+      document.getElementById('forgotDone').style.display='block';
+      toast('📧 Odeslali jsme odkaz pro obnovu hesla.');
+    })
+    .catch(err=>{
+      document.getElementById('ff-email-err').textContent=err.message||'Odeslání odkazu se nezdařilo.';
+      setFieldError('ff-email',true);
+      email.focus();
+    });
   return false;
 }
 function resetForgot(){
@@ -2989,6 +3057,49 @@ function resetForgot(){
   const i=document.getElementById('forgotEmail');
   if(i){i.value='';}
   setFieldError('ff-email',false);
+}
+function resetResetPassword(keepToken){
+  const f=document.getElementById('resetPwFields'),d=document.getElementById('resetPwDone');
+  if(f)f.style.display='';
+  if(d)d.style.display='none';
+  const n=document.getElementById('resetPwNext'),c=document.getElementById('resetPwConfirm');
+  if(n)n.value='';
+  if(c)c.value='';
+  setFieldError('rpw-next',false);
+  setFieldError('rpw-confirm',false);
+  document.getElementById('rpw-next-err').textContent='Heslo musí mít alespoň 6 znaků.';
+  document.getElementById('rpw-confirm-err').textContent='Hesla se musí shodovat.';
+  if(!keepToken)resetPwToken='';
+}
+async function submitResetPassword(e){
+  e.preventDefault();
+  const next=document.getElementById('resetPwNext'),confirm=document.getElementById('resetPwConfirm');
+  const pBad=next.value.length<6,matchBad=next.value!==confirm.value;
+  setFieldError('rpw-next',pBad);
+  setFieldError('rpw-confirm',matchBad);
+  if(!resetPwToken){
+    document.getElementById('rpw-next-err').textContent='Odkaz pro obnovu hesla je neplatný nebo chybí.';
+    setFieldError('rpw-next',true);next.focus();return false;
+  }
+  if(pBad){next.focus();return false;}
+  if(matchBad){confirm.focus();return false;}
+  try{
+    await api('/auth/reset-password',{method:'POST',body:{token:resetPwToken,next:next.value}});
+    document.getElementById('resetPwFields').style.display='none';
+    document.getElementById('resetPwDone').style.display='block';
+    resetPwToken='';
+    try{
+      const url=new URL(window.location.href);
+      url.searchParams.delete('reset');
+      history.replaceState({},'',url.pathname+(url.search?url.search:'')+url.hash);
+    }catch(e){}
+    toast('✓ Nové heslo bylo uloženo.');
+  }catch(err){
+    document.getElementById('rpw-next-err').textContent=err.message||'Reset hesla se nezdařil.';
+    setFieldError('rpw-next',true);
+    next.focus();
+  }
+  return false;
 }
 
 /* ---------- LEGAL / PRÁVNÍ STRÁNKY ---------- */
@@ -4458,6 +4569,11 @@ function resetDemo(){location.reload();}
 
 /* ---------- INIT ---------- */
 async function initApp(){
+  try{
+    const url=new URL(window.location.href);
+    const reset=url.searchParams.get('reset');
+    if(reset)resetPwToken=reset;
+  }catch(e){}
   initTheme();
   try{const m=await api('/auth/me');
     if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';
@@ -4468,7 +4584,8 @@ async function initApp(){
   renderHome();renderFilters();renderCare();renderCalendar();
   document.querySelectorAll('select').forEach(enhanceSelect);
   initReveal();
-  if(auth.loggedIn)go(landingView());
+  if(resetPwToken)go('reset-password');
+  else if(auth.loggedIn)go(landingView());
 }
 initApp();
 </script>

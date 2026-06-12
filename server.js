@@ -51,6 +51,7 @@ const REST_ENABLED = !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const SESSION_COOKIE = 'zv_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
+const RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
 
 const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !== 'false';
 const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
@@ -181,16 +182,9 @@ function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                   <tr>
                     <td style="padding:28px 34px;background:linear-gradient(90deg,#072B1C 0%,#0B3C27 100%);">
-                      <table role="presentation" cellspacing="0" cellpadding="0">
-                        <tr>
-                          <td valign="middle" style="padding-right:14px;">
-                            <div style="width:44px;height:44px;border:2px solid #D9A91D;border-radius:14px;color:#D9A91D;font-size:24px;line-height:40px;text-align:center;">♡</div>
-                          </td>
-                          <td valign="middle" style="font-family:Georgia,'Times New Roman',serif;font-size:32px;letter-spacing:0.08em;color:#F7F1E5;font-weight:700;">
-                            ZENVORIA
-                          </td>
-                        </tr>
-                      </table>
+                      <div style="font-family:Georgia,'Times New Roman',serif;font-size:32px;letter-spacing:0.08em;color:#F7F1E5;font-weight:700;">
+                        ZENVORIA
+                      </div>
                     </td>
                   </tr>
                   <tr>
@@ -382,6 +376,38 @@ function reservationMail({ user, order, caregiverName }) {
   };
 }
 
+function forgotPasswordMail({ user, resetUrl }) {
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
+  return {
+    subject: 'Obnova hesla v ZENVORIA',
+    text:
+      `Dobrý den, ${user.name || firstName},\n\n` +
+      'obdrželi jsme žádost o nastavení nového hesla k vašemu účtu ZENVORIA.\n\n' +
+      `Pokračujte zde: ${resetUrl}\n\n` +
+      'Odkaz je platný 30 minut. Pokud jste o změnu hesla nežádali, tento e-mail ignorujte.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Posíláme vám bezpečný odkaz pro nastavení nového hesla.',
+      title: 'Obnova hesla',
+      intro: `Děkujeme, ${firstName}. Připravili jsme pro vás bezpečný odkaz pro nastavení nového hesla k účtu ZENVORIA.`,
+      bodyHtml:
+        '<p style="margin:0 0 14px 0;">Kliknutím na tlačítko níže otevřete stránku, kde zadáte nové heslo dvakrát. Odkaz je časově omezený.</p>' +
+        '<p style="margin:0;">Pokud jste o změnu hesla nežádali, tento e-mail můžete bezpečně ignorovat.</p>',
+      ctaLabel: 'Nastavit nové heslo',
+      ctaUrl: resetUrl,
+      ctaNote: `Odkaz je platný 30 minut. Pokud tlačítko nefunguje, otevřete tento odkaz: ${resetUrl}`,
+      facts: [
+        { label: 'E-mail účtu', value: user.email || '' },
+        { label: 'Typ požadavku', value: 'Reset hesla' },
+        { label: 'Platnost odkazu', value: '30 minut' },
+      ],
+      closingTitle: 'Bezpečnost je pro nás priorita.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail byl odeslán automaticky po žádosti o obnovu hesla v ZENVORIA.',
+    }),
+  };
+}
+
 async function supabaseRestRequest(method, table, { query = '', body = null, prefer = '' } = {}) {
   if (!REST_ENABLED) throw new Error('Supabase REST není nakonfigurováno (chybí URL nebo service_role klíč).');
   const url = `${SUPABASE_URL}/rest/v1/${table}${query ? '?' + query : ''}`;
@@ -466,6 +492,30 @@ function setSession(res, user) {
   });
 }
 function clearSession(res) { res.clearCookie(SESSION_COOKIE, { path: '/' }); }
+
+function signResetToken(email) {
+  const data = b64url(JSON.stringify({
+    email: String(email || '').trim().toLowerCase(),
+    purpose: 'reset-password',
+    exp: Date.now() + RESET_TOKEN_TTL_MS,
+  }));
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(`reset:${data}`).digest('base64url');
+  return `${data}.${sig}`;
+}
+
+function verifyResetToken(token) {
+  if (!token || token.indexOf('.') < 0) return null;
+  const [data, sig] = token.split('.');
+  const expect = crypto.createHmac('sha256', SESSION_SECRET).update(`reset:${data}`).digest('base64url');
+  if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
+    if (payload.purpose !== 'reset-password') return null;
+    if (!payload.exp || Date.now() > payload.exp) return null;
+    if (!payload.email) return null;
+    return payload;
+  } catch { return null; }
+}
 
 // middleware: načte přihlášeného uživatele z cookie do req.session
 function loadSession(req, _res, next) {
@@ -566,6 +616,31 @@ app.post('/api/auth/login', h(async (req, res) => {
   if (user.status === 'suspended') return res.status(403).json({ error: 'Účet je pozastavený.' });
   setSession(res, user);
   res.json({ user: publicUser(user) });
+}));
+
+app.post('/api/auth/forgot-password', h(async (req, res) => {
+  const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ error: 'Zadejte e-mail.' });
+  const user = await findUserByEmail(email);
+  if (user) {
+    const token = signResetToken(user.email);
+    const resetUrl = `${APP_URL}/?reset=${encodeURIComponent(token)}`;
+    const mail = forgotPasswordMail({ user, resetUrl });
+    await sendMailSafe({ to: user.email, ...mail });
+  }
+  res.json({ ok: true });
+}));
+
+app.post('/api/auth/reset-password', h(async (req, res) => {
+  const token = String((req.body && req.body.token) || '');
+  const next = String((req.body && req.body.next) || '');
+  if (!next || next.length < 6) return res.status(400).json({ error: 'Nové heslo musí mít alespoň 6 znaků.' });
+  const payload = verifyResetToken(token);
+  if (!payload) return res.status(400).json({ error: 'Odkaz pro obnovu hesla je neplatný nebo vypršel.' });
+  const user = await findUserByEmail(payload.email);
+  if (!user) return res.json({ ok: true });
+  await restUpdate(T.users, `id=eq.${user.id}`, { password_hash: bcrypt.hashSync(next, 10) }, { prefer: 'return=minimal' });
+  res.json({ ok: true });
 }));
 
 app.post('/api/auth/logout', (req, res) => { clearSession(res); res.json({ ok: true }); });
