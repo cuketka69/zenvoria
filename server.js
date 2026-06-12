@@ -52,6 +52,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 const SESSION_COOKIE = 'zv_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
+const RESET_TOKEN_KEY_PREFIX = 'passwordReset:';
 
 const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !== 'false';
 const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
@@ -75,6 +76,7 @@ function isStrongPassword(value) {
 }
 
 const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
+const PUBLIC_SETTINGS_KEYS = ['planPrices'];
 
 // názvy tabulek s fallbackem (Webilio-style — lze přepsat env proměnnou)
 const T = {
@@ -666,43 +668,83 @@ function setSession(res, user) {
 }
 function clearSession(res) { res.clearCookie(SESSION_COOKIE, { path: '/' }); }
 
-function signResetToken(email) {
-  const data = b64url(JSON.stringify({
+function createResetToken() {
+  return crypto.randomBytes(32).toString('base64url');
+}
+
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(String(token || '')).digest('hex');
+}
+
+function passwordResetKey(token) {
+  return `${RESET_TOKEN_KEY_PREFIX}${hashResetToken(token)}`;
+}
+
+async function saveResetToken(email, token) {
+  const value = {
     email: String(email || '').trim().toLowerCase(),
-    purpose: 'reset-password',
     exp: Date.now() + RESET_TOKEN_TTL_MS,
-  }));
-  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(`reset:${data}`).digest('base64url');
-  return `${data}.${sig}`;
+    createdAt: new Date().toISOString(),
+    usedAt: null,
+  };
+  await supabaseRestRequest('POST', T.settings, {
+    body: { key: passwordResetKey(token), value },
+    prefer: 'resolution=merge-duplicates,return=minimal',
+  });
+  return value;
 }
 
-function verifyResetToken(token) {
-  if (!token || token.indexOf('.') < 0) return null;
-  const [data, sig] = token.split('.');
-  const expect = crypto.createHmac('sha256', SESSION_SECRET).update(`reset:${data}`).digest('base64url');
-  if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
-    if (payload.purpose !== 'reset-password') return null;
-    if (!payload.exp || Date.now() > payload.exp) return null;
-    if (!payload.email) return null;
-    return payload;
-  } catch { return null; }
+async function loadResetTokenRecord(token) {
+  const raw = String(token || '').trim();
+  if (!raw) return null;
+  const key = passwordResetKey(raw);
+  const rows = await restSelect(T.settings, `key=eq.${encodeURIComponent(key)}&limit=1`);
+  const row = rows && rows[0];
+  if (!row || !row.value || typeof row.value !== 'object') return null;
+  const value = row.value;
+  return {
+    key,
+    value: {
+      email: String(value.email || '').trim().toLowerCase(),
+      exp: Number(value.exp || 0),
+      createdAt: value.createdAt || null,
+      usedAt: value.usedAt || null,
+    },
+  };
 }
 
-function getResetTokenState(token) {
-  if (!token || token.indexOf('.') < 0) return { ok: false, reason: 'invalid' };
-  const [data, sig] = token.split('.');
-  const expect = crypto.createHmac('sha256', SESSION_SECRET).update(`reset:${data}`).digest('base64url');
-  if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return { ok: false, reason: 'invalid' };
-  try {
-    const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
-    if (payload.purpose !== 'reset-password' || !payload.email) return { ok: false, reason: 'invalid' };
-    if (!payload.exp || Date.now() > payload.exp) return { ok: false, reason: 'expired' };
-    return { ok: true, payload };
-  } catch {
-    return { ok: false, reason: 'invalid' };
-  }
+async function markResetTokenUsed(record) {
+  if (!record || !record.key || !record.value) return;
+  await restUpdate(T.settings, `key=eq.${encodeURIComponent(record.key)}`, {
+    value: {
+      ...record.value,
+      usedAt: new Date().toISOString(),
+    },
+  }, { prefer: 'return=minimal' });
+}
+
+async function getResetTokenState(token) {
+  const record = await loadResetTokenRecord(token);
+  if (!record) return { ok: false, reason: 'invalid' };
+  if (!record.value.email || !record.value.exp) return { ok: false, reason: 'invalid' };
+  if (record.value.usedAt) return { ok: false, reason: 'used' };
+  if (Date.now() > record.value.exp) return { ok: false, reason: 'expired' };
+  return {
+    ok: true,
+    payload: { email: record.value.email, exp: record.value.exp },
+    record,
+  };
+}
+
+async function loadPublicSettings() {
+  const queries = PUBLIC_SETTINGS_KEYS.map((key) => restSelect(T.settings, `key=eq.${encodeURIComponent(key)}&limit=1`));
+  const rowsList = await Promise.all(queries);
+  const settings = {};
+  rowsList.forEach((rows) => {
+    const row = rows && rows[0];
+    if (row && row.key) settings[row.key] = row.value;
+  });
+  return settings;
 }
 
 // middleware: načte přihlášeného uživatele z cookie do req.session
@@ -866,7 +908,8 @@ app.post('/api/auth/forgot-password', h(async (req, res) => {
   if (!email) return res.status(400).json({ error: 'Zadejte e-mail.' });
   const user = await findUserByEmail(email);
   if (user) {
-    const token = signResetToken(user.email);
+    const token = createResetToken();
+    await saveResetToken(user.email, token);
     const resetUrl = `${APP_URL}/?reset=${encodeURIComponent(token)}`;
     const mail = forgotPasswordMail({ user, resetUrl });
     await sendMailSafe({ to: user.email, ...mail });
@@ -879,19 +922,32 @@ app.post('/api/auth/reset-password', h(async (req, res) => {
   const next = String((req.body && req.body.next) || '');
   if (!isStrongPassword(next)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
   if (!next || next.length < 6) return res.status(400).json({ error: 'Nové heslo musí mít alespoň 6 znaků.' });
-  const payload = verifyResetToken(token);
-  if (!payload) return res.status(400).json({ error: 'Odkaz pro obnovu hesla je neplatný nebo vypršel.' });
-  const user = await findUserByEmail(payload.email);
-  if (!user) return res.json({ ok: true });
+  const state = await getResetTokenState(token);
+  if (!state.ok) {
+    const error =
+      state.reason === 'expired' ? 'Odkaz pro obnovu hesla vypršel.' :
+      state.reason === 'used' ? 'Odkaz pro obnovu hesla už byl použitý.' :
+      'Odkaz pro obnovu hesla je neplatný.';
+    return res.status(400).json({ error, reason: state.reason });
+  }
+  const user = await findUserByEmail(state.payload.email);
+  if (!user) {
+    await markResetTokenUsed(state.record);
+    return res.json({ ok: true });
+  }
   await restUpdate(T.users, `id=eq.${user.id}`, { password_hash: bcrypt.hashSync(next, 10) }, { prefer: 'return=minimal' });
+  await markResetTokenUsed(state.record);
   res.json({ ok: true });
 }));
 
 app.post('/api/auth/reset-password/validate', h(async (req, res) => {
   const token = String((req.body && req.body.token) || '');
-  const state = getResetTokenState(token);
+  const state = await getResetTokenState(token);
   if (!state.ok) return res.status(400).json({
-    error: state.reason === 'expired' ? 'Odkaz pro obnovu hesla vypršel.' : 'Odkaz pro obnovu hesla je neplatný.',
+    error:
+      state.reason === 'expired' ? 'Odkaz pro obnovu hesla vypršel.' :
+      state.reason === 'used' ? 'Odkaz pro obnovu hesla už byl použitý.' :
+      'Odkaz pro obnovu hesla je neplatný.',
     reason: state.reason,
   });
   res.json({ ok: true });
@@ -927,7 +983,7 @@ app.patch('/api/users/me/settings', requireAuth, h(async (req, res) => {
 
 /* ---------------- BOOTSTRAP (vše pro render) ---------------- */
 app.get('/api/bootstrap', h(async (req, res) => {
-  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, convs, msgs, broadcasts, settingsRows] =
+  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, convs, msgs, broadcasts, settings] =
     await Promise.all([
       restSelect(T.caregivers, 'select=*&order=id.asc'),
       restSelect(T.orders, 'select=*&order=oid.desc'),
@@ -939,7 +995,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
       restSelect(T.conversations, 'select=*&order=id.asc'),
       restSelect(T.messages, 'select=*&order=id.asc'),
       restSelect(T.broadcasts, 'select=*&order=id.asc'),
-      restSelect(T.settings, 'select=*'),
+      loadPublicSettings(),
     ]);
 
   // cgReviews: { [caregiverId]: [{init,name,stars,text}] } + obecné recenze (caregiver_id null)
@@ -958,10 +1014,6 @@ app.get('/api/bootstrap', h(async (req, res) => {
     id: Number(c.id), name: c.name, init: c.init, role: c.role, readonly: c.readonly, unread: c.unread || 0,
     msgs: byConv[c.id] || [],
   }));
-
-  // settings → plochý objekt
-  const settings = {};
-  (settingsRows || []).forEach((s) => { settings[s.key] = s.value; });
 
   res.json({
     caregivers: (caregivers || []).map(mapCaregiver),
