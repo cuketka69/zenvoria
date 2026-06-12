@@ -643,6 +643,7 @@ app.post('/api/auth/login', h(async (req, res) => {
 
 app.post('/api/auth/forgot-password', h(async (req, res) => {
   const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+  const debugReturnToken = !!(req.body && req.body.debugReturnToken);
   if (!email) return res.status(400).json({ error: 'Zadejte e-mail.' });
   const user = await findUserByEmail(email);
   if (user) {
@@ -650,6 +651,7 @@ app.post('/api/auth/forgot-password', h(async (req, res) => {
     const resetUrl = `${APP_URL}/?reset=${encodeURIComponent(token)}`;
     const mail = forgotPasswordMail({ user, resetUrl });
     await sendMailSafe({ to: user.email, ...mail });
+    if (debugReturnToken) return res.json({ ok: true, resetUrl, token });
   }
   res.json({ ok: true });
 }));
