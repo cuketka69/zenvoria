@@ -1084,7 +1084,7 @@
         <p class="lead">ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Jednoduše, bezpečně a s lidským přístupem.</p>
         <div class="hero-cta">
           <button class="btn btn-gold" onclick="go('search')">Najít pečovatelku</button>
-          <button class="btn btn-ghost" onclick="go('home');scrollTo2('howto')">Jak to funguje</button>
+          <button class="btn btn-ghost" onclick="fillThen(this,()=>{go('home');scrollTo2('howto')})">Jak to funguje</button>
         </div>
         <div class="trust-row">
           <div class="trust">
