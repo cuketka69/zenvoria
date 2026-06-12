@@ -3876,6 +3876,14 @@ function navProgress(el,fn,delay){
   setTimeout(function(){el.classList.remove('nav-busy');if(fn)fn();},delay||850);
 }
 /* ---------- INTERAKTIVNÍ PRŮVODCE („Proveďte mě") ---------- */
+/* otevře profil první nalezené pečovatelky (pro krok průvodce) */
+function tourFirstCgId(){
+  const card=document.querySelector('#careGrid .care-card[onclick]');
+  if(!card)return null;
+  const m=/openProfile\((\d+)\)/.exec(card.getAttribute('onclick')||'');
+  return m?+m[1]:null;
+}
+function tourOpenFirstProfile(){const id=tourFirstCgId();if(id!=null)openProfile(id);else go('search');}
 const TOUR_STEPS=[
   {view:'home',sel:'#navCta',
    title:'1. Najděte pomoc',
@@ -3888,10 +3896,16 @@ const TOUR_STEPS=[
    text:'Tady jsou pečovatelky. U každé je fotka, hvězdičky (jak jsou s ní rodiny spokojené) a cena za hodinu.'},
   {view:'search',sel:'#careGrid .care-card .btn-gold',
    title:'4. Otevřete profil',
-   text:'Až se vám některá zalíbí, klikněte na žluté tlačítko „Zobrazit profil". Uvidíte podrobnosti, recenze a volné termíny.'},
-  {view:'search',sel:null,
+   text:'Až se vám některá zalíbí, klikněte na žluté tlačítko „Zobrazit profil". Ukážu vám, jak vypadá.'},
+  {action:tourOpenFirstProfile,sel:'#view-profile .book-aside .btn-gold',
+   title:'5. Objednejte péči',
+   text:'Tady je vše o pečovatelce — zkušenosti, recenze i ceny. Až budete chtít, kliknete na žluté tlačítko „Objednat službu".'},
+  {sel:null,
+   title:'6. Rychlá registrace',
+   text:'Před první objednávkou vás požádáme o krátkou bezplatnou registraci — stačí jméno, e-mail a heslo. Je to kvůli vašemu bezpečí. Potom se vrátíte rovnou k objednávce.'},
+  {sel:null,
    title:'A to je vše! 😊',
-   text:'V profilu už jen vyberete den a čas a kliknete na „Rezervovat". Kdykoli si můžete s pečovatelkou napsat přes „Zprávy". Kdybyste si nevěděli rady, průvodce si můžete kdykoli pustit znovu.'}
+   text:'Nakonec už jen vyberete den a čas a kliknete na „Rezervovat". S pečovatelkou si můžete kdykoli napsat přes „Zprávy" a všechny termíny najdete v „Moje objednávky". Průvodce si můžete kdykoli pustit znovu.'}
 ];
 let tourIdx=-1;
 function tourClearSpot(){document.querySelectorAll('.tour-spot').forEach(e=>e.classList.remove('tour-spot'));}
@@ -3906,12 +3920,14 @@ function tourGoto(i){
   if(i<0||i>=TOUR_STEPS.length){tourEnd();return;}
   tourIdx=i;
   const s=TOUR_STEPS[i];
-  if(s.view)go(s.view);
+  if(s.action)s.action();
+  else if(s.view)go(s.view);
+  const wait=(s.action||s.view)?320:80;
   setTimeout(function(){
     let el=s.sel?document.querySelector(s.sel):null;
     if(el){el.classList.add('tour-spot');el.scrollIntoView({behavior:'smooth',block:'center'});}
     tourRenderBox(s,i);
-  },s.view?300:80);
+  },wait);
 }
 function tourRenderBox(s,i){
   let box=document.getElementById('tourBox');
