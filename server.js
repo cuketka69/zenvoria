@@ -128,6 +128,92 @@ async function sendMailSafe({ to, subject, text, html }) {
   }
 }
 
+function renderEmailLayout({ eyebrow, title, intro, sections, accentLabel, footerNote }) {
+  const renderedSections = (sections || []).map((section) => {
+    if (section.type === 'facts') {
+      const rows = (section.items || []).map((item) =>
+        `<tr>
+          <td style="padding:0 0 12px 0;color:#6C786C;font-size:13px;line-height:1.5;">${escapeHtml(item.label)}</td>
+          <td style="padding:0 0 12px 18px;color:#1E2A22;font-size:14px;line-height:1.5;font-weight:600;text-align:right;">${escapeHtml(item.value)}</td>
+        </tr>`
+      ).join('');
+      return `
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px 0;background:#FFFFFF;border:1px solid #D7E2D2;border-radius:18px;">
+          <tr>
+            <td style="padding:22px 24px 8px 24px;">
+              <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#A98821;font-weight:700;margin:0 0 16px 0;">${escapeHtml(section.title || '')}</div>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${rows}</table>
+            </td>
+          </tr>
+        </table>`;
+    }
+    return `
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px 0;background:#FFFFFF;border:1px solid #D7E2D2;border-radius:18px;">
+        <tr>
+          <td style="padding:22px 24px;color:#425046;font-size:15px;line-height:1.7;">
+            ${section.html || ''}
+          </td>
+        </tr>
+      </table>`;
+  }).join('');
+
+  return `
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${escapeHtml(title)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#EEF3EC;font-family:Inter,Arial,sans-serif;color:#1E2A22;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#EEF3EC;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;">
+            <tr>
+              <td style="padding:0 0 16px 0;text-align:center;">
+                <div style="display:inline-block;padding:8px 14px;border-radius:999px;background:#FFFFFF;border:1px solid #D7E2D2;color:#0A5A34;font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;">
+                  ZENVORIA
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:linear-gradient(135deg,#0A5A34 0%,#0E7A45 100%);border-radius:28px;padding:36px 32px;box-shadow:0 20px 48px rgba(10,90,52,0.18);">
+                <div style="font-size:12px;letter-spacing:0.22em;text-transform:uppercase;color:#DEBB5A;font-weight:700;margin:0 0 14px 0;">${escapeHtml(eyebrow)}</div>
+                <h1 style="margin:0 0 14px 0;font-family:Georgia,'Times New Roman',serif;font-size:36px;line-height:1.1;color:#FFFFFF;font-weight:700;">${escapeHtml(title)}</h1>
+                <p style="margin:0;color:#DCE4DC;font-size:16px;line-height:1.7;">${escapeHtml(intro)}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 0 0 0;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:rgba(201,162,51,0.12);border:1px solid rgba(169,136,33,0.25);border-radius:18px;">
+                  <tr>
+                    <td style="padding:16px 20px;color:#A98821;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
+                      ${escapeHtml(accentLabel)}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 0 0 0;">
+                ${renderedSections}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 6px 0 6px;text-align:center;">
+                <p style="margin:0 0 8px 0;color:#6C786C;font-size:13px;line-height:1.6;">${escapeHtml(footerNote)}</p>
+                <p style="margin:0;color:#0A5A34;font-size:13px;line-height:1.6;font-weight:700;">Tym ZENVORIA</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 function registrationMail(user) {
   const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zakazniku';
   return {
@@ -137,17 +223,46 @@ function registrationMail(user) {
       'dekujeme za registraci do ZENVORIA. Vas ucet byl uspesne vytvoren.\n\n' +
       'Pokud jste se neregistrovali vy, odpovezte prosim na tento e-mail.\n\n' +
       'S pozdravem,\nTym ZENVORIA',
-    html:
-      `<p>Dobry den, ${escapeHtml(firstName)},</p>` +
-      '<p>dekujeme za registraci do <b>ZENVORIA</b>. Vas ucet byl uspesne vytvoren.</p>' +
-      '<p>Pokud jste se neregistrovali vy, odpovezte prosim na tento e-mail.</p>' +
-      '<p>S pozdravem,<br>Tym ZENVORIA</p>',
+    html: renderEmailLayout({
+      eyebrow: 'Vitejte',
+      title: 'Ucet je pripraven',
+      intro: `Dobry den, ${firstName}, dekujeme za registraci do ZENVORIA. Vas ucet byl uspesne vytvoren a muzete zacit pracovat s platformou.`,
+      accentLabel: 'Overena pece. Jasna komunikace. Elegantni zazitek.',
+      sections: [
+        {
+          type: 'html',
+          html:
+            '<p style="margin:0 0 14px 0;">Prave jsme pro vas aktivovali pristup do prostredi ZENVORIA, kde propojujeme rodiny s pecovatelkami v duchu duvery, klidu a lidskeho pristupu.</p>' +
+            '<p style="margin:0;">Pokud jste se neregistrovali vy, odpovezte prosim na tento e-mail a situaci okamzite proverime.</p>',
+        },
+        {
+          type: 'facts',
+          title: 'Detaily uctu',
+          items: [
+            { label: 'Jmeno', value: user.name || '' },
+            { label: 'E-mail', value: user.email || '' },
+            { label: 'Role', value: user.role === 'caregiver' ? 'Pecovatelka' : 'Rodina' },
+            { label: 'Stav uctu', value: 'Aktivni' },
+          ],
+        },
+      ],
+      footerNote: 'Tento e-mail jsme poslali automaticky po vytvoreni uctu v ZENVORIA.',
+    }),
   };
 }
 
 function reservationMail({ user, order, caregiverName }) {
   const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zakazniku';
   const when = [order.date, order.time].filter(Boolean).join(' v ');
+  const facts = [
+    { label: 'Sluzba', value: order.service || '' },
+    { label: 'Termin', value: when || '' },
+    { label: 'Adresa', value: order.addr || '' },
+    { label: 'Delka pece', value: `${order.hours} h` },
+  ];
+  if (caregiverName) facts.push({ label: 'Pecovatelka', value: caregiverName });
+  facts.push({ label: 'Stav rezervace', value: order.status || '' });
+  if (order.note) facts.push({ label: 'Poznamka', value: order.note });
   return {
     subject: `Potvrzeni rezervace pece na ${order.date}`,
     text:
@@ -162,20 +277,26 @@ function reservationMail({ user, order, caregiverName }) {
       (order.note ? `Poznamka: ${order.note}\n` : '') +
       '\nJakmile se stav rezervace zmeni, dame vam vedet.\n\n' +
       'S pozdravem,\nTym ZENVORIA',
-    html:
-      `<p>Dobry den, ${escapeHtml(firstName)},</p>` +
-      '<p>dekujeme za vasi rezervaci v <b>ZENVORIA</b>.</p>' +
-      '<p>' +
-      `Sluzba: <b>${escapeHtml(order.service)}</b><br>` +
-      `Termin: <b>${escapeHtml(when)}</b><br>` +
-      `Adresa: ${escapeHtml(order.addr)}<br>` +
-      `Delka: ${escapeHtml(order.hours)} h<br>` +
-      (caregiverName ? `Pecovatelka: ${escapeHtml(caregiverName)}<br>` : '') +
-      `Stav: ${escapeHtml(order.status)}` +
-      (order.note ? `<br>Poznamka: ${escapeHtml(order.note)}` : '') +
-      '</p>' +
-      '<p>Jakmile se stav rezervace zmeni, dame vam vedet.</p>' +
-      '<p>S pozdravem,<br>Tym ZENVORIA</p>',
+    html: renderEmailLayout({
+      eyebrow: 'Rezervace',
+      title: 'Potvrzeni vaseho terminu',
+      intro: `Dobry den, ${firstName}, dekujeme za rezervaci v ZENVORIA. Vase objednavka byla prijata a ceka na dalsi zpracovani.`,
+      accentLabel: 'Prehled rezervace na jednom miste.',
+      sections: [
+        {
+          type: 'facts',
+          title: 'Souhrn rezervace',
+          items: facts,
+        },
+        {
+          type: 'html',
+          html:
+            '<p style="margin:0 0 14px 0;">Jakmile se stav rezervace zmeni, posleme vam dalsi aktualizaci. V mezicase si muzete vse pohodlne zkontrolovat ve svem uctu.</p>' +
+            '<p style="margin:0;">Pokud potrebujete cokoli upravit, odpovezte prosim na tento e-mail.</p>',
+        },
+      ],
+      footerNote: 'Tento e-mail slouzi jako potvrzeni prave vytvorene rezervace v ZENVORIA.',
+    }),
   };
 }
 
