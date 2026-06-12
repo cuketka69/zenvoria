@@ -54,6 +54,7 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
 const RESET_TOKEN_KEY_PREFIX = 'passwordReset:';
 const RATE_LIMIT_CLEANUP_MS = 1000 * 60 * 5;
+const AUDIT_ENABLED = String(process.env.AUDIT_ENABLED || 'true').toLowerCase() !== 'false';
 const RATE_LIMITS = {
   register: {
     windowMs: parseInt(process.env.RATE_LIMIT_REGISTER_WINDOW_MS || String(1000 * 60 * 60), 10),
@@ -146,6 +147,53 @@ setInterval(() => {
   }
 }, RATE_LIMIT_CLEANUP_MS).unref();
 
+let auditWritable = true;
+let auditWarned = false;
+
+function auditActor(req, fallback = {}) {
+  return {
+    id: (req.session && req.session.uid) || fallback.id || null,
+    email: (req.session && req.session.email) || fallback.email || null,
+    role: (req.session && req.session.role) || fallback.role || null,
+  };
+}
+
+async function writeAudit(action, { req, actor, targetType = null, targetId = null, status = 'success', metadata = null } = {}) {
+  if (!AUDIT_ENABLED || !REST_ENABLED || !auditWritable) return false;
+  const who = actor || auditActor(req || {}, {});
+  const row = {
+    action,
+    actor_id: who.id || null,
+    actor_email: who.email || null,
+    actor_role: who.role || null,
+    target_type: targetType,
+    target_id: targetId == null ? null : String(targetId),
+    status,
+    ip: req ? getClientIp(req) : null,
+    user_agent: req ? String(req.headers['user-agent'] || '').slice(0, 500) : null,
+    metadata: metadata && typeof metadata === 'object' ? metadata : null,
+    created_at: new Date().toISOString(),
+  };
+  try {
+    await restInsert(T.auditLogs, row, { prefer: 'return=minimal' });
+    return true;
+  } catch (err) {
+    const msg = String(err && err.message || '');
+    if (!auditWarned) {
+      console.warn('[audit] audit log write failed:', msg);
+      auditWarned = true;
+    }
+    if (/relation .* does not exist|column .* does not exist|Could not find the table/i.test(msg)) {
+      auditWritable = false;
+    }
+    return false;
+  }
+}
+
+function fireAudit(action, details) {
+  writeAudit(action, details).catch(() => {});
+}
+
 // názvy tabulek s fallbackem (Webilio-style — lze přepsat env proměnnou)
 const T = {
   users:         process.env.TBL_USERS         || 'zenvoria_users',
@@ -159,6 +207,7 @@ const T = {
   messages:      process.env.TBL_MESSAGES      || 'zenvoria_messages',
   broadcasts:    process.env.TBL_BROADCASTS    || 'zenvoria_broadcasts',
   settings:      process.env.TBL_SETTINGS      || 'zenvoria_settings',
+  auditLogs:     process.env.TBL_AUDIT_LOGS    || 'zenvoria_audit_logs',
 };
 
 if (!REST_ENABLED) {
@@ -956,17 +1005,24 @@ app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(as
   const user = await restInsert(T.users, { email: em, password_hash, name: name.trim(), role: r, init });
   const welcomeMail = registrationMail(user);
   await sendMailSafe({ to: user.email, ...welcomeMail });
+  fireAudit('auth.register', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success' });
   setSession(res, user);
   res.json({ user: publicUser(user) });
 }));
 
 app.post('/api/auth/login', rateLimit('login', RATE_LIMITS.login), h(async (req, res) => {
   const { email, password } = req.body || {};
+  const em = String(email || '').trim().toLowerCase();
   const user = await findUserByEmail(email);
   if (!user || !bcrypt.compareSync(String(password || ''), user.password_hash)) {
+    fireAudit('auth.login', { req, actor: { email: em }, targetType: 'user', targetId: em, status: 'failed', metadata: { reason: 'invalid_credentials' } });
     return res.status(401).json({ error: 'Nesprávný e-mail nebo heslo.' });
   }
-  if (user.status === 'suspended') return res.status(403).json({ error: 'Účet je pozastavený.' });
+  if (user.status === 'suspended') {
+    fireAudit('auth.login', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'failed', metadata: { reason: 'suspended' } });
+    return res.status(403).json({ error: 'Účet je pozastavený.' });
+  }
+  fireAudit('auth.login', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success' });
   setSession(res, user);
   res.json({ user: publicUser(user) });
 }));
@@ -982,6 +1038,7 @@ app.post('/api/auth/forgot-password', rateLimit('forgot-password', RATE_LIMITS.f
     const mail = forgotPasswordMail({ user, resetUrl });
     await sendMailSafe({ to: user.email, ...mail });
   }
+  fireAudit('auth.forgot_password', { req, actor: { email }, targetType: 'user', targetId: email, status: 'success', metadata: { userFound: !!user } });
   res.json({ ok: true });
 }));
 
@@ -992,6 +1049,7 @@ app.post('/api/auth/reset-password', rateLimit('reset-password', RATE_LIMITS.res
   if (!next || next.length < 6) return res.status(400).json({ error: 'Nové heslo musí mít alespoň 6 znaků.' });
   const state = await getResetTokenState(token);
   if (!state.ok) {
+    fireAudit('auth.reset_password', { req, actor: { email: null }, targetType: 'reset-token', targetId: 'password-reset', status: 'failed', metadata: { reason: state.reason } });
     const error =
       state.reason === 'expired' ? 'Odkaz pro obnovu hesla vypršel.' :
       state.reason === 'used' ? 'Odkaz pro obnovu hesla už byl použitý.' :
@@ -1001,10 +1059,12 @@ app.post('/api/auth/reset-password', rateLimit('reset-password', RATE_LIMITS.res
   const user = await findUserByEmail(state.payload.email);
   if (!user) {
     await markResetTokenUsed(state.record);
+    fireAudit('auth.reset_password', { req, actor: { email: state.payload.email }, targetType: 'user', targetId: state.payload.email, status: 'success', metadata: { userFound: false } });
     return res.json({ ok: true });
   }
   await restUpdate(T.users, `id=eq.${user.id}`, { password_hash: bcrypt.hashSync(next, 10) }, { prefer: 'return=minimal' });
   await markResetTokenUsed(state.record);
+  fireAudit('auth.reset_password', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success' });
   res.json({ ok: true });
 }));
 
@@ -1021,7 +1081,11 @@ app.post('/api/auth/reset-password/validate', rateLimit('reset-password-validate
   res.json({ ok: true });
 }));
 
-app.post('/api/auth/logout', (req, res) => { clearSession(res); res.json({ ok: true }); });
+app.post('/api/auth/logout', (req, res) => {
+  if (req.session) fireAudit('auth.logout', { req, actor: auditActor(req), targetType: 'user', targetId: req.session.uid, status: 'success' });
+  clearSession(res);
+  res.json({ ok: true });
+});
 
 app.get('/api/auth/me', h(async (req, res) => {
   if (!req.session) return res.json({ user: null });
@@ -1036,9 +1100,11 @@ app.post('/api/auth/change-password', requireAuth, rateLimit('change-password', 
   const rows = await restSelect(T.users, `id=eq.${req.session.uid}&limit=1`);
   const user = rows && rows[0];
   if (!user || !bcrypt.compareSync(String(current || ''), user.password_hash)) {
+    fireAudit('auth.change_password', { req, actor: auditActor(req), targetType: 'user', targetId: req.session.uid, status: 'failed', metadata: { reason: 'invalid_current_password' } });
     return res.status(400).json({ error: 'Současné heslo není správné.' });
   }
   await restUpdate(T.users, `id=eq.${user.id}`, { password_hash: bcrypt.hashSync(String(next), 10) }, { prefer: 'return=minimal' });
+  fireAudit('auth.change_password', { req, actor: auditActor(req), targetType: 'user', targetId: user.id, status: 'success' });
   res.json({ ok: true });
 }));
 
@@ -1213,6 +1279,7 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
   }
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'approved' }, { prefer: 'return=minimal' });
   if (v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: true }) });
+  fireAudit('admin.verification.approve', { req, actor: auditActor(req), targetType: 'verification', targetId: id, status: 'success', metadata: { email: v.email || null, caregiverExists: !!cg } });
   res.json({ ok: true });
 }));
 
@@ -1224,6 +1291,7 @@ app.post('/api/verifications/:id/reject', requireRole('admin'), h(async (req, re
   const v = rows && rows[0];
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'rejected' }, { prefer: 'return=minimal' });
   if (v && v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: false, reason }) });
+  fireAudit('admin.verification.reject', { req, actor: auditActor(req), targetType: 'verification', targetId: id, status: 'success', metadata: { email: v && v.email || null, reason: reason ? 'provided' : 'empty' } });
   res.json({ ok: true });
 }));
 
@@ -1259,6 +1327,7 @@ app.post('/api/broadcasts', requireRole('admin'), h(async (req, res) => {
     audience: b.audience, emails: b.emails || [], text: b.text,
     date: new Date().toISOString().slice(0, 10), t: b.t || '',
   });
+  fireAudit('admin.broadcast.create', { req, actor: auditActor(req), targetType: 'broadcast', targetId: row.id, status: 'success', metadata: { audience: row.audience, emailsCount: Array.isArray(row.emails) ? row.emails.length : 0 } });
   res.json({ broadcast: { id: row.id, audience: row.audience, emails: row.emails || [], text: row.text, date: row.date, t: row.t } });
 }));
 
@@ -1278,6 +1347,9 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   }
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   const rows = await restUpdate(T.caregivers, `id=eq.${id}`, patch);
+  if (req.session.role === 'admin' && (b.suspended !== undefined || b.status !== undefined)) {
+    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { suspended: b.suspended, status: b.status } });
+  }
   res.json({ caregiver: rows && rows[0] ? mapCaregiver(rows[0]) : null });
 }));
 
@@ -1378,16 +1450,19 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
   if (b.status !== undefined) patch.status = b.status;
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   await restUpdate(T.users, `id=eq.${req.params.id}`, patch, { prefer: 'return=minimal' });
+  fireAudit('admin.user.update', { req, actor: auditActor(req), targetType: 'user', targetId: req.params.id, status: 'success', metadata: { fields: Object.keys(patch) } });
   res.json({ ok: true });
 }));
 
 app.delete('/api/users/:id', requireRole('admin'), h(async (req, res) => {
   await restDelete(T.users, `id=eq.${req.params.id}`);
+  fireAudit('admin.user.delete', { req, actor: auditActor(req), targetType: 'user', targetId: req.params.id, status: 'success' });
   res.json({ ok: true });
 }));
 
 app.delete('/api/caregivers/:id', requireRole('admin'), h(async (req, res) => {
   await restDelete(T.caregivers, `id=eq.${Number(req.params.id)}`);
+  fireAudit('admin.caregiver.delete', { req, actor: auditActor(req), targetType: 'caregiver', targetId: req.params.id, status: 'success' });
   res.json({ ok: true });
 }));
 
@@ -1395,6 +1470,7 @@ app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   const key = req.params.key;
   const value = (req.body || {}).value;
   await supabaseRestRequest('POST', T.settings, { body: { key, value }, prefer: 'resolution=merge-duplicates,return=minimal' });
+  fireAudit('admin.settings.update', { req, actor: auditActor(req), targetType: 'setting', targetId: key, status: 'success' });
   res.json({ ok: true });
 }));
 
