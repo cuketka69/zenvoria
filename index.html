@@ -4597,6 +4597,9 @@ async function initApp(){
     if(reset)resetPwToken=reset;
   }catch(e){}
   initTheme();
+  // Pokud přicházíme z odkazu pro reset hesla, přepni na okno okamžitě,
+  // ať se mezitím nezobrazuje úvodní stránka během načítání dat.
+  if(resetPwToken)go('reset-password');
   try{const m=await api('/auth/me');
     if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';
       if(m.user.settings)Object.assign(appSettings,m.user.settings);}
