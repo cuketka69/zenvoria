@@ -55,6 +55,7 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
 const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !== 'false';
 const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const APP_URL = process.env.APP_URL || 'https://www.zenvoria.cz';
 
 // názvy tabulek s fallbackem (Webilio-style — lze přepsat env proměnnou)
 const T = {
@@ -128,34 +129,28 @@ async function sendMailSafe({ to, subject, text, html }) {
   }
 }
 
-function renderEmailLayout({ eyebrow, title, intro, sections, accentLabel, footerNote }) {
-  const renderedSections = (sections || []).map((section) => {
-    if (section.type === 'facts') {
-      const rows = (section.items || []).map((item) =>
-        `<tr>
-          <td style="padding:0 0 12px 0;color:#6C786C;font-size:13px;line-height:1.5;">${escapeHtml(item.label)}</td>
-          <td style="padding:0 0 12px 18px;color:#1E2A22;font-size:14px;line-height:1.5;font-weight:600;text-align:right;">${escapeHtml(item.value)}</td>
-        </tr>`
-      ).join('');
-      return `
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px 0;background:#FFFFFF;border:1px solid #D7E2D2;border-radius:18px;">
-          <tr>
-            <td style="padding:22px 24px 8px 24px;">
-              <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#A98821;font-weight:700;margin:0 0 16px 0;">${escapeHtml(section.title || '')}</div>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${rows}</table>
-            </td>
-          </tr>
-        </table>`;
-    }
-    return `
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px 0;background:#FFFFFF;border:1px solid #D7E2D2;border-radius:18px;">
-        <tr>
-          <td style="padding:22px 24px;color:#425046;font-size:15px;line-height:1.7;">
-            ${section.html || ''}
-          </td>
-        </tr>
-      </table>`;
-  }).join('');
+function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl, ctaNote, facts, closingTitle, closingSubtitle, footerNote }) {
+  const factRows = (facts || []).map((item) =>
+    `<tr>
+      <td style="padding:0 0 12px 0;color:#5E6C61;font-size:13px;line-height:1.5;">${escapeHtml(item.label)}</td>
+      <td style="padding:0 0 12px 16px;color:#0A2F20;font-size:14px;line-height:1.5;font-weight:600;text-align:right;">${escapeHtml(item.value)}</td>
+    </tr>`
+  ).join('');
+
+  const factsBlock = factRows ? `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 28px 0;">
+      <tr>
+        <td style="padding:0 0 16px 0;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F8F6F1;border:1px solid #E5DCC4;border-radius:16px;">
+            <tr>
+              <td style="padding:22px 26px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${factRows}</table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>` : '';
 
   return `
 <!doctype html>
@@ -165,45 +160,142 @@ function renderEmailLayout({ eyebrow, title, intro, sections, accentLabel, foote
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${escapeHtml(title)}</title>
   </head>
-  <body style="margin:0;padding:0;background:#EEF3EC;font-family:Inter,Arial,sans-serif;color:#1E2A22;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#EEF3EC;">
+  <body style="margin:0;padding:0;background:#042617;font-family:Arial,sans-serif;color:#10241A;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader || title)}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:radial-gradient(circle at top,#0A3C27 0%,#042617 60%,#031D12 100%);">
       <tr>
-        <td align="center" style="padding:32px 16px;">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;">
+        <td align="center" style="padding:26px 14px 34px 14px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:900px;">
             <tr>
-              <td style="padding:0 0 16px 0;text-align:center;">
-                <div style="display:inline-block;padding:8px 14px;border-radius:999px;background:#FFFFFF;border:1px solid #D7E2D2;color:#0A5A34;font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;">
-                  ZENVORIA
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td style="background:linear-gradient(135deg,#0A5A34 0%,#0E7A45 100%);border-radius:28px;padding:36px 32px;box-shadow:0 20px 48px rgba(10,90,52,0.18);">
-                <div style="font-size:12px;letter-spacing:0.22em;text-transform:uppercase;color:#DEBB5A;font-weight:700;margin:0 0 14px 0;">${escapeHtml(eyebrow)}</div>
-                <h1 style="margin:0 0 14px 0;font-family:Georgia,'Times New Roman',serif;font-size:36px;line-height:1.1;color:#FFFFFF;font-weight:700;">${escapeHtml(title)}</h1>
-                <p style="margin:0;color:#DCE4DC;font-size:16px;line-height:1.7;">${escapeHtml(intro)}</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:18px 0 0 0;">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:rgba(201,162,51,0.12);border:1px solid rgba(169,136,33,0.25);border-radius:18px;">
+              <td style="padding:0 6px 16px 6px;color:#D6DED7;font-size:12px;line-height:1.5;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                   <tr>
-                    <td style="padding:16px 20px;color:#A98821;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
-                      ${escapeHtml(accentLabel)}
-                    </td>
+                    <td style="color:#D6DED7;">${escapeHtml(preheader || '')}</td>
+                    <td align="right"><a href="${escapeHtml(ctaUrl || APP_URL)}" style="color:#D6DED7;text-decoration:underline;">Zobrazit e-mail v prohlížeči</a></td>
                   </tr>
                 </table>
               </td>
             </tr>
             <tr>
-              <td style="padding:22px 0 0 0;">
-                ${renderedSections}
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:4px 6px 0 6px;text-align:center;">
-                <p style="margin:0 0 8px 0;color:#6C786C;font-size:13px;line-height:1.6;">${escapeHtml(footerNote)}</p>
-                <p style="margin:0;color:#0A5A34;font-size:13px;line-height:1.6;font-weight:700;">Tym ZENVORIA</p>
+              <td style="border:1px solid #8F7224;border-radius:28px;overflow:hidden;background:#0A2F20;box-shadow:0 24px 70px rgba(0,0,0,0.28);">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="padding:28px 34px;background:linear-gradient(90deg,#072B1C 0%,#0B3C27 100%);">
+                      <table role="presentation" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td valign="middle" style="padding-right:14px;">
+                            <div style="width:44px;height:44px;border:2px solid #D9A91D;border-radius:14px;color:#D9A91D;font-size:24px;line-height:40px;text-align:center;">♡</div>
+                          </td>
+                          <td valign="middle" style="font-family:Georgia,'Times New Roman',serif;font-size:32px;letter-spacing:0.08em;color:#F7F1E5;font-weight:700;">
+                            ZENVORIA
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="background:#FCFBF7;padding:54px 48px 36px 48px;">
+                      <h1 style="margin:0 0 18px 0;text-align:center;font-family:Georgia,'Times New Roman',serif;font-size:64px;line-height:1.02;color:#0A2F20;font-weight:700;">${escapeHtml(title)}</h1>
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px 0;">
+                        <tr>
+                          <td align="center">
+                            <div style="display:inline-block;width:150px;height:1px;background:#D9A91D;vertical-align:middle;"></div>
+                            <span style="display:inline-block;color:#D9A91D;font-size:24px;line-height:1;padding:0 14px;vertical-align:middle;">♡</span>
+                            <div style="display:inline-block;width:150px;height:1px;background:#D9A91D;vertical-align:middle;"></div>
+                          </td>
+                        </tr>
+                      </table>
+                      <p style="margin:0 auto 26px auto;max-width:660px;text-align:center;color:#2E3F35;font-size:18px;line-height:1.7;">${escapeHtml(intro)}</p>
+                      <div style="margin:0 0 24px 0;color:#31433A;font-size:16px;line-height:1.8;text-align:center;">${bodyHtml || ''}</div>
+                      ${ctaLabel ? `
+                        <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto 26px auto;">
+                          <tr>
+                            <td align="center" bgcolor="#D9A91D" style="border-radius:18px;background:linear-gradient(180deg,#DEB02B 0%,#C99A12 100%);">
+                              <a href="${escapeHtml(ctaUrl || APP_URL)}" style="display:inline-block;padding:24px 44px;color:#0A2F20;font-size:21px;font-weight:800;letter-spacing:0.08em;text-decoration:none;text-transform:uppercase;">${escapeHtml(ctaLabel)}</a>
+                            </td>
+                          </tr>
+                        </table>` : ''}
+                      ${ctaNote ? `<p style="margin:0 auto 28px auto;max-width:680px;text-align:center;color:#516158;font-size:14px;line-height:1.8;">${ctaNote}</p>` : ''}
+                      ${factsBlock}
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #E7D9B6;margin:0 0 26px 0;">
+                        <tr><td style="height:26px;font-size:0;line-height:0;">&nbsp;</td></tr>
+                        <tr>
+                          <td>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                              <tr>
+                                <td width="33.33%" align="center" valign="top" style="padding:0 12px;">
+                                  <div style="width:82px;height:82px;border-radius:50%;background:#0A2F20;color:#D9A91D;font-size:34px;line-height:82px;text-align:center;margin:0 auto 16px auto;">✓</div>
+                                  <div style="font-family:Georgia,'Times New Roman',serif;font-size:22px;line-height:1.2;color:#10241A;font-weight:700;margin-bottom:8px;">Ověřené pečovatelky</div>
+                                  <div style="font-size:14px;line-height:1.6;color:#425046;">Prověřené doklady i reference</div>
+                                </td>
+                                <td width="33.33%" align="center" valign="top" style="padding:0 12px;border-left:1px solid #E7D9B6;border-right:1px solid #E7D9B6;">
+                                  <div style="width:82px;height:82px;border-radius:50%;background:#0A2F20;color:#D9A91D;font-size:34px;line-height:82px;text-align:center;margin:0 auto 16px auto;">♡</div>
+                                  <div style="font-family:Georgia,'Times New Roman',serif;font-size:22px;line-height:1.2;color:#10241A;font-weight:700;margin-bottom:8px;">Bezpečná péče</div>
+                                  <div style="font-size:14px;line-height:1.6;color:#425046;">Pojištění a bezpečný proces</div>
+                                </td>
+                                <td width="33.33%" align="center" valign="top" style="padding:0 12px;">
+                                  <div style="width:82px;height:82px;border-radius:50%;background:#0A2F20;color:#D9A91D;font-size:34px;line-height:82px;text-align:center;margin:0 auto 16px auto;">⌂</div>
+                                  <div style="font-family:Georgia,'Times New Roman',serif;font-size:22px;line-height:1.2;color:#10241A;font-weight:700;margin-bottom:8px;">Klid pro rodiny</div>
+                                  <div style="font-size:14px;line-height:1.6;color:#425046;">Přehled a jistota na jednom místě</div>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 30px 0;border:1px solid #B6C5B8;border-radius:18px;background:linear-gradient(180deg,#F9FAF6 0%,#F1F4EE 100%);">
+                        <tr>
+                          <td style="padding:24px 26px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                              <tr>
+                                <td width="72" valign="top" align="center" style="font-size:42px;line-height:1;color:#0A2F20;">🛡</td>
+                                <td valign="top" style="color:#26352D;font-size:16px;line-height:1.8;">
+                                  <strong>Vaše bezpečí je pro nás prioritou.</strong><br>
+                                  Vaše údaje používáme pouze pro účely poskytování našich služeb.
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                      <div style="text-align:center;margin:0 0 28px 0;">
+                        <div style="font-family:Georgia,'Times New Roman',serif;font-size:28px;line-height:1.2;color:#0A2F20;font-weight:700;margin-bottom:10px;">${escapeHtml(closingTitle || 'Těší nás, že jste s námi.')}</div>
+                        <div style="font-family:Georgia,'Times New Roman',serif;font-size:22px;line-height:1.2;color:#C99A12;font-style:italic;">${escapeHtml(closingSubtitle || 'Tým Zenvoria')}</div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0;background:linear-gradient(90deg,#072B1C 0%,#0B3C27 100%);border-top:1px solid #C99A12;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td width="33.33%" valign="top" style="padding:34px 28px 32px 28px;border-right:1px solid rgba(217,169,29,0.25);">
+                            <div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.1;color:#F7F1E5;font-weight:700;letter-spacing:0.08em;">ZENVORIA</div>
+                            <div style="margin-top:10px;font-family:Georgia,'Times New Roman',serif;font-size:18px;line-height:1.4;color:#D9A91D;font-style:italic;">Péče s lidskostí</div>
+                            <div style="margin-top:16px;width:60px;height:2px;background:#D9A91D;"></div>
+                          </td>
+                          <td width="33.33%" valign="top" style="padding:34px 28px 32px 28px;border-right:1px solid rgba(217,169,29,0.25);">
+                            <div style="font-size:13px;line-height:1.2;color:#D9A91D;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:14px;">Kontakt</div>
+                            <div style="color:#E4ECE6;font-size:15px;line-height:2;">✉ podpora@zenvoria.cz<br>☎ +420 800 123 456<br>⌘ www.zenvoria.cz</div>
+                          </td>
+                          <td width="33.33%" valign="top" style="padding:34px 28px 32px 28px;">
+                            <div style="font-size:13px;line-height:1.2;color:#D9A91D;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:16px;">Sledujte nás</div>
+                            <div>
+                              <span style="display:inline-block;width:44px;height:44px;border:1px solid #D9A91D;border-radius:50%;color:#D9A91D;font-size:20px;line-height:44px;text-align:center;margin-right:10px;">f</span>
+                              <span style="display:inline-block;width:44px;height:44px;border:1px solid #D9A91D;border-radius:50%;color:#D9A91D;font-size:20px;line-height:44px;text-align:center;margin-right:10px;">in</span>
+                              <span style="display:inline-block;width:44px;height:44px;border:1px solid #D9A91D;border-radius:50%;color:#D9A91D;font-size:20px;line-height:44px;text-align:center;">◎</span>
+                            </div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 28px 22px 28px;text-align:center;background:#07281A;border-top:1px solid rgba(217,169,29,0.25);color:#D3DDD5;font-size:13px;line-height:1.8;">
+                      ${escapeHtml(footerNote)}<br>
+                      © 2026 ZENVORIA s.r.o. Všechna práva vyhrazena.
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
           </table>
@@ -224,29 +316,24 @@ function registrationMail(user) {
       'Pokud jste se neregistrovali vy, odpovezte prosim na tento e-mail.\n\n' +
       'S pozdravem,\nTym ZENVORIA',
     html: renderEmailLayout({
-      eyebrow: 'Vitejte',
-      title: 'Ucet je pripraven',
-      intro: `Dobry den, ${firstName}, dekujeme za registraci do ZENVORIA. Vas ucet byl uspesne vytvoren a muzete zacit pracovat s platformou.`,
-      accentLabel: 'Overena pece. Jasna komunikace. Elegantni zazitek.',
-      sections: [
-        {
-          type: 'html',
-          html:
-            '<p style="margin:0 0 14px 0;">Prave jsme pro vas aktivovali pristup do prostredi ZENVORIA, kde propojujeme rodiny s pecovatelkami v duchu duvery, klidu a lidskeho pristupu.</p>' +
-            '<p style="margin:0;">Pokud jste se neregistrovali vy, odpovezte prosim na tento e-mail a situaci okamzite proverime.</p>',
-        },
-        {
-          type: 'facts',
-          title: 'Detaily uctu',
-          items: [
-            { label: 'Jmeno', value: user.name || '' },
-            { label: 'E-mail', value: user.email || '' },
-            { label: 'Role', value: user.role === 'caregiver' ? 'Pecovatelka' : 'Rodina' },
-            { label: 'Stav uctu', value: 'Aktivni' },
-          ],
-        },
+      preheader: 'Váš účet v ZENVORIA je připraven a můžete začít.',
+      title: 'Potvrzení registrace',
+      intro: `Děkujeme za registraci do ZENVORIA. ${firstName}, váš účet byl úspěšně vytvořen a můžete pokračovat do aplikace.`,
+      bodyHtml:
+        '<p style="margin:0 0 14px 0;">Právě jsme pro vás aktivovali přístup do prostředí ZENVORIA, kde propojujeme rodiny s pečovatelkami v duchu důvěry, klidu a lidského přístupu.</p>' +
+        '<p style="margin:0;">Pokud jste se neregistrovali vy, odpovězte prosím na tento e-mail a situaci okamžitě prověříme.</p>',
+      ctaLabel: 'Přejít do aplikace',
+      ctaUrl: `${APP_URL}/`,
+      ctaNote: 'Pokud tlačítko nefunguje, otevřete prosím ZENVORIA přímo ve svém prohlížeči na www.zenvoria.cz.',
+      facts: [
+        { label: 'Jméno', value: user.name || '' },
+        { label: 'E-mail', value: user.email || '' },
+        { label: 'Role', value: user.role === 'caregiver' ? 'Pečovatelka' : 'Rodina' },
+        { label: 'Stav účtu', value: 'Aktivní' },
       ],
-      footerNote: 'Tento e-mail jsme poslali automaticky po vytvoreni uctu v ZENVORIA.',
+      closingTitle: 'Těší nás, že jste s námi.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail byl odeslán automaticky po vytvoření účtu v ZENVORIA.',
     }),
   };
 }
@@ -278,24 +365,19 @@ function reservationMail({ user, order, caregiverName }) {
       '\nJakmile se stav rezervace zmeni, dame vam vedet.\n\n' +
       'S pozdravem,\nTym ZENVORIA',
     html: renderEmailLayout({
-      eyebrow: 'Rezervace',
-      title: 'Potvrzeni vaseho terminu',
-      intro: `Dobry den, ${firstName}, dekujeme za rezervaci v ZENVORIA. Vase objednavka byla prijata a ceka na dalsi zpracovani.`,
-      accentLabel: 'Prehled rezervace na jednom miste.',
-      sections: [
-        {
-          type: 'facts',
-          title: 'Souhrn rezervace',
-          items: facts,
-        },
-        {
-          type: 'html',
-          html:
-            '<p style="margin:0 0 14px 0;">Jakmile se stav rezervace zmeni, posleme vam dalsi aktualizaci. V mezicase si muzete vse pohodlne zkontrolovat ve svem uctu.</p>' +
-            '<p style="margin:0;">Pokud potrebujete cokoli upravit, odpovezte prosim na tento e-mail.</p>',
-        },
-      ],
-      footerNote: 'Tento e-mail slouzi jako potvrzeni prave vytvorene rezervace v ZENVORIA.',
+      preheader: 'Vaše rezervace v ZENVORIA byla přijata.',
+      title: 'Potvrzení rezervace',
+      intro: `Děkujeme za vaši rezervaci v ZENVORIA. ${firstName}, objednávku jsme přijali a čeká na další zpracování.`,
+      bodyHtml:
+        '<p style="margin:0 0 14px 0;">Níže najdete shrnutí rezervace. Jakmile se stav změní, pošleme vám další aktualizaci.</p>' +
+        '<p style="margin:0;">Pokud potřebujete cokoli upravit, odpovězte prosím na tento e-mail.</p>',
+      ctaLabel: 'Zobrazit ZENVORIA',
+      ctaUrl: `${APP_URL}/`,
+      ctaNote: 'Přehled rezervací najdete po přihlášení ve svém účtu na ZENVORIA.',
+      facts,
+      closingTitle: 'Děkujeme za vaši důvěru.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail slouží jako potvrzení právě vytvořené rezervace v ZENVORIA.',
     }),
   };
 }
