@@ -51,7 +51,7 @@ const REST_ENABLED = !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const SESSION_COOKIE = 'zv_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
-const RESET_TOKEN_TTL_MS = 1000 * 5; // dočasně 5 sekund pro produkční test expirace
+const RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
 
 const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !== 'false';
 const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
@@ -643,7 +643,6 @@ app.post('/api/auth/login', h(async (req, res) => {
 
 app.post('/api/auth/forgot-password', h(async (req, res) => {
   const email = String((req.body && req.body.email) || '').trim().toLowerCase();
-  const debugReturnToken = !!(req.body && req.body.debugReturnToken);
   if (!email) return res.status(400).json({ error: 'Zadejte e-mail.' });
   const user = await findUserByEmail(email);
   if (user) {
@@ -651,7 +650,6 @@ app.post('/api/auth/forgot-password', h(async (req, res) => {
     const resetUrl = `${APP_URL}/?reset=${encodeURIComponent(token)}`;
     const mail = forgotPasswordMail({ user, resetUrl });
     await sendMailSafe({ to: user.email, ...mail });
-    if (debugReturnToken) return res.json({ ok: true, resetUrl, token });
   }
   res.json({ ok: true });
 }));
