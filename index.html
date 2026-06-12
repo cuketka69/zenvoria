@@ -138,8 +138,28 @@
     font-family:'Playfair Display',serif;font-size:26px;font-weight:700}
   .ht-ic{width:30px;height:30px;color:var(--gold)}
   .ht-body{max-width:560px}
-  .ht-card h3{font-family:'Playfair Display',serif;font-size:26px;color:#F4EFE3;margin-bottom:12px}
-  .ht-card p{font-size:15px;color:rgba(233,240,234,.82);line-height:1.7}
+  .ht-card h3{font-family:'Playfair Display',serif;font-size:27px;color:#F8F4EA;margin-bottom:12px}
+  .ht-card p{font-size:17px;color:rgba(244,239,227,.92);line-height:1.75}
+  /* tlačítko „Provést mě" + interaktivní průvodce */
+  .howto-guide{display:flex;flex-direction:column;align-items:center;gap:10px;margin:8px auto 4px;text-align:center}
+  .btn-guide{display:inline-flex;align-items:center;gap:10px;font-size:18px;font-weight:700;padding:16px 28px;
+    border-radius:999px;border:2px solid var(--gold);background:var(--gold);color:var(--navy-900);cursor:pointer;
+    box-shadow:0 12px 30px -12px rgba(201,162,51,.8);transition:.2s}
+  .btn-guide:hover{transform:translateY(-2px);background:var(--gold-soft)}
+  html[data-theme="dark"] .btn-guide{color:#0C1A13}
+  .howto-guide .gh-hint{font-size:15px;color:var(--muted)}
+  .tour-spot{position:relative;z-index:1002;border-radius:14px;
+    box-shadow:0 0 0 3px var(--gold),0 0 0 9999px rgba(8,20,14,.66)!important}
+  .tour-box{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:1003;width:min(94vw,520px);
+    background:var(--white);border:1px solid var(--line);border-radius:20px;padding:24px 26px;
+    box-shadow:0 24px 60px -18px rgba(0,0,0,.6)}
+  .tour-box .tb-step{font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gold-deep)}
+  .tour-box h4{font-family:'Playfair Display',serif;font-size:24px;color:var(--navy-900);margin:6px 0 10px}
+  .tour-box p{font-size:18px;line-height:1.6;color:var(--navy-800)}
+  .tour-box .tb-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:20px}
+  .tour-box .tb-actions .right{display:flex;gap:10px}
+  .tour-box .tb-skip{background:none;border:none;color:var(--muted);font-size:15px;cursor:pointer;text-decoration:underline}
+  .tour-box .btn{font-size:17px;padding:12px 22px}
   @media(max-width:680px){
     .ht-card{grid-template-columns:74px 1fr;padding:26px 22px;min-height:0;
       background-image:linear-gradient(90deg,#0E2C1C 0%,#0E2C1C 60%,rgba(14,44,28,.4) 100%),var(--ht-img,none)}
@@ -1318,7 +1338,14 @@
     </div>
 
     <div class="howto-pane on" id="htPaneFamily" role="tabpanel">
-      <div class="sec-head" style="margin-top:24px">
+      <div class="howto-guide" style="margin-top:26px">
+        <button class="btn-guide" onclick="tourStart()">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z" stroke="currentColor" stroke-width="1.7"/><path d="m10 8 6 4-6 4V8Z" fill="currentColor"/></svg>
+          Proveďte mě krok za krokem
+        </button>
+        <span class="gh-hint">Ukážeme vám přímo v aplikaci, kam kliknout. Kdykoli můžete průvodce ukončit.</span>
+      </div>
+      <div class="sec-head" style="margin-top:30px">
         <span class="eyebrow">Pro rodiny</span>
         <h2>Najděte péči ve čtyřech krocích</h2>
       </div>
@@ -1330,7 +1357,7 @@
           </div>
           <div class="ht-body">
             <h3>Vyhledejte pečovatelku</h3>
-            <p>Zadejte lokalitu a typ péče. Procházejte profily ověřených pečovatelek ve svém okolí.</p>
+            <p>Nahoře klikněte na žluté tlačítko <b>„Najít pečovatelku"</b>. Pak můžete napsat své město — nebo nepište nic a uvidíte všechny pečovatelky ve svém okolí.</p>
           </div>
         </div>
         <div class="ht-card" style="--ht-img:url('krok-r2.png')">
@@ -1340,7 +1367,7 @@
           </div>
           <div class="ht-body">
             <h3>Vyberte si tu pravou</h3>
-            <p>Prohlédněte si zkušenosti, recenze a dostupnost v kalendáři. Můžete si nezávazně napsat přes chat.</p>
+            <p>U každé pečovatelky vidíte fotku, hvězdičky (spokojenost rodin) a cenu za hodinu. Klikněte na <b>„Zobrazit profil"</b> a přečtěte si zkušenosti i recenze.</p>
           </div>
         </div>
         <div class="ht-card" style="--ht-img:url('krok-r3.png')">
@@ -1349,8 +1376,8 @@
             <svg class="ht-ic" viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M4 9h16M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           </div>
           <div class="ht-body">
-            <h3>Rezervujte online</h3>
-            <p>Vyberte termín a službu, bezpečně zaplaťte a potvrďte objednávku — vše na pár kliknutí.</p>
+            <h3>Rezervujte termín</h3>
+            <p>V profilu vyberte den a hodinu, kdy péči potřebujete, a klikněte na <b>„Rezervovat"</b>. Platba je bezpečná a objednávku rovnou potvrdíte.</p>
           </div>
         </div>
         <div class="ht-card" style="--ht-img:url('krok-r4.png')">
@@ -1360,7 +1387,7 @@
           </div>
           <div class="ht-body">
             <h3>Užijte si klid</h3>
-            <p>Sledujte průběh péče, komunikujte přes chat a mějte přehled 24/7. Na blízké je postaráno.</p>
+            <p>Hotovo. S pečovatelkou si můžete kdykoli napsat přes <b>„Zprávy"</b>, v sekci <b>„Moje objednávky"</b> vidíte všechny termíny. O vaše blízké je postaráno.</p>
           </div>
         </div>
       </div>
@@ -3830,6 +3857,61 @@ function navProgress(el,fn,delay){
   if(!el||el.classList.contains('nav-busy'))return;
   el.classList.add('nav-busy');
   setTimeout(function(){el.classList.remove('nav-busy');if(fn)fn();},delay||850);
+}
+/* ---------- INTERAKTIVNÍ PRŮVODCE („Proveďte mě") ---------- */
+const TOUR_STEPS=[
+  {view:'home',sel:'#navCta',
+   title:'1. Najděte pomoc',
+   text:'Začneme tady. Tohle žluté tlačítko „Najít pečovatelku" otevře seznam pečovatelek. Klikněte na „Další" a ukážu vám to.'},
+  {view:'search',sel:'#q',
+   title:'2. Co hledáte?',
+   text:'Sem můžete napsat své město nebo druh péče. Nemusíte ale psát nic — i tak uvidíte všechny pečovatelky ve svém okolí.'},
+  {view:'search',sel:'#careGrid .care-card',
+   title:'3. Prohlédněte si pečovatelky',
+   text:'Tady jsou pečovatelky. U každé je fotka, hvězdičky (jak jsou s ní rodiny spokojené) a cena za hodinu.'},
+  {view:'search',sel:'#careGrid .care-card .btn-gold',
+   title:'4. Otevřete profil',
+   text:'Až se vám některá zalíbí, klikněte na žluté tlačítko „Zobrazit profil". Uvidíte podrobnosti, recenze a volné termíny.'},
+  {view:'search',sel:null,
+   title:'A to je vše! 😊',
+   text:'V profilu už jen vyberete den a čas a kliknete na „Rezervovat". Kdykoli si můžete s pečovatelkou napsat přes „Zprávy". Kdybyste si nevěděli rady, průvodce si můžete kdykoli pustit znovu.'}
+];
+let tourIdx=-1;
+function tourClearSpot(){document.querySelectorAll('.tour-spot').forEach(e=>e.classList.remove('tour-spot'));}
+function tourEnd(){
+  tourClearSpot();
+  const b=document.getElementById('tourBox');if(b)b.remove();
+  tourIdx=-1;
+}
+function tourStart(){tourIdx=-1;tourGoto(0);}
+function tourGoto(i){
+  tourClearSpot();
+  if(i<0||i>=TOUR_STEPS.length){tourEnd();return;}
+  tourIdx=i;
+  const s=TOUR_STEPS[i];
+  if(s.view)go(s.view);
+  setTimeout(function(){
+    let el=s.sel?document.querySelector(s.sel):null;
+    if(el){el.classList.add('tour-spot');el.scrollIntoView({behavior:'smooth',block:'center'});}
+    tourRenderBox(s,i);
+  },s.view?300:80);
+}
+function tourRenderBox(s,i){
+  let box=document.getElementById('tourBox');
+  if(!box){box=document.createElement('div');box.id='tourBox';box.className='tour-box';box.setAttribute('role','dialog');box.setAttribute('aria-live','polite');document.body.appendChild(box);}
+  const last=i===TOUR_STEPS.length-1;
+  const first=i===0;
+  box.innerHTML=
+    '<div class="tb-step">Krok '+(i+1)+' z '+TOUR_STEPS.length+'</div>'+
+    '<h4>'+s.title+'</h4>'+
+    '<p>'+s.text+'</p>'+
+    '<div class="tb-actions">'+
+      '<button class="tb-skip" onclick="tourEnd()">Ukončit průvodce</button>'+
+      '<div class="right">'+
+        (first?'':'<button class="btn btn-ghost" onclick="tourGoto('+(i-1)+')">Zpět</button>')+
+        '<button class="btn btn-gold" onclick="'+(last?'tourEnd()':'tourGoto('+(i+1)+')')+'">'+(last?'Hotovo':'Další')+'</button>'+
+      '</div>'+
+    '</div>';
 }
 /* přepínač na stránce „Jak to funguje" (rodiny / pečovatelky) */
 function howtoTab(which){
