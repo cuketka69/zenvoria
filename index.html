@@ -124,14 +124,28 @@
     transform-origin:left center;transform:scaleX(0);animation:navfill .85s ease forwards}
   @keyframes navfill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   @media (prefers-reduced-motion:reduce){.nav-links a.nav-busy::after,.mobile-menu .panel a.nav-busy::after{animation-duration:.01s}}
-  /* stránka „Jak to funguje" */
-  .howto-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px;margin-top:8px}
-  .ht-card{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:28px 24px;transition:.2s}
-  .ht-card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
-  .ht-num{width:46px;height:46px;border-radius:50%;background:var(--navy-900);color:var(--gold);display:flex;
-    align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:20px;font-weight:700;margin-bottom:16px}
-  .ht-card h3{font-family:'Playfair Display',serif;font-size:20px;color:var(--navy-900);margin-bottom:8px}
-  .ht-card p{font-size:14px;color:var(--muted);line-height:1.65}
+  /* stránka „Jak to funguje" — kroky jako široké bannery */
+  .howto-steps{display:flex;flex-direction:column;gap:18px;margin-top:8px}
+  .ht-card{position:relative;overflow:hidden;display:grid;grid-template-columns:104px 1fr;align-items:center;
+    min-height:200px;padding:34px 36px;border-radius:18px;border:1px solid #1d4630;transition:.25s;
+    background-color:#0E2C1C;
+    background-image:linear-gradient(90deg,#0E2C1C 0%,#0E2C1C 32%,rgba(14,44,28,.55) 56%,rgba(14,44,28,0) 82%),var(--ht-img,none);
+    background-repeat:no-repeat;background-position:left center,right center;background-size:cover,cover}
+  .ht-card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:rgba(201,162,51,.45)}
+  .ht-left{display:flex;flex-direction:column;align-items:center;gap:16px}
+  .ht-num{width:60px;height:60px;border-radius:50%;border:2px solid var(--gold);color:var(--gold);
+    background:rgba(201,162,51,.08);display:flex;align-items:center;justify-content:center;
+    font-family:'Playfair Display',serif;font-size:26px;font-weight:700}
+  .ht-ic{width:30px;height:30px;color:var(--gold)}
+  .ht-body{max-width:560px}
+  .ht-card h3{font-family:'Playfair Display',serif;font-size:26px;color:#F4EFE3;margin-bottom:12px}
+  .ht-card p{font-size:15px;color:rgba(233,240,234,.82);line-height:1.7}
+  @media(max-width:680px){
+    .ht-card{grid-template-columns:74px 1fr;padding:26px 22px;min-height:0;
+      background-image:linear-gradient(90deg,#0E2C1C 0%,#0E2C1C 60%,rgba(14,44,28,.4) 100%),var(--ht-img,none)}
+    .ht-num{width:50px;height:50px;font-size:22px}
+    .ht-card h3{font-size:21px}
+  }
   .howto-cta{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:40px}
   /* velký přepínač rodiny / pečovatelky */
   .howto-switch{display:flex;gap:6px;max-width:520px;margin:30px auto 6px;padding:7px;
@@ -1309,25 +1323,45 @@
         <h2>Najděte péči ve čtyřech krocích</h2>
       </div>
       <div class="howto-steps">
-        <div class="ht-card">
-          <div class="ht-num">1</div>
-          <h3>Vyhledejte pečovatelku</h3>
-          <p>Zadejte lokalitu a typ péče. Procházejte profily ověřených pečovatelek ve svém okolí.</p>
+        <div class="ht-card" style="--ht-img:url('krok-r1.png')">
+          <div class="ht-left">
+            <div class="ht-num">1</div>
+            <svg class="ht-ic" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </div>
+          <div class="ht-body">
+            <h3>Vyhledejte pečovatelku</h3>
+            <p>Zadejte lokalitu a typ péče. Procházejte profily ověřených pečovatelek ve svém okolí.</p>
+          </div>
         </div>
-        <div class="ht-card">
-          <div class="ht-num">2</div>
-          <h3>Vyberte si tu pravou</h3>
-          <p>Prohlédněte si zkušenosti, recenze a dostupnost v kalendáři. Můžete si nezávazně napsat přes chat.</p>
+        <div class="ht-card" style="--ht-img:url('krok-r2.png')">
+          <div class="ht-left">
+            <div class="ht-num">2</div>
+            <svg class="ht-ic" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z" stroke="currentColor" stroke-width="1.7"/></svg>
+          </div>
+          <div class="ht-body">
+            <h3>Vyberte si tu pravou</h3>
+            <p>Prohlédněte si zkušenosti, recenze a dostupnost v kalendáři. Můžete si nezávazně napsat přes chat.</p>
+          </div>
         </div>
-        <div class="ht-card">
-          <div class="ht-num">3</div>
-          <h3>Rezervujte online</h3>
-          <p>Vyberte termín a službu, bezpečně zaplaťte a potvrďte objednávku — vše na pár kliknutí.</p>
+        <div class="ht-card" style="--ht-img:url('krok-r3.png')">
+          <div class="ht-left">
+            <div class="ht-num">3</div>
+            <svg class="ht-ic" viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M4 9h16M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </div>
+          <div class="ht-body">
+            <h3>Rezervujte online</h3>
+            <p>Vyberte termín a službu, bezpečně zaplaťte a potvrďte objednávku — vše na pár kliknutí.</p>
+          </div>
         </div>
-        <div class="ht-card">
-          <div class="ht-num">4</div>
-          <h3>Užijte si klid</h3>
-          <p>Sledujte průběh péče, komunikujte přes chat a mějte přehled 24/7. Na blízké je postaráno.</p>
+        <div class="ht-card" style="--ht-img:url('krok-r4.png')">
+          <div class="ht-left">
+            <div class="ht-num">4</div>
+            <svg class="ht-ic" viewBox="0 0 24 24" fill="none"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="ht-body">
+            <h3>Užijte si klid</h3>
+            <p>Sledujte průběh péče, komunikujte přes chat a mějte přehled 24/7. Na blízké je postaráno.</p>
+          </div>
         </div>
       </div>
       <div class="howto-cta">
@@ -1341,20 +1375,35 @@
         <h2>Začněte pomáhat ve třech krocích</h2>
       </div>
       <div class="howto-steps">
-        <div class="ht-card">
-          <div class="ht-num">1</div>
-          <h3>Zaregistrujte se a ověřte</h3>
-          <p>Vytvořte si profil, nahrajte doklady a certifikace. Náš tým vás rychle ověří.</p>
+        <div class="ht-card" style="--ht-img:url('krok-p1.png')">
+          <div class="ht-left">
+            <div class="ht-num">1</div>
+            <svg class="ht-ic" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="currentColor" stroke-width="1.7"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </div>
+          <div class="ht-body">
+            <h3>Zaregistrujte se a ověřte</h3>
+            <p>Vytvořte si profil, nahrajte doklady a certifikace. Náš tým vás rychle ověří.</p>
+          </div>
         </div>
-        <div class="ht-card">
-          <div class="ht-num">2</div>
-          <h3>Nastavte nabídku a kalendář</h3>
-          <p>Vyberte služby, které nabízíte, ceny a dostupné termíny ve svém kalendáři.</p>
+        <div class="ht-card" style="--ht-img:url('krok-p2.png')">
+          <div class="ht-left">
+            <div class="ht-num">2</div>
+            <svg class="ht-ic" viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M4 9h16M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </div>
+          <div class="ht-body">
+            <h3>Nastavte nabídku a kalendář</h3>
+            <p>Vyberte služby, které nabízíte, ceny a dostupné termíny ve svém kalendáři.</p>
+          </div>
         </div>
-        <div class="ht-card">
-          <div class="ht-num">3</div>
-          <h3>Přijímejte poptávky</h3>
-          <p>Rodiny vás osloví, vy potvrdíte termín. Platby probíhají bezpečně přes aplikaci.</p>
+        <div class="ht-card" style="--ht-img:url('krok-p3.png')">
+          <div class="ht-left">
+            <div class="ht-num">3</div>
+            <svg class="ht-ic" viewBox="0 0 24 24" fill="none"><path d="M3 6h18v12H3z" stroke="currentColor" stroke-width="1.7"/><path d="m3 7 9 6 9-6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="ht-body">
+            <h3>Přijímejte poptávky</h3>
+            <p>Rodiny vás osloví, vy potvrdíte termín. Platby probíhají bezpečně přes aplikaci.</p>
+          </div>
         </div>
       </div>
       <div class="howto-cta">
