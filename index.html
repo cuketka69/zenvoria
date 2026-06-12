@@ -2515,7 +2515,7 @@ const sName=(id)=>SERVICES.find(s=>s.id===id)?.name||id;
 const cg=(id)=>CAREGIVERS.find(c=>c.id===id);
 
 /* ---------- NAV ---------- */
-function go(v){
+function go(v,fromPop){
   const target=document.getElementById('view-'+v);
   if(!target)return;
   document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
@@ -2554,12 +2554,24 @@ function go(v){
       const url=new URL(window.location.href);
       if(url.searchParams.has('reset')){
         url.searchParams.delete('reset');
-        history.replaceState({},'',url.pathname+(url.search?url.search:'')+url.hash);
+        history.replaceState({view:v},'',url.pathname+(url.search?url.search:'')+'#'+v);
         resetPwToken='';
       }
     }catch(e){}
   }
+  // Napojení na historii prohlížeče → funguje tlačítko Zpět/Vpřed.
+  if(!fromPop){
+    try{
+      const cur=history.state&&history.state.view;
+      if(cur!==v)history.pushState({view:v},'','#'+v);
+    }catch(e){}
+  }
 }
+// Zpět/Vpřed v prohlížeči přepíná views (bez dalšího zápisu do historie).
+window.addEventListener('popstate',function(e){
+  const v=(e.state&&e.state.view)||'home';
+  if(document.getElementById('view-'+v))go(v,true);
+});
 function scrollTo2(id){setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}),60);}
 
 /* ---------- HERO PARALLAX ---------- */
@@ -4801,7 +4813,17 @@ async function initApp(){
   renderHome();renderFilters();renderCare();renderCalendar();
   document.querySelectorAll('select').forEach(enhanceSelect);
   initReveal();
-  if(!resetPwToken&&auth.loggedIn)go(landingView());
+  // deep-link: lze otevřít přímo konkrétní stránku přes #hash
+  let deep='';
+  try{deep=(location.hash||'').replace(/^#/,'');}catch(e){}
+  if(!resetPwToken&&deep&&document.getElementById('view-'+deep))go(deep);
+  else if(!resetPwToken&&auth.loggedIn)go(landingView());
+  // výchozí stav historie, aby hned fungovalo tlačítko Zpět
+  try{
+    const active=document.querySelector('.view.active');
+    const v=active?active.id.replace('view-',''):'home';
+    if(!history.state||history.state.view!==v)history.replaceState({view:v},'','#'+v);
+  }catch(e){}
 }
 initApp();
 </script>
