@@ -50,6 +50,7 @@ const REST_ENABLED = !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 // session secret pro podpis cookie (na produkci nastav vlastní; jinak náhodný za běhu)
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const SESSION_COOKIE = 'zv_session';
+const CSRF_COOKIE = 'zv_csrf';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
 const RESET_TOKEN_KEY_PREFIX = 'passwordReset:';
@@ -828,6 +829,9 @@ async function nextId(table, col = 'id') {
    3) SESSION (podepsaná cookie, stateless)
    -------------------------------------------------------------------- */
 function b64url(buf) { return Buffer.from(buf).toString('base64url'); }
+function createCsrfToken() {
+  return crypto.randomBytes(24).toString('base64url');
+}
 function signSession(payload) {
   const data = b64url(JSON.stringify(payload));
   const sig = crypto.createHmac('sha256', SESSION_SECRET).update(data).digest('base64url');
@@ -845,11 +849,13 @@ function verifySession(token) {
   } catch { return null; }
 }
 function setSession(res, user) {
+  const csrf = user.csrf || createCsrfToken();
   const token = signSession({
     uid: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    csrf,
     exp: Date.now() + SESSION_TTL_MS,
   });
   res.cookie(SESSION_COOKIE, token, {
@@ -859,8 +865,18 @@ function setSession(res, user) {
     maxAge: SESSION_TTL_MS,
     path: '/',
   });
+  res.cookie(CSRF_COOKIE, csrf, {
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: SESSION_TTL_MS,
+    path: '/',
+  });
 }
-function clearSession(res) { res.clearCookie(SESSION_COOKIE, { path: '/' }); }
+function clearSession(res) {
+  res.clearCookie(SESSION_COOKIE, { path: '/' });
+  res.clearCookie(CSRF_COOKIE, { path: '/' });
+}
 
 function createResetToken() {
   return crypto.randomBytes(32).toString('base64url');
@@ -1022,6 +1038,23 @@ async function loadPublicSettings() {
 // middleware: načte přihlášeného uživatele z cookie do req.session
 function loadSession(req, _res, next) {
   req.session = verifySession(req.cookies && req.cookies[SESSION_COOKIE]);
+  if (req.session && !req.session.csrf) {
+    req.session.csrf = createCsrfToken();
+    req.sessionRefresh = true;
+  }
+  next();
+}
+function refreshSessionCookie(req, res, next) {
+  if (req.session && req.sessionRefresh) {
+    setSession(res, {
+      id: req.session.uid,
+      email: req.session.email,
+      name: req.session.name,
+      role: req.session.role,
+      csrf: req.session.csrf,
+    });
+    req.sessionRefresh = false;
+  }
   next();
 }
 function requireAuth(req, res, next) {
@@ -1033,6 +1066,30 @@ function requireRole(...roles) {
     if (!req.session || !roles.includes(req.session.role)) return res.status(403).json({ error: 'Nedostatečné oprávnění' });
     next();
   };
+}
+function trustedRequestOrigin(req) {
+  const raw = String(req.headers.origin || req.headers.referer || '').trim();
+  if (!raw) return false;
+  try {
+    const incoming = new URL(raw).origin;
+    return incoming === new URL(APP_URL).origin;
+  } catch {
+    return false;
+  }
+}
+function requireCsrf(req, res, next) {
+  if (!req.session) return next();
+  const method = String(req.method || 'GET').toUpperCase();
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return next();
+  if (!req.path.startsWith('/api/')) return next();
+  if (req.path === '/api/billing/webhook') return next();
+  if (!trustedRequestOrigin(req)) return res.status(403).json({ error: 'Neplatný původ požadavku.' });
+  const headerToken = String(req.headers['x-csrf-token'] || '').trim();
+  const cookieToken = String((req.cookies && req.cookies[CSRF_COOKIE]) || '').trim();
+  if (!headerToken || !cookieToken || headerToken !== cookieToken || headerToken !== String(req.session.csrf || '')) {
+    return res.status(403).json({ error: 'Bezpečnostní token požadavku chybí nebo je neplatný.' });
+  }
+  next();
 }
 
 /* ----------------------------------------------------------------------
@@ -1137,6 +1194,8 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
 app.use(express.json({ limit: '8mb' }));
 app.use(cookieParser());
 app.use(loadSession);
+app.use(refreshSessionCookie);
+app.use(requireCsrf);
 
 const ROOT = __dirname;
 

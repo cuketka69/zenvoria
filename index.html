@@ -5244,10 +5244,21 @@ function sendChat(e){
    API KLIENT + NAPOJENÍ NA SERVER (Supabase přes náš /api)
    Data žijí v databázi; persist() už nepíše do localStorage.
    ==================================================================== */
+function getCookie(name){
+  const safe=String(name||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const m=document.cookie.match(new RegExp('(?:^|; )'+safe+'=([^;]*)'));
+  return m?decodeURIComponent(m[1]):'';
+}
 async function api(path,opts){
+  const method=((opts&&opts.method)||'GET').toUpperCase();
+  const headers=Object.assign({'Content-Type':'application/json'},(opts&&opts.headers)||{});
+  if(['POST','PUT','PATCH','DELETE'].includes(method)){
+    const csrf=getCookie('zv_csrf');
+    if(csrf)headers['X-CSRF-Token']=csrf;
+  }
   const res=await fetch('/api'+path,{
-    method:(opts&&opts.method)||'GET',
-    headers:{'Content-Type':'application/json'},
+    method,
+    headers,
     credentials:'include',
     body:opts&&opts.body!=null?JSON.stringify(opts.body):undefined
   });
