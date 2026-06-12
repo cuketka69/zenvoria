@@ -3929,6 +3929,11 @@ let verifyIdBackName='';
 let verifyIdBackData='';
 /* obsah nahraných souborů (data URL) — v paměti, klíč `${verId}:doc` / `:selfie` */
 const DOC_BLOBS={};
+function withWebpName(name){
+  const raw=String(name||'obrazek').trim()||'obrazek';
+  const base=raw.replace(/\.[^.]+$/,'');
+  return `${base}.webp`;
+}
 /* načte soubor jako data URL; obrázky zmenší kvůli velikosti */
 function readVerifyFile(file,cb){
   if(file.type&&file.type.startsWith('image/')){
@@ -3937,10 +3942,10 @@ function readVerifyFile(file,cb){
       const max=1400;let w=img.width,h=img.height;
       if(w>h){if(w>max){h=Math.round(h*max/w);w=max;}}else{if(h>max){w=Math.round(w*max/h);h=max;}}
       const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
-      cb(c.toDataURL('image/jpeg',0.82));
+      cb({name:withWebpName(file.name),data:c.toDataURL('image/webp',0.82)});
     };img.src=r.result;};
     r.readAsDataURL(file);
-  }else{const r=new FileReader();r.onload=function(){cb(r.result);};r.readAsDataURL(file);}
+  }else{const r=new FileReader();r.onload=function(){cb({name:file.name,data:r.result});};r.readAsDataURL(file);}
 }
 
 /* ---- formulář ověření (pečovatelka) ---- */
@@ -3974,25 +3979,25 @@ function onVerifyDoc(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyDocName=f.name;verifyDocData='';
   document.getElementById('vfDocText').innerHTML=`📎 <b>${f.name}</b> — připraveno k odeslání`;
-  readVerifyFile(f,d=>{verifyDocData=d;});
+  readVerifyFile(f,res=>{verifyDocName=res.name;verifyDocData=res.data;document.getElementById('vfDocText').innerHTML=`📎 <b>${res.name}</b> — připraveno k odeslání`;});
 }
 function onVerifySelfie(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifySelfieName=f.name;verifySelfieData='';
   document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${f.name}</b> — selfie připraveno`;
-  readVerifyFile(f,d=>{verifySelfieData=d;});
+  readVerifyFile(f,res=>{verifySelfieName=res.name;verifySelfieData=res.data;document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${res.name}</b> — selfie připraveno`;});
 }
 function onVerifyIdFront(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyIdFrontName=f.name;verifyIdFrontData='';
   document.getElementById('vfIdFrontText').innerHTML=`🪪 <b>${f.name}</b>`;
-  readVerifyFile(f,d=>{verifyIdFrontData=d;});
+  readVerifyFile(f,res=>{verifyIdFrontName=res.name;verifyIdFrontData=res.data;document.getElementById('vfIdFrontText').innerHTML=`🪪 <b>${res.name}</b>`;});
 }
 function onVerifyIdBack(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyIdBackName=f.name;verifyIdBackData='';
   document.getElementById('vfIdBackText').innerHTML=`🪪 <b>${f.name}</b>`;
-  readVerifyFile(f,d=>{verifyIdBackData=d;});
+  readVerifyFile(f,res=>{verifyIdBackName=res.name;verifyIdBackData=res.data;document.getElementById('vfIdBackText').innerHTML=`🪪 <b>${res.name}</b>`;});
 }
 function submitVerify(e){
   e.preventDefault();
@@ -4846,7 +4851,7 @@ function onCgPhoto(e){
       if(w>h){if(w>max){h=Math.round(h*max/w);w=max;}}else{if(h>max){w=Math.round(w*max/h);h=max;}}
       const c=document.createElement('canvas');c.width=w;c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
-      cgProfile.photo=c.toDataURL('image/jpeg',0.85);
+      cgProfile.photo=c.toDataURL('image/webp',0.85);
       const me=CAREGIVERS.find(x=>x.email===auth.email);
       if(me){me.photo=cgProfile.photo;apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{photo:cgProfile.photo}}));}
       syncCgPhotoToList();updateCgAvatar();syncCgPreview();updateAuthUI();renderCare();
