@@ -322,7 +322,7 @@ function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                   <tr>
                     <td style="color:#D6DED7;">${escapeHtml(preheader || '')}</td>
-                    <td align="right"><a href="${escapeHtml(ctaUrl || APP_URL)}" style="color:#D6DED7;text-decoration:underline;">Zobrazit e-mail v prohlížeči</a></td>
+                    <td align="right">&nbsp;</td>
                   </tr>
                 </table>
               </td>
