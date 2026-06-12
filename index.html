@@ -2399,6 +2399,17 @@ function go(v){
   if(v==='settings')renderSettings();
   if(v==='forgot')resetForgot();
   if(v==='reset-password')resetResetPassword(true);
+  // Při odchodu z reset hesla vyčisti token z URL, ať tam nezůstává viset.
+  if(v!=='reset-password'){
+    try{
+      const url=new URL(window.location.href);
+      if(url.searchParams.has('reset')){
+        url.searchParams.delete('reset');
+        history.replaceState({},'',url.pathname+(url.search?url.search:'')+url.hash);
+        resetPwToken='';
+      }
+    }catch(e){}
+  }
 }
 function scrollTo2(id){setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}),60);}
 
