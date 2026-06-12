@@ -2953,8 +2953,8 @@ function renderCare(){
       <div class="care-top">
         ${avaHtml(c.init,c.photo)}
         <div style="flex:1">
-          <div class="care-name">${c.name}</div>
-          <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${c.loc}</div>
+          <div class="care-name">${esc(c.name)}</div>
+          <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${esc(c.loc)}</div>
           <div class="care-meta"><span class="stars">★</span><b style="color:var(--navy-900)">${c.rating}</b><span>(${c.reviews}) · ${c.exp} let praxe</span></div>
         </div>
       </div>
@@ -2980,7 +2980,7 @@ function openProfile(id){
       <div class="phead">
         ${avaHtml(c.init,c.photo)}
         <div>
-          <h1>${c.name}</h1>
+          <h1>${esc(c.name)}</h1>
           <div class="pmeta">
             <span class="stars">★★★★★ <b style="color:var(--navy-900)">${c.rating}</b> <span style="color:var(--muted)">(${c.reviews} hodnocení)</span></span>
           </div>
@@ -2992,14 +2992,14 @@ function openProfile(id){
         </div>
       </div>
       <div class="pchips">
-        <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#C9A233" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#C9A233" stroke-width="1.6"/></svg>${c.loc} · dojezd do ${c.radius} km</div>
+        <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#C9A233" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#C9A233" stroke-width="1.6"/></svg>${esc(c.loc)} · dojezd do ${c.radius} km</div>
         <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#C9A233" stroke-width="1.6"/><path d="M12 8v4l3 2" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round"/></svg>${c.exp} let praxe</div>
         <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#C9A233" stroke-width="1.6"/></svg>Ověřené doklady</div>
         <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 8h14v12H5V8ZM9 4h6v4H9V4Z" stroke="#C9A233" stroke-width="1.6"/></svg>Pojištěná péče</div>
       </div>
       <div class="pdiv"></div>
       <h3>O mně</h3>
-      <p class="bio">${c.bio}</p>
+      <p class="bio">${esc(c.bio)}</p>
       <div class="pdiv"></div>
       <h3>Nabízené služby</h3>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
@@ -3007,19 +3007,19 @@ function openProfile(id){
       </div>
       <div class="pdiv"></div>
       <h3>Hodnocení (${revCount})</h3>
-      ${revs.map(r=>`<div class="rev"><div class="ava">${r.init}</div><div><div class="rb">${r.name} <span class="stars" style="font-size:12px">${'★'.repeat(r.stars)}</span></div><div class="rt">${r.text}</div></div></div>`).join('')}
+      ${revs.map(r=>`<div class="rev"><div class="ava">${esc(r.init)}</div><div><div class="rb">${esc(r.name)} <span class="stars" style="font-size:12px">${'★'.repeat(r.stars)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join('')}
     </div>
     <div class="pcard book-aside">
       <h3 style="margin-bottom:4px">Objednat péči</h3>
       <p style="color:var(--muted);font-size:13.5px;margin-bottom:18px">Vyberte si termín a my zajistíme zbytek.</p>
       <div class="row"><span class="l">Cena</span><span class="r">${priceLabel(c)}</span></div>
       <div class="row"><span class="l">Doprava</span><span class="r">${kmLabel(c)}</span></div>
-      <div class="row"><span class="l">Dojezd</span><span class="r">${c.loc} do ${c.radius} km</span></div>
+      <div class="row"><span class="l">Dojezd</span><span class="r">${esc(c.loc)} do ${c.radius} km</span></div>
       <div class="row"><span class="l">Dostupnost</span><span class="r" style="color:var(--gold-deep)">Tento týden</span></div>
       <div class="row"><span class="l">Reakce</span><span class="r">do 2 hodin</span></div>
       <div class="total-row"><span class="l">${c.priceType==='indiv'?'Cena':'Od'}</span><span class="big">${c.priceType==='indiv'?'Dohodou':priceShort(c).replace(/<b>|<\/b>/g,'')}</span></div>
       <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openBooking(${c.id})">Objednat službu</button>
-      <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openChat('${c.name}','${c.init}','caregiver')">Napsat zprávu</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openChat(${jsq(c.name)},${jsq(c.init)},'caregiver')">Napsat zprávu</button>
     </div>`;
   go('profile');
 }
@@ -3073,8 +3073,8 @@ function updateSummary(){
     <h3>Souhrn objednávky</h3>
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
       ${avaHtml(c.init,c.photo,'width:46px;height:46px;font-size:16px')}
-      <div><div style="font-family:'Playfair Display',serif;font-size:16px;color:#fff">${c.name}</div>
-      <div style="font-size:12.5px;color:#A2B0A6">${c.loc} · ★ ${c.rating}</div></div>
+      <div><div style="font-family:'Playfair Display',serif;font-size:16px;color:#fff">${esc(c.name)}</div>
+      <div style="font-size:12.5px;color:#A2B0A6">${esc(c.loc)} · ★ ${c.rating}</div></div>
     </div>
     <div class="row"><span class="l">Služba</span><span class="r">${sName(state.bkService)}</span></div>
     <div class="row"><span class="l">Datum</span><span class="r">${dateStr}</span></div>
@@ -3102,7 +3102,7 @@ function confirmBooking(){
     .then(r=>{const o=r.order;
       ORDERS.unshift({oid:o.oid,cid:c.id,service:state.bkService,hours,date,time,addr,note,km,status:'pending'});
       orderSeq=Math.max(orderSeq,o.oid);
-      toast(`✓ Objednávka u <b>${c.name}</b> odeslána — čeká na potvrzení`,'success');
+      toast(`✓ Objednávka u <b>${esc(c.name)}</b> odeslána — čeká na potvrzení`,'success');
       setTimeout(()=>go('bookings'),900);
     })
     .catch(e=>toast('⚠️ Objednávku se nepodařilo odeslat: '+e.message,'declined'));
@@ -3142,6 +3142,15 @@ function togglePw(btn,id){
   btn.setAttribute('aria-label',show?'Skrýt heslo':'Zobrazit heslo');
 }
 function setFieldError(fieldId,bad){document.getElementById(fieldId).classList.toggle('invalid',bad);}
+function esc(v){
+  return String(v==null?'':v)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+function jsq(v){return JSON.stringify(String(v==null?'':v));}
 function initials(name){
   const p=name.trim().split(/\s+/);
   return ((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase()||'Z';
@@ -3425,11 +3434,11 @@ function updateAuthUI(){
   }
   const mm=document.getElementById('mmAuth');
   const greet=document.getElementById('homeGreeting');
-  if(inn&&auth.role==='family'){greet.hidden=false;greet.innerHTML=`👋 Vítejte zpět, <b style="color:var(--navy-900)">${auth.name.split(/\s+/)[0]}</b>`;}
+  if(inn&&auth.role==='family'){greet.hidden=false;greet.innerHTML=`👋 Vítejte zpět, <b style="color:var(--navy-900)">${esc(auth.name.split(/\s+/)[0])}</b>`;}
   else{greet.hidden=true;}
   const homeLink=(auth.role==='caregiver'||auth.role==='admin')?`<a role="button" tabindex="0" onclick="go('${landingView()}')">Přehled</a>`:"<a role=\"button\" tabindex=\"0\" onclick=\"go('bookings')\">Moje objednávky</a>";
   mm.innerHTML=inn
-    ? `<div class="mm-user">${avaHtml(initials(auth.name),auth.role==='caregiver'?cgProfile.photo:null)}<div><b>${auth.name}</b><span>${auth.email}</span></div></div>
+    ? `<div class="mm-user">${avaHtml(initials(auth.name),auth.role==='caregiver'?cgProfile.photo:null)}<div><b>${esc(auth.name)}</b><span>${esc(auth.email)}</span></div></div>
        ${homeLink}
        <a role="button" tabindex="0" onclick="logout()" style="color:#B23A2E">Odhlásit se</a>`
     : `<a data-v="login" role="button" tabindex="0" onclick="go('login')">Přihlásit se</a>
@@ -3461,7 +3470,7 @@ async function submitLogin(e){
     loginAs(r.user.name,r.user.email,r.user.role);
     if(r.user.settings)Object.assign(appSettings,r.user.settings);
     await apiSync(bootstrap());updateAuthUI();renderCare();
-    toast(`✓ Vítejte zpět, <b>${auth.name.split(/\s+/)[0]}</b>!`);
+    toast(`✓ Vítejte zpět, <b>${esc(auth.name.split(/\s+/)[0])}</b>!`);
     if(!resumePendingBooking())go(landingView());
   }catch(err){
     setFieldError('lf-pw',true);
@@ -3691,7 +3700,7 @@ function renderOrders(tab){
       ${avaHtml(c.init,c.photo)}
       <div class="od">
         <b>${sName(o.service)}</b>
-        <div class="det">${c.name} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div>
+        <div class="det">${esc(c.name)} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div>
       </div>
       <div class="ost">
         <span class="status ${st.cls}">${st.label}</span>
@@ -3705,7 +3714,7 @@ function famOrderRow(o){
   const c=cg(o.cid);const st=ORDER_STATUS[o.status];
   return `<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openFamilyOrder(${o.oid})">
     ${avaHtml(c.init,c.photo)}
-    <div class="od"><b>${sName(o.service)}</b><div class="det">${c.name} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div></div>
+    <div class="od"><b>${sName(o.service)}</b><div class="det">${esc(c.name)} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div></div>
     <div class="ost"><span class="status ${st.cls}">${st.label}</span><div class="pr">${orderPrice(o).toLocaleString('cs-CZ')} Kč</div></div>
   </div>`;
 }
@@ -3737,7 +3746,7 @@ function renderFamilyDash(){
     trust.innerHTML=`
       ${nc?`<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openProfile(${nc.id})">
         ${avaHtml(nc.init,nc.photo)}
-        <div class="od"><b>Přijde: ${nc.name}</b><div class="det">${fmtDate(next.date)} · ${next.time} · ${cgBadges(nc,{max:1})||'ověřená'}</div></div>
+        <div class="od"><b>Přijde: ${esc(nc.name)}</b><div class="det">${fmtDate(next.date)} · ${next.time} · ${cgBadges(nc,{max:1})||'ověřená'}</div></div>
         <div class="ost"><span class="status ok">★ ${nc.rating}</span></div>
       </div>`:'<div class="empty" style="padding:14px">Zatím nemáte naplánovanou péči.</div>'}
       <div class="qa" style="margin-top:10px">
@@ -3749,7 +3758,7 @@ function renderFamilyDash(){
   document.getElementById('famRecommended').innerHTML=rec.map(c=>`
     <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openProfile(${c.id})">
       ${avaHtml(c.init,c.photo)}
-      <div class="od"><b>${c.name}</b><div class="det">${c.loc} · ${c.exp} let praxe</div></div>
+      <div class="od"><b>${esc(c.name)}</b><div class="det">${esc(c.loc)} · ${c.exp} let praxe</div></div>
       <div class="ost"><span class="status ok">★ ${c.rating}</span><div class="pr">${c.rate} Kč</div></div>
     </div>`).join('');
 }
@@ -3978,26 +3987,26 @@ function renderCgVerify(){
 function onVerifyDoc(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyDocName=f.name;verifyDocData='';
-  document.getElementById('vfDocText').innerHTML=`📎 <b>${f.name}</b> — připraveno k odeslání`;
-  readVerifyFile(f,res=>{verifyDocName=res.name;verifyDocData=res.data;document.getElementById('vfDocText').innerHTML=`📎 <b>${res.name}</b> — připraveno k odeslání`;});
+  document.getElementById('vfDocText').innerHTML=`📎 <b>${esc(f.name)}</b> — připraveno k odeslání`;
+  readVerifyFile(f,res=>{verifyDocName=res.name;verifyDocData=res.data;document.getElementById('vfDocText').innerHTML=`📎 <b>${esc(res.name)}</b> — připraveno k odeslání`;});
 }
 function onVerifySelfie(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifySelfieName=f.name;verifySelfieData='';
-  document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${f.name}</b> — selfie připraveno`;
-  readVerifyFile(f,res=>{verifySelfieName=res.name;verifySelfieData=res.data;document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${res.name}</b> — selfie připraveno`;});
+  document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${esc(f.name)}</b> — selfie připraveno`;
+  readVerifyFile(f,res=>{verifySelfieName=res.name;verifySelfieData=res.data;document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${esc(res.name)}</b> — selfie připraveno`;});
 }
 function onVerifyIdFront(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyIdFrontName=f.name;verifyIdFrontData='';
-  document.getElementById('vfIdFrontText').innerHTML=`🪪 <b>${f.name}</b>`;
-  readVerifyFile(f,res=>{verifyIdFrontName=res.name;verifyIdFrontData=res.data;document.getElementById('vfIdFrontText').innerHTML=`🪪 <b>${res.name}</b>`;});
+  document.getElementById('vfIdFrontText').innerHTML=`🪪 <b>${esc(f.name)}</b>`;
+  readVerifyFile(f,res=>{verifyIdFrontName=res.name;verifyIdFrontData=res.data;document.getElementById('vfIdFrontText').innerHTML=`🪪 <b>${esc(res.name)}</b>`;});
 }
 function onVerifyIdBack(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyIdBackName=f.name;verifyIdBackData='';
-  document.getElementById('vfIdBackText').innerHTML=`🪪 <b>${f.name}</b>`;
-  readVerifyFile(f,res=>{verifyIdBackName=res.name;verifyIdBackData=res.data;document.getElementById('vfIdBackText').innerHTML=`🪪 <b>${res.name}</b>`;});
+  document.getElementById('vfIdBackText').innerHTML=`🪪 <b>${esc(f.name)}</b>`;
+  readVerifyFile(f,res=>{verifyIdBackName=res.name;verifyIdBackData=res.data;document.getElementById('vfIdBackText').innerHTML=`🪪 <b>${esc(res.name)}</b>`;});
 }
 function submitVerify(e){
   e.preventDefault();
@@ -4062,7 +4071,7 @@ function renderAdminDash(){
     ?q.slice(0,4).map(v=>`
       <div class="req">
         <div class="ava">${v.init}</div>
-        <div class="ri"><b>${v.name}</b><div class="rd">${v.loc} · ${v.exp} let praxe · ${fmtDate(v.date)}</div><span class="rs">${v.cert}</span></div>
+        <div class="ri"><b>${esc(v.name)}</b><div class="rd">${esc(v.loc)} · ${v.exp} let praxe · ${fmtDate(v.date)}</div><span class="rs">${esc(v.cert)}</span></div>
         <div class="req-actions"><button class="btn btn-sm btn-gold" onclick="go('admin-verify')">Zkontrolovat</button></div>
       </div>`).join('')
     :'<div class="empty">Žádné čekající žádosti.</div>';
@@ -4082,13 +4091,13 @@ function renderAdminVerify(){
     <div class="req" style="align-items:flex-start">
       <div class="ava">${v.init}</div>
       <div class="ri">
-        <b>${v.name}</b>
-        <div class="rd">${v.loc} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
-        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">🛡️ Identita:</b> ${v.docType||'—'}${v.docNum?` č. ${v.docNum}`:''}${v.phone?` · ☎ ${v.phone}`:''}${v.idFront?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idfront')">🪪 přední ⬇</a>`:''}${v.idBack?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idback')">🪪 zadní ⬇</a>`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">🤳 selfie ⬇</a>`:''}</div>
-        <div class="rd"><b style="color:var(--navy-800)">🎓 Osvědčení:</b> ${v.cert} — ${v.issuer} (platnost ${v.validUntil})</div>
-        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">${docIcon(v.fileName)} ${v.fileName} ⬇</a> · <b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
-        ${v.refs?`<div class="rd"><b style="color:var(--navy-800)">Reference:</b> ${v.refs}</div>`:''}
-        ${v.note?`<div class="rd" style="margin-top:6px;font-style:italic">„${v.note}"</div>`:''}
+        <b>${esc(v.name)}</b>
+        <div class="rd">${esc(v.loc)} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
+        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">🛡️ Identita:</b> ${esc(v.docType||'—')}${v.docNum?` č. ${esc(v.docNum)}`:''}${v.phone?` · ☎ ${esc(v.phone)}`:''}${v.idFront?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idfront')">🪪 přední ⬇</a>`:''}${v.idBack?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idback')">🪪 zadní ⬇</a>`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">🤳 selfie ⬇</a>`:''}</div>
+        <div class="rd"><b style="color:var(--navy-800)">🎓 Osvědčení:</b> ${esc(v.cert)} — ${esc(v.issuer)} (platnost ${esc(v.validUntil)})</div>
+        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">${docIcon(v.fileName)} ${esc(v.fileName)} ⬇</a> · <b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
+        ${v.refs?`<div class="rd"><b style="color:var(--navy-800)">Reference:</b> ${esc(v.refs)}</div>`:''}
+        ${v.note?`<div class="rd" style="margin-top:6px;font-style:italic">„${esc(v.note)}"</div>`:''}
         <span class="rs">Podáno ${fmtDate(v.date)}</span>
       </div>
       <div class="req-actions">
@@ -4100,7 +4109,7 @@ function renderAdminVerify(){
   document.getElementById('admVerDone').innerHTML=done.length?`
     <table class="adm-table"><thead><tr><th>Pečovatelka</th><th>Osvědčení</th><th>Datum</th><th style="text-align:right">Výsledek</th></tr></thead><tbody>
     ${done.slice().reverse().map(v=>`<tr>
-      <td><div class="u-cell"><div class="ava">${v.init}</div><div><b>${v.name}</b><span>${v.loc}</span></div></div></td>
+      <td><div class="u-cell"><div class="ava">${esc(v.init)}</div><div><b>${esc(v.name)}</b><span>${esc(v.loc)}</span></div></div></td>
       <td>${v.cert}</td><td>${fmtDate(v.date)}</td>
       <td style="text-align:right">${verBadge(v.status)}${v.status==='rejected'&&v.reason?`<div class="rd" style="margin-top:4px">${v.reason}</div>`:''}</td>
     </tr>`).join('')}</tbody></table>`:'<div class="empty">Zatím žádné zpracované žádosti.</div>';
@@ -4358,7 +4367,7 @@ function approveVerification(id){
   cgStatusMap[v.email]='verified';
   apiSync(api('/verifications/'+id+'/approve',{method:'POST'}).then(()=>bootstrap()).then(()=>{renderAdminVerify();renderNav();renderCare();}));
   renderAdminVerify();renderNav();renderCare();
-  toast(`✅ ${v.name} byla ověřena a zveřejněna.`);
+  toast(`✅ ${esc(v.name)} byla ověřena a zveřejněna.`);
 }
 function rejectVerification(id){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
@@ -4368,7 +4377,7 @@ function rejectVerification(id){
   cgStatusMap[v.email]='rejected';
   apiSync(api('/verifications/'+id+'/reject',{method:'POST'}));
   renderAdminVerify();renderNav();
-  toast(`⚠️ Žádost ${v.name} byla zamítnuta.`);
+  toast(`⚠️ Žádost ${esc(v.name)} byla zamítnuta.`);
 }
 
 /* ---- ADMIN: pečovatelky ---- */
@@ -4377,8 +4386,8 @@ function renderAdminCaregivers(){
   document.getElementById('admCgBody').innerHTML=CAREGIVERS.map(c=>{
     const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge gold">✓ Ověřená</span>':'<span class="badge wait">Neověřená</span>');
     return `<tr>
-      <td><div class="u-cell">${avaHtml(c.init,c.photo)}<div><b>${c.name}</b><span>★ ${c.rating} · ${c.exp} let praxe</span></div></div></td>
-      <td>${c.loc}</td><td>${c.rate} Kč</td><td>${badge}</td>
+      <td><div class="u-cell">${avaHtml(c.init,c.photo)}<div><b>${esc(c.name)}</b><span>★ ${c.rating} · ${c.exp} let praxe</span></div></div></td>
+      <td>${esc(c.loc)}</td><td>${c.rate} Kč</td><td>${badge}</td>
       <td><div class="adm-actions">
         <button class="btn btn-sm ${c.suspended?'btn-accept':'btn-decline'}" onclick="toggleSuspendCg(${c.id})">${c.suspended?'Obnovit':'Pozastavit'}</button>
         <button class="btn btn-sm btn-decline" onclick="removeCaregiver(${c.id})">Odebrat</button>
@@ -4390,23 +4399,23 @@ function toggleSuspendCg(id){
   const doIt=()=>{c.suspended=!c.suspended;
     apiSync(api('/caregivers/'+id,{method:'PATCH',body:{suspended:c.suspended}}));
     renderAdminCaregivers();renderCare();
-    toast(c.suspended?`⏸️ ${c.name} pozastavena.`:`▶️ ${c.name} obnovena.`);};
+    toast(c.suspended?`⏸️ ${esc(c.name)} pozastavena.`:`▶️ ${esc(c.name)} obnovena.`);};
   if(!c.suspended){
     askConfirm({title:'Pozastavit pečovatelku?',icon:'⏸️',
-      message:`${c.name} se přestane zobrazovat rodinám, dokud ji znovu neobnovíte.`,
+      message:`${esc(c.name)} se přestane zobrazovat rodinám, dokud ji znovu neobnovíte.`,
       confirmLabel:'Pozastavit',danger:true,onConfirm:doIt});
   }else doIt();
 }
 function removeCaregiver(id){
   const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
   askConfirm({title:'Odebrat pečovatelku?',icon:'🗑️',
-    message:`Opravdu chcete odebrat pečovatelku ${c.name}? Tato akce je nevratná.`,
+    message:`Opravdu chcete odebrat pečovatelku ${esc(c.name)}? Tato akce je nevratná.`,
     confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
       CAREGIVERS=CAREGIVERS.filter(x=>x.id!==id);
       if(c.email)cgStatusMap[c.email]='rejected';
       apiSync(api('/caregivers/'+id,{method:'DELETE'}));
       renderAdminCaregivers();renderCare();
-      toast(`🗑️ ${c.name} odebrána.`);
+      toast(`🗑️ ${esc(c.name)} odebrána.`);
     }});
 }
 
@@ -4416,7 +4425,7 @@ function renderAdminUsers(){
   document.getElementById('admUsrBody').innerHTML=USERS.map(u=>{
     const badge=u.status==='suspended'?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
     return `<tr>
-      <td><div class="u-cell"><div class="ava">${u.init}</div><div><b>${u.name}</b><span>${u.email}</span></div></div></td>
+      <td><div class="u-cell"><div class="ava">${esc(u.init)}</div><div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${badge}</td>
       <td><div class="adm-actions">
         <button class="btn btn-sm ${u.status==='suspended'?'btn-accept':'btn-decline'}" onclick="toggleSuspendUser(${u.id})">${u.status==='suspended'?'Obnovit':'Pozastavit'}</button>
@@ -4429,22 +4438,22 @@ function toggleSuspendUser(id){
   const doIt=()=>{u.status=u.status==='suspended'?'active':'suspended';
     apiSync(api('/users/'+u.id,{method:'PATCH',body:{status:u.status}}));
     renderAdminUsers();
-    toast(u.status==='suspended'?`⏸️ ${u.name} pozastaven.`:`▶️ ${u.name} obnoven.`);};
+    toast(u.status==='suspended'?`⏸️ ${esc(u.name)} pozastaven.`:`▶️ ${esc(u.name)} obnoven.`);};
   if(u.status!=='suspended'){
     askConfirm({title:'Pozastavit uživatele?',icon:'⏸️',
-      message:`Účet ${u.name} bude pozastaven, dokud ho znovu neobnovíte.`,
+      message:`Účet ${esc(u.name)} bude pozastaven, dokud ho znovu neobnovíte.`,
       confirmLabel:'Pozastavit',danger:true,onConfirm:doIt});
   }else doIt();
 }
 function removeUser(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
   askConfirm({title:'Odebrat uživatele?',icon:'🗑️',
-    message:`Opravdu chcete odebrat uživatele ${u.name}? Tato akce je nevratná.`,
+    message:`Opravdu chcete odebrat uživatele ${esc(u.name)}? Tato akce je nevratná.`,
     confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
       USERS=USERS.filter(x=>x.id!==id);
       apiSync(api('/users/'+id,{method:'DELETE'}));
       renderAdminUsers();
-      toast(`🗑️ ${u.name} odebrán.`);
+      toast(`🗑️ ${esc(u.name)} odebrán.`);
     }});
 }
 
@@ -4456,7 +4465,7 @@ function renderAdminOrders(){
     const cls=st.cls==='ok'?'ok':(st.cls==='done'?'ok':(st.cls==='declined'?'bad':'wait'));
     return `<tr>
       <td><b>${sName(o.service)}</b><div class="rd" style="font-size:12px;color:var(--muted)">${o.hours} h</div></td>
-      <td>${c?c.name:'—'}</td>
+      <td>${c?esc(c.name):'—'}</td>
       <td>${fmtDate(o.date)} · ${o.time}</td>
       <td><span class="badge ${cls}">${st.label}</span></td>
     </tr>`;}).join('');
@@ -4473,7 +4482,7 @@ async function renderAdminAudit(){
     applyAdminAuditFilters();
   }catch(e){
     count.textContent='0';
-    body.innerHTML=`<tr><td colspan="4" class="empty">Audit logy se nepodařilo načíst: ${e.message||'neznámá chyba'}.</td></tr>`;
+    body.innerHTML=`<tr><td colspan="4" class="empty">Audit logy se nepodařilo načíst: ${esc(e.message||'neznámá chyba')}.</td></tr>`;
   }
 }
 
@@ -4483,23 +4492,23 @@ function renderAdminAuditRows(list){
   FILTERED_AUDIT_LOGS=list;
   count.textContent=list.length;
   body.innerHTML=list.length?list.map(log=>{
-    const actor=log.actorEmail||log.actorId||'—';
-    const target=[log.targetType,log.targetId].filter(Boolean).join(' · ')||'—';
+    const actor=esc(log.actorEmail||log.actorId||'—');
+    const target=esc([log.targetType,log.targetId].filter(Boolean).join(' · ')||'—');
     const meta=log.metadata&&typeof log.metadata==='object'
-      ?Object.entries(log.metadata).slice(0,3).map(([k,v])=>`<span class="chip">${k}: ${String(v)}</span>`).join('')
+      ?Object.entries(log.metadata).slice(0,3).map(([k,v])=>`<span class="chip">${esc(k)}: ${esc(String(v))}</span>`).join('')
       :'';
     const statusCls=log.status==='success'?'ok':(log.status==='failed'?'bad':'wait');
     return `<tr>
       <td>
-        <b>${log.action}</b>
+        <b>${esc(log.action)}</b>
         <div class="audit-meta">
           <span class="badge ${statusCls}">${log.status}</span>
-          ${log.actorRole?`<span class="chip">${log.actorRole}</span>`:''}
+          ${log.actorRole?`<span class="chip">${esc(log.actorRole)}</span>`:''}
         </div>
       </td>
       <td>
         <span class="mono">${actor}</span>
-        ${log.ip?`<span class="small">IP: ${log.ip}</span>`:''}
+        ${log.ip?`<span class="small">IP: ${esc(log.ip)}</span>`:''}
       </td>
       <td>
         <span>${target}</span>
@@ -4597,7 +4606,7 @@ function renderBcRecipients(){
   const all=[...cgs,...fams];
   wrap.innerHTML=`<div style="max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:10px">
     ${all.map(p=>`<label class="set-row" style="padding:8px 4px;cursor:pointer">
-      <span style="display:flex;align-items:center;gap:8px"><input type="checkbox" class="bc-rcpt" value="${p.email}"> <b style="font-weight:600;color:var(--navy-900)">${p.name}</b> <span style="color:var(--muted);font-size:12px">· ${p.role}</span></span>
+      <span style="display:flex;align-items:center;gap:8px"><input type="checkbox" class="bc-rcpt" value="${esc(p.email)}"> <b style="font-weight:600;color:var(--navy-900)">${esc(p.name)}</b> <span style="color:var(--muted);font-size:12px">· ${esc(p.role)}</span></span>
     </label>`).join('')||'<div class="empty">Žádní příjemci.</div>'}
   </div>`;
 }
@@ -4610,7 +4619,7 @@ function renderAdminBroadcast(){
   document.getElementById('bcSentList').innerHTML=list.length?list.map(b=>`
     <div class="req" style="align-items:flex-start">
       <div class="ava">ZV</div>
-      <div class="ri"><b>${audienceLabel(b)}</b><div class="rd" style="margin-top:4px">${b.text}</div><span class="rs">${fmtDate(b.date)} · ${b.t}</span></div>
+      <div class="ri"><b>${audienceLabel(b)}</b><div class="rd" style="margin-top:4px">${esc(b.text)}</div><span class="rs">${fmtDate(b.date)} · ${esc(b.t)}</span></div>
     </div>`).join(''):'<div class="empty">Zatím jste neodeslali žádnou zprávu.</div>';
 }
 function sendBroadcast(e){
@@ -4712,7 +4721,7 @@ function cgScheduleHTML(){
   return CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date)).map((j,i)=>`
     <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openCgOrder(${i})">
       <div class="ava">${j.init}</div>
-      <div class="od"><b>${sName(j.service)}</b><div class="det">${j.fam} · ${fmtDate(j.date)}<br>${timeRange(j.time,j.hours)}</div></div>
+      <div class="od"><b>${sName(j.service)}</b><div class="det">${esc(j.fam)} · ${fmtDate(j.date)}<br>${timeRange(j.time,j.hours)}</div></div>
       <div class="ost"><span class="status ok">Potvrzeno</span><div class="pr">${(j.hours*cgProfile.rate).toLocaleString('cs-CZ')} Kč</div></div>
     </div>`).join('');
 }
@@ -4720,9 +4729,9 @@ function reqCardHTML(r){
   return `<div class="req">
     <div class="ava">${r.init}</div>
     <div class="ri">
-      <b>${r.fam}</b>
+      <b>${esc(r.fam)}</b>
       <div class="rd">${sName(r.service)} · ${fmtDate(r.date)} · ${timeRange(r.time,r.hours)}</div>
-      <span class="rs">${(r.hours*cgProfile.rate).toLocaleString('cs-CZ')} Kč · ${r.addr}</span>
+      <span class="rs">${(r.hours*cgProfile.rate).toLocaleString('cs-CZ')} Kč · ${esc(r.addr)}</span>
     </div>
     <div class="req-actions">
       <button class="btn btn-accept btn-sm" onclick="acceptRequest(${r.id})">Přijmout</button>
@@ -4741,14 +4750,14 @@ function acceptRequest(id){
   CG_SCHEDULE.push({fam:r.fam,init:r.init,service:r.service,date:r.date,time:r.time,hours:r.hours});
   if(r.oid){const o=ORDERS.find(x=>x.oid===r.oid);if(o)o.status='confirmed';}
   apiSync(api('/requests/'+id+'/accept',{method:'POST'}));
-  toast(`✓ Poptávka od <b>${r.fam}</b> přijata`,'success');refreshCg();
+  toast(`✓ Poptávka od <b>${esc(r.fam)}</b> přijata`,'success');refreshCg();
 }
 function declineRequest(id){
   const i=CG_REQUESTS.findIndex(r=>r.id===id);if(i<0)return;
   const r=CG_REQUESTS.splice(i,1)[0];
   if(r.oid){const o=ORDERS.find(x=>x.oid===r.oid);if(o)o.status='declined';}
   apiSync(api('/requests/'+id+'/decline',{method:'POST'}));
-  toast(`Poptávka od ${r.fam} byla odmítnuta`,'info');refreshCg();
+  toast(`Poptávka od ${esc(r.fam)} byla odmítnuta`,'info');refreshCg();
 }
 function refreshCg(){
   persist();
@@ -5027,10 +5036,10 @@ function renderOrderDetail(){
   document.getElementById('orderDetailGrid').innerHTML=`
     <div class="pcard">
       <div class="phead" style="margin-bottom:18px">
-        <div class="ava">${o.cpInit}</div>
+        <div class="ava">${esc(o.cpInit)}</div>
         <div>
-          <h1 style="font-size:24px">${o.title}</h1>
-          <div class="pmeta"><span style="color:var(--muted);font-size:14px">${o.cpRole}: <b style="color:var(--navy-900)">${o.cpName}</b></span></div>
+          <h1 style="font-size:24px">${esc(o.title)}</h1>
+          <div class="pmeta"><span style="color:var(--muted);font-size:14px">${esc(o.cpRole)}: <b style="color:var(--navy-900)">${esc(o.cpName)}</b></span></div>
           <div style="margin-top:10px"><span class="status ${st.cls}">${st.label}</span></div>
         </div>
       </div>
@@ -5040,8 +5049,8 @@ function renderOrderDetail(){
         <div class="r"><span class="l">Datum</span><span class="v">${o.dateLabel}</span></div>
         <div class="r"><span class="l">Čas</span><span class="v">${o.timeLabel}</span></div>
         <div class="r"><span class="l">Délka péče</span><span class="v">${o.hours} hodin</span></div>
-        <div class="r"><span class="l">Adresa</span><span class="v">${o.addr}</span></div>
-        ${o.note?`<div class="r"><span class="l">Poznámka</span><span class="v">${o.note}</span></div>`:''}
+        <div class="r"><span class="l">Adresa</span><span class="v">${esc(o.addr)}</span></div>
+        ${o.note?`<div class="r"><span class="l">Poznámka</span><span class="v">${esc(o.note)}</span></div>`:''}
       </div>
       <div class="pdiv"></div>
       <h3>Průběh objednávky</h3>
@@ -5053,7 +5062,7 @@ function renderOrderDetail(){
       <div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Délka</span><span style="font-weight:600;color:var(--navy-900)">${o.hours} h</span></div>
       ${o.transport>0?`<div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Doprava</span><span style="font-weight:600;color:var(--navy-900)">${o.transport.toLocaleString('cs-CZ')} Kč (${o.km} km)</span></div>`:''}
       <div class="total-row"><span class="l" style="color:var(--muted)">Celkem</span><span class="big">${o.price.toLocaleString('cs-CZ')} Kč</span></div>
-      <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openChat('${o.cpName}','${o.cpInit}','${o.cpChatRole}')">Napsat zprávu</button>
+      <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openChat(${jsq(o.cpName)},${jsq(o.cpInit)},${jsq(o.cpChatRole)})">Napsat zprávu</button>
       ${action}
     </div>`;
 }
