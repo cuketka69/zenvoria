@@ -57,6 +57,7 @@ const RESET_TOKEN_KEY_PREFIX = 'passwordReset:';
 const EMAIL_CHANGE_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
 const EMAIL_CHANGE_CODE_TTL_MS = 1000 * 60 * 10; // 10 minut
 const EMAIL_CHANGE_KEY_PREFIX = 'emailChange:';
+const CONVERSATION_ACCESS_KEY_PREFIX = 'conversationAccess:';
 const RATE_LIMIT_CLEANUP_MS = 1000 * 60 * 5;
 const AUDIT_ENABLED = String(process.env.AUDIT_ENABLED || 'true').toLowerCase() !== 'false';
 const RATE_LIMITS = {
@@ -905,6 +906,9 @@ function passwordResetKey(token) {
 function emailChangeKey(token) {
   return `${EMAIL_CHANGE_KEY_PREFIX}${hashResetToken(token)}`;
 }
+function conversationAccessKey(id) {
+  return `${CONVERSATION_ACCESS_KEY_PREFIX}${Number(id)}`;
+}
 
 async function saveResetToken(email, token) {
   const value = {
@@ -1001,6 +1005,28 @@ async function updateEmailChangeRecord(record, patch) {
   record.value = value;
   return record;
 }
+async function saveConversationAccess(id, value) {
+  await supabaseRestRequest('POST', T.settings, {
+    body: { key: conversationAccessKey(id), value },
+    prefer: 'resolution=merge-duplicates,return=minimal',
+  });
+  return value;
+}
+async function loadConversationAccess(id) {
+  const key = conversationAccessKey(id);
+  const rows = await restSelect(T.settings, `key=eq.${encodeURIComponent(key)}&limit=1`);
+  const row = rows && rows[0];
+  if (!row || !row.value || typeof row.value !== 'object') return null;
+  const value = row.value;
+  return {
+    key,
+    value: {
+      ownerEmail: String(value.ownerEmail || '').trim().toLowerCase(),
+      role: String(value.role || ''),
+      createdAt: value.createdAt || null,
+    },
+  };
+}
 
 async function getResetTokenState(token) {
   const record = await loadResetTokenRecord(token);
@@ -1091,6 +1117,20 @@ function requireCsrf(req, res, next) {
   }
   next();
 }
+function requireConversationOwner(req, res, next) {
+  Promise.resolve().then(async () => {
+    if (!req.session) return res.status(401).json({ error: 'Nepřihlášen' });
+    if (req.session.role === 'admin') return next();
+    const access = await loadConversationAccess(req.params.id);
+    if (!access || !access.value.ownerEmail) {
+      return res.status(403).json({ error: 'Do této konverzace nemáte přístup.' });
+    }
+    if (access.value.ownerEmail !== String(req.session.email || '').toLowerCase()) {
+      return res.status(403).json({ error: 'Do této konverzace nemáte přístup.' });
+    }
+    next();
+  }).catch(next);
+}
 
 /* ----------------------------------------------------------------------
    4) MAPOVÁNÍ DB ŘÁDKŮ → tvar, který čeká frontend (index.html)
@@ -1137,6 +1177,15 @@ function mapVerification(v) {
    5) APP
    -------------------------------------------------------------------- */
 const app = express();
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.stripe.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com;");
+  next();
+});
 
 // --- Stripe webhook (MUSÍ být před express.json — potřebuje surové tělo pro ověření podpisu) ---
 app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) => {
@@ -1200,10 +1249,7 @@ app.use(requireCsrf);
 const ROOT = __dirname;
 
 // malý wrapper, ať se nemusí všude psát try/catch
-const h = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((err) => {
-  console.error('[api]', err.message);
-  res.status(err.status && err.status < 500 ? err.status : 500).json({ error: err.message || 'Chyba serveru' });
-});
+const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 /* ---------------- HEALTH ---------------- */
 app.get('/api/health', (_req, res) => res.json({ ok: true, rest: REST_ENABLED }));
@@ -1709,17 +1755,23 @@ app.post('/api/reviews', requireAuth, h(async (req, res) => {
 /* ---------------- CHAT ---------------- */
 app.post('/api/conversations', requireAuth, h(async (req, res) => {
   const b = req.body || {};
-  // konverzace dle jména (najdi nebo vytvoř)
-  const ex = await restSelect(T.conversations, `name=eq.${encodeURIComponent(b.name || '')}&limit=1`);
-  if (ex && ex[0]) return res.json({ conversation: { id: Number(ex[0].id), name: ex[0].name, init: ex[0].init, role: ex[0].role, msgs: [] } });
+  if (!b.name || String(b.name).trim().length < 2) return res.status(400).json({ error: 'Chybí název konverzace.' });
   const id = await nextId(T.conversations, 'id');
   const row = await restInsert(T.conversations, { id, name: b.name, init: b.init, role: b.role || 'caregiver', unread: 0 });
+  await saveConversationAccess(id, {
+    ownerEmail: String(req.session.email || '').toLowerCase(),
+    role: req.session.role || 'family',
+    createdAt: new Date().toISOString(),
+  });
   res.json({ conversation: { id: Number(row.id), name: row.name, init: row.init, role: row.role, msgs: [] } });
 }));
 
-app.post('/api/conversations/:id/messages', requireAuth, h(async (req, res) => {
+app.post('/api/conversations/:id/messages', requireAuth, requireConversationOwner, h(async (req, res) => {
   const b = req.body || {};
-  const row = await restInsert(T.messages, { conversation_id: Number(req.params.id), mine: b.me !== false, text: b.text, t: b.t || '' });
+  const text = String(b.text || '').trim();
+  if (!text) return res.status(400).json({ error: 'Chybí text zprávy.' });
+  if (text.length > 2000) return res.status(400).json({ error: 'Zpráva je příliš dlouhá.' });
+  const row = await restInsert(T.messages, { conversation_id: Number(req.params.id), mine: b.me !== false, text, t: b.t || '' });
   res.json({ message: { me: row.mine, text: row.text, t: row.t } });
 }));
 
@@ -1911,6 +1963,18 @@ app.get('/api/admin/audit-logs', requireRole('admin'), h(async (req, res) => {
     })),
   });
 }));
+
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API endpoint nebyl nalezen.' });
+});
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = err && err.status && err.status < 500 ? err.status : 500;
+  console.error('[api]', req.method, req.path, err && err.stack ? err.stack : err && err.message ? err.message : err);
+  const message = status >= 500 ? 'Chyba serveru.' : (err.message || 'Požadavek se nezdařil.');
+  res.status(status).json({ error: message });
+});
 
 /* ----------------------------------------------------------------------
    6) STATIKA (frontend) — až po /api
