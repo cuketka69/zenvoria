@@ -451,14 +451,14 @@ function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl
 }
 
 function registrationMail(user) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zakazniku';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
   return {
-    subject: 'Vitejte v ZENVORIA',
+    subject: 'Vítejte v ZENVORIA',
     text:
-      `Dobry den, ${user.name},\n\n` +
-      'dekujeme za registraci do ZENVORIA. Vas ucet byl uspesne vytvoren.\n\n' +
-      'Pokud jste se neregistrovali vy, odpovezte prosim na tento e-mail.\n\n' +
-      'S pozdravem,\nTym ZENVORIA',
+      `Dobrý den, ${user.name},\n\n` +
+      'děkujeme za registraci do ZENVORIA. Váš účet byl úspěšně vytvořen.\n\n' +
+      'Pokud jste se neregistrovali vy, odpovězte prosím na tento e-mail.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
     html: renderEmailLayout({
       preheader: 'Váš účet v ZENVORIA je připraven a můžete začít.',
       title: 'Potvrzení registrace',
@@ -483,31 +483,31 @@ function registrationMail(user) {
 }
 
 function reservationMail({ user, order, caregiverName }) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zakazniku';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
   const when = [order.date, order.time].filter(Boolean).join(' v ');
   const facts = [
-    { label: 'Sluzba', value: order.service || '' },
-    { label: 'Termin', value: when || '' },
+    { label: 'Služba', value: order.service || '' },
+    { label: 'Termín', value: when || '' },
     { label: 'Adresa', value: order.addr || '' },
-    { label: 'Delka pece', value: `${order.hours} h` },
+    { label: 'Délka péče', value: `${order.hours} h` },
   ];
-  if (caregiverName) facts.push({ label: 'Pecovatelka', value: caregiverName });
+  if (caregiverName) facts.push({ label: 'Pečovatelka', value: caregiverName });
   facts.push({ label: 'Stav rezervace', value: order.status || '' });
-  if (order.note) facts.push({ label: 'Poznamka', value: order.note });
+  if (order.note) facts.push({ label: 'Poznámka', value: order.note });
   return {
-    subject: `Potvrzeni rezervace pece na ${order.date}`,
+    subject: `Potvrzení rezervace péče na ${order.date}`,
     text:
-      `Dobry den, ${user.name},\n\n` +
-      'dekujeme za vasi rezervaci v ZENVORIA.\n\n' +
-      `Sluzba: ${order.service}\n` +
-      `Termin: ${when}\n` +
+      `Dobrý den, ${user.name},\n\n` +
+      'děkujeme za vaši rezervaci v ZENVORIA.\n\n' +
+      `Služba: ${order.service}\n` +
+      `Termín: ${when}\n` +
       `Adresa: ${order.addr}\n` +
-      `Delka: ${order.hours} h\n` +
-      (caregiverName ? `Pecovatelka: ${caregiverName}\n` : '') +
+      `Délka: ${order.hours} h\n` +
+      (caregiverName ? `Pečovatelka: ${caregiverName}\n` : '') +
       `Stav: ${order.status}\n` +
-      (order.note ? `Poznamka: ${order.note}\n` : '') +
-      '\nJakmile se stav rezervace zmeni, dame vam vedet.\n\n' +
-      'S pozdravem,\nTym ZENVORIA',
+      (order.note ? `Poznámka: ${order.note}\n` : '') +
+      '\nJakmile se stav rezervace změní, dáme vám vědět.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
     html: renderEmailLayout({
       preheader: 'Vaše rezervace v ZENVORIA byla přijata.',
       title: 'Potvrzení rezervace',
@@ -559,65 +559,65 @@ function forgotPasswordMail({ user, resetUrl }) {
 }
 
 function changeEmailLinkMail({ user, confirmUrl }) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zakazniku';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
   return {
-    subject: 'Potvrzeni zmeny e-mailu v ZENVORIA',
+    subject: 'Potvrzení změny e-mailu v ZENVORIA',
     text:
-      `Dobry den, ${user.name || firstName},\n\n` +
-      'obdrzeli jsme zadost o zmenu e-mailove adresy u vaseho uctu ZENVORIA.\n\n' +
-      `Pro pokracovani otevrite tento odkaz: ${confirmUrl}\n\n` +
-      'Odkaz je platny 30 minut. Pokud jste o zmenu e-mailu nezadali, tento e-mail ignorujte.\n\n' +
-      'S pozdravem,\nTym ZENVORIA',
+      `Dobrý den, ${user.name || firstName},\n\n` +
+      'obdrželi jsme žádost o změnu e-mailové adresy u vašeho účtu ZENVORIA.\n\n' +
+      `Pro pokračování otevřete tento odkaz: ${confirmUrl}\n\n` +
+      'Odkaz je platný 30 minut. Pokud jste o změnu e-mailu nežádali, tento e-mail ignorujte.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
     html: renderEmailLayout({
-      preheader: 'Potvrdte zmenu e-mailu bezpecnym odkazem na puvodni adrese.',
-      title: 'Zmena e-mailu',
-      intro: `Dobry den, ${firstName}. Pro zmenu e-mailove adresy nejdriv potrebujeme potvrdit pristup k vasemu soucasnemu e-mailu.`,
+      preheader: 'Potvrďte změnu e-mailu bezpečným odkazem na původní adrese.',
+      title: 'Změna e-mailu',
+      intro: `Dobrý den, ${firstName}. Pro změnu e-mailové adresy nejdřív potřebujeme potvrdit přístup k vašemu současnému e-mailu.`,
       bodyHtml:
-        '<p style="margin:0 0 14px 0;">Kliknutim na tlacitko nize otevrete bezpecnou stranku, kde zadate novy e-mail. Na nej vam nasledne posleme overovaci kod.</p>' +
-        '<p style="margin:0;">Pokud jste o zmenu nezadali, nic se nestane a tento e-mail muzete ignorovat.</p>',
-      ctaLabel: 'Potvrdit zmenu e-mailu',
+        '<p style="margin:0 0 14px 0;">Kliknutím na tlačítko níže otevřete bezpečnou stránku, kde zadáte nový e-mail. Na něj vám následně pošleme ověřovací kód.</p>' +
+        '<p style="margin:0;">Pokud jste o změnu nežádali, nic se nestane a tento e-mail můžete ignorovat.</p>',
+      ctaLabel: 'Potvrdit změnu e-mailu',
       ctaUrl: confirmUrl,
-      ctaNote: `Odkaz je platny 30 minut. Pokud tlacitko nefunguje, otevrite tento odkaz: ${confirmUrl}`,
+      ctaNote: `Odkaz je platný 30 minut. Pokud tlačítko nefunguje, otevřete tento odkaz: ${confirmUrl}`,
       facts: [
-        { label: 'Soucasny e-mail', value: user.email || '' },
-        { label: 'Typ pozadavku', value: 'Zmena e-mailu' },
+        { label: 'Současný e-mail', value: user.email || '' },
+        { label: 'Typ požadavku', value: 'Změna e-mailu' },
         { label: 'Platnost odkazu', value: '30 minut' },
       ],
-      closingTitle: 'Bezpecnost je pro nas priorita.',
-      closingSubtitle: 'Tym Zenvoria',
-      footerNote: 'Tento e-mail byl odeslan automaticky po zadosti o zmenu e-mailu v ZENVORIA.',
+      closingTitle: 'Bezpečnost je pro nás priorita.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail byl odeslán automaticky po žádosti o změnu e-mailu v ZENVORIA.',
     }),
   };
 }
 
 function changeEmailCodeMail({ user, newEmail, code }) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zakazniku';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
   return {
-    subject: 'Overovaci kod pro novy e-mail v ZENVORIA',
+    subject: 'Ověřovací kód pro nový e-mail v ZENVORIA',
     text:
-      `Dobry den, ${user.name || firstName},\n\n` +
-      `pro potvrzeni nove e-mailove adresy ${newEmail} zadejte tento kod: ${code}\n\n` +
-      'Kod je platny 10 minut. Pokud jste o zmenu e-mailu nezadali, tento e-mail ignorujte.\n\n' +
-      'S pozdravem,\nTym ZENVORIA',
+      `Dobrý den, ${user.name || firstName},\n\n` +
+      `pro potvrzení nové e-mailové adresy ${newEmail} zadejte tento kód: ${code}\n\n` +
+      'Kód je platný 10 minut. Pokud jste o změnu e-mailu nežádali, tento e-mail ignorujte.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
     html: renderEmailLayout({
-      preheader: 'Posilame vam overovaci kod pro novou e-mailovou adresu.',
-      title: 'Overeni noveho e-mailu',
-      intro: `Dobry den, ${firstName}. Pro dokonceni zmeny e-mailu zadejte do aplikace tento sestimistny kod.`,
+      preheader: 'Posíláme vám ověřovací kód pro novou e-mailovou adresu.',
+      title: 'Ověření nového e-mailu',
+      intro: `Dobrý den, ${firstName}. Pro dokončení změny e-mailu zadejte do aplikace tento šestimístný kód.`,
       bodyHtml:
-        `<p style="margin:0 0 14px 0;">Nova adresa: <b>${escapeHtml(newEmail)}</b></p>` +
+        `<p style="margin:0 0 14px 0;">Nová adresa: <b>${escapeHtml(newEmail)}</b></p>` +
         `<div style="margin:0 auto 16px auto;max-width:260px;padding:18px 22px;border-radius:18px;background:#0A2F20;color:#D9A91D;font-size:34px;letter-spacing:0.22em;font-weight:800;text-align:center;">${escapeHtml(code)}</div>` +
-        '<p style="margin:0;">Kod je platny 10 minut. Pokud jste o zmenu e-mailu nezadali, tento e-mail ignorujte.</p>',
-      ctaLabel: 'Otevrit ZENVORIA',
+        '<p style="margin:0;">Kód je platný 10 minut. Pokud jste o změnu e-mailu nežádali, tento e-mail ignorujte.</p>',
+      ctaLabel: 'Otevřít ZENVORIA',
       ctaUrl: `${APP_URL}/#settings`,
-      ctaNote: 'Kod opiste do formulare v aplikaci. Nikdy ho nesdilejte s dalsi osobou.',
+      ctaNote: 'Kód opište do formuláře v aplikaci. Nikdy ho nesdílejte s další osobou.',
       facts: [
-        { label: 'Nova e-mailova adresa', value: newEmail || '' },
-        { label: 'Overovaci kod', value: code || '' },
-        { label: 'Platnost kodu', value: '10 minut' },
+        { label: 'Nová e-mailová adresa', value: newEmail || '' },
+        { label: 'Ověřovací kód', value: code || '' },
+        { label: 'Platnost kódu', value: '10 minut' },
       ],
-      closingTitle: 'Dekujeme za potvrzeni.',
-      closingSubtitle: 'Tym Zenvoria',
-      footerNote: 'Tento e-mail byl odeslan automaticky pri overeni nove e-mailove adresy v ZENVORIA.',
+      closingTitle: 'Děkujeme za potvrzení.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail byl odeslán automaticky při ověření nové e-mailové adresy v ZENVORIA.',
     }),
   };
 }
@@ -712,10 +712,10 @@ function orderStatusMail({ familyName, order, caregiverName, accepted }) {
   const firstName = (familyName || '').trim().split(/\s+/)[0] || 'zákazníku';
   const when = [order.date, order.time].filter(Boolean).join(' v ');
   const facts = [
-    { label: 'Sluzba', value: order.service || '' },
-    { label: 'Termin', value: when || '' },
+    { label: 'Služba', value: order.service || '' },
+    { label: 'Termín', value: when || '' },
   ];
-  if (caregiverName) facts.push({ label: 'Pecovatelka', value: caregiverName });
+  if (caregiverName) facts.push({ label: 'Pečovatelka', value: caregiverName });
   facts.push({ label: 'Stav', value: accepted ? 'Potvrzeno' : 'Odmítnuto' });
   return {
     subject: accepted ? `Vaše rezervace byla potvrzena (${order.date})` : `Vaše rezervace byla odmítnuta (${order.date})`,
