@@ -2221,6 +2221,9 @@
           </select>
         </div>
       </div>
+      <div style="display:flex;justify-content:flex-end;margin:0 0 16px 0">
+        <button class="btn btn-ghost" type="button" onclick="exportAdminAuditCsv()">Exportovat CSV</button>
+      </div>
       <div class="table-scroll">
         <table class="adm-table">
           <thead>
@@ -4340,6 +4343,37 @@ function applyAdminAuditFilters(){
     return true;
   });
   renderAdminAuditRows(filtered);
+}
+
+function exportAdminAuditCsv(){
+  if(!FILTERED_AUDIT_LOGS.length){toast('Žádné audit logy k exportu.','info');return;}
+  const esc=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const rows=[
+    ['createdAt','action','status','actorEmail','actorId','actorRole','targetType','targetId','ip','metadata']
+  ].concat(FILTERED_AUDIT_LOGS.map(log=>[
+    log.createdAt,
+    log.action,
+    log.status,
+    log.actorEmail||'',
+    log.actorId||'',
+    log.actorRole||'',
+    log.targetType||'',
+    log.targetId||'',
+    log.ip||'',
+    log.metadata?JSON.stringify(log.metadata):''
+  ]));
+  const csv=rows.map(row=>row.map(esc).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const stamp=new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  a.href=url;
+  a.download=`zenvoria-audit-logs-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('⬇️ Audit logy byly exportovány do CSV.','success');
 }
 
 /* ---- ADMIN: ceny tarifů ---- */
