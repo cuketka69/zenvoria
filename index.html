@@ -2884,7 +2884,24 @@ function openProfile(id){
 }
 
 /* ---------- BOOKING ---------- */
+let pendingBookingId=null;
+/* po přihlášení/registraci dokonči odloženou objednávku; vrací true, pokud něco čekalo */
+function resumePendingBooking(){
+  if(pendingBookingId==null||!auth.loggedIn||auth.role!=='family')return false;
+  const id=pendingBookingId;pendingBookingId=null;
+  toast('✓ Hotovo! Teď můžete dokončit objednávku.');
+  openBooking(id);
+  return true;
+}
 function openBooking(id){
+  // Objednat smí jen přihlášený zákazník — jinak nejdřív registrace.
+  if(!auth.loggedIn){
+    pendingBookingId=id;
+    pickRole('family');
+    toast('ℹ️ Pro objednání služby se prosím nejdřív zaregistrujte.');
+    go('register');
+    return;
+  }
   state.caregiverId=id;const c=cg(id);
   state.bkService=c.services[0];state.bkHours=4;
   document.getElementById('bkServices').innerHTML=c.services.map(s=>
@@ -3207,7 +3224,7 @@ async function submitLogin(e){
     if(r.user.settings)Object.assign(appSettings,r.user.settings);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(`✓ Vítejte zpět, <b>${auth.name.split(/\s+/)[0]}</b>!`);
-    go(landingView());
+    if(!resumePendingBooking())go(landingView());
   }catch(err){
     setFieldError('lf-pw',true);
     document.getElementById('lf-pw-err').textContent=err.message||'Přihlášení se nezdařilo.';
@@ -3231,7 +3248,7 @@ async function submitRegister(e){
     loginAs(r.user.name,r.user.email,r.user.role);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(regRole==='caregiver'?'✓ Účet pečovatelky vytvořen. Dokončete prosím ověření.':'✓ Účet vytvořen. Vítejte v ZENVORIA!');
-    go(landingView());
+    if(!resumePendingBooking())go(landingView());
   }catch(err){
     setFieldError('rf-email',true);
     document.getElementById('rf-email-err')&&(document.getElementById('rf-email-err').textContent=err.message);
