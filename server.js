@@ -53,6 +53,9 @@ const SESSION_COOKIE = 'zv_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
 const RESET_TOKEN_KEY_PREFIX = 'passwordReset:';
+const EMAIL_CHANGE_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
+const EMAIL_CHANGE_CODE_TTL_MS = 1000 * 60 * 10; // 10 minut
+const EMAIL_CHANGE_KEY_PREFIX = 'emailChange:';
 const RATE_LIMIT_CLEANUP_MS = 1000 * 60 * 5;
 const AUDIT_ENABLED = String(process.env.AUDIT_ENABLED || 'true').toLowerCase() !== 'false';
 const RATE_LIMITS = {
@@ -80,6 +83,16 @@ const RATE_LIMITS = {
     windowMs: parseInt(process.env.RATE_LIMIT_CHANGE_PASSWORD_WINDOW_MS || String(1000 * 60 * 30), 10),
     max: parseInt(process.env.RATE_LIMIT_CHANGE_PASSWORD_MAX || '10', 10),
     message: 'Příliš mnoho pokusů o změnu hesla. Zkuste to prosím později.',
+  },
+  changeEmailRequest: {
+    windowMs: parseInt(process.env.RATE_LIMIT_CHANGE_EMAIL_REQUEST_WINDOW_MS || String(1000 * 60 * 30), 10),
+    max: parseInt(process.env.RATE_LIMIT_CHANGE_EMAIL_REQUEST_MAX || '5', 10),
+    message: 'Prilis mnoho zadosti o zmenu e-mailu. Zkuste to prosim pozdeji.',
+  },
+  changeEmailCode: {
+    windowMs: parseInt(process.env.RATE_LIMIT_CHANGE_EMAIL_CODE_WINDOW_MS || String(1000 * 60 * 15), 10),
+    max: parseInt(process.env.RATE_LIMIT_CHANGE_EMAIL_CODE_MAX || '10', 10),
+    message: 'Prilis mnoho pokusu o overeni noveho e-mailu. Zkuste to prosim pozdeji.',
   },
 };
 
@@ -545,6 +558,70 @@ function forgotPasswordMail({ user, resetUrl }) {
   };
 }
 
+function changeEmailLinkMail({ user, confirmUrl }) {
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zakazniku';
+  return {
+    subject: 'Potvrzeni zmeny e-mailu v ZENVORIA',
+    text:
+      `Dobry den, ${user.name || firstName},\n\n` +
+      'obdrzeli jsme zadost o zmenu e-mailove adresy u vaseho uctu ZENVORIA.\n\n' +
+      `Pro pokracovani otevrite tento odkaz: ${confirmUrl}\n\n` +
+      'Odkaz je platny 30 minut. Pokud jste o zmenu e-mailu nezadali, tento e-mail ignorujte.\n\n' +
+      'S pozdravem,\nTym ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Potvrdte zmenu e-mailu bezpecnym odkazem na puvodni adrese.',
+      title: 'Zmena e-mailu',
+      intro: `Dobry den, ${firstName}. Pro zmenu e-mailove adresy nejdriv potrebujeme potvrdit pristup k vasemu soucasnemu e-mailu.`,
+      bodyHtml:
+        '<p style="margin:0 0 14px 0;">Kliknutim na tlacitko nize otevrete bezpecnou stranku, kde zadate novy e-mail. Na nej vam nasledne posleme overovaci kod.</p>' +
+        '<p style="margin:0;">Pokud jste o zmenu nezadali, nic se nestane a tento e-mail muzete ignorovat.</p>',
+      ctaLabel: 'Potvrdit zmenu e-mailu',
+      ctaUrl: confirmUrl,
+      ctaNote: `Odkaz je platny 30 minut. Pokud tlacitko nefunguje, otevrite tento odkaz: ${confirmUrl}`,
+      facts: [
+        { label: 'Soucasny e-mail', value: user.email || '' },
+        { label: 'Typ pozadavku', value: 'Zmena e-mailu' },
+        { label: 'Platnost odkazu', value: '30 minut' },
+      ],
+      closingTitle: 'Bezpecnost je pro nas priorita.',
+      closingSubtitle: 'Tym Zenvoria',
+      footerNote: 'Tento e-mail byl odeslan automaticky po zadosti o zmenu e-mailu v ZENVORIA.',
+    }),
+  };
+}
+
+function changeEmailCodeMail({ user, newEmail, code }) {
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zakazniku';
+  return {
+    subject: 'Overovaci kod pro novy e-mail v ZENVORIA',
+    text:
+      `Dobry den, ${user.name || firstName},\n\n` +
+      `pro potvrzeni nove e-mailove adresy ${newEmail} zadejte tento kod: ${code}\n\n` +
+      'Kod je platny 10 minut. Pokud jste o zmenu e-mailu nezadali, tento e-mail ignorujte.\n\n' +
+      'S pozdravem,\nTym ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Posilame vam overovaci kod pro novou e-mailovou adresu.',
+      title: 'Overeni noveho e-mailu',
+      intro: `Dobry den, ${firstName}. Pro dokonceni zmeny e-mailu zadejte do aplikace tento sestimistny kod.`,
+      bodyHtml:
+        `<p style="margin:0 0 14px 0;">Nova adresa: <b>${escapeHtml(newEmail)}</b></p>` +
+        `<div style="margin:0 auto 16px auto;max-width:260px;padding:18px 22px;border-radius:18px;background:#0A2F20;color:#D9A91D;font-size:34px;letter-spacing:0.22em;font-weight:800;text-align:center;">${escapeHtml(code)}</div>` +
+        '<p style="margin:0;">Kod je platny 10 minut. Pokud jste o zmenu e-mailu nezadali, tento e-mail ignorujte.</p>',
+      ctaLabel: 'Otevrit ZENVORIA',
+      ctaUrl: `${APP_URL}/#settings`,
+      ctaNote: 'Kod opiste do formulare v aplikaci. Nikdy ho nesdilejte s dalsi osobou.',
+      facts: [
+        { label: 'Nova e-mailova adresa', value: newEmail || '' },
+        { label: 'Overovaci kod', value: code || '' },
+        { label: 'Platnost kodu', value: '10 minut' },
+      ],
+      closingTitle: 'Dekujeme za potvrzeni.',
+      closingSubtitle: 'Tym Zenvoria',
+      footerNote: 'Tento e-mail byl odeslan automaticky pri overeni nove e-mailove adresy v ZENVORIA.',
+    }),
+  };
+}
+
 // ---- e-mail: aktivace předplatného PREMIUM (pečovatelce) ----
 function premiumActiveMail({ name, email, priceCzk }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
@@ -789,12 +866,28 @@ function createResetToken() {
   return crypto.randomBytes(32).toString('base64url');
 }
 
+function createEmailChangeToken() {
+  return crypto.randomBytes(32).toString('base64url');
+}
+
+function createEmailVerificationCode() {
+  return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+}
+
 function hashResetToken(token) {
   return crypto.createHash('sha256').update(String(token || '')).digest('hex');
 }
 
+function hashVerificationCode(code) {
+  return crypto.createHash('sha256').update(String(code || '')).digest('hex');
+}
+
 function passwordResetKey(token) {
   return `${RESET_TOKEN_KEY_PREFIX}${hashResetToken(token)}`;
+}
+
+function emailChangeKey(token) {
+  return `${EMAIL_CHANGE_KEY_PREFIX}${hashResetToken(token)}`;
 }
 
 async function saveResetToken(email, token) {
@@ -806,6 +899,26 @@ async function saveResetToken(email, token) {
   };
   await supabaseRestRequest('POST', T.settings, {
     body: { key: passwordResetKey(token), value },
+    prefer: 'resolution=merge-duplicates,return=minimal',
+  });
+  return value;
+}
+
+async function saveEmailChangeToken(user, token) {
+  const value = {
+    userId: String(user.id || ''),
+    currentEmail: String(user.email || '').trim().toLowerCase(),
+    exp: Date.now() + EMAIL_CHANGE_TOKEN_TTL_MS,
+    createdAt: new Date().toISOString(),
+    usedAt: null,
+    newEmail: null,
+    verifyCodeHash: null,
+    verifyCodeExp: null,
+    verifySentAt: null,
+    verifiedAt: null,
+  };
+  await supabaseRestRequest('POST', T.settings, {
+    body: { key: emailChangeKey(token), value },
     prefer: 'resolution=merge-duplicates,return=minimal',
   });
   return value;
@@ -830,6 +943,31 @@ async function loadResetTokenRecord(token) {
   };
 }
 
+async function loadEmailChangeRecord(token) {
+  const raw = String(token || '').trim();
+  if (!raw) return null;
+  const key = emailChangeKey(raw);
+  const rows = await restSelect(T.settings, `key=eq.${encodeURIComponent(key)}&limit=1`);
+  const row = rows && rows[0];
+  if (!row || !row.value || typeof row.value !== 'object') return null;
+  const value = row.value;
+  return {
+    key,
+    value: {
+      userId: String(value.userId || ''),
+      currentEmail: String(value.currentEmail || '').trim().toLowerCase(),
+      exp: Number(value.exp || 0),
+      createdAt: value.createdAt || null,
+      usedAt: value.usedAt || null,
+      newEmail: value.newEmail ? String(value.newEmail).trim().toLowerCase() : null,
+      verifyCodeHash: value.verifyCodeHash || null,
+      verifyCodeExp: value.verifyCodeExp ? Number(value.verifyCodeExp) : null,
+      verifySentAt: value.verifySentAt || null,
+      verifiedAt: value.verifiedAt || null,
+    },
+  };
+}
+
 async function markResetTokenUsed(record) {
   if (!record || !record.key || !record.value) return;
   await restUpdate(T.settings, `key=eq.${encodeURIComponent(record.key)}`, {
@@ -838,6 +976,14 @@ async function markResetTokenUsed(record) {
       usedAt: new Date().toISOString(),
     },
   }, { prefer: 'return=minimal' });
+}
+
+async function updateEmailChangeRecord(record, patch) {
+  if (!record || !record.key || !record.value) return null;
+  const value = { ...record.value, ...patch };
+  await restUpdate(T.settings, `key=eq.${encodeURIComponent(record.key)}`, { value }, { prefer: 'return=minimal' });
+  record.value = value;
+  return record;
 }
 
 async function getResetTokenState(token) {
@@ -851,6 +997,15 @@ async function getResetTokenState(token) {
     payload: { email: record.value.email, exp: record.value.exp },
     record,
   };
+}
+
+async function getEmailChangeState(token) {
+  const record = await loadEmailChangeRecord(token);
+  if (!record) return { ok: false, reason: 'invalid' };
+  if (!record.value.userId || !record.value.currentEmail || !record.value.exp) return { ok: false, reason: 'invalid' };
+  if (record.value.usedAt) return { ok: false, reason: 'used' };
+  if (Date.now() > record.value.exp) return { ok: false, reason: 'expired' };
+  return { ok: true, record, payload: record.value };
 }
 
 async function loadPublicSettings() {
@@ -1106,6 +1261,137 @@ app.post('/api/auth/change-password', requireAuth, rateLimit('change-password', 
   await restUpdate(T.users, `id=eq.${user.id}`, { password_hash: bcrypt.hashSync(String(next), 10) }, { prefer: 'return=minimal' });
   fireAudit('auth.change_password', { req, actor: auditActor(req), targetType: 'user', targetId: user.id, status: 'success' });
   res.json({ ok: true });
+}));
+
+app.post('/api/auth/change-email/request', requireAuth, rateLimit('change-email-request', RATE_LIMITS.changeEmailRequest), h(async (req, res) => {
+  const rows = await restSelect(T.users, `id=eq.${req.session.uid}&limit=1`);
+  const user = rows && rows[0];
+  if (!user) return res.status(404).json({ error: 'Ucet nebyl nalezen.' });
+  const token = createEmailChangeToken();
+  await saveEmailChangeToken(user, token);
+  const confirmUrl = `${APP_URL}/?changeEmail=${encodeURIComponent(token)}`;
+  await sendMailSafe({ to: user.email, ...changeEmailLinkMail({ user, confirmUrl }) });
+  fireAudit('auth.change_email.request', { req, actor: auditActor(req), targetType: 'user', targetId: user.id, status: 'success' });
+  res.json({ ok: true });
+}));
+
+app.post('/api/auth/change-email/validate', rateLimit('change-email-code', RATE_LIMITS.changeEmailCode), h(async (req, res) => {
+  const token = String((req.body && req.body.token) || '');
+  const state = await getEmailChangeState(token);
+  if (!state.ok) return res.status(400).json({
+    error:
+      state.reason === 'expired' ? 'Odkaz pro zmenu e-mailu vyprsel.' :
+      state.reason === 'used' ? 'Odkaz pro zmenu e-mailu uz byl pouzity.' :
+      'Odkaz pro zmenu e-mailu je neplatny.',
+    reason: state.reason,
+  });
+  res.json({
+    ok: true,
+    currentEmail: state.payload.currentEmail,
+    newEmail: state.payload.newEmail || null,
+    codeSent: !!(state.payload.verifyCodeHash && state.payload.verifyCodeExp && state.payload.newEmail),
+  });
+}));
+
+app.post('/api/auth/change-email/send-code', rateLimit('change-email-code', RATE_LIMITS.changeEmailCode), h(async (req, res) => {
+  const token = String((req.body && req.body.token) || '');
+  const newEmail = String((req.body && req.body.newEmail) || '').trim().toLowerCase();
+  if (!newEmail) return res.status(400).json({ error: 'Zadejte novy e-mail.' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) return res.status(400).json({ error: 'Zadejte platny e-mail.' });
+  const state = await getEmailChangeState(token);
+  if (!state.ok) return res.status(400).json({
+    error:
+      state.reason === 'expired' ? 'Odkaz pro zmenu e-mailu vyprsel.' :
+      state.reason === 'used' ? 'Odkaz pro zmenu e-mailu uz byl pouzity.' :
+      'Odkaz pro zmenu e-mailu je neplatny.',
+    reason: state.reason,
+  });
+  if (newEmail === state.payload.currentEmail) return res.status(400).json({ error: 'Novy e-mail se musi lisit od puvodniho.' });
+  const existingUser = await findUserByEmail(newEmail);
+  if (existingUser && String(existingUser.id) !== String(state.payload.userId)) {
+    return res.status(409).json({ error: 'Tento e-mail uz je registrovany.' });
+  }
+  const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(state.payload.userId)}&limit=1`);
+  const user = rows && rows[0];
+  if (!user) return res.status(404).json({ error: 'Ucet nebyl nalezen.' });
+  const code = createEmailVerificationCode();
+  await updateEmailChangeRecord(state.record, {
+    newEmail,
+    verifyCodeHash: hashVerificationCode(code),
+    verifyCodeExp: Date.now() + EMAIL_CHANGE_CODE_TTL_MS,
+    verifySentAt: new Date().toISOString(),
+    verifiedAt: null,
+  });
+  await sendMailSafe({ to: newEmail, ...changeEmailCodeMail({ user, newEmail, code }) });
+  fireAudit('auth.change_email.code_sent', {
+    req,
+    actor: { id: user.id, email: user.email, role: user.role },
+    targetType: 'user',
+    targetId: user.id,
+    status: 'success',
+    metadata: { newEmail },
+  });
+  res.json({ ok: true });
+}));
+
+app.post('/api/auth/change-email/confirm', rateLimit('change-email-code', RATE_LIMITS.changeEmailCode), h(async (req, res) => {
+  const token = String((req.body && req.body.token) || '');
+  const code = String((req.body && req.body.code) || '').trim();
+  const state = await getEmailChangeState(token);
+  if (!state.ok) {
+    fireAudit('auth.change_email.confirm', { req, actor: { email: null }, targetType: 'email-change', targetId: 'email-change', status: 'failed', metadata: { reason: state.reason } });
+    return res.status(400).json({
+      error:
+        state.reason === 'expired' ? 'Odkaz pro zmenu e-mailu vyprsel.' :
+        state.reason === 'used' ? 'Odkaz pro zmenu e-mailu uz byl pouzity.' :
+        'Odkaz pro zmenu e-mailu je neplatny.',
+      reason: state.reason,
+    });
+  }
+  const payload = state.payload;
+  if (!payload.newEmail || !payload.verifyCodeHash || !payload.verifyCodeExp) {
+    return res.status(400).json({ error: 'Nejdrive zadejte novy e-mail a vyzadejte si overovaci kod.' });
+  }
+  if (Date.now() > payload.verifyCodeExp) {
+    return res.status(400).json({ error: 'Overovaci kod vyprsel. Zadejte si prosim novy.', reason: 'code_expired' });
+  }
+  if (!code || hashVerificationCode(code) !== payload.verifyCodeHash) {
+    fireAudit('auth.change_email.confirm', {
+      req,
+      actor: { id: payload.userId, email: payload.currentEmail },
+      targetType: 'user',
+      targetId: payload.userId,
+      status: 'failed',
+      metadata: { reason: 'invalid_code', newEmail: payload.newEmail },
+    });
+    return res.status(400).json({ error: 'Overovaci kod neni spravny.', reason: 'invalid_code' });
+  }
+  const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(payload.userId)}&limit=1`);
+  const user = rows && rows[0];
+  if (!user) {
+    await updateEmailChangeRecord(state.record, { usedAt: new Date().toISOString() });
+    return res.json({ ok: true });
+  }
+  const existingUser = await findUserByEmail(payload.newEmail);
+  if (existingUser && String(existingUser.id) !== String(user.id)) {
+    return res.status(409).json({ error: 'Tento e-mail uz je registrovany.' });
+  }
+  await restUpdate(T.users, `id=eq.${user.id}`, { email: payload.newEmail }, { prefer: 'return=minimal' });
+  await updateEmailChangeRecord(state.record, {
+    usedAt: new Date().toISOString(),
+    verifiedAt: new Date().toISOString(),
+  });
+  const updatedUser = { ...user, email: payload.newEmail };
+  setSession(res, updatedUser);
+  fireAudit('auth.change_email.confirm', {
+    req,
+    actor: { id: user.id, email: payload.currentEmail, role: user.role },
+    targetType: 'user',
+    targetId: user.id,
+    status: 'success',
+    metadata: { previousEmail: payload.currentEmail, newEmail: payload.newEmail },
+  });
+  res.json({ ok: true, user: publicUser(updatedUser) });
 }));
 
 app.patch('/api/users/me/settings', requireAuth, h(async (req, res) => {

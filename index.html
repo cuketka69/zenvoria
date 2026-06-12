@@ -1993,6 +1993,68 @@
   </div>
 </div>
 
+<div class="view" id="view-change-email">
+  <div class="auth-wrap">
+    <div class="auth-split">
+      <aside class="auth-photo" role="img" aria-label="Bezpecna zmena e-mailu">
+        <div class="auth-photo-cap">
+          <div class="q">"Potvrdte puvodni e-mail a overte novy."</div>
+          <div class="a">Zmenu e-mailu dokoncite az po potvrzeni odkazu a zadani kodu, ktery prijde do nove schranky.</div>
+        </div>
+      </aside>
+      <form class="auth-card" id="changeEmailForm" novalidate onsubmit="return submitChangeEmailNew(event)">
+        <div class="brand">
+          <img class="mark" src="logo.webp" alt="ZENVORIA logo" style="width:62px;height:62px" />
+          <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+        </div>
+
+        <div id="changeEmailStepNew">
+          <h1>Zmena e-mailu</h1>
+          <p class="sub">Potvrzeny puvodni e-mail: <b id="changeEmailCurrent">-</b></p>
+          <div class="auth-field">
+            <label class="lbl" for="changeEmailNew">Novy e-mail</label>
+            <div class="inp-wrap">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7.5 12 13l8-5.5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="5" width="18" height="14" rx="2" stroke="#7A736A" stroke-width="1.6"/></svg>
+              <input type="email" id="changeEmailNew" autocomplete="email" placeholder="novy@email.cz">
+            </div>
+          </div>
+          <div class="set-err" id="changeEmailNewErr"></div>
+          <button type="submit" class="btn btn-gold btn-block">Poslat overovaci kod</button>
+        </div>
+
+        <div id="changeEmailStepCode" style="display:none">
+          <h1>Overte novy e-mail</h1>
+          <p class="sub">Na adresu <b id="changeEmailTarget">-</b> jsme poslali 6mistny kod.</p>
+          <div class="auth-field">
+            <label class="lbl" for="changeEmailCode">Overovaci kod</label>
+            <div class="inp-wrap">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#7A736A" stroke-width="1.6"/></svg>
+              <input type="text" id="changeEmailCode" inputmode="numeric" maxlength="6" placeholder="123456">
+            </div>
+          </div>
+          <div class="set-err" id="changeEmailCodeErr"></div>
+          <button type="button" class="btn btn-gold btn-block" onclick="submitChangeEmailCode()" style="margin-top:4px">Potvrdit novy e-mail</button>
+          <p class="auth-alt">Kod nedorazil? <button type="button" class="auth-link" onclick="submitChangeEmailNew(null,true)">Poslat znovu</button></p>
+        </div>
+
+        <div id="changeEmailDone" style="display:none;text-align:center">
+          <div class="auth-done-ic" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="m5 12 4.5 4.5L19 7" stroke="#11151B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <h1>E-mail byl zmenen</h1>
+          <p class="sub">Novy prihlasovaci e-mail je <b id="changeEmailDoneValue"></b>.</p>
+          <button type="button" class="btn btn-gold btn-block" onclick="go('settings')">Zpet do nastaveni</button>
+        </div>
+
+        <div id="changeEmailInvalid" style="display:none;text-align:center">
+          <div class="auth-done-ic" aria-hidden="true" style="background:#FBF3F1;color:#B23A2E"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M12 8v5" stroke="#B23A2E" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.1" fill="#B23A2E"/><path d="M12 3 3.7 18.2A1.4 1.4 0 0 0 4.9 20h14.2a1.4 1.4 0 0 0 1.2-1.8L12 3Z" stroke="#B23A2E" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+          <h1>Odkaz uz neni platny</h1>
+          <p class="sub" id="changeEmailInvalidText">Pozadejte prosim o novy odkaz pro zmenu e-mailu.</p>
+          <button type="button" class="btn btn-gold btn-block" onclick="go('settings')">Zpet do nastaveni</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- ============ REGISTER ============ -->
 <div class="view" id="view-register">
   <div class="auth-wrap">
@@ -2327,6 +2389,13 @@
         <span class="chip gold" id="setRole">Účet</span>
       </div>
       <div class="pdiv"></div>
+      <h4 class="set-h4">Zmena e-mailu</h4>
+      <p class="set-sub" style="margin-top:6px">Na puvodni e-mail posleme potvrzovaci odkaz a novou adresu overite kodem.</p>
+      <div class="set-danger-row" style="justify-content:flex-start">
+        <button type="button" class="btn btn-ghost" onclick="requestEmailChange()">Zmenit e-mail</button>
+      </div>
+      <div class="set-err" id="emailChangeReqErr"></div>
+      <div class="pdiv"></div>
       <h4 class="set-h4">Změna hesla</h4>
       <form id="pwForm" novalidate onsubmit="return changePassword(event)">
         <div class="grid2" style="margin-top:6px">
@@ -2644,15 +2713,18 @@ function go(v,fromPop){
   if(v==='forgot')resetForgot();
   if(v==='howto')howtoTab('family');
   if(v==='reset-password')resetResetPassword(true);
+  if(v==='change-email')resetChangeEmail(true);
   // Při odchodu z reset hesla vyčisti token z URL, ať tam nezůstává viset.
-  if(v!=='reset-password'){
+  if(v!=='reset-password'&&v!=='change-email'){
     try{
       const url=new URL(window.location.href);
       if(url.searchParams.has('reset')){
         url.searchParams.delete('reset');
-        history.replaceState({view:v},'',url.pathname+(url.search?url.search:'')+'#'+v);
-        resetPwToken='';
       }
+      if(url.searchParams.has('changeEmail'))url.searchParams.delete('changeEmail');
+      history.replaceState({view:v},'',url.pathname+(url.search?url.search:'')+'#'+v);
+      resetPwToken='';
+      changeEmailToken='';
     }catch(e){}
   }
   // Napojení na historii prohlížeče → funguje tlačítko Zpět/Vpřed.
@@ -3047,6 +3119,10 @@ let regRole='family';
 const auth={loggedIn:false,name:'',email:'',role:'family'};
 let resetPwToken='';
 let resetPwTokenValid=true;
+let changeEmailToken='';
+let changeEmailTokenValid=true;
+let changeEmailCurrent='';
+let changeEmailPending='';
 const PASSWORD_HINT='Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
 const isEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v||'').trim());
 const isPhone=v=>/^[0-9+\s/]+$/.test((v||'').trim())&&(v||'').replace(/[^0-9]/g,'').length>=9;
@@ -3126,6 +3202,105 @@ async function changePassword(e){
     cur.value=nw.value=cf.value='';
     toast('✓ Heslo bylo změněno');
   }catch(e2){err.textContent=e2.message||'Změna hesla se nezdařila.';}
+  return false;
+}
+async function requestEmailChange(){
+  const err=document.getElementById('emailChangeReqErr');
+  if(err)err.textContent='';
+  try{
+    await api('/auth/change-email/request',{method:'POST'});
+    toast('📧 Poslali jsme potvrzovaci odkaz na puvodni e-mail.');
+  }catch(e){
+    if(err)err.textContent=e.message||'Nepodarilo se odeslat potvrzovaci e-mail.';
+  }
+}
+function resetChangeEmail(keepToken){
+  const stepNew=document.getElementById('changeEmailStepNew');
+  const stepCode=document.getElementById('changeEmailStepCode');
+  const done=document.getElementById('changeEmailDone');
+  const invalid=document.getElementById('changeEmailInvalid');
+  if(stepNew)stepNew.style.display='';
+  if(stepCode)stepCode.style.display='none';
+  if(done)done.style.display='none';
+  if(invalid)invalid.style.display='none';
+  document.getElementById('changeEmailNewErr').textContent='';
+  document.getElementById('changeEmailCodeErr').textContent='';
+  document.getElementById('changeEmailNew').value='';
+  document.getElementById('changeEmailCode').value='';
+  document.getElementById('changeEmailCurrent').textContent='-';
+  document.getElementById('changeEmailTarget').textContent='-';
+  document.getElementById('changeEmailDoneValue').textContent='';
+  changeEmailTokenValid=true;
+  changeEmailCurrent='';
+  changeEmailPending='';
+  if(!keepToken)changeEmailToken='';
+}
+async function submitChangeEmailNew(e,resend){
+  if(e&&e.preventDefault)e.preventDefault();
+  const err=document.getElementById('changeEmailNewErr');
+  err.textContent='';
+  document.getElementById('changeEmailCodeErr').textContent='';
+  if(!changeEmailToken||!changeEmailTokenValid){
+    err.textContent='Odkaz pro zmenu e-mailu uz neni platny.';
+    return false;
+  }
+  const input=document.getElementById('changeEmailNew');
+  const newEmail=((input.value)||changeEmailPending||'').trim().toLowerCase();
+  if(!isEmail(newEmail)){
+    err.textContent='Zadejte platny e-mail.';
+    input.focus();
+    return false;
+  }
+  try{
+    await api('/auth/change-email/send-code',{method:'POST',body:{token:changeEmailToken,newEmail}});
+    changeEmailPending=newEmail;
+    document.getElementById('changeEmailTarget').textContent=newEmail;
+    document.getElementById('changeEmailStepNew').style.display='none';
+    document.getElementById('changeEmailStepCode').style.display='';
+    toast(resend?'📧 Poslali jsme novy overovaci kod.':'📧 Poslali jsme overovaci kod na novy e-mail.');
+  }catch(e2){
+    err.textContent=e2.message||'Kod se nepodarilo odeslat.';
+    if(e2&&['invalid','expired','used'].includes(e2.reason||'')){
+      changeEmailTokenValid=false;
+      document.getElementById('changeEmailStepNew').style.display='none';
+      document.getElementById('changeEmailStepCode').style.display='none';
+      document.getElementById('changeEmailInvalid').style.display='block';
+      document.getElementById('changeEmailInvalidText').textContent=e2.message||'Pozadejte prosim o novy odkaz pro zmenu e-mailu.';
+    }
+  }
+  return false;
+}
+async function submitChangeEmailCode(){
+  const err=document.getElementById('changeEmailCodeErr');
+  err.textContent='';
+  const code=document.getElementById('changeEmailCode').value.trim();
+  if(!/^\d{6}$/.test(code)){
+    err.textContent='Zadejte 6mistny overovaci kod.';
+    document.getElementById('changeEmailCode').focus();
+    return false;
+  }
+  try{
+    const r=await api('/auth/change-email/confirm',{method:'POST',body:{token:changeEmailToken,code}});
+    auth.email=(r&&r.user&&r.user.email)||changeEmailPending;
+    document.getElementById('changeEmailDoneValue').textContent=auth.email;
+    document.getElementById('changeEmailStepNew').style.display='none';
+    document.getElementById('changeEmailStepCode').style.display='none';
+    document.getElementById('changeEmailDone').style.display='block';
+    changeEmailToken='';
+    updateAuthUI();
+    renderSettings();
+    toast('✓ E-mail byl zmenen.');
+  }catch(e){
+    err.textContent=e.message||'Overeni noveho e-mailu se nezdarilo.';
+    if(e&&['invalid','expired','used'].includes(e.reason||'')){
+      changeEmailTokenValid=false;
+      document.getElementById('changeEmailStepNew').style.display='none';
+      document.getElementById('changeEmailStepCode').style.display='none';
+      document.getElementById('changeEmailDone').style.display='none';
+      document.getElementById('changeEmailInvalid').style.display='block';
+      document.getElementById('changeEmailInvalidText').textContent=e.message||'Pozadejte prosim o novy odkaz pro zmenu e-mailu.';
+    }
+  }
   return false;
 }
 function exportData(){
@@ -5072,7 +5247,14 @@ async function api(path,opts){
     body:opts&&opts.body!=null?JSON.stringify(opts.body):undefined
   });
   let data=null;try{data=await res.json();}catch(e){}
-  if(!res.ok)throw new Error((data&&data.error)||('Chyba '+res.status));
+  if(!res.ok){
+    const err=new Error((data&&data.error)||('Chyba '+res.status));
+    if(data&&typeof data==='object'){
+      if(data.reason)err.reason=data.reason;
+      if(data.codeSent!=null)err.codeSent=data.codeSent;
+    }
+    throw err;
+  }
   return data;
 }
 /* fire-and-forget zápis na server s hláškou při chybě */
@@ -5122,6 +5304,8 @@ async function initApp(){
     const url=new URL(window.location.href);
     const reset=url.searchParams.get('reset');
     if(reset)resetPwToken=reset;
+    const changeEmail=url.searchParams.get('changeEmail');
+    if(changeEmail)changeEmailToken=changeEmail;
   }catch(e){}
   initTheme();
   // Pokud přicházíme z odkazu pro reset hesla, přepni na okno okamžitě
@@ -5143,6 +5327,30 @@ async function initApp(){
       document.getElementById('resetPwInvalidText').textContent=(e&&e.message)||'Požádejte prosím o nový odkaz pro obnovu hesla.';
     }
   }
+  if(changeEmailToken){
+    go('change-email');
+    document.getElementById('changeEmailStepNew').style.display='none';
+    document.getElementById('changeEmailStepCode').style.display='none';
+    document.getElementById('changeEmailDone').style.display='none';
+    document.getElementById('changeEmailInvalid').style.display='none';
+    try{
+      const r=await api('/auth/change-email/validate',{method:'POST',body:{token:changeEmailToken}});
+      changeEmailTokenValid=true;
+      changeEmailCurrent=r.currentEmail||'';
+      changeEmailPending=r.newEmail||'';
+      document.getElementById('changeEmailCurrent').textContent=changeEmailCurrent||'-';
+      if(r.codeSent&&changeEmailPending){
+        document.getElementById('changeEmailTarget').textContent=changeEmailPending;
+        document.getElementById('changeEmailStepCode').style.display='';
+      }else{
+        document.getElementById('changeEmailStepNew').style.display='';
+      }
+    }catch(e){
+      changeEmailTokenValid=false;
+      document.getElementById('changeEmailInvalid').style.display='block';
+      document.getElementById('changeEmailInvalidText').textContent=(e&&e.message)||'Pozadejte prosim o novy odkaz pro zmenu e-mailu.';
+    }
+  }
   try{const m=await api('/auth/me');
     if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';
       if(m.user.settings)Object.assign(appSettings,m.user.settings);}
@@ -5155,10 +5363,10 @@ async function initApp(){
   // deep-link: lze otevřít přímo konkrétní stránku přes #hash (bez případného ?query)
   let deep='';
   try{deep=(location.hash||'').replace(/^#/,'').split('?')[0];}catch(e){}
-  if(!resetPwToken&&deep&&document.getElementById('view-'+deep))go(deep);
-  else if(!resetPwToken&&auth.loggedIn)go(landingView());
+  if(!resetPwToken&&!changeEmailToken&&deep&&document.getElementById('view-'+deep))go(deep);
+  else if(!resetPwToken&&!changeEmailToken&&auth.loggedIn)go(landingView());
   // návrat ze Stripe Checkout (#pricing?paid=1 / ?canceled=1)
-  if(!resetPwToken)handleBillingReturn();
+  if(!resetPwToken&&!changeEmailToken)handleBillingReturn();
   // výchozí stav historie, aby hned fungovalo tlačítko Zpět
   try{
     const active=document.querySelector('.view.active');
