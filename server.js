@@ -51,7 +51,7 @@ const REST_ENABLED = !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const SESSION_COOKIE = 'zv_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
-const RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
+const RESET_TOKEN_TTL_MS = 1000 * 5; // dočasně 5 sekund pro produkční test expirace
 
 const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !== 'false';
 const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
