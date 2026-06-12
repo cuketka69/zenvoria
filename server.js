@@ -53,6 +53,34 @@ const SESSION_COOKIE = 'zv_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
 const RESET_TOKEN_KEY_PREFIX = 'passwordReset:';
+const RATE_LIMIT_CLEANUP_MS = 1000 * 60 * 5;
+const RATE_LIMITS = {
+  register: {
+    windowMs: parseInt(process.env.RATE_LIMIT_REGISTER_WINDOW_MS || String(1000 * 60 * 60), 10),
+    max: parseInt(process.env.RATE_LIMIT_REGISTER_MAX || '5', 10),
+    message: 'Příliš mnoho registrací. Zkuste to prosím později.',
+  },
+  login: {
+    windowMs: parseInt(process.env.RATE_LIMIT_LOGIN_WINDOW_MS || String(1000 * 60 * 15), 10),
+    max: parseInt(process.env.RATE_LIMIT_LOGIN_MAX || '10', 10),
+    message: 'Příliš mnoho pokusů o přihlášení. Zkuste to prosím za chvíli.',
+  },
+  forgotPassword: {
+    windowMs: parseInt(process.env.RATE_LIMIT_FORGOT_PASSWORD_WINDOW_MS || String(1000 * 60 * 30), 10),
+    max: parseInt(process.env.RATE_LIMIT_FORGOT_PASSWORD_MAX || '5', 10),
+    message: 'Příliš mnoho žádostí o obnovu hesla. Zkuste to prosím později.',
+  },
+  resetPassword: {
+    windowMs: parseInt(process.env.RATE_LIMIT_RESET_PASSWORD_WINDOW_MS || String(1000 * 60 * 30), 10),
+    max: parseInt(process.env.RATE_LIMIT_RESET_PASSWORD_MAX || '10', 10),
+    message: 'Příliš mnoho pokusů o nastavení hesla. Zkuste to prosím později.',
+  },
+  changePassword: {
+    windowMs: parseInt(process.env.RATE_LIMIT_CHANGE_PASSWORD_WINDOW_MS || String(1000 * 60 * 30), 10),
+    max: parseInt(process.env.RATE_LIMIT_CHANGE_PASSWORD_MAX || '10', 10),
+    message: 'Příliš mnoho pokusů o změnu hesla. Zkuste to prosím později.',
+  },
+};
 
 const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !== 'false';
 const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
@@ -77,6 +105,46 @@ function isStrongPassword(value) {
 
 const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
 const PUBLIC_SETTINGS_KEYS = ['planPrices'];
+const rateLimitStore = new Map();
+
+function getClientIp(req) {
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return forwarded || req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function rateLimitKey(req, scope) {
+  const body = req.body || {};
+  const email = String(body.email || '').trim().toLowerCase();
+  const token = String(body.token || '').trim();
+  const tokenHash = token ? crypto.createHash('sha256').update(token).digest('hex') : '';
+  const userId = req.session && req.session.uid ? String(req.session.uid) : '';
+  return [scope, getClientIp(req), email, userId, tokenHash].filter(Boolean).join(':');
+}
+
+function rateLimit(scope, cfg) {
+  return (req, res, next) => {
+    const now = Date.now();
+    const key = rateLimitKey(req, scope);
+    let entry = rateLimitStore.get(key);
+    if (!entry || entry.resetAt <= now) {
+      entry = { count: 0, resetAt: now + cfg.windowMs };
+    }
+    entry.count += 1;
+    rateLimitStore.set(key, entry);
+    res.setHeader('Retry-After', String(Math.max(1, Math.ceil((entry.resetAt - now) / 1000))));
+    if (entry.count > cfg.max) {
+      return res.status(429).json({ error: cfg.message });
+    }
+    next();
+  };
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitStore.entries()) {
+    if (!entry || entry.resetAt <= now) rateLimitStore.delete(key);
+  }
+}, RATE_LIMIT_CLEANUP_MS).unref();
 
 // názvy tabulek s fallbackem (Webilio-style — lze přepsat env proměnnou)
 const T = {
@@ -875,7 +943,7 @@ async function findUserByEmail(email) {
   return rows && rows[0];
 }
 
-app.post('/api/auth/register', h(async (req, res) => {
+app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(async (req, res) => {
   const { name, email, password, role } = req.body || {};
   const em = (email || '').trim().toLowerCase();
   if (!isStrongPassword(password)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
@@ -892,7 +960,7 @@ app.post('/api/auth/register', h(async (req, res) => {
   res.json({ user: publicUser(user) });
 }));
 
-app.post('/api/auth/login', h(async (req, res) => {
+app.post('/api/auth/login', rateLimit('login', RATE_LIMITS.login), h(async (req, res) => {
   const { email, password } = req.body || {};
   const user = await findUserByEmail(email);
   if (!user || !bcrypt.compareSync(String(password || ''), user.password_hash)) {
@@ -903,7 +971,7 @@ app.post('/api/auth/login', h(async (req, res) => {
   res.json({ user: publicUser(user) });
 }));
 
-app.post('/api/auth/forgot-password', h(async (req, res) => {
+app.post('/api/auth/forgot-password', rateLimit('forgot-password', RATE_LIMITS.forgotPassword), h(async (req, res) => {
   const email = String((req.body && req.body.email) || '').trim().toLowerCase();
   if (!email) return res.status(400).json({ error: 'Zadejte e-mail.' });
   const user = await findUserByEmail(email);
@@ -917,7 +985,7 @@ app.post('/api/auth/forgot-password', h(async (req, res) => {
   res.json({ ok: true });
 }));
 
-app.post('/api/auth/reset-password', h(async (req, res) => {
+app.post('/api/auth/reset-password', rateLimit('reset-password', RATE_LIMITS.resetPassword), h(async (req, res) => {
   const token = String((req.body && req.body.token) || '');
   const next = String((req.body && req.body.next) || '');
   if (!isStrongPassword(next)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
@@ -940,7 +1008,7 @@ app.post('/api/auth/reset-password', h(async (req, res) => {
   res.json({ ok: true });
 }));
 
-app.post('/api/auth/reset-password/validate', h(async (req, res) => {
+app.post('/api/auth/reset-password/validate', rateLimit('reset-password-validate', RATE_LIMITS.resetPassword), h(async (req, res) => {
   const token = String((req.body && req.body.token) || '');
   const state = await getResetTokenState(token);
   if (!state.ok) return res.status(400).json({
@@ -961,7 +1029,7 @@ app.get('/api/auth/me', h(async (req, res) => {
   res.json({ user: publicUser(rows && rows[0]) });
 }));
 
-app.post('/api/auth/change-password', requireAuth, h(async (req, res) => {
+app.post('/api/auth/change-password', requireAuth, rateLimit('change-password', RATE_LIMITS.changePassword), h(async (req, res) => {
   const { current, next } = req.body || {};
   if (!isStrongPassword(next)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
   if (!next || String(next).length < 6) return res.status(400).json({ error: 'Nové heslo musí mít alespoň 6 znaků.' });
