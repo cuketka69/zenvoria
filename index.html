@@ -4608,9 +4608,25 @@ async function initApp(){
     if(reset)resetPwToken=reset;
   }catch(e){}
   initTheme();
-  // Pokud přicházíme z odkazu pro reset hesla, přepni na okno okamžitě,
-  // ať se mezitím nezobrazuje úvodní stránka během načítání dat.
-  if(resetPwToken)go('reset-password');
+  // Pokud přicházíme z odkazu pro reset hesla, přepni na okno okamžitě
+  // a token rovnou ověř — ať se nezobrazuje úvodní stránka ani formulář
+  // dřív, než víme, jestli je odkaz platný.
+  if(resetPwToken){
+    go('reset-password');
+    // Schovej políčka, dokud token neověříme, ať neproblikne formulář.
+    document.getElementById('resetPwFields').style.display='none';
+    document.getElementById('resetPwDone').style.display='none';
+    document.getElementById('resetPwInvalid').style.display='none';
+    try{
+      await api('/auth/reset-password/validate',{method:'POST',body:{token:resetPwToken}});
+      resetPwTokenValid=true;
+      document.getElementById('resetPwFields').style.display='';
+    }catch(e){
+      resetPwTokenValid=false;
+      document.getElementById('resetPwInvalid').style.display='block';
+      document.getElementById('resetPwInvalidText').textContent=(e&&e.message)||'Požádejte prosím o nový odkaz pro obnovu hesla.';
+    }
+  }
   try{const m=await api('/auth/me');
     if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';
       if(m.user.settings)Object.assign(appSettings,m.user.settings);}
@@ -4620,22 +4636,7 @@ async function initApp(){
   renderHome();renderFilters();renderCare();renderCalendar();
   document.querySelectorAll('select').forEach(enhanceSelect);
   initReveal();
-  if(resetPwToken){
-    try{
-      await api('/auth/reset-password/validate',{method:'POST',body:{token:resetPwToken}});
-      resetPwTokenValid=true;
-    }catch(e){
-      resetPwTokenValid=false;
-      go('reset-password');
-      document.getElementById('resetPwFields').style.display='none';
-      document.getElementById('resetPwDone').style.display='none';
-      document.getElementById('resetPwInvalid').style.display='block';
-      document.getElementById('resetPwInvalidText').textContent=(e&&e.message)||'Požádejte prosím o nový odkaz pro obnovu hesla.';
-      return;
-    }
-    go('reset-password');
-  }
-  else if(auth.loggedIn)go(landingView());
+  if(!resetPwToken&&auth.loggedIn)go(landingView());
 }
 initApp();
 </script>
