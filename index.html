@@ -709,8 +709,10 @@
   .msg-btn.has-unread{border-color:var(--gold);color:var(--gold-deep)}
   @keyframes msgpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
   .msg-badge{animation:msgpulse 1.8s ease-in-out infinite}
-  .menu-toggle{display:none;background:none;border:1px solid var(--line);border-radius:10px;
-    width:42px;height:42px;cursor:pointer;align-items:center;justify-content:center;color:var(--navy-900)}
+  .menu-toggle{display:none;margin-left:auto;background:rgba(201,162,51,.08);
+    border:1px solid rgba(201,162,51,.5);border-radius:14px;
+    width:46px;height:46px;cursor:pointer;align-items:center;justify-content:center;color:var(--gold);transition:.2s}
+  .menu-toggle:hover{background:rgba(201,162,51,.16);border-color:var(--gold)}
   .mobile-menu{position:fixed;inset:0;z-index:80;visibility:hidden;pointer-events:none}
   .mobile-menu .scrim{position:absolute;inset:0;background:rgba(12,40,28,.45);opacity:0;transition:opacity .28s}
   .mobile-menu .panel{position:absolute;top:0;right:0;height:100%;width:min(82%,330px);
