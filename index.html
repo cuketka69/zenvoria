@@ -1900,7 +1900,7 @@
         <div style="margin-top:14px"><label class="lbl">Poznámka pro správce (volitelné)</label><textarea class="inp" id="vfNote" placeholder="Cokoli, co bychom měli vědět…"></textarea></div>
         <label class="set-row" style="margin-top:14px;align-items:flex-start;gap:10px;display:flex">
           <input type="checkbox" id="vfRules" style="margin-top:3px">
-          <span style="font-size:13.5px;color:var(--navy-800)">Potvrzuji, že uvedené údaje jsou pravdivé, doklady patří mně a souhlasím s <a role="button" tabindex="0" style="color:var(--gold-deep)" onclick="openLegal('terms')">pravidly platformy</a>.</span>
+          <span style="font-size:13.5px;color:var(--navy-800)">Potvrzuji, že uvedené údaje jsou pravdivé, doklady patří mně a souhlasím s <a href="/obchodni-podminky" style="color:var(--gold-deep)">pravidly platformy</a>.</span>
         </label>
         <div class="set-err" id="vfErr" style="margin-top:12px"></div>
         <button type="submit" class="btn btn-gold" style="margin-top:18px" id="vfSubmitBtn">Odeslat k ověření</button>
@@ -2241,7 +2241,7 @@
       </div>
 
       <div class="auth-field" id="rf-terms">
-        <label class="auth-meta" style="margin:0"><span style="display:flex;align-items:center;gap:8px;color:var(--navy-800)"><input type="checkbox" id="regTerms"> Souhlasím s <button type="button" class="auth-link" onclick="event.preventDefault();openLegal('terms')">podmínkami</button></span></label>
+        <label class="auth-meta" style="margin:0"><span style="display:flex;align-items:center;gap:8px;color:var(--navy-800)"><input type="checkbox" id="regTerms"> Souhlasím s <a class="auth-link" href="/obchodni-podminky">podmínkami</a></span></label>
         <div class="err" id="rf-terms-err">Pro pokračování musíte souhlasit s podmínkami.</div>
       </div>
 
@@ -2539,8 +2539,8 @@
       <h3>Soukromí a data</h3>
       <p class="set-sub">Vaše dokumenty a správa dat.</p>
       <div class="set-links">
-        <button class="qa-item" onclick="openLegal('gdpr')"><span class="qa-ic">🔒</span><span class="qa-l">Ochrana osobních údajů</span><span class="qa-ar">›</span></button>
-        <button class="qa-item" onclick="openLegal('cookies')"><span class="qa-ic">🍪</span><span class="qa-l">Zásady cookies</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="window.location.href='/ochrana-osobnich-udaju'"><span class="qa-ic">🔒</span><span class="qa-l">Ochrana osobních údajů</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="window.location.href='/zasady-cookies'"><span class="qa-ic">🍪</span><span class="qa-l">Zásady cookies</span><span class="qa-ar">›</span></button>
         <button class="qa-item" onclick="exportData()"><span class="qa-ic">⬇️</span><span class="qa-l">Exportovat moje data (JSON)</span><span class="qa-ar">›</span></button>
       </div>
     </div>
@@ -2626,12 +2626,13 @@
       </div>
       <div><h5>Aplikace</h5><a role="button" tabindex="0" onclick="go('search')">Hledat péči</a><a role="button" tabindex="0" onclick="go('home');scrollTo2('onas')">O nás</a><a role="button" tabindex="0" onclick="go('bookings')">Moje objednávky</a><a role="button" tabindex="0" onclick="go('howto')">Jak to funguje</a></div>
       <div><h5>Pro pečovatelky</h5><a role="button" tabindex="0" onclick="go('register');pickRole('caregiver')">Registrace</a><a role="button" tabindex="0" onclick="goVerify()">Ověření</a><a role="button" tabindex="0" onclick="go('pricing')">Ceník a tarify</a><a role="button" tabindex="0" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')">Vzdělávání</a></div>
-      <div><h5>Společnost</h5><a role="button" tabindex="0" onclick="toast('🔒 Bezpečí: ověřené doklady, pojištění a zabezpečené platby.')">Bezpečí</a><a role="button" tabindex="0" onclick="toast('✉️ Kontakt: miklasova@zenvoria.cz · +420 800 123 456')">Kontakt</a><a role="button" tabindex="0" onclick="toast('🚨 SOS linka 24/7: +420 800 999 111')">SOS 24/7</a></div>
+      <div><h5>Společnost</h5><a role="button" tabindex="0" onclick="toast('🔒 Bezpečí: ověřené doklady, pojištění a zabezpečené platby.')">Bezpečí</a><a href="/obchodni-udaje">Kontakt</a><a role="button" tabindex="0" onclick="toast('🚨 SOS linka 24/7: +420 800 999 111')">SOS 24/7</a></div>
     </div>
     <div class="foot-legal">
-      <a role="button" tabindex="0" onclick="openLegal('gdpr')">Ochrana osobních údajů</a>
-      <a role="button" tabindex="0" onclick="openLegal('terms')">Obchodní podmínky</a>
-      <a role="button" tabindex="0" onclick="openLegal('cookies')">Zásady cookies</a>
+      <a href="/obchodni-udaje">Obchodní údaje</a>
+      <a href="/ochrana-osobnich-udaju">Ochrana osobních údajů</a>
+      <a href="/obchodni-podminky">Obchodní podmínky</a>
+      <a href="/zasady-cookies">Zásady cookies</a>
     </div>
     <div class="foot-bottom">
       <span>© <span id="footYear">2026</span> ZENVORIA · Péče s lidskostí.</span>
