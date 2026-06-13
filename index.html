@@ -2809,12 +2809,16 @@ const ORDER_STATUS={
 /* ---------- STATE ---------- */
 const state={caregiverId:1,bkService:'osobni',bkHours:4};
 let legalBackView='home';
+let legalCurrentKey='terms';
 const sIcon=(d)=>`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="${d}" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const sName=(id)=>SERVICES.find(s=>s.id===id)?.name||id;
 const cg=(id)=>CAREGIVERS.find(c=>c.id===id);
 function activeView(){
   const el=document.querySelector('.view.active');
   return el ? el.id.replace('view-','') : 'home';
+}
+function legalHash(key){
+  return 'legal-'+key;
 }
 
 /* ---------- NAV ---------- */
@@ -2861,7 +2865,9 @@ function go(v,fromPop){
         url.searchParams.delete('reset');
       }
       if(url.searchParams.has('changeEmail'))url.searchParams.delete('changeEmail');
-      history.replaceState({view:v},'',url.pathname+(url.search?url.search:'')+'#'+v);
+      const hash=(v==='legal'&&legalCurrentKey)?legalHash(legalCurrentKey):v;
+      const nextState=v==='legal'?{view:v,legalKey:legalCurrentKey}:{view:v};
+      history.replaceState(nextState,'',url.pathname+(url.search?url.search:'')+'#'+hash);
       resetPwToken='';
       changeEmailToken='';
     }catch(e){}
@@ -2870,13 +2876,19 @@ function go(v,fromPop){
   if(!fromPop){
     try{
       const cur=history.state&&history.state.view;
-      if(cur!==v)history.pushState({view:v},'','#'+v);
+      const nextState=v==='legal'?{view:v,legalKey:legalCurrentKey}:{view:v};
+      const nextHash=(v==='legal'&&legalCurrentKey)?legalHash(legalCurrentKey):v;
+      if(cur!==v||(v==='legal'&&history.state&&history.state.legalKey!==legalCurrentKey))history.pushState(nextState,'','#'+nextHash);
     }catch(e){}
   }
 }
 // Zpět/Vpřed v prohlížeči přepíná views (bez dalšího zápisu do historie).
 window.addEventListener('popstate',function(e){
   const v=(e.state&&e.state.view)||'home';
+  if(v==='legal'&&e.state&&e.state.legalKey&&LEGAL[e.state.legalKey]){
+    openLegal(e.state.legalKey,{fromPop:true,direct:true});
+    return;
+  }
   if(document.getElementById('view-'+v))go(v,true);
 });
 function scrollTo2(id){setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}),60);}
@@ -3797,16 +3809,18 @@ const LEGAL={
     <h2>4. Kontakt</h2>
     <p>S dotazy ke cookies se obraťte na <a href="mailto:miklasova@zenvoria.cz">miklasova@zenvoria.cz</a>.</p>`}
 };
-function openLegal(key){
+function openLegal(key,opts){
+  const options=opts||{};
   const d=LEGAL[key];if(!d)return;
   const current=activeView();
-  legalBackView=current==='legal' ? legalBackView : current;
+  legalCurrentKey=key;
+  legalBackView=options.direct?'home':(current==='legal' ? legalBackView : current);
   document.getElementById('legalTitle').textContent=d.title;
   document.getElementById('legalUpd').textContent=d.upd;
   document.getElementById('legalLead').textContent=d.lead||'Právní informace k používání platformy ZENVORIA najdete přehledně na jednom místě.';
   document.getElementById('legalBody').innerHTML=d.body;
   document.getElementById('legalBackLabel').textContent=legalBackView==='register'?'Zpět k registraci':(legalBackView==='login'?'Zpět k přihlášení':'Zpět');
-  go('legal');
+  go('legal',options.fromPop===true);
 }
 function closeLegal(){
   const target=document.getElementById('view-'+legalBackView)?legalBackView:'home';
@@ -5590,7 +5604,8 @@ async function initApp(){
   // deep-link: lze otevřít přímo konkrétní stránku přes #hash (bez případného ?query)
   let deep='';
   try{deep=(location.hash||'').replace(/^#/,'').split('?')[0];}catch(e){}
-  if(!resetPwToken&&!changeEmailToken&&deep&&document.getElementById('view-'+deep))go(deep);
+  if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('legal-')===0&&LEGAL[deep.slice(6)])openLegal(deep.slice(6),{direct:true});
+  else if(!resetPwToken&&!changeEmailToken&&deep&&document.getElementById('view-'+deep))go(deep);
   else if(!resetPwToken&&!changeEmailToken&&auth.loggedIn)go(landingView());
   // návrat ze Stripe Checkout (#pricing?paid=1 / ?canceled=1)
   if(!resetPwToken&&!changeEmailToken)handleBillingReturn();
@@ -5598,7 +5613,9 @@ async function initApp(){
   try{
     const active=document.querySelector('.view.active');
     const v=active?active.id.replace('view-',''):'home';
-    if(!history.state||history.state.view!==v)history.replaceState({view:v},'','#'+v);
+    const hash=(v==='legal'&&legalCurrentKey)?legalHash(legalCurrentKey):v;
+    const nextState=v==='legal'?{view:v,legalKey:legalCurrentKey}:{view:v};
+    if(!history.state||history.state.view!==v||(v==='legal'&&history.state.legalKey!==legalCurrentKey))history.replaceState(nextState,'','#'+hash);
   }catch(e){}
 }
 initApp();
