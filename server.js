@@ -2235,9 +2235,25 @@ app.use((err, req, res, next) => {
 /* ----------------------------------------------------------------------
    6) STATIKA (frontend) — až po /api
    -------------------------------------------------------------------- */
-app.use(express.static(ROOT, { extensions: ['html'], index: 'index.html' }));
+const IMMUTABLE_ASSET_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|css|js|woff2?)$/i;
+app.use(express.static(ROOT, {
+  extensions: ['html'],
+  index: 'index.html',
+  etag: true,
+  lastModified: true,
+  setHeaders(res, filePath) {
+    if (IMMUTABLE_ASSET_RE.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return;
+    }
+    if (/\.html?$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(ROOT, 'index.html'));
 });
 
