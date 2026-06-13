@@ -1,0 +1,970 @@
+<!-- ============ PROFILE ============ -->
+<div class="view" id="view-profile">
+  <div class="wrap">
+    <button class="back-link" onclick="go('search')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="m14 6-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Zpět na výsledky
+    </button>
+    <div class="profile-grid" id="profileGrid"></div>
+  </div>
+</div>
+
+<!-- ============ BOOKING ============ -->
+<div class="view" id="view-booking">
+  <div class="wrap">
+    <button class="back-link" onclick="openProfile(state.caregiverId)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="m14 6-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Zpět na profil
+    </button>
+    <div class="page-head" style="padding-top:8px"><h1>Objednávka služby</h1></div>
+    <div class="booking-grid">
+      <div>
+        <div class="step">
+          <div class="step-h"><div class="step-num">1</div><b>Vyberte službu</b></div>
+          <div class="opt-grid" id="bkServices"></div>
+        </div>
+        <div class="step">
+          <div class="step-h"><div class="step-num">2</div><b>Datum a čas</b></div>
+          <div class="grid2">
+            <div><label class="lbl">Datum</label><input type="date" class="inp" id="bkDate" onchange="updateSummary()"></div>
+            <div><label class="lbl">Čas</label><input type="time" class="inp" id="bkTime" value="10:00" onchange="updateSummary()"></div>
+          </div>
+          <div style="margin-top:14px"><label class="lbl">Délka péče</label>
+            <div class="opt-grid" id="bkHours"></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-h"><div class="step-num">3</div><b>Adresa a poznámka</b></div>
+          <label class="lbl">Adresa</label>
+          <input class="inp" id="bkAddr" placeholder="Ulice a číslo, Praha" value="Veleslavínská 123, Praha 6">
+          <div style="margin-top:14px" id="bkKmWrap"><label class="lbl">Vzdálenost dojezdu (km)</label>
+            <input class="inp" type="number" id="bkKm" min="0" max="80" step="1" value="0" oninput="updateSummary()">
+          </div>
+          <div style="margin-top:14px"><label class="lbl">Poznámka pro pečovatelku</label>
+            <textarea class="inp" id="bkNote" placeholder="Např. Ráda bych doprovod k lékaři.">Ráda bych doprovod k lékaři.</textarea>
+          </div>
+        </div>
+      </div>
+      <div class="summary-card" id="summaryCard"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ BOOKINGS / CALENDAR ============ -->
+<div class="view" id="view-bookings">
+  <div class="wrap">
+    <div class="page-head" style="display:flex;align-items:center;gap:14px"><img src="calendar.webp" alt="" width="38" height="40" loading="lazy" decoding="async" style="flex:0 0 auto"><div><h1>Moje objednávky</h1><p>Přehled vašich naplánovaných i minulých služeb.</p></div></div>
+    <div class="cal-grid">
+      <div class="cal">
+        <div class="cal-head">
+          <b id="calTitle">Květen 2026</b>
+          <div class="cal-nav">
+            <button onclick="calMove(-1)">‹</button>
+            <button onclick="calMove(1)">›</button>
+          </div>
+        </div>
+        <div class="dow"><span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span></div>
+        <div class="days" id="calDays"></div>
+        <div style="margin-top:18px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--gold);display:inline-block"></span> Naplánovaná služba
+        </div>
+      </div>
+      <div>
+        <div class="tabs">
+          <div class="tab on" onclick="setOrderTab(this,'up')">Nadcházející</div>
+          <div class="tab" onclick="setOrderTab(this,'past')">Minulé</div>
+        </div>
+        <div id="orderList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CAREGIVER · DASHBOARD ============ -->
+<div class="view" id="view-cg-dashboard">
+  <div class="wrap">
+    <div class="dash-head">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="ava" id="cgDashAva">JN</div>
+        <div>
+          <h1>Dobrý den, <span id="cgFirst">Jano</span> <span class="wave">👋</span></h1>
+          <p id="cgIntro">Tady je přehled vaší péče.</p>
+        </div>
+      </div>
+      <button class="btn btn-gold" onclick="go('cg-profile')">Upravit profil</button>
+    </div>
+    <div id="cgVerifyNotice"></div>
+    <div class="stat-grid" id="cgStats"></div>
+    <div class="dash-grid">
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Výdělky (posledních 6 měsíců)</b><span class="count" id="earnTotal"></span></div>
+          <div class="chart" id="earnChart"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><b>Nadcházející služby</b></div>
+          <div id="cgScheduleList"></div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Nové poptávky</b><span class="count" id="cgReqBadge">0</span></div>
+          <div id="cgReqPreview"></div>
+          <button class="btn btn-ghost btn-block" style="margin-top:6px" onclick="go('cg-requests')">Zobrazit všechny poptávky</button>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><b>Rychlé akce</b></div>
+          <div class="qa">
+            <button class="qa-item" onclick="go('cg-calendar')"><span class="qa-ic"><img src="calendar.webp" alt="" width="30" height="30" loading="lazy" decoding="async" style="object-fit:contain"></span><span class="qa-l">Nastavit dostupnost</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('cg-profile')"><span class="qa-ic">👤</span><span class="qa-l">Upravit veřejný profil</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('pricing')"><span class="qa-ic">💎</span><span class="qa-l">Předplatné a tarify</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')"><span class="qa-ic">🎓</span><span class="qa-l">Vzdělávání</span><span class="qa-ar">›</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CAREGIVER · REQUESTS ============ -->
+<div class="view" id="view-cg-requests">
+  <div class="wrap">
+    <div class="page-head"><h1>Poptávky a objednávky</h1><p>Přijměte nové poptávky a mějte přehled o potvrzených službách.</p></div>
+    <div class="dash-grid dash-grid-2">
+      <div class="panel">
+        <div class="panel-h"><b>Nové poptávky</b><span class="count" id="cgReqBadge2">0</span></div>
+        <div id="cgReqFull"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><b>Potvrzené služby</b></div>
+        <div id="cgConfirmed"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CAREGIVER · CALENDAR ============ -->
+<div class="view" id="view-cg-calendar">
+  <div class="wrap">
+    <div class="page-head" style="display:flex;align-items:center;gap:14px"><img src="calendar.webp" alt="" width="38" height="40" loading="lazy" decoding="async" style="flex:0 0 auto"><div><h1>Kalendář dostupnosti</h1><p>Nastavte, kdy jste k dispozici, a mějte přehled o naplánovaných službách.</p></div></div>
+    <div class="cal-grid">
+      <div class="cal">
+        <div class="cal-head">
+          <b id="cgCalTitle">Červen 2026</b>
+          <div class="cal-nav">
+            <button aria-label="Předchozí měsíc" onclick="cgCalMove(-1)">‹</button>
+            <button aria-label="Další měsíc" onclick="cgCalMove(1)">›</button>
+          </div>
+        </div>
+        <div class="dow"><span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span></div>
+        <div class="days" id="cgCalDays"></div>
+        <div style="margin-top:18px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--gold);display:inline-block"></span> Naplánovaná služba
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Týdenní dostupnost</b></div>
+          <div id="cgAvail"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><b>Naplánováno</b></div>
+          <div id="cgCalJobs"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CAREGIVER · PROFILE ============ -->
+<div class="view" id="view-cg-profile">
+  <div class="wrap">
+    <div class="page-head"><h1>Můj profil</h1><p>Takto vás vidí rodiny. Vše můžete upravit a změny se hned promítnou do náhledu.</p></div>
+    <div class="profile-grid">
+      <div class="pcard">
+        <h3>Základní údaje</h3>
+        <div class="photo-upload">
+          <div class="ava ava-lg" id="cpAvatar">JN</div>
+          <div class="photo-actions">
+            <label class="photo-up-label">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L8 8m4-4 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              Nahrát fotku
+              <input type="file" accept="image/*" id="cpPhotoInput" hidden onchange="onCgPhoto(event)">
+            </label>
+            <button type="button" class="photo-remove" id="cpPhotoRemove" onclick="removeCgPhoto()" style="display:none">Odebrat</button>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Jméno a příjmení</label><input class="inp" id="cpName" oninput="syncCgPreview()"></div>
+          <div><label class="lbl">Lokalita</label>
+            <select class="inp" id="cpLoc" onchange="syncCgPreview()">
+              <option>Praha 2</option><option>Praha 3</option><option>Praha 4</option>
+              <option>Praha 5</option><option>Praha 6</option><option>Praha 7</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Roky praxe</label><input class="inp" type="number" id="cpExp" min="0" max="40" oninput="syncCgPreview()"></div>
+          <div><label class="lbl">Dojezdová vzdálenost (km)</label><input class="inp" type="number" id="cpRadius" min="1" max="60" step="1" oninput="syncCgPreview()"></div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Způsob účtování</label>
+            <select class="inp" id="cpPriceType" onchange="syncCgPreview()">
+              <option value="hod">Za hodinu</option><option value="den">Za den</option><option value="indiv">Individuální nabídka</option>
+            </select>
+          </div>
+          <div id="cpRateWrap"><label class="lbl" id="cpRateLbl">Hodinová sazba (Kč)</label><input class="inp" type="number" id="cpRate" min="150" max="9000" step="10" oninput="syncCgPreview()"></div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Cena za km dopravy (Kč)</label><input class="inp" type="number" id="cpKmPrice" min="0" max="50" step="1" placeholder="0 = doprava v ceně" oninput="syncCgPreview()"></div>
+          <div></div>
+        </div>
+        <div style="margin-top:14px">
+          <label class="lbl">O mně <span style="float:right;font-weight:400" id="cpBioCount">0 / 500</span></label>
+          <textarea class="inp" id="cpBio" maxlength="500" oninput="syncCgPreview()"></textarea>
+        </div>
+        <div class="pdiv"></div>
+        <h3>Nabízené služby</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vyberte služby, které nabízíte.</p>
+        <div class="cg-services" id="cpServices"></div>
+        <button class="btn btn-gold" style="margin-top:24px" onclick="saveCgProfile()">Uložit změny</button>
+      </div>
+      <div class="pcard book-aside">
+        <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="#7A736A" stroke-width="1.6"/></svg>Náhled — takto vás uvidí rodiny</div>
+        <div id="cgPreview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CAREGIVER · VERIFICATION ============ -->
+<div class="view" id="view-cg-verify">
+  <div class="wrap">
+    <div class="page-head"><h1>Ověření pečovatelky</h1><p>Než vás zpřístupníme rodinám, ověříme vaši totožnost a kvalifikaci. Vyplňte formulář a nahrajte osvědčení — správce ho zkontroluje, zpravidla do 48 hodin.</p></div>
+    <div id="cgVerifyBanner"></div>
+    <div class="profile-grid">
+      <form class="pcard" id="cgVerifyForm" novalidate onsubmit="return submitVerify(event)">
+        <h3>Základní údaje</h3>
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Jméno a příjmení</label><input class="inp" id="vfName" placeholder="Jana Nováková"></div>
+          <div><label class="lbl">Lokalita</label>
+            <select class="inp" id="vfLoc">
+              <option>Praha 2</option><option>Praha 3</option><option>Praha 4</option>
+              <option>Praha 5</option><option>Praha 6</option><option>Praha 7</option>
+              <option>Praha 8</option><option>Praha 9</option><option>Praha 10</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Hodinová sazba (Kč)</label><input class="inp" type="number" id="vfRate" min="150" max="600" step="10" value="240"></div>
+          <div><label class="lbl">Roky praxe</label><input class="inp" type="number" id="vfExp" min="0" max="40" value="3"></div>
+        </div>
+        <div class="pdiv"></div>
+        <h3>Ověření identity <span class="badge wait" style="font-size:11px">povinné</span></h3>
+        <p style="color:var(--muted);font-size:13px;margin:4px 0 12px">Doklad a selfie slouží výhradně k ověření totožnosti (Zenvoria Verified).</p>
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Telefon</label><input class="inp" id="vfPhone" type="tel" placeholder="+420 777 123 456"></div>
+          <div><label class="lbl">Typ dokladu</label>
+            <select class="inp" id="vfDocType"><option value="op">Občanský průkaz</option><option value="pas">Cestovní pas</option></select>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Číslo dokladu</label><input class="inp" id="vfDocNum" placeholder="např. 123456789"></div>
+          <div></div>
+        </div>
+        <div style="margin-top:14px">
+          <label class="lbl">Foto dokladu totožnosti (občanský průkaz / pas) — obě strany</label>
+          <div class="grid2">
+            <label class="doc-drop" id="vfIdFrontLabel">
+              <span id="vfIdFrontText"><b>Přední strana</b> — foto nebo sken</span>
+              <input type="file" accept="image/*,.pdf" id="vfIdFront" hidden onchange="onVerifyIdFront(event)">
+            </label>
+            <label class="doc-drop" id="vfIdBackLabel">
+              <span id="vfIdBackText"><b>Zadní strana</b> — foto nebo sken</span>
+              <input type="file" accept="image/*,.pdf" id="vfIdBack" hidden onchange="onVerifyIdBack(event)">
+            </label>
+          </div>
+        </div>
+        <div style="margin-top:14px">
+          <label class="lbl">Selfie kontrola (fotka obličeje s dokladem)</label>
+          <label class="doc-drop" id="vfSelfieLabel">
+            <span id="vfSelfieText"><b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte</span>
+            <input type="file" accept="image/*" id="vfSelfie" hidden onchange="onVerifySelfie(event)">
+          </label>
+        </div>
+        <div class="pdiv"></div>
+        <h3>Osvědčení / certifikace</h3>
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Název osvědčení nebo kurzu</label><input class="inp" id="vfCert" placeholder="Kurz pečovatelství č. …"></div>
+          <div><label class="lbl">Vystaveno (instituce)</label><input class="inp" id="vfIssuer" placeholder="Diakonie ČCE"></div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Platnost do</label><input class="inp" type="date" id="vfValid"></div>
+          <div></div>
+        </div>
+        <div style="margin-top:14px">
+          <label class="lbl">Doklad (osvědčení, diplom)</label>
+          <label class="doc-drop" id="vfDocLabel">
+            <span id="vfDocText"><b>Nahrát soubor</b> — PDF, Word, obrázek nebo sken dokladu</span>
+            <input type="file" accept="image/*,.pdf,.doc,.docx,.odt,.rtf,.txt,.heic" id="vfDoc" hidden onchange="onVerifyDoc(event)">
+          </label>
+        </div>
+        <div style="margin-top:14px"><label class="lbl">Reference / doporučení (volitelné)</label><textarea class="inp" id="vfRefs" placeholder="Kontakt na referenci nebo odkaz na doporučení…"></textarea></div>
+        <div style="margin-top:14px"><label class="lbl">Poznámka pro správce (volitelné)</label><textarea class="inp" id="vfNote" placeholder="Cokoli, co bychom měli vědět…"></textarea></div>
+        <label class="set-row" style="margin-top:14px;align-items:flex-start;gap:10px;display:flex">
+          <input type="checkbox" id="vfRules" style="margin-top:3px">
+          <span style="font-size:13.5px;color:var(--navy-800)">Potvrzuji, že uvedené údaje jsou pravdivé, doklady patří mně a souhlasím s <a href="/obchodni-podminky" style="color:var(--gold-deep)">pravidly platformy</a>.</span>
+        </label>
+        <div class="set-err" id="vfErr" style="margin-top:12px"></div>
+        <button type="submit" class="btn btn-gold" style="margin-top:18px" id="vfSubmitBtn">Odeslat k ověření</button>
+      </form>
+      <div class="pcard book-aside">
+        <img src="verify.webp" alt="Ověření Zenvoria" width="72" height="87" loading="lazy" decoding="async" style="display:block;margin:4px auto 16px">
+        <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#7A736A" stroke-width="1.6"/></svg>Jak ověření probíhá</div>
+        <ol style="margin:0;padding-left:20px;color:var(--navy-800);font-size:14px;line-height:1.9">
+          <li>Vyplníte formulář a nahrajete osvědčení.</li>
+          <li>Správce zkontroluje doklady a totožnost.</li>
+          <li>Po schválení získáte odznak <b>„Ověřená"</b> a objevíte se ve vyhledávání rodinám.</li>
+          <li>Při zamítnutí vám dáme vědět důvod a můžete žádost upravit a odeslat znovu.</li>
+        </ol>
+        <div class="pdiv"></div>
+        <p style="font-size:13px;color:var(--muted)">Vaše doklady zpracováváme v souladu s GDPR a slouží výhradně k ověření.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ORDER DETAIL ============ -->
+<div class="view" id="view-order-detail">
+  <div class="wrap">
+    <button class="back-link" id="odBack" onclick="go('bookings')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="m14 6-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="odBackLabel">Zpět na objednávky</span>
+    </button>
+    <div class="page-head" style="padding-top:8px"><h1>Detail objednávky</h1></div>
+    <div class="profile-grid" id="orderDetailGrid"></div>
+  </div>
+</div>
+
+<!-- ============ CHAT ============ -->
+<div class="view" id="view-chat">
+  <div class="wrap">
+    <div class="page-head"><h1>Zprávy</h1><p>Komunikujte přímo a domluvte se na detailech péče.</p></div>
+    <div class="chat-layout">
+      <div class="chat-list" id="chatList"></div>
+      <div class="chat-main">
+        <div class="chat-head" id="chatHead"></div>
+        <div class="chat-body" id="chatBody"></div>
+        <div style="display:flex;gap:8px;padding:10px 14px 0" id="chatActions">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="sendTerm()">📅 Poslat termín</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="videoCall()">📹 Videohovor</button>
+        </div>
+        <form class="chat-input" id="chatForm" onsubmit="return sendChat(event)">
+          <input id="chatInput" placeholder="Napište zprávu…" autocomplete="off" aria-label="Napsat zprávu">
+          <button class="chat-send" type="submit" aria-label="Odeslat">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 20 4l-6 16-3-7-7-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div class="view" id="view-login">
+  <div class="auth-wrap">
+    <div class="auth-split">
+    <aside class="auth-photo" role="img" aria-label="Pečovatelka a seniorka">
+      <div class="auth-photo-cap">
+        <div class="q">„Péče s lidskostí — pro klid vašich blízkých."</div>
+        <div class="a">Ověřené pečovatelky, kterým můžete věřit.</div>
+      </div>
+    </aside>
+    <form class="auth-card" id="loginForm" novalidate onsubmit="return submitLogin(event)">
+      <div class="brand">
+        <img class="mark" src="logo.webp" alt="ZENVORIA logo" loading="lazy" decoding="async" style="width:62px;height:62px" />
+        <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+      </div>
+      <h1>Vítejte zpět</h1>
+      <p class="sub">Přihlaste se ke svému účtu a spravujte péči pro své blízké.</p>
+
+      <div class="auth-field" id="lf-email">
+        <label class="lbl" for="loginEmail">E-mail</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18v12H3V6Z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="email" id="loginEmail" autocomplete="email" placeholder="vas@email.cz" aria-describedby="lf-email-err">
+        </div>
+        <div class="err" id="lf-email-err">Zadejte platný e-mail.</div>
+      </div>
+
+      <div class="auth-field" id="lf-pw">
+        <label class="lbl" for="loginPw">Heslo</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="password" id="loginPw" autocomplete="current-password" placeholder="Vaše heslo" aria-describedby="lf-pw-err">
+          <button type="button" class="pw-toggle" aria-label="Zobrazit heslo" onclick="togglePw(this,'loginPw')">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+          </button>
+        </div>
+        <div class="err" id="lf-pw-err">Zadejte heslo (min. 6 znaků).</div>
+      </div>
+
+      <div class="auth-meta">
+        <label><input type="checkbox" id="loginRemember" checked> Zapamatovat si mě</label>
+        <button type="button" class="auth-link" onclick="go('forgot')">Zapomněli jste heslo?</button>
+      </div>
+
+      <button type="submit" class="btn btn-gold btn-block">Přihlásit se</button>
+      <p class="auth-alt">Nemáte účet? <button type="button" class="auth-link" onclick="go('register')">Zaregistrujte se</button></p>
+    </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FORGOT PASSWORD ============ -->
+<div class="view" id="view-forgot">
+  <div class="auth-wrap">
+    <div class="auth-split">
+    <aside class="auth-photo" role="img" aria-label="Pečovatelka a seniorka">
+      <div class="auth-photo-cap">
+        <div class="q">„Jsme tu, abychom vám pomohli."</div>
+        <div class="a">Obnovte přístup ke svému účtu během chvilky.</div>
+      </div>
+    </aside>
+    <form class="auth-card" id="forgotForm" novalidate onsubmit="return submitForgot(event)">
+      <div class="brand">
+        <img class="mark" src="logo.webp" alt="ZENVORIA logo" loading="lazy" decoding="async" style="width:62px;height:62px" />
+        <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+      </div>
+
+      <div id="forgotFields">
+        <h1>Zapomněli jste heslo?</h1>
+        <p class="sub">Zadejte e-mail svého účtu a pošleme vám odkaz pro nastavení nového hesla.</p>
+
+        <div class="auth-field" id="ff-email">
+          <label class="lbl" for="forgotEmail">E-mail</label>
+          <div class="inp-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18v12H3V6Z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/></svg>
+            <input type="email" id="forgotEmail" autocomplete="email" placeholder="vas@email.cz" aria-describedby="ff-email-err">
+          </div>
+          <div class="err" id="ff-email-err">Zadejte platný e-mail.</div>
+        </div>
+
+        <button type="submit" class="btn btn-gold btn-block">Odeslat odkaz pro obnovu</button>
+        <p class="auth-alt">Vzpomněli jste si? <button type="button" class="auth-link" onclick="go('login')">Zpět na přihlášení</button></p>
+      </div>
+
+      <div id="forgotDone" style="display:none;text-align:center">
+        <div class="auth-done-ic" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="m5 12 4.5 4.5L19 7" stroke="#11151B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h1>Zkontrolujte e-mail</h1>
+        <p class="sub">Pokud u nás účet <b id="forgotEmailEcho"></b> existuje, poslali jsme na něj odkaz pro obnovu hesla. Zkontrolujte i složku se spamem.</p>
+        <button type="button" class="btn btn-gold btn-block" onclick="go('login')">Zpět na přihlášení</button>
+      </div>
+    </form>
+    </div>
+</div>
+</div>
+
+<div class="view" id="view-reset-password">
+  <div class="auth-wrap">
+    <div class="auth-split">
+    <aside class="auth-photo" role="img" aria-label="Pečovatelka a seniorka">
+      <div class="auth-photo-cap">
+        <div class="q">„Vytvořte si nové heslo."</div>
+        <div class="a">Stačí zadat nové heslo dvakrát a přístup bude znovu aktivní.</div>
+      </div>
+    </aside>
+    <form class="auth-card" id="resetPwForm" novalidate onsubmit="return submitResetPassword(event)">
+      <div class="brand">
+        <img class="mark" src="logo.webp" alt="ZENVORIA logo" loading="lazy" decoding="async" style="width:62px;height:62px" />
+        <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+      </div>
+
+      <div id="resetPwFields">
+        <h1>Nastavit nové heslo</h1>
+        <p class="sub">Zadejte nové heslo dvakrát. Odkaz z e-mailu musí být stále platný.</p>
+
+        <div class="auth-field" id="rpw-next">
+          <label class="lbl" for="resetPwNext">Nové heslo</label>
+          <div class="inp-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="password" id="resetPwNext" autocomplete="new-password" placeholder="Min. 8 znaků, velké i malé písmeno a číslo" aria-describedby="rpw-next-err">
+            <button type="button" class="pw-toggle" aria-label="Zobrazit heslo" onclick="togglePw(this,'resetPwNext')">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+            </button>
+          </div>
+          <div class="err" id="rpw-next-err">Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.</div>
+        </div>
+
+        <div class="auth-field" id="rpw-confirm">
+          <label class="lbl" for="resetPwConfirm">Potvrďte nové heslo</label>
+          <div class="inp-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#7A736A" stroke-width="1.6"/></svg>
+            <input type="password" id="resetPwConfirm" autocomplete="new-password" placeholder="Zadejte stejné heslo znovu" aria-describedby="rpw-confirm-err">
+            <button type="button" class="pw-toggle" aria-label="Zobrazit heslo" onclick="togglePw(this,'resetPwConfirm')">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+            </button>
+          </div>
+          <div class="err" id="rpw-confirm-err">Hesla se musí shodovat.</div>
+        </div>
+
+        <button type="submit" class="btn btn-gold btn-block">Uložit nové heslo</button>
+        <p class="auth-alt">Vzpomněli jste si? <button type="button" class="auth-link" onclick="go('login')">Zpět na přihlášení</button></p>
+      </div>
+
+      <div id="resetPwDone" style="display:none;text-align:center">
+        <div class="auth-done-ic" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="m5 12 4.5 4.5L19 7" stroke="#11151B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h1>Heslo bylo změněno</h1>
+        <p class="sub">Vaše nové heslo je uložené. Teď se můžete přihlásit do svého účtu.</p>
+        <button type="button" class="btn btn-gold btn-block" onclick="go('login')">Přejít na přihlášení</button>
+      </div>
+
+      <div id="resetPwInvalid" style="display:none;text-align:center">
+        <div class="auth-done-ic" aria-hidden="true" style="background:#FBF3F1;color:#B23A2E"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M12 8v5" stroke="#B23A2E" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.1" fill="#B23A2E"/><path d="M12 3 3.7 18.2A1.4 1.4 0 0 0 4.9 20h14.2a1.4 1.4 0 0 0 1.2-1.8L12 3Z" stroke="#B23A2E" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+        <h1>Odkaz už není platný</h1>
+        <p class="sub" id="resetPwInvalidText">Požádejte prosím o nový odkaz pro obnovu hesla.</p>
+        <button type="button" class="btn btn-gold btn-block" onclick="go('forgot')">Požádat o nový odkaz</button>
+      </div>
+    </form>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-change-email">
+  <div class="auth-wrap">
+    <div class="auth-split">
+      <aside class="auth-photo" role="img" aria-label="Bezpecna zmena e-mailu">
+        <div class="auth-photo-cap">
+          <div class="q">"Potvrdte puvodni e-mail a overte novy."</div>
+          <div class="a">Zmenu e-mailu dokoncite az po potvrzeni odkazu a zadani kodu, ktery prijde do nove schranky.</div>
+        </div>
+      </aside>
+      <form class="auth-card" id="changeEmailForm" novalidate onsubmit="return submitChangeEmailNew(event)">
+        <div class="brand">
+          <img class="mark" src="logo.webp" alt="ZENVORIA logo" loading="lazy" decoding="async" style="width:62px;height:62px" />
+          <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+        </div>
+
+        <div id="changeEmailStepNew">
+          <h1>Zmena e-mailu</h1>
+          <p class="sub">Potvrzeny puvodni e-mail: <b id="changeEmailCurrent">-</b></p>
+          <div class="auth-field">
+            <label class="lbl" for="changeEmailNew">Novy e-mail</label>
+            <div class="inp-wrap">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7.5 12 13l8-5.5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="5" width="18" height="14" rx="2" stroke="#7A736A" stroke-width="1.6"/></svg>
+              <input type="email" id="changeEmailNew" autocomplete="email" placeholder="novy@email.cz">
+            </div>
+          </div>
+          <div class="set-err" id="changeEmailNewErr"></div>
+          <button type="submit" class="btn btn-gold btn-block">Poslat overovaci kod</button>
+        </div>
+
+        <div id="changeEmailStepCode" style="display:none">
+          <h1>Overte novy e-mail</h1>
+          <p class="sub">Na adresu <b id="changeEmailTarget">-</b> jsme poslali 6mistny kod.</p>
+          <div class="auth-field">
+            <label class="lbl" for="changeEmailCode">Overovaci kod</label>
+            <div class="inp-wrap">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#7A736A" stroke-width="1.6"/></svg>
+              <input type="text" id="changeEmailCode" inputmode="numeric" maxlength="6" placeholder="123456">
+            </div>
+          </div>
+          <div class="set-err" id="changeEmailCodeErr"></div>
+          <button type="button" class="btn btn-gold btn-block" onclick="submitChangeEmailCode()" style="margin-top:4px">Potvrdit novy e-mail</button>
+          <p class="auth-alt">Kod nedorazil? <button type="button" class="auth-link" onclick="submitChangeEmailNew(null,true)">Poslat znovu</button></p>
+        </div>
+
+        <div id="changeEmailDone" style="display:none;text-align:center">
+          <div class="auth-done-ic" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="m5 12 4.5 4.5L19 7" stroke="#11151B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <h1>E-mail byl zmenen</h1>
+          <p class="sub">Novy prihlasovaci e-mail je <b id="changeEmailDoneValue"></b>.</p>
+          <button type="button" class="btn btn-gold btn-block" onclick="go('settings')">Zpet do nastaveni</button>
+        </div>
+
+        <div id="changeEmailInvalid" style="display:none;text-align:center">
+          <div class="auth-done-ic" aria-hidden="true" style="background:#FBF3F1;color:#B23A2E"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M12 8v5" stroke="#B23A2E" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.1" fill="#B23A2E"/><path d="M12 3 3.7 18.2A1.4 1.4 0 0 0 4.9 20h14.2a1.4 1.4 0 0 0 1.2-1.8L12 3Z" stroke="#B23A2E" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+          <h1>Odkaz uz neni platny</h1>
+          <p class="sub" id="changeEmailInvalidText">Pozadejte prosim o novy odkaz pro zmenu e-mailu.</p>
+          <button type="button" class="btn btn-gold btn-block" onclick="go('settings')">Zpet do nastaveni</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============ REGISTER ============ -->
+<div class="view" id="view-register">
+  <div class="auth-wrap">
+    <form class="auth-card" id="registerForm" novalidate onsubmit="return submitRegister(event)">
+      <div class="brand">
+        <img class="mark" src="logo.webp" alt="ZENVORIA logo" loading="lazy" decoding="async" style="width:62px;height:62px" />
+        <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+      </div>
+      <h1>Vytvořit účet</h1>
+      <p class="sub">Připojte se k ZENVORIA — péči s lidskostí.</p>
+
+      <div class="role-switch" role="radiogroup" aria-label="Typ účtu">
+        <div class="role-opt on" id="role-family" role="radio" tabindex="0" aria-checked="true" onclick="pickRole('family')">
+          <div class="ro-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3" stroke="#C9A233" stroke-width="1.5"/><circle cx="17" cy="9" r="2.4" stroke="#C9A233" stroke-width="1.5"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M15 19c0-2 1.5-3.5 4-3.5" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          <b>Rodina</b><span>Hledám péči</span>
+        </div>
+        <div class="role-opt" id="role-caregiver" role="radio" tabindex="0" aria-checked="false" onclick="pickRole('caregiver')">
+          <div class="ro-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.4" stroke="#C9A233" stroke-width="1.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          <b>Pečovatelka</b><span>Nabízím péči</span>
+        </div>
+      </div>
+
+      <div class="auth-field" id="rf-name">
+        <label class="lbl" for="regName">Jméno a příjmení</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="text" id="regName" autocomplete="name" placeholder="Jana Nováková" aria-describedby="rf-name-err">
+        </div>
+        <div class="err" id="rf-name-err">Zadejte své jméno a příjmení.</div>
+      </div>
+
+      <div class="auth-field" id="rf-email">
+        <label class="lbl" for="regEmail">E-mail</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18v12H3V6Z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="email" id="regEmail" autocomplete="email" placeholder="vas@email.cz" aria-describedby="rf-email-err">
+        </div>
+        <div class="err" id="rf-email-err">Zadejte platný e-mail.</div>
+      </div>
+
+      <div class="auth-field" id="rf-phone">
+        <label class="lbl" for="regPhone">Telefon</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <input type="tel" id="regPhone" autocomplete="tel" placeholder="+420 777 123 456" aria-describedby="rf-phone-err">
+        </div>
+        <div class="err" id="rf-phone-err">Zadejte platné telefonní číslo.</div>
+      </div>
+
+      <div class="auth-field" id="rf-pw">
+        <label class="lbl" for="regPw">Heslo</label>
+        <div class="inp-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#7A736A" stroke-width="1.6"/></svg>
+          <input type="password" id="regPw" autocomplete="new-password" placeholder="Min. 8 znaků, velké i malé písmeno a číslo" aria-describedby="rf-pw-err">
+          <button type="button" class="pw-toggle" aria-label="Zobrazit heslo" onclick="togglePw(this,'regPw')">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+          </button>
+        </div>
+        <div class="err" id="rf-pw-err">Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.</div>
+      </div>
+
+      <div class="auth-field" id="rf-terms">
+        <label class="auth-meta" style="margin:0"><span style="display:flex;align-items:center;gap:8px;color:var(--navy-800)"><input type="checkbox" id="regTerms"> Souhlasím s <a class="auth-link" href="/obchodni-podminky">podmínkami</a></span></label>
+        <div class="err" id="rf-terms-err">Pro pokračování musíte souhlasit s podmínkami.</div>
+      </div>
+
+      <button type="submit" class="btn btn-gold btn-block" style="margin-top:6px">Vytvořit účet</button>
+      <p class="auth-alt">Už máte účet? <button type="button" class="auth-link" onclick="go('login')">Přihlaste se</button></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ RODINA · PŘEHLED ============ -->
+<div class="view" id="view-fam-dash">
+  <div class="wrap">
+    <div class="dash-head">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="ava" id="famDashAva">MH</div>
+        <div>
+          <h1>Dobrý den, <span id="famFirst">Marie</span> <span class="wave">👋</span></h1>
+          <p id="famIntro">Tady je přehled vaší péče.</p>
+        </div>
+      </div>
+      <button class="btn btn-gold" onclick="go('search')">Najít péči</button>
+    </div>
+    <div class="stat-grid" id="famStats"></div>
+    <div class="dash-grid">
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Nadcházející objednávky</b></div>
+          <div id="famUpcoming"></div>
+          <button class="btn btn-ghost btn-block" style="margin-top:6px" onclick="go('bookings')">Všechny objednávky</button>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><b>Důvěra a bezpečí</b><span class="badge ok">🛡️</span></div>
+          <div id="famTrust"></div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Rychlé akce</b></div>
+          <div class="qa">
+            <button class="qa-item" onclick="go('search')"><span class="qa-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#C9A233" stroke-width="1.6"/><path d="m20 20-3-3" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="qa-l">Najít pečovatelku</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('bookings')"><span class="qa-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M8 2v4M16 2v4M4 9h16M4 5h16v15H4z" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="qa-l">Moje objednávky</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('chat')"><span class="qa-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H9l-5 4V5Z" stroke="#C9A233" stroke-width="1.6" stroke-linejoin="round"/></svg></span><span class="qa-l">Zprávy</span><span class="qa-ar">›</span></button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><b>Doporučené pečovatelky</b></div>
+          <div id="famRecommended"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · DASHBOARD ============ -->
+<div class="view" id="view-admin-dash">
+  <div class="wrap">
+    <div class="dash-head">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="ava" id="admDashAva">SS</div>
+        <div>
+          <h1>Správa systému <span class="wave">🛡️</span></h1>
+          <p id="admIntro">Přehled platformy ZENVORIA.</p>
+        </div>
+      </div>
+      <button class="btn btn-gold" onclick="go('admin-verify')">Žádosti o ověření</button>
+    </div>
+    <div class="stat-grid" id="admStats"></div>
+    <div class="dash-grid">
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Čekající žádosti o ověření</b><span class="count" id="admPendBadge">0</span></div>
+          <div id="admPendPreview"></div>
+          <button class="btn btn-ghost btn-block" style="margin-top:6px" onclick="go('admin-verify')">Zobrazit všechny žádosti</button>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-h"><b>Rychlé akce</b></div>
+          <div class="qa">
+            <button class="qa-item" onclick="go('admin-verify')"><span class="qa-ic">🛡️</span><span class="qa-l">Ověřit pečovatelky</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-caregivers')"><span class="qa-ic">👩‍⚕️</span><span class="qa-l">Správa pečovatelek</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-users')"><span class="qa-ic">👥</span><span class="qa-l">Správa uživatelů</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-broadcast')"><span class="qa-ic">✉️</span><span class="qa-l">Rozeslat zprávu</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-plans')"><span class="qa-ic">💎</span><span class="qa-l">Ceny předplatného</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-orders')"><span class="qa-ic">📋</span><span class="qa-l">Objednávky platformy</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-audit')"><span class="qa-ic">🧾</span><span class="qa-l">Audit logy</span><span class="qa-ar">›</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · VERIFICATIONS ============ -->
+<div class="view" id="view-admin-verify">
+  <div class="wrap">
+    <div class="page-head" style="display:flex;align-items:center;gap:16px">
+      <img src="verify.webp" alt="" width="40" height="48" loading="lazy" decoding="async" style="flex:0 0 auto">
+      <div><h1>Žádosti o ověření</h1><p>Zkontrolujte doklady a kvalifikaci pečovatelek. Schválené se zobrazí rodinám ve vyhledávání.</p></div>
+    </div>
+    <div class="flow"><span class="fl-step">Registrace</span><span class="fl-ar">→</span><span class="fl-step">Ověření</span><span class="fl-ar">→</span><span class="fl-step">Kontrola</span><span class="fl-ar">→</span><span class="fl-step">Schválení</span><span class="fl-ar">→</span><span class="fl-step">Aktivní profil</span></div>
+    <div class="panel">
+      <div class="panel-h"><b>Čeká na schválení</b><span class="count" id="admVerCount">0</span></div>
+      <div id="admVerQueue"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><b>Zpracované žádosti</b></div>
+      <div class="table-scroll"><div id="admVerDone"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · CAREGIVERS ============ -->
+<div class="view" id="view-admin-caregivers">
+  <div class="wrap">
+    <div class="page-head"><h1>Pečovatelky</h1><p>Spravujte ověřené pečovatelky. Pozastavená pečovatelka se nezobrazuje rodinám.</p></div>
+    <div class="panel">
+      <div class="panel-h"><b>Všechny pečovatelky</b><span class="count" id="admCgCount">0</span></div>
+      <div class="table-scroll"><table class="adm-table"><thead><tr><th>Pečovatelka</th><th>Lokalita</th><th>Sazba</th><th>Stav</th><th style="text-align:right">Akce</th></tr></thead><tbody id="admCgBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · USERS ============ -->
+<div class="view" id="view-admin-users">
+  <div class="wrap">
+    <div class="page-head"><h1>Uživatelé</h1><p>Spravujte účty rodin využívajících platformu.</p></div>
+    <div class="panel">
+      <div class="panel-h"><b>Rodiny</b><span class="count" id="admUsrCount">0</span></div>
+      <div class="table-scroll"><table class="adm-table"><thead><tr><th>Uživatel</th><th>Registrace</th><th>Objednávek</th><th>Stav</th><th style="text-align:right">Akce</th></tr></thead><tbody id="admUsrBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · ORDERS ============ -->
+<div class="view" id="view-admin-orders">
+  <div class="wrap">
+    <div class="page-head"><h1>Objednávky platformy</h1><p>Přehled všech objednávek napříč ZENVORIA.</p></div>
+    <div class="panel">
+      <div class="panel-h"><b>Všechny objednávky</b><span class="count" id="admOrdCount">0</span></div>
+      <div class="table-scroll"><table class="adm-table"><thead><tr><th>Služba</th><th>Pečovatelka</th><th>Termín</th><th>Stav</th></tr></thead><tbody id="admOrdBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · AUDIT LOGY ============ -->
+<div class="view" id="view-admin-audit">
+  <div class="wrap">
+    <div class="page-head"><h1>Audit logy</h1><p>Přehled citlivých akcí v systému: přihlášení, změny hesla a admin zásahy.</p></div>
+    <div class="panel">
+      <div class="panel-h"><b>Poslední události</b><span class="count" id="admAuditCount">0</span></div>
+      <div class="grid2" style="margin:0 0 16px 0">
+        <div>
+          <label class="lbl">Hledat podle akce nebo e-mailu</label>
+          <input class="inp" id="admAuditSearch" placeholder="Např. auth.login nebo email@domena.cz" oninput="applyAdminAuditFilters()">
+        </div>
+        <div>
+          <label class="lbl">Status</label>
+          <select class="inp" id="admAuditStatus" onchange="applyAdminAuditFilters()">
+            <option value="">Všechny statusy</option>
+            <option value="success">success</option>
+            <option value="failed">failed</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin:0 0 16px 0">
+        <button class="btn btn-ghost" type="button" onclick="exportAdminAuditCsv()">Exportovat CSV</button>
+      </div>
+      <div class="table-scroll">
+        <table class="adm-table">
+          <thead>
+            <tr>
+              <th>Akce</th>
+              <th>Kdo</th>
+              <th>Cíl</th>
+              <th>Čas</th>
+            </tr>
+          </thead>
+          <tbody id="admAuditBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · HROMADNÉ ZPRÁVY ============ -->
+<div class="view" id="view-admin-broadcast">
+  <div class="wrap">
+    <div class="page-head"><h1>Rozeslat zprávu</h1><p>Pošlete oznámení všem, vybrané skupině, nebo konkrétním osobám. Doručí se do jejich Zpráv.</p></div>
+    <div class="dash-grid dash-grid-2">
+      <form class="panel" onsubmit="return sendBroadcast(event)">
+        <div class="panel-h"><b>Nová zpráva</b></div>
+        <label class="lbl">Komu</label>
+        <select class="inp" id="bcAudience" onchange="renderBcRecipients()">
+          <option value="all">Všem (pečovatelky i rodiny)</option>
+          <option value="caregivers">Všem pečovatelkám</option>
+          <option value="families">Všem rodinám</option>
+          <option value="specific">Vybraným osobám…</option>
+        </select>
+        <div id="bcRecipients" style="margin-top:12px"></div>
+        <label class="lbl" style="margin-top:14px">Zpráva</label>
+        <textarea class="inp" id="bcText" placeholder="Text oznámení…" style="min-height:120px"></textarea>
+        <div class="set-err" id="bcErr" style="margin-top:10px"></div>
+        <button class="btn btn-gold btn-block" type="submit" style="margin-top:14px">Odeslat zprávu</button>
+      </form>
+      <div class="panel">
+        <div class="panel-h"><b>Odeslané zprávy</b><span class="count" id="bcSentCount">0</span></div>
+        <div id="bcSentList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · TARIFY (ceny) ============ -->
+<div class="view" id="view-admin-plans">
+  <div class="wrap">
+    <div class="page-head"><h1>Tarify a ceny předplatného</h1><p>Nastavte měsíční cenu tarifů pro pečovatelky. Změna se ihned projeví v ceníku i u plateb.</p></div>
+    <div class="profile-grid">
+      <form class="pcard" onsubmit="return saveAdminPlans(event)">
+        <h3>Cena předplatného PREMIUM</h3>
+        <p style="color:var(--muted);font-size:13.5px;margin:4px 0 14px">Tarif <b>START je zdarma</b> a přiřadí se pečovatelce automaticky po schválení ověření — nenastavuje se. Nastavujete pouze měsíční cenu PREMIUM.</p>
+        <div class="grid2">
+          <div><label class="lbl">💎 PREMIUM (Kč / měsíc)</label><input class="inp" type="number" id="apPremium" min="0" max="9999" step="10"></div>
+          <div></div>
+        </div>
+        <div class="set-err" id="apErr" style="margin-top:10px"></div>
+        <button class="btn btn-gold" type="submit" style="margin-top:18px">Uložit cenu</button>
+      </form>
+      <div class="pcard book-aside">
+        <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#7A736A" stroke-width="1.6"/></svg>Přehled tarifů</div>
+        <div id="adminPlanPreview"></div>
+        <div class="pdiv"></div>
+        <div class="row" style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px"><span style="color:var(--muted)">Premium pečovatelek</span><span style="font-weight:700;color:var(--navy-900)" id="apPremCount">0</span></div>
+        <div class="row" style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px"><span style="color:var(--muted)">Odhad měsíčních tržeb</span><span style="font-weight:700;color:var(--navy-900)" id="apRevenue">0 Kč</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CENÍK / TARIFY ============ -->
+<div class="view" id="view-pricing">
+  <div class="wrap">
+    <div class="page-head"><h1>Předplatné pro pečovatelky</h1><p>Vyberte si tarif, který odpovídá vašim potřebám. Můžete kdykoli změnit.</p></div>
+    <div id="planCurrentNote"></div>
+    <div class="plan-grid" id="planGrid"></div>
+    <p style="text-align:center;color:var(--muted);font-size:13px;padding-bottom:40px">Ceny jsou uvedeny za měsíc vč. DPH. V demu je změna tarifu okamžitá a nezávazná.</p>
+  </div>
+</div>
+
+<!-- ============ NASTAVENÍ ============ -->
+<div class="view" id="view-settings">
+  <div class="wrap set-wrap">
+    <div class="page-head"><h1>Nastavení</h1><p>Spravujte své notifikace, účet a soukromí.</p></div>
+
+    <div class="pcard set-card">
+      <h3>Notifikace</h3>
+      <p class="set-sub">Vyberte, o čem vás chceme informovat.</p>
+      <label class="set-row"><div class="set-l"><b>E-mailové notifikace</b><span>Souhrny a důležité události na váš e-mail.</span></div><span class="switch"><input type="checkbox" id="ntEmail" onchange="toggleSetting('email',this)"><span class="sl-track"></span></span></label>
+      <label class="set-row"><div class="set-l"><b>Nové poptávky a objednávky</b><span>Když přijde nová poptávka nebo se změní objednávka.</span></div><span class="switch"><input type="checkbox" id="ntRequests" onchange="toggleSetting('requests',this)"><span class="sl-track"></span></span></label>
+      <label class="set-row"><div class="set-l"><b>Zprávy v chatu</b><span>Upozornění na nové zprávy.</span></div><span class="switch"><input type="checkbox" id="ntChat" onchange="toggleSetting('chat',this)"><span class="sl-track"></span></span></label>
+      <label class="set-row"><div class="set-l"><b>Připomínky služeb</b><span>Připomeneme vám nadcházející termíny.</span></div><span class="switch"><input type="checkbox" id="ntReminders" onchange="toggleSetting('reminders',this)"><span class="sl-track"></span></span></label>
+    </div>
+
+    <div class="pcard set-card">
+      <h3>Účet</h3>
+      <div class="set-account">
+        <div class="ava" id="setAva" style="width:54px;height:54px;font-size:19px">U</div>
+        <div><b id="setName">Uživatel</b><span id="setEmail">uzivatel@email.cz</span></div>
+        <span class="chip gold" id="setRole">Účet</span>
+      </div>
+      <div class="pdiv"></div>
+      <h4 class="set-h4">Zmena e-mailu</h4>
+      <p class="set-sub" style="margin-top:6px">Na puvodni e-mail posleme potvrzovaci odkaz a novou adresu overite kodem.</p>
+      <div class="set-danger-row" style="justify-content:flex-start">
+        <button type="button" class="btn btn-ghost" onclick="requestEmailChange()">Zmenit e-mail</button>
+      </div>
+      <div class="set-err" id="emailChangeReqErr"></div>
+      <div class="pdiv"></div>
+      <h4 class="set-h4">Změna hesla</h4>
+      <form id="pwForm" novalidate onsubmit="return changePassword(event)">
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Současné heslo</label><input class="inp" type="password" id="pwCurrent" autocomplete="current-password" placeholder="Současné heslo"></div>
+          <div></div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div><label class="lbl">Nové heslo</label><input class="inp" type="password" id="pwNew" autocomplete="new-password" placeholder="Alespoň 6 znaků"></div>
+          <div><label class="lbl">Potvrzení hesla</label><input class="inp" type="password" id="pwConfirm" autocomplete="new-password" placeholder="Zopakujte heslo"></div>
+        </div>
+        <div class="set-err" id="pwErr"></div>
+        <button type="submit" class="btn btn-gold" style="margin-top:16px">Změnit heslo</button>
+      </form>
+    </div>
+
+    <div class="pcard set-card">
+      <h3>Soukromí a data</h3>
+      <p class="set-sub">Vaše dokumenty a správa dat.</p>
+      <div class="set-links">
+        <button class="qa-item" onclick="window.location.href='/ochrana-osobnich-udaju'"><span class="qa-ic">🔒</span><span class="qa-l">Ochrana osobních údajů</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="window.location.href='/zasady-cookies'"><span class="qa-ic">🍪</span><span class="qa-l">Zásady cookies</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="exportData()"><span class="qa-ic">⬇️</span><span class="qa-l">Exportovat moje data (JSON)</span><span class="qa-ar">›</span></button>
+      </div>
+    </div>
+
+    <div class="pcard set-card set-danger">
+      <h3>Nebezpečná zóna</h3>
+      <p class="set-sub">Tyto akce nelze vrátit zpět.</p>
+      <div class="set-danger-row">
+        <button class="btn btn-ghost" onclick="logout()">Odhlásit se</button>
+        <button class="btn set-del" onclick="deleteAccount()">Smazat účet</button>
+      </div>
+    </div>
+  </div>
+</div>
