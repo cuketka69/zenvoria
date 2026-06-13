@@ -253,17 +253,36 @@
   /* pruh s kartami důvěry — přesahuje na pomezí hero a sekce „O nás" */
   .trust-band{position:relative;z-index:5}
   .trust-row{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:940px;margin:-80px auto 0}
-  .trust{display:flex;flex-direction:column;align-items:flex-start;gap:16px;max-width:none;
-    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:18px;
-    padding:24px 22px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:.22s}
-  .trust:hover{transform:translateY(-4px);border-color:rgba(201,162,51,.55);background:rgba(255,255,255,.10);
-    box-shadow:0 18px 40px -22px rgba(0,0,0,.7)}
-  .trust .ic{width:54px;height:54px;border-radius:15px;flex:0 0 auto;
-    background:linear-gradient(145deg,rgba(201,162,51,.24),rgba(201,162,51,.08));border:1px solid rgba(201,162,51,.42);
-    display:flex;align-items:center;justify-content:center}
-  .trust .ic svg{width:27px;height:27px}
-  .trust b{font-size:17.5px;color:#fff;font-weight:700;display:block;margin-bottom:4px;line-height:1.2}
-  .trust span{font-size:13.5px;color:#B7C3B9;display:block;line-height:1.5}
+  .trust{position:relative;overflow:hidden;isolation:isolate;display:flex;flex-direction:column;align-items:flex-start;
+    gap:18px;max-width:none;padding:30px 26px 28px;border-radius:20px;
+    background:linear-gradient(158deg,rgba(20,49,33,.78),rgba(9,26,17,.86));
+    border:1px solid rgba(201,162,51,.20);
+    box-shadow:0 26px 54px -30px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.06);
+    backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);
+    transition:transform .45s cubic-bezier(.2,.8,.2,1),border-color .35s ease,box-shadow .45s ease}
+  /* zlatý proužek nahoře — při najetí se roztáhne přes celou kartu */
+  .trust::before{content:"";position:absolute;top:0;left:0;height:3px;width:48px;border-radius:0 3px 3px 0;
+    background:linear-gradient(90deg,var(--gold-soft),var(--gold-deep));transition:width .5s cubic-bezier(.2,.8,.2,1);z-index:2}
+  /* jemná zlatá záře v rohu */
+  .trust::after{content:"";position:absolute;top:-40%;right:-30%;width:75%;height:75%;border-radius:50%;
+    background:radial-gradient(circle,rgba(201,162,51,.16),transparent 68%);opacity:.5;transition:opacity .45s ease;z-index:0;pointer-events:none}
+  .trust>*{position:relative;z-index:1}
+  .trust:hover{transform:translateY(-7px);border-color:rgba(201,162,51,.55);
+    box-shadow:0 36px 70px -28px rgba(0,0,0,.9),0 0 0 1px rgba(201,162,51,.25),inset 0 1px 0 rgba(255,255,255,.08)}
+  .trust:hover::before{width:100%}
+  .trust:hover::after{opacity:1}
+  .trust .ic{width:56px;height:56px;border-radius:16px;flex:0 0 auto;
+    background:radial-gradient(120% 120% at 30% 25%,rgba(201,162,51,.22),rgba(201,162,51,.05));
+    border:1px solid rgba(201,162,51,.45);display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12);transition:background .4s ease,border-color .4s ease,box-shadow .4s ease,transform .4s ease}
+  .trust .ic svg{width:27px;height:27px;transition:transform .4s ease}
+  .trust .ic svg path,.trust .ic svg circle{stroke:var(--gold-soft);transition:stroke .35s ease}
+  .trust:hover .ic{background:linear-gradient(140deg,var(--gold-soft),var(--gold-deep));border-color:var(--gold-soft);
+    box-shadow:0 10px 24px -10px rgba(201,162,51,.7);transform:rotate(-4deg) scale(1.05)}
+  .trust:hover .ic svg path,.trust:hover .ic svg circle{stroke:#0C1A13}
+  .trust b{font-family:'Playfair Display',serif;font-size:20px;color:#F6F0E2;font-weight:700;
+    display:block;margin-bottom:5px;line-height:1.18;letter-spacing:.005em}
+  .trust span{font-size:13.5px;color:#9FB4A6;display:block;line-height:1.55;letter-spacing:.01em}
   @media(max-width:980px){
     .trust-row{max-width:none;margin:-64px 18px 0}
   }
