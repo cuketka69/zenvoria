@@ -92,6 +92,15 @@
   }
   .nav-links a:hover{background:rgba(255,255,255,.08)}
   .nav-links a.active{position:relative;color:var(--navy-900);background:rgba(201,162,51,.22)}
+  /* střední šířky (např. admin s mnoha položkami) — zhustit, ať se vše vejde a pilulka účtu nepřetéká */
+  @media(max-width:1100px){
+    .nav-inner{gap:14px}
+    .nav-links{gap:2px;min-width:0;justify-content:flex-start;overflow-x:auto;scrollbar-width:none}
+    .nav-links::-webkit-scrollbar{display:none}
+    .nav-links a{padding:8px 11px;font-size:13.5px}
+    #avatarName{display:none}
+    .avatar-pill{padding:5px 9px 5px 5px}
+  }
   /* trvalé zlaté podtržení aktivní položky (zůstane po dojetí progress lišty) */
   .nav-links a.active::after{content:"";position:absolute;left:10px;right:10px;bottom:4px;height:2px;
     border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--gold-soft))}
