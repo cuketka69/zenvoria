@@ -2701,46 +2701,8 @@ const VALUES=['Lidskost','Důvěra','Respekt','Bezpečí','Profesionalita'];
 const VAL_SUBS=['Empatie a srdce','Prověřeno a ověřeno','Důstojnost vždy','Pojištěno a chráněno','Zkušenost a péče'];
 const VAL_ICONS=['M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','m5 12 4 4 10-10','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'];
 
-let CAREGIVERS=[
-  {id:1,name:'Jana Novotná',init:'JN',loc:'Praha 6',rate:250,rating:4.9,reviews:128,exp:5,
-   services:['osobni','lekar','spolecnost'],verified:true,cert:true,
-   bio:'Jsem pečovatelka s více než 5 lety praxe v péči o seniory. Nabízím laskavý přístup, spolehlivost a individuální péči. Ráda doprovázím k lékaři a věnuji se i společnosti a povídání.'},
-  {id:2,name:'Martina Svobodová',init:'MS',loc:'Praha 4',rate:230,rating:4.8,reviews:96,exp:8,
-   services:['domaci','nocni','rehab'],verified:true,cert:true,
-   bio:'Zkušená pečovatelka se zaměřením na domácí a noční péči. Mám zdravotnické vzdělání a certifikát rehabilitačního cvičení. Klienti oceňují můj klidný a trpělivý přístup.'},
-  {id:3,name:'Lucie Dvořáková',init:'LD',loc:'Praha 2',rate:250,rating:5.0,reviews:71,exp:3,
-   services:['pomoc','spolecnost','osobni'],verified:true,cert:false,
-   bio:'Ráda pomáhám seniorům s běžným chodem domácnosti a nejvíc mě baví společnost a povídání. Vždy s úsměvem a empatií. Spolehlivost je pro mě samozřejmostí.'},
-  {id:4,name:'Petra Černá',init:'PČ',loc:'Praha 5',rate:240,rating:4.7,reviews:54,exp:6,
-   services:['nemocnice','lekar','osobni'],verified:true,cert:true,
-   bio:'Specializuji se na doprovod a péči v nemocnici. Mám zdravotnické vzdělání a zkušenost s pacienty po operacích. Pomohu zajistit klidný a bezpečný průběh léčby.'},
-  {id:5,name:'Hana Veselá',init:'HV',loc:'Praha 7',rate:260,rating:4.9,reviews:112,exp:9,
-   services:['osobni','nocni','domaci'],verified:true,cert:true,
-   bio:'Devět let se starám o seniory s láskou a respektem. Nabízím komplexní osobní i noční péči. Klid vašich blízkých je pro mě na prvním místě.'},
-  {id:6,name:'Eva Marková',init:'EM',loc:'Praha 3',rate:235,rating:4.8,reviews:88,exp:4,
-   services:['rehab','domaci','spolecnost'],verified:true,cert:false,
-   bio:'Zaměřuji se na rehabilitační cvičení a aktivní trávení času. Pomáhám seniorům udržet kondici i dobrou náladu. Práce s lidmi je mé poslání.'}
-];
-/* všechny seedované pečovatelky jsou ověřené a aktivní; tarif: start|premium */
-CAREGIVERS.forEach(c=>{
-  if(c.status===undefined)c.status='verified';
-  if(c.suspended===undefined)c.suspended=false;
-  if(c.idVerified===undefined)c.idVerified=true; // ověřená totožnost (🛡️)
-  if(c.plan===undefined)c.plan='start';
-  if(c.langs===undefined)c.langs=['Čeština'];
-  if(c.priceType===undefined)c.priceType='hod'; // hod | den | indiv
-  if(c.dayRate===undefined)c.dayRate=c.rate*8;
-  if(c.radius===undefined)c.radius=10; // dojezdová vzdálenost v km
-  if(c.kmPrice===undefined)c.kmPrice=0; // cena za km dopravy (0 = v ceně)
-});
-/* demo: ukázka různých typů ceny */
-(function(){const a=CAREGIVERS.find(x=>x.id===4);if(a){a.priceType='den';a.dayRate=1900;}
-  const b=CAREGIVERS.find(x=>x.id===6);if(b)b.priceType='indiv';
-  const d=CAREGIVERS.find(x=>x.id===2);if(d)d.kmPrice=9;})();
-/* demo: někteří mají PREMIUM tarif (vyšší zobrazení + odznak 💎) */
-[1,2,5].forEach(id=>{const c=CAREGIVERS.find(x=>x.id===id);if(c)c.plan='premium';});
-const c1=CAREGIVERS.find(x=>x.id===1);if(c1)c1.langs=['Čeština','Angličtina'];
-let cgSeq=6;
+let CAREGIVERS=[];
+let cgSeq=0;
 /* hezké profilové fotky (placeholder portréty) — doplní se jen tam, kde foto chybí.
    Mění se pouze na frontendu, do databáze se nic neukládá. */
 const CG_PORTRAITS=[
@@ -2757,7 +2719,7 @@ function caregiverPlaceholder(id){return CG_PORTRAITS[((+id||1)-1)%CG_PORTRAITS.
 function decorateCaregiverPhotos(){CAREGIVERS.forEach(c=>{if(!c.photo)c.photo=caregiverPlaceholder(c.id);});}
 decorateCaregiverPhotos();
 /* tarif přihlášené pečovatelky podle e-mailu */
-let cgPlanMap={'pecovatelka@zenvoria.cz':'premium'};
+let cgPlanMap={};
 const PLANS={
   start:{name:'START',badge:'🟢',
     feats:['Profil v aplikaci','Ověření identity','Přijímání rezervací','Kalendář dostupnosti','Chat s rodinami','Hodnocení klientů']},
@@ -2775,50 +2737,22 @@ const planIcon=(k,h)=>k==='premium'?diamondSVG(h||16,'#13A552'):'🟢';
 
 /* ---------- ADMIN: fronta žádostí o ověření ---------- */
 /* stav žádosti: submitted | approved | rejected */
-let VERIFICATIONS=[
-  {id:301,name:'Kateřina Pospíšilová',email:'katerina.p@email.cz',init:'KP',loc:'Praha 8',rate:240,exp:4,
-   phone:'+420 776 220 118',docType:'Občanský průkaz',docNum:'234567890',idFront:'obcanka-predni.jpg',idBack:'obcanka-zadni.jpg',selfie:'selfie-pospisilova.jpg',
-   services:['osobni','domaci','nakupy'],cert:'Kurz pečovatelství č. 2024/118',issuer:'Diakonie ČCE',validUntil:'2028-09-01',
-   fileName:'osvedceni-pospisilova.pdf',refs:'Domov seniorů Háje — vrchní sestra (na vyžádání)',note:'Hledám práci na zkrácený úvazek, ideálně Praha 8 a okolí.',
-   bio:'Mám čtyřletou praxi v domácí péči o seniory. Jsem trpělivá, spolehlivá a mám ráda povídání.',
-   status:'submitted',date:'2026-06-07'},
-  {id:302,name:'Veronika Holá',email:'veronika.hola@email.cz',init:'VH',loc:'Praha 10',rate:260,exp:7,
-   phone:'+420 605 778 901',docType:'Cestovní pas',docNum:'CZ4471902',idFront:'pas-predni.jpg',idBack:'pas-zadni.jpg',selfie:'selfie-hola.jpg',
-   services:['nocni','rehab','hygiena'],cert:'Zdravotnický asistent',issuer:'SZŠ Praha 10',validUntil:'—',
-   fileName:'diplom-hola.jpg',refs:'',note:'',
-   bio:'Sedm let praxe v lůžkovém zařízení, specializace na noční péči a rehabilitaci.',
-   status:'submitted',date:'2026-06-08'}
-];
-let verSeq=302;
+let VERIFICATIONS=[];
+let verSeq=0;
 /* stav ověření přihlášené pečovatelky podle e-mailu: none|submitted|verified|rejected */
-let cgStatusMap={'pecovatelka@zenvoria.cz':'verified'};
+let cgStatusMap={};
 
 /* ---------- ADMIN: uživatelé (rodiny) pro správu ---------- */
 /* stav: active | suspended */
-let USERS=[
-  {id:1,name:'Marie Horáková',email:'demo@zenvoria.cz',init:'MH',joined:'2026-04-12',orders:5,status:'active'},
-  {id:2,name:'Petr Marek',email:'petr.marek@email.cz',init:'PM',joined:'2026-05-03',orders:2,status:'active'},
-  {id:3,name:'Eva Horká',email:'eva.horka@email.cz',init:'EH',joined:'2026-05-19',orders:1,status:'active'},
-  {id:4,name:'Tomáš Svoboda',email:'tomas.s@email.cz',init:'TS',joined:'2026-05-28',orders:0,status:'active'}
-];
-let userSeq=4;
+let USERS=[];
+let userSeq=0;
 
-const REVIEWS=[
-  {init:'PM',name:'Petr M.',stars:5,text:'Maminka je nadšená. Velmi laskavá a spolehlivá. Doporučuji.'},
-  {init:'JK',name:'Jana K.',stars:5,text:'Profesionální přístup a hlavně lidskost. Konečně klid v rodině.'},
-  {init:'TS',name:'Tomáš S.',stars:4,text:'Skvělá komunikace a vždy dochvilná. Tatínek si ji pochvaluje.'}
-];
+const REVIEWS=[];
 let cgReviews={}; // id pečovatelky → [{init,name,stars,text}] nové recenze od rodin
 
 /* objednávky rodiny — plochý seznam se stavy: pending|confirmed|done|declined */
-let ORDERS=[
-  {oid:1,cid:1,service:'osobni',hours:4,date:'2026-06-20',time:'10:00',addr:'Veleslavínská 123, Praha 6',note:'Ráda bych doprovod k lékaři.',status:'confirmed'},
-  {oid:2,cid:3,service:'spolecnost',hours:2,date:'2026-06-24',time:'15:00',addr:'Veleslavínská 123, Praha 6',note:'Maminka má ráda procházky.',status:'pending'},
-  {oid:3,cid:5,service:'nocni',hours:8,date:'2026-06-28',time:'22:00',addr:'Veleslavínská 123, Praha 6',note:'Nutné podání léků ve 23:00.',status:'confirmed'},
-  {oid:4,cid:1,service:'lekar',hours:3,date:'2026-05-08',time:'09:00',addr:'Veleslavínská 123, Praha 6',note:'Kontrola u kardiologa.',status:'done'},
-  {oid:5,cid:2,service:'domaci',hours:4,date:'2026-05-02',time:'13:00',addr:'Veleslavínská 123, Praha 6',note:'',status:'done'}
-];
-let orderSeq=5;
+let ORDERS=[];
+let orderSeq=0;
 const ORDER_STATUS={
   pending:{cls:'pending',label:'Čeká na potvrzení'},
   confirmed:{cls:'ok',label:'Potvrzeno'},
@@ -4871,23 +4805,16 @@ function sendBroadcast(e){
 
 /* ---------- CAREGIVER PORTAL ---------- */
 const cgProfile={
-  name:'Jana Novotná',loc:'Praha 6',rate:250,exp:5,rating:4.9,reviews:128,photo:null,
-  priceType:'hod',dayRate:2000,radius:10,kmPrice:0,
-  services:['osobni','lekar','spolecnost'],
-  bio:'Jsem pečovatelka s více než 5 lety praxe v péči o seniory. Nabízím laskavý přístup, spolehlivost a individuální péči. Ráda doprovázím k lékaři a věnuji se i společnosti a povídání.'
+  name:'',loc:'',rate:0,exp:0,rating:0,reviews:0,photo:null,
+  priceType:'hod',dayRate:0,radius:0,kmPrice:0,
+  services:[],
+  bio:''
 };
-let CG_REQUESTS=[
-  {id:101,fam:'Petr Marek',init:'PM',service:'osobni',date:'2026-06-10',time:'09:00',hours:4,addr:'Dejvická 5, Praha 6'},
-  {id:102,fam:'Eva Horká',init:'EH',service:'spolecnost',date:'2026-06-12',time:'14:00',hours:2,addr:'Bělohorská 12, Praha 6'},
-  {id:103,fam:'Tomáš Svoboda',init:'TS',service:'lekar',date:'2026-06-14',time:'08:30',hours:3,addr:'Veleslavínská 30, Praha 6'}
-];
-let reqSeq=103;
+let CG_REQUESTS=[];
+let reqSeq=0;
 let AUDIT_LOGS=[];
 let FILTERED_AUDIT_LOGS=[];
-let CG_SCHEDULE=[
-  {fam:'Marie Nováková',init:'MN',service:'osobni',date:'2026-06-08',time:'10:00',hours:4},
-  {fam:'Jan Dvořák',init:'JD',service:'nocni',date:'2026-06-09',time:'22:00',hours:8}
-];
+let CG_SCHEDULE=[];
 const DAYS_CZ=['Pondělí','Úterý','Středa','Čtvrtek','Pátek','Sobota','Neděle'];
 let cgAvail=[true,true,true,true,true,false,false];
 /* časové sloty dostupnosti pro každý den: ranní 08–12, odpolední 12–18, večerní 18–22 */
@@ -5353,18 +5280,9 @@ function submitRating(){
 }
 
 /* ---------- CHAT ---------- */
-let CONVERSATIONS=[
-  {id:1,name:'Jana Novotná',init:'JN',role:'caregiver',unread:0,msgs:[
-    {me:false,text:'Dobrý den, ráda se postarám o vaši maminku. Kdy by se vám to hodilo?',t:'9:24'},
-    {me:true,text:'Dobrý den, děkuji! Hodilo by se příští úterý dopoledne.',t:'9:30'},
-    {me:false,text:'Skvělé, úterý v 10:00 mi vyhovuje. Potvrdím vám to v objednávce.',t:'9:32'}
-  ]},
-  {id:2,name:'Martina Svobodová',init:'MS',role:'caregiver',unread:1,msgs:[
-    {me:false,text:'Dobrý den, mám volno i o víkendu, kdybyste potřebovali noční péči.',t:'včera'}
-  ]}
-];
+let CONVERSATIONS=[];
 function chatUnread(){return CONVERSATIONS.reduce((s,c)=>s+(c.unread||0),0);}
-let activeChat=1,chatSeq=2,chatTmpSeq=-2;
+let activeChat=null,chatSeq=0,chatTmpSeq=-2;
 /* ---- HROMADNÉ ZPRÁVY OD SPRÁVCE (broadcast) ---- */
 let BROADCASTS=[]; // {id,audience:'all'|'caregivers'|'families'|'specific',emails:[],text,date,t}
 let bcSeq=0;
@@ -5673,3 +5591,6 @@ initApp();
 </script>
 </body>
 </html>
+
+
+
