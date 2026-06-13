@@ -670,18 +670,31 @@
   .set-del:hover{background:#B23A2E;color:#fff}
 
   /* legal / právní stránky */
-  .legal{max-width:780px;margin:0 auto;padding:54px 20px 80px}
-  .legal .back{display:inline-flex;align-items:center;gap:7px;color:var(--gold-deep);font-size:14px;margin-bottom:22px;
-    cursor:pointer;background:none;border:none;font-family:inherit;font-weight:600;padding:0}
-  .legal h1{font-size:clamp(26px,4vw,34px);color:var(--navy-900);font-weight:700;line-height:1.15}
-  .legal .legal-upd{color:var(--muted);font-size:13.5px;margin:8px 0 8px}
-  .legal .legal-note{background:rgba(201,162,51,.10);border:1px dashed rgba(201,162,51,.5);border-radius:12px;
-    padding:12px 16px;font-size:13px;color:var(--navy-800);margin:18px 0 30px}
-  .legal h2{font-size:19px;color:var(--navy-900);font-weight:700;margin:30px 0 10px}
-  .legal p{color:var(--ink);font-size:15px;line-height:1.75;margin:10px 0}
-  .legal ul{margin:10px 0 10px 6px;padding-left:18px}
-  .legal li{color:var(--ink);font-size:15px;line-height:1.7;margin-bottom:7px}
-  .legal a{color:var(--gold-deep)}
+  .legal-shell{padding:34px 20px 90px;background:
+    radial-gradient(circle at top,rgba(201,162,51,.10),transparent 32%),
+    linear-gradient(180deg,var(--cream) 0%,#F7F4EC 100%)}
+  .legal{max-width:980px;margin:0 auto}
+  .legal-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:26px}
+  .legal .back{display:inline-flex;align-items:center;gap:7px;color:var(--gold-deep);font-size:14px;
+    cursor:pointer;background:none;border:none;font-family:inherit;font-weight:700;padding:0}
+  .legal-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;
+    background:rgba(201,162,51,.12);border:1px solid rgba(201,162,51,.3);color:var(--gold-deep);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .legal-hero{padding:34px 36px;border-radius:28px;background:
+    linear-gradient(135deg,rgba(9,39,25,.95),rgba(11,59,39,.88)),
+    radial-gradient(circle at top right,rgba(201,162,51,.18),transparent 42%);
+    border:1px solid rgba(201,162,51,.22);box-shadow:var(--shadow);margin-bottom:24px}
+  .legal h1{font-size:clamp(32px,4vw,46px);color:#F7F2E6;font-weight:700;line-height:1.05;margin:14px 0 10px}
+  .legal .legal-upd{color:#D8E1DA;font-size:14px}
+  .legal-lead{max-width:700px;color:#E8EFEA;font-size:17px;line-height:1.8;margin-top:16px}
+  .legal-card{background:var(--white);border:1px solid var(--line);border-radius:24px;padding:30px 34px;box-shadow:var(--shadow-sm)}
+  .legal .legal-note{background:rgba(201,162,51,.10);border:1px dashed rgba(201,162,51,.5);border-radius:14px;
+    padding:14px 16px;font-size:13px;color:var(--navy-800);margin:0 0 24px}
+  .legal-body h2{font-size:21px;color:var(--navy-900);font-weight:700;margin:30px 0 10px}
+  .legal-body p{color:var(--ink);font-size:15px;line-height:1.8;margin:10px 0}
+  .legal-body ul{margin:10px 0 10px 6px;padding-left:18px}
+  .legal-body li{color:var(--ink);font-size:15px;line-height:1.75;margin-bottom:7px}
+  .legal-body a{color:var(--gold-deep)}
+  .legal-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
 
   /* toast */
   .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(120px);
@@ -2623,12 +2636,27 @@
 
 <!-- ============ LEGAL / PRÁVNÍ STRÁNKY ============ -->
 <div class="view" id="view-legal">
-  <div class="legal">
-    <button type="button" class="back" onclick="go('home')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Zpět na úvod</button>
-    <h1 id="legalTitle"></h1>
-    <div class="legal-upd" id="legalUpd"></div>
-    <div class="legal-note">Toto je vzorový text pro demonstrační účely. Před ostrým provozem nahraďte dokumenty schválenými právními texty.</div>
-    <div id="legalBody"></div>
+  <div class="legal-shell">
+    <div class="legal">
+      <div class="legal-top">
+        <button type="button" class="back" onclick="closeLegal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="legalBackLabel">Zpět</span></button>
+        <div class="legal-badge">Právní dokument</div>
+      </div>
+      <div class="legal-hero">
+        <div class="eyebrow">ZENVORIA</div>
+        <h1 id="legalTitle"></h1>
+        <div class="legal-upd" id="legalUpd"></div>
+        <div class="legal-lead" id="legalLead">Právní informace k používání platformy ZENVORIA najdete přehledně na jednom místě.</div>
+      </div>
+      <div class="legal-card">
+        <div class="legal-note">Toto je vzorový text pro demonstrační účely. Před ostrým provozem nahraďte dokumenty schválenými právními texty.</div>
+        <div class="legal-body" id="legalBody"></div>
+        <div class="legal-actions">
+          <button type="button" class="btn btn-gold" onclick="closeLegal()">Rozumím, zpět</button>
+          <button type="button" class="btn btn-ghost" onclick="go('home')">Na úvodní stránku</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2780,9 +2808,14 @@ const ORDER_STATUS={
 
 /* ---------- STATE ---------- */
 const state={caregiverId:1,bkService:'osobni',bkHours:4};
+let legalBackView='home';
 const sIcon=(d)=>`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="${d}" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const sName=(id)=>SERVICES.find(s=>s.id===id)?.name||id;
 const cg=(id)=>CAREGIVERS.find(c=>c.id===id);
+function activeView(){
+  const el=document.querySelector('.view.active');
+  return el ? el.id.replace('view-','') : 'home';
+}
 
 /* ---------- NAV ---------- */
 function go(v,fromPop){
@@ -3703,7 +3736,7 @@ async function submitResetPassword(e){
 
 /* ---------- LEGAL / PRÁVNÍ STRÁNKY ---------- */
 const LEGAL={
-  gdpr:{title:'Ochrana osobních údajů',upd:'Naposledy aktualizováno: 6. června 2026',body:`
+  gdpr:{title:'Ochrana osobních údajů',upd:'Naposledy aktualizováno: 6. června 2026',lead:'Jak chráníme osobní údaje rodin, pečovatelek i dalších uživatelů platformy ZENVORIA.',body:`
     <p>Ochrana vašich osobních údajů je pro ZENVORIA prioritou. Tento dokument popisuje, jaké údaje zpracováváme, za jakým účelem a jaká práva v souvislosti s nimi máte. Zpracování probíhá v souladu s nařízením (EU) 2016/679 (GDPR) a zákonem č. 110/2019 Sb.</p>
     <h2>1. Správce údajů</h2>
     <p>Správcem osobních údajů je ZENVORIA s.r.o., IČO 000 00 000, se sídlem v Praze. Kontakt: <a href="mailto:miklasova@zenvoria.cz">miklasova@zenvoria.cz</a>.</p>
@@ -3727,7 +3760,7 @@ const LEGAL={
     <p>Máte právo na přístup k údajům, jejich opravu či výmaz, omezení zpracování, přenositelnost, vznesení námitky a podání stížnosti u Úřadu pro ochranu osobních údajů (<a href="https://www.uoou.cz" target="_blank" rel="noopener">uoou.cz</a>).</p>
     <h2>6. Kontakt</h2>
     <p>S dotazy ke zpracování osobních údajů se obraťte na <a href="mailto:miklasova@zenvoria.cz">miklasova@zenvoria.cz</a>.</p>`},
-  terms:{title:'Obchodní podmínky',upd:'Účinné od: 6. června 2026',body:`
+  terms:{title:'Obchodní podmínky',upd:'Účinné od: 6. června 2026',lead:'Pravidla používání platformy ZENVORIA, registrace, objednávek péče a odpovědnosti jednotlivých stran.',body:`
     <p>Tyto obchodní podmínky upravují práva a povinnosti při užívání platformy ZENVORIA, která zprostředkovává spojení mezi rodinami a ověřenými pečovatelkami.</p>
     <h2>1. Úvodní ustanovení</h2>
     <p>Provozovatelem platformy je ZENVORIA s.r.o. Registrací a užíváním služby vyjadřujete souhlas s těmito podmínkami.</p>
@@ -3749,7 +3782,7 @@ const LEGAL={
     <p>Případné reklamace lze uplatnit na <a href="mailto:miklasova@zenvoria.cz">miklasova@zenvoria.cz</a>. Spotřebitel má právo na mimosoudní řešení sporů u České obchodní inspekce.</p>
     <h2>8. Závěrečná ustanovení</h2>
     <p>Tyto podmínky se řídí právním řádem České republiky. Provozovatel je oprávněn podmínky měnit; o změnách bude informovat v aplikaci.</p>`},
-  cookies:{title:'Zásady používání cookies',upd:'Naposledy aktualizováno: 6. června 2026',body:`
+  cookies:{title:'Zásady používání cookies',upd:'Naposledy aktualizováno: 6. června 2026',lead:'Přehled souborů cookies, které používáme pro fungování aplikace, nastavení a analytiku.',body:`
     <p>Soubory cookies nám pomáhají zajistit správné fungování aplikace a zlepšovat vaši zkušenost. Zde se dozvíte, jaké cookies používáme a jak je můžete spravovat.</p>
     <h2>1. Co jsou cookies</h2>
     <p>Cookies jsou malé textové soubory ukládané ve vašem prohlížeči. Umožňují například zapamatovat přihlášení nebo předvolby zobrazení.</p>
@@ -3766,10 +3799,18 @@ const LEGAL={
 };
 function openLegal(key){
   const d=LEGAL[key];if(!d)return;
+  const current=activeView();
+  legalBackView=current==='legal' ? legalBackView : current;
   document.getElementById('legalTitle').textContent=d.title;
   document.getElementById('legalUpd').textContent=d.upd;
+  document.getElementById('legalLead').textContent=d.lead||'Právní informace k používání platformy ZENVORIA najdete přehledně na jednom místě.';
   document.getElementById('legalBody').innerHTML=d.body;
+  document.getElementById('legalBackLabel').textContent=legalBackView==='register'?'Zpět k registraci':(legalBackView==='login'?'Zpět k přihlášení':'Zpět');
   go('legal');
+}
+function closeLegal(){
+  const target=document.getElementById('view-'+legalBackView)?legalBackView:'home';
+  go(target);
 }
 /* clear validation state while typing */
 document.addEventListener('input',e=>{
