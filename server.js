@@ -1306,15 +1306,17 @@ async function findUserByEmail(email) {
 
 app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(async (req, res) => {
   const { name, email, password, role } = req.body || {};
-  const em = (email || '').trim().toLowerCase();
+  const safeName = trimmedString(name, 120);
+  const em = trimmedString(email, 320).toLowerCase();
   if (!isStrongPassword(password)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
-  if (!name || !em || !password) return res.status(400).json({ error: 'Vyplňte jméno, e-mail i heslo.' });
+  if (!safeName || !em || !password) return res.status(400).json({ error: 'Vyplňte jméno, e-mail i heslo.' });
+  if (!isEmail(em)) return res.status(400).json({ error: 'Zadejte platný e-mail.' });
   if (String(password).length < 6) return res.status(400).json({ error: 'Heslo musí mít alespoň 6 znaků.' });
   const r = role === 'caregiver' ? 'caregiver' : 'family';
   if (await findUserByEmail(em)) return res.status(409).json({ error: 'Tento e-mail je už zaregistrovaný.' });
-  const init = (name.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
+  const init = (safeName.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
   const password_hash = bcrypt.hashSync(String(password), 10);
-  const user = await restInsert(T.users, { email: em, password_hash, name: name.trim(), role: r, init });
+  const user = await restInsert(T.users, { email: em, password_hash, name: safeName, role: r, init });
   const welcomeMail = registrationMail(user);
   await sendMailSafe({ to: user.email, ...welcomeMail });
   fireAudit('auth.register', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success' });
@@ -1324,7 +1326,9 @@ app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(as
 
 app.post('/api/auth/login', rateLimit('login', RATE_LIMITS.login), h(async (req, res) => {
   const { email, password } = req.body || {};
-  const em = String(email || '').trim().toLowerCase();
+  const em = trimmedString(email, 320).toLowerCase();
+  if (!em || !password) return res.status(400).json({ error: 'Zadejte e-mail a heslo.' });
+  if (!isEmail(em)) return res.status(400).json({ error: 'Zadejte platný e-mail.' });
   const user = await findUserByEmail(email);
   if (!user || !bcrypt.compareSync(String(password || ''), user.password_hash)) {
     fireAudit('auth.login', { req, actor: { email: em }, targetType: 'user', targetId: em, status: 'failed', metadata: { reason: 'invalid_credentials' } });
@@ -1340,8 +1344,9 @@ app.post('/api/auth/login', rateLimit('login', RATE_LIMITS.login), h(async (req,
 }));
 
 app.post('/api/auth/forgot-password', rateLimit('forgot-password', RATE_LIMITS.forgotPassword), h(async (req, res) => {
-  const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+  const email = trimmedString(req.body && req.body.email, 320).toLowerCase();
   if (!email) return res.status(400).json({ error: 'Zadejte e-mail.' });
+  if (!isEmail(email)) return res.status(400).json({ error: 'Zadejte platný e-mail.' });
   const user = await findUserByEmail(email);
   if (user) {
     const token = createResetToken();
@@ -1355,8 +1360,9 @@ app.post('/api/auth/forgot-password', rateLimit('forgot-password', RATE_LIMITS.f
 }));
 
 app.post('/api/auth/reset-password', rateLimit('reset-password', RATE_LIMITS.resetPassword), h(async (req, res) => {
-  const token = String((req.body && req.body.token) || '');
+  const token = trimmedString(req.body && req.body.token, 512);
   const next = String((req.body && req.body.next) || '');
+  if (!token) return res.status(400).json({ error: 'Chybí reset token.' });
   if (!isStrongPassword(next)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
   if (!next || next.length < 6) return res.status(400).json({ error: 'Nové heslo musí mít alespoň 6 znaků.' });
   const state = await getResetTokenState(token);
@@ -1381,7 +1387,8 @@ app.post('/api/auth/reset-password', rateLimit('reset-password', RATE_LIMITS.res
 }));
 
 app.post('/api/auth/reset-password/validate', rateLimit('reset-password-validate', RATE_LIMITS.resetPassword), h(async (req, res) => {
-  const token = String((req.body && req.body.token) || '');
+  const token = trimmedString(req.body && req.body.token, 512);
+  if (!token) return res.status(400).json({ error: 'Chybí reset token.', reason: 'invalid' });
   const state = await getResetTokenState(token);
   if (!state.ok) return res.status(400).json({
     error:
@@ -1407,6 +1414,7 @@ app.get('/api/auth/me', h(async (req, res) => {
 
 app.post('/api/auth/change-password', requireAuth, rateLimit('change-password', RATE_LIMITS.changePassword), h(async (req, res) => {
   const { current, next } = req.body || {};
+  if (!trimmedString(current, 200)) return res.status(400).json({ error: 'Zadejte současné heslo.' });
   if (!isStrongPassword(next)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
   if (!next || String(next).length < 6) return res.status(400).json({ error: 'Nové heslo musí mít alespoň 6 znaků.' });
   const rows = await restSelect(T.users, `id=eq.${req.session.uid}&limit=1`);
@@ -1433,7 +1441,8 @@ app.post('/api/auth/change-email/request', requireAuth, rateLimit('change-email-
 }));
 
 app.post('/api/auth/change-email/validate', rateLimit('change-email-code', RATE_LIMITS.changeEmailCode), h(async (req, res) => {
-  const token = String((req.body && req.body.token) || '');
+  const token = trimmedString(req.body && req.body.token, 512);
+  if (!token) return res.status(400).json({ error: 'Chybí token změny e-mailu.', reason: 'invalid' });
   const state = await getEmailChangeState(token);
   if (!state.ok) return res.status(400).json({
     error:
@@ -1451,10 +1460,11 @@ app.post('/api/auth/change-email/validate', rateLimit('change-email-code', RATE_
 }));
 
 app.post('/api/auth/change-email/send-code', rateLimit('change-email-code', RATE_LIMITS.changeEmailCode), h(async (req, res) => {
-  const token = String((req.body && req.body.token) || '');
-  const newEmail = String((req.body && req.body.newEmail) || '').trim().toLowerCase();
+  const token = trimmedString(req.body && req.body.token, 512);
+  const newEmail = trimmedString(req.body && req.body.newEmail, 320).toLowerCase();
+  if (!token) return res.status(400).json({ error: 'Chybí token změny e-mailu.' });
   if (!newEmail) return res.status(400).json({ error: 'Zadejte novy e-mail.' });
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) return res.status(400).json({ error: 'Zadejte platny e-mail.' });
+  if (!isEmail(newEmail)) return res.status(400).json({ error: 'Zadejte platny e-mail.' });
   const state = await getEmailChangeState(token);
   if (!state.ok) return res.status(400).json({
     error:
@@ -1492,8 +1502,10 @@ app.post('/api/auth/change-email/send-code', rateLimit('change-email-code', RATE
 }));
 
 app.post('/api/auth/change-email/confirm', rateLimit('change-email-code', RATE_LIMITS.changeEmailCode), h(async (req, res) => {
-  const token = String((req.body && req.body.token) || '');
-  const code = String((req.body && req.body.code) || '').trim();
+  const token = trimmedString(req.body && req.body.token, 512);
+  const code = trimmedString(req.body && req.body.code, 12);
+  if (!token) return res.status(400).json({ error: 'Chybí token změny e-mailu.', reason: 'invalid' });
+  if (!code) return res.status(400).json({ error: 'Zadejte ověřovací kód.', reason: 'invalid_code' });
   const state = await getEmailChangeState(token);
   if (!state.ok) {
     fireAudit('auth.change_email.confirm', { req, actor: { email: null }, targetType: 'email-change', targetId: 'email-change', status: 'failed', metadata: { reason: state.reason } });
@@ -1553,8 +1565,14 @@ app.post('/api/auth/change-email/confirm', rateLimit('change-email-code', RATE_L
 
 app.patch('/api/users/me/settings', requireAuth, h(async (req, res) => {
   const settings = req.body && req.body.settings;
-  if (!settings || typeof settings !== 'object') return res.status(400).json({ error: 'Chybí settings.' });
-  await restUpdate(T.users, `id=eq.${req.session.uid}`, { settings }, { prefer: 'return=minimal' });
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return res.status(400).json({ error: 'Chybí settings.' });
+  const normalized = {
+    chat: !!settings.chat,
+    email: !!settings.email,
+    requests: !!settings.requests,
+    reminders: !!settings.reminders,
+  };
+  await restUpdate(T.users, `id=eq.${req.session.uid}`, { settings: normalized }, { prefer: 'return=minimal' });
   res.json({ ok: true });
 }));
 
@@ -1876,10 +1894,14 @@ app.post('/api/conversations', requireAuth, h(async (req, res) => {
 
 app.post('/api/conversations/:id/messages', requireAuth, requireConversationOwner, h(async (req, res) => {
   const b = req.body || {};
+  const conversationId = Number(req.params.id);
+  if (!Number.isInteger(conversationId) || conversationId <= 0) return res.status(400).json({ error: 'Neplatné ID konverzace.' });
   const text = String(b.text || '').trim();
   if (!text) return res.status(400).json({ error: 'Chybí text zprávy.' });
   if (text.length > 2000) return res.status(400).json({ error: 'Zpráva je příliš dlouhá.' });
-  const row = await restInsert(T.messages, { conversation_id: Number(req.params.id), mine: b.me !== false, text, t: b.t || '' });
+  const sentAt = trimmedString(b.t, 20);
+  if (b.me !== undefined && typeof b.me !== 'boolean') return res.status(400).json({ error: 'Neplatná hodnota odesílatele zprávy.' });
+  const row = await restInsert(T.messages, { conversation_id: conversationId, mine: b.me !== false, text, t: sentAt || '' });
   res.json({ message: { me: row.mine, text: row.text, t: row.t } });
 }));
 
