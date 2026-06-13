@@ -211,6 +211,8 @@
   /* ---------- HERO ---------- */
   .hero{position:relative;overflow:hidden;margin-top:-96px;padding:150px 0 150px;min-height:100vh;display:flex;align-items:center;
     background:
+      linear-gradient(90deg,rgba(6,26,17,.72),rgba(6,26,17,.42) 52%,rgba(6,26,17,.16)),
+      url("hero.webp") center/cover no-repeat,
       radial-gradient(42% 55% at 82% 18%,rgba(201,162,51,.22),transparent 68%),
       radial-gradient(34% 46% at 16% 76%,rgba(19,165,82,.18),transparent 72%),
       linear-gradient(118deg,#0a2014 0%,#0d2a1c 38%,#123824 66%,#0b1f15 100%)}
