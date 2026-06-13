@@ -205,6 +205,9 @@
   @media(prefers-reduced-motion:reduce){.btn-cta{animation:none}}
   /* hero CTA „Najít pečovatelku" — větší a výraznější */
   .hero-cta .btn-cta{font-size:18px;padding:17px 40px;border-radius:14px}
+  /* velká varianta CTA (sekce O nás apod.) */
+  .btn-cta-lg{font-size:18px;padding:18px 44px;border-radius:14px}
+  @media(max-width:560px){.btn-cta-lg{font-size:17px;padding:16px 30px}}
   .hero-cta .btn-ghost{font-size:16px;padding:16px 30px;border-radius:14px}
   @media(max-width:560px){.hero-cta .btn-cta{font-size:17px;padding:16px 28px}}
   .btn-ghost{background:transparent;color:var(--navy-800);border:1px solid var(--line)}
@@ -1225,7 +1228,7 @@
         </article>
       </div>
       <div style="text-align:center;margin-top:34px">
-        <button class="btn btn-gold" onclick="go('search')">Najít pečovatelku</button>
+        <button class="btn btn-gold btn-cta btn-cta-lg" onclick="go('search')">Najít pečovatelku</button>
       </div>
     </div>
   </section>
