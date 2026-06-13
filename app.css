@@ -399,8 +399,9 @@
 
   /* ---------- SEARCH VIEW ---------- */
   .page-head{padding:40px 0 26px}
-  .page-head h1{font-size:34px;color:var(--navy-900);font-weight:700}
+  .page-head h1{font-size:34px;color:var(--navy-900);font-weight:700;line-height:1.08;text-wrap:balance}
   .page-head p{color:var(--muted);margin-top:6px}
+  .page-head-verify{display:flex;align-items:center;gap:16px}
   .search-bar{display:flex;gap:12px;background:var(--white);border:1px solid var(--line);
     border-radius:16px;padding:12px;box-shadow:var(--shadow-sm);flex-wrap:wrap}
   .field{display:flex;align-items:center;gap:9px;flex:1;min-width:180px;background:var(--cream);
@@ -1137,6 +1138,13 @@
     .auth-card{padding:30px 22px}
     section.block{padding:48px 0}
     .sec-head{margin-bottom:30px}
+    .page-head{padding:28px 0 22px}
+    .page-head h1{font-size:clamp(27px,8vw,32px)}
+    .page-head p{font-size:15px;line-height:1.6}
+    .page-head-verify{align-items:flex-start}
+    .flow{overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;-ms-overflow-style:none;scrollbar-width:none}
+    .flow::-webkit-scrollbar{display:none}
+    .flow .fl-step,.flow .fl-ar{flex:0 0 auto;white-space:nowrap}
     .aud{padding:30px 24px}
     .legal{padding:38px 18px 60px}
     .foot-legal{gap:14px}
@@ -1161,6 +1169,8 @@
     .hero p.lead{font-size:16px}
     .hero-cta{flex-direction:column;align-items:stretch}
     .hero-cta .btn{width:100%}
+    .page-head-verify{gap:12px}
+    .page-head-verify>img{width:34px;height:auto}
     /* mobilní footer — vycentrovaný, sekce oddělené linkou */
     footer{padding:48px 0 30px;text-align:center}
     .foot-grid{grid-template-columns:1fr;gap:0;margin-bottom:8px}
