@@ -121,7 +121,51 @@ function isStrongPassword(value) {
 
 const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
 const PUBLIC_SETTINGS_KEYS = ['planPrices'];
+const ADMIN_UPDATABLE_USER_STATUSES = new Set(['active', 'suspended']);
+const ADMIN_UPDATABLE_CAREGIVER_STATUSES = new Set(['pending', 'verified', 'rejected']);
+const ADMIN_UPDATABLE_CAREGIVER_PLANS = new Set(['start', 'premium']);
+const ADMIN_UPDATABLE_SETTING_KEYS = new Set(PUBLIC_SETTINGS_KEYS);
 const rateLimitStore = new Map();
+
+function trimmedString(value, maxLen = 0) {
+  const v = String(value == null ? '' : value).trim();
+  return maxLen ? v.slice(0, maxLen) : v;
+}
+
+function isEmail(value) {
+  const v = trimmedString(value, 320).toLowerCase();
+  return !!v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function normalizeEmailList(list, { maxItems = 200 } = {}) {
+  if (!Array.isArray(list)) return null;
+  const out = [];
+  const seen = new Set();
+  for (const raw of list) {
+    const email = trimmedString(raw, 320).toLowerCase();
+    if (!email) continue;
+    if (!isEmail(email)) return null;
+    if (seen.has(email)) continue;
+    seen.add(email);
+    out.push(email);
+    if (out.length > maxItems) return null;
+  }
+  return out;
+}
+
+function sanitizePlanPrices(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const start = Number(value.start);
+  const premium = Number(value.premium);
+  if (!Number.isFinite(start) || !Number.isFinite(premium)) return null;
+  if (start < 0 || premium < 0 || start > 100000 || premium > 100000) return null;
+  return { start: Math.round(start), premium: Math.round(premium) };
+}
+
+function sanitizeSettingValue(key, value) {
+  if (key === 'planPrices') return sanitizePlanPrices(value);
+  return null;
+}
 
 function getClientIp(req) {
   const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
@@ -1735,9 +1779,11 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
 // admin zamítne žádost
 app.post('/api/verifications/:id/reject', requireRole('admin'), h(async (req, res) => {
   const id = Number(req.params.id);
-  const reason = (req.body && req.body.reason) || '';
+  const reason = trimmedString(req.body && req.body.reason, 1000);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID žádosti.' });
   const rows = await restSelect(T.verifications, `id=eq.${id}&select=email,name&limit=1`);
   const v = rows && rows[0];
+  if (!v) return res.status(404).json({ error: 'Žádost nenalezena.' });
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'rejected' }, { prefer: 'return=minimal' });
   if (v && v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: false, reason }) });
   fireAudit('admin.verification.reject', { req, actor: auditActor(req), targetType: 'verification', targetId: id, status: 'success', metadata: { email: v && v.email || null, reason: reason ? 'provided' : 'empty' } });
@@ -1778,9 +1824,23 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationOwne
 /* ---------------- BROADCAST (admin) ---------------- */
 app.post('/api/broadcasts', requireRole('admin'), h(async (req, res) => {
   const b = req.body || {};
+  const audience = trimmedString(b.audience, 20);
+  if (!['all', 'caregivers', 'families', 'specific'].includes(audience)) {
+    return res.status(400).json({ error: 'Neplatná cílová skupina broadcastu.' });
+  }
+  const text = trimmedString(b.text, 5000);
+  if (!text) return res.status(400).json({ error: 'Chybí text zprávy.' });
+  const emails = audience === 'specific' ? normalizeEmailList(b.emails, { maxItems: 500 }) : [];
+  if (audience === 'specific' && (!emails || !emails.length)) {
+    return res.status(400).json({ error: 'Vyberte alespoň jednoho příjemce.' });
+  }
+  if (audience !== 'specific' && Array.isArray(b.emails) && b.emails.length) {
+    return res.status(400).json({ error: 'Seznam příjemců lze zadat jen pro konkrétní adresy.' });
+  }
+  const sentAt = trimmedString(b.t, 20);
   const row = await restInsert(T.broadcasts, {
-    audience: b.audience, emails: b.emails || [], text: b.text,
-    date: new Date().toISOString().slice(0, 10), t: b.t || '',
+    audience, emails, text,
+    date: new Date().toISOString().slice(0, 10), t: sentAt || '',
   });
   fireAudit('admin.broadcast.create', { req, actor: auditActor(req), targetType: 'broadcast', targetId: row.id, status: 'success', metadata: { audience: row.audience, emailsCount: Array.isArray(row.emails) ? row.emails.length : 0 } });
   res.json({ broadcast: { id: row.id, audience: row.audience, emails: row.emails || [], text: row.text, date: row.date, t: row.t } });
@@ -1791,6 +1851,7 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   const id = Number(req.params.id);
   const b = req.body || {};
   const isAdmin = req.session && req.session.role === 'admin';
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID pečovatelky.' });
   if (!isAdmin) {
     const ownCaregiver = await currentCaregiverRow(req);
     if (!ownCaregiver || Number(ownCaregiver.id) !== id) {
@@ -1806,6 +1867,60 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   // pozastavení / mazání smí jen admin
   if ((b.suspended !== undefined || b.status !== undefined) && !isAdmin) {
     return res.status(403).json({ error: 'Pozastavení smí jen správce.' });
+  }
+  if (patch.name !== undefined) patch.name = trimmedString(patch.name, 120);
+  if (patch.loc !== undefined) patch.loc = trimmedString(patch.loc, 120);
+  if (patch.bio !== undefined) patch.bio = trimmedString(patch.bio, 4000);
+  if (patch.photo !== undefined) patch.photo = patch.photo == null ? null : trimmedString(patch.photo, 2 * 1024 * 1024);
+  if (patch.price_type !== undefined && !['hod', 'den', 'indiv'].includes(String(patch.price_type))) {
+    return res.status(400).json({ error: 'Neplatný typ ceny.' });
+  }
+  if (patch.plan !== undefined && !ADMIN_UPDATABLE_CAREGIVER_PLANS.has(String(patch.plan))) {
+    return res.status(400).json({ error: 'Neplatný tarif pečovatelky.' });
+  }
+  if (patch.status !== undefined && !ADMIN_UPDATABLE_CAREGIVER_STATUSES.has(String(patch.status))) {
+    return res.status(400).json({ error: 'Neplatný stav pečovatelky.' });
+  }
+  if (patch.suspended !== undefined && typeof patch.suspended !== 'boolean') {
+    return res.status(400).json({ error: 'Neplatná hodnota pozastavení.' });
+  }
+  if (patch.rate !== undefined) {
+    patch.rate = Number(patch.rate);
+    if (!Number.isFinite(patch.rate) || patch.rate < 0 || patch.rate > 100000) return res.status(400).json({ error: 'Neplatná hodinová sazba.' });
+  }
+  if (patch.exp !== undefined) {
+    patch.exp = Number(patch.exp);
+    if (!Number.isInteger(patch.exp) || patch.exp < 0 || patch.exp > 80) return res.status(400).json({ error: 'Neplatná délka praxe.' });
+  }
+  if (patch.day_rate !== undefined) {
+    patch.day_rate = Number(patch.day_rate);
+    if (!Number.isFinite(patch.day_rate) || patch.day_rate < 0 || patch.day_rate > 1000000) return res.status(400).json({ error: 'Neplatná denní sazba.' });
+  }
+  if (patch.radius !== undefined) {
+    patch.radius = Number(patch.radius);
+    if (!Number.isFinite(patch.radius) || patch.radius < 0 || patch.radius > 500) return res.status(400).json({ error: 'Neplatný dojezd.' });
+  }
+  if (patch.km_price !== undefined) {
+    patch.km_price = Number(patch.km_price);
+    if (!Number.isFinite(patch.km_price) || patch.km_price < 0 || patch.km_price > 10000) return res.status(400).json({ error: 'Neplatná cena dopravy.' });
+  }
+  if (patch.services !== undefined) {
+    if (!Array.isArray(patch.services) || patch.services.length > 20 || patch.services.some((item) => !trimmedString(item, 40))) {
+      return res.status(400).json({ error: 'Neplatný seznam služeb.' });
+    }
+    patch.services = patch.services.map((item) => trimmedString(item, 40));
+  }
+  if (patch.langs !== undefined) {
+    if (!Array.isArray(patch.langs) || patch.langs.length > 10 || patch.langs.some((item) => !trimmedString(item, 40))) {
+      return res.status(400).json({ error: 'Neplatný seznam jazyků.' });
+    }
+    patch.langs = patch.langs.map((item) => trimmedString(item, 40));
+  }
+  if (patch.avail !== undefined) {
+    if (!Array.isArray(patch.avail) || patch.avail.length > 7 || patch.avail.some((item) => !trimmedString(item, 40))) {
+      return res.status(400).json({ error: 'Neplatná dostupnost.' });
+    }
+    patch.avail = patch.avail.map((item) => trimmedString(item, 40));
   }
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   const rows = await restUpdate(T.caregivers, `id=eq.${id}`, patch);
@@ -1912,11 +2027,17 @@ app.post('/api/billing/portal', requireRole('caregiver'), h(async (req, res) => 
 /* ---------------- ADMIN: uživatelé / tarify ---------------- */
 app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
   const b = req.body || {};
+  const id = String(req.params.id || '').trim();
+  if (!id) return res.status(400).json({ error: 'Neplatné ID uživatele.' });
   const patch = {};
-  if (b.status !== undefined) patch.status = b.status;
+  if (b.status !== undefined) {
+    const status = trimmedString(b.status, 20);
+    if (!ADMIN_UPDATABLE_USER_STATUSES.has(status)) return res.status(400).json({ error: 'Neplatný stav uživatele.' });
+    patch.status = status;
+  }
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
-  await restUpdate(T.users, `id=eq.${req.params.id}`, patch, { prefer: 'return=minimal' });
-  fireAudit('admin.user.update', { req, actor: auditActor(req), targetType: 'user', targetId: req.params.id, status: 'success', metadata: { fields: Object.keys(patch) } });
+  await restUpdate(T.users, `id=eq.${id}`, patch, { prefer: 'return=minimal' });
+  fireAudit('admin.user.update', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: 'success', metadata: { fields: Object.keys(patch) } });
   res.json({ ok: true });
 }));
 
@@ -1933,8 +2054,10 @@ app.delete('/api/caregivers/:id', requireRole('admin'), h(async (req, res) => {
 }));
 
 app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
-  const key = req.params.key;
-  const value = (req.body || {}).value;
+  const key = String(req.params.key || '').trim();
+  if (!ADMIN_UPDATABLE_SETTING_KEYS.has(key)) return res.status(400).json({ error: 'Tento klíč nastavení nelze upravit.' });
+  const value = sanitizeSettingValue(key, (req.body || {}).value);
+  if (value == null) return res.status(400).json({ error: 'Neplatná hodnota nastavení.' });
   await supabaseRestRequest('POST', T.settings, { body: { key, value }, prefer: 'resolution=merge-duplicates,return=minimal' });
   fireAudit('admin.settings.update', { req, actor: auditActor(req), targetType: 'setting', targetId: key, status: 'success' });
   res.json({ ok: true });
