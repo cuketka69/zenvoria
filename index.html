@@ -689,6 +689,12 @@
   .legal-card{background:var(--white);border:1px solid var(--line);border-radius:24px;padding:30px 34px;box-shadow:var(--shadow-sm)}
   .legal .legal-note{background:rgba(201,162,51,.10);border:1px dashed rgba(201,162,51,.5);border-radius:14px;
     padding:14px 16px;font-size:13px;color:var(--navy-800);margin:0 0 24px}
+  .legal-meta{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch;margin:0 0 22px}
+  .legal-linkbox,.legal-company{flex:1 1 280px;border:1px solid var(--line);border-radius:18px;padding:18px 18px 16px;background:#FBFCF8}
+  .legal-kicker{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:8px}
+  .legal-linkrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .legal-url{font-size:14px;line-height:1.6;color:var(--navy-900);word-break:break-all}
+  .legal-company p{font-size:14px;line-height:1.7;margin:0;color:var(--ink)}
   .legal-body h2{font-size:21px;color:var(--navy-900);font-weight:700;margin:30px 0 10px}
   .legal-body p{color:var(--ink);font-size:15px;line-height:1.8;margin:10px 0}
   .legal-body ul{margin:10px 0 10px 6px;padding-left:18px}
@@ -2649,7 +2655,21 @@
         <div class="legal-lead" id="legalLead">Právní informace k používání platformy ZENVORIA najdete přehledně na jednom místě.</div>
       </div>
       <div class="legal-card">
-        <div class="legal-note">Toto je vzorový text pro demonstrační účely. Před ostrým provozem nahraďte dokumenty schválenými právními texty.</div>
+        <div class="legal-note">Právní centrum je už veřejně přístupné a sdílitelná URL funguje. Samotné znění dokumentů před ostrým provozem potvrďte finální verzí schválenou pro vaše podnikání.</div>
+        <div class="legal-meta">
+          <div class="legal-linkbox">
+            <div class="legal-kicker">Přímý odkaz</div>
+            <div class="legal-url" id="legalUrl">https://www.zenvoria.cz/#legal-terms</div>
+            <div class="legal-linkrow" style="margin-top:12px">
+              <button type="button" class="btn btn-ghost" onclick="copyLegalLink()">Kopírovat odkaz</button>
+              <button type="button" class="btn btn-ghost" onclick="window.print()">Tisknout</button>
+            </div>
+          </div>
+          <div class="legal-company">
+            <div class="legal-kicker">Provozovatel</div>
+            <p><b id="legalCompanyName">ZENVORIA s.r.o.</b><br><span id="legalCompanyMeta">IČO doplňte před ostrým spuštěním.</span><br><a href="mailto:miklasova@zenvoria.cz" id="legalCompanyEmail">miklasova@zenvoria.cz</a></p>
+          </div>
+        </div>
         <div class="legal-body" id="legalBody"></div>
         <div class="legal-actions">
           <button type="button" class="btn btn-gold" onclick="closeLegal()">Rozumím, zpět</button>
@@ -2810,6 +2830,11 @@ const ORDER_STATUS={
 const state={caregiverId:1,bkService:'osobni',bkHours:4};
 let legalBackView='home';
 let legalCurrentKey='terms';
+const LEGAL_COMPANY={
+  name:'ZENVORIA s.r.o.',
+  meta:'IČO doplňte před ostrým spuštěním.',
+  email:'miklasova@zenvoria.cz'
+};
 const sIcon=(d)=>`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="${d}" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const sName=(id)=>SERVICES.find(s=>s.id===id)?.name||id;
 const cg=(id)=>CAREGIVERS.find(c=>c.id===id);
@@ -2819,6 +2844,26 @@ function activeView(){
 }
 function legalHash(key){
   return 'legal-'+key;
+}
+function legalUrl(key){
+  try{
+    const url=new URL(window.location.href);
+    url.searchParams.delete('reset');
+    url.searchParams.delete('changeEmail');
+    url.hash=legalHash(key);
+    return url.toString();
+  }catch(e){
+    return 'https://www.zenvoria.cz/#'+legalHash(key);
+  }
+}
+async function copyLegalLink(){
+  const url=legalUrl(legalCurrentKey);
+  try{
+    await navigator.clipboard.writeText(url);
+    toast('Odkaz na dokument byl zkopírován.','success');
+  }catch(e){
+    toast('Odkaz: <b>'+esc(url)+'</b>');
+  }
 }
 
 /* ---------- NAV ---------- */
@@ -3818,6 +3863,11 @@ function openLegal(key,opts){
   document.getElementById('legalTitle').textContent=d.title;
   document.getElementById('legalUpd').textContent=d.upd;
   document.getElementById('legalLead').textContent=d.lead||'Právní informace k používání platformy ZENVORIA najdete přehledně na jednom místě.';
+  document.getElementById('legalUrl').textContent=legalUrl(key);
+  document.getElementById('legalCompanyName').textContent=LEGAL_COMPANY.name;
+  document.getElementById('legalCompanyMeta').textContent=LEGAL_COMPANY.meta;
+  document.getElementById('legalCompanyEmail').textContent=LEGAL_COMPANY.email;
+  document.getElementById('legalCompanyEmail').href='mailto:'+LEGAL_COMPANY.email;
   document.getElementById('legalBody').innerHTML=d.body;
   document.getElementById('legalBackLabel').textContent=legalBackView==='register'?'Zpět k registraci':(legalBackView==='login'?'Zpět k přihlášení':'Zpět');
   go('legal',options.fromPop===true);
