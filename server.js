@@ -2109,6 +2109,35 @@ app.post('/api/billing/portal', requireRole('caregiver'), h(async (req, res) => 
 }));
 
 /* ---------------- ADMIN: uživatelé / tarify ---------------- */
+async function cleanupUserRelations(user) {
+  if (!user) return;
+  const email = String(user.email || '').trim().toLowerCase();
+
+  if (user.role === 'family') {
+    const orders = await restSelect(T.orders, `family_email=eq.${encodeURIComponent(email)}&select=oid&limit=500`);
+    for (const order of (orders || [])) {
+      if (order && order.oid != null) await restDelete(T.requests, `oid=eq.${Number(order.oid)}`, { prefer: 'return=minimal' });
+    }
+    await restDelete(T.orders, `family_email=eq.${encodeURIComponent(email)}`, { prefer: 'return=minimal' });
+  }
+
+  const caregiverRows = await restSelect(
+    T.caregivers,
+    `or=(user_id.eq.${encodeURIComponent(String(user.id))},email.eq.${encodeURIComponent(email)})&select=id&limit=50`
+  );
+  for (const caregiver of (caregiverRows || [])) {
+    const caregiverId = Number(caregiver.id);
+    if (!Number.isInteger(caregiverId) || caregiverId <= 0) continue;
+    await restDelete(T.requests, `cid=eq.${caregiverId}`, { prefer: 'return=minimal' });
+    await restDelete(T.schedule, `cid=eq.${caregiverId}`, { prefer: 'return=minimal' });
+    await restDelete(T.reviews, `caregiver_id=eq.${caregiverId}`, { prefer: 'return=minimal' });
+    await restDelete(T.orders, `cid=eq.${caregiverId}`, { prefer: 'return=minimal' });
+    await restDelete(T.caregivers, `id=eq.${caregiverId}`, { prefer: 'return=minimal' });
+  }
+
+  await restDelete(T.verifications, `email=eq.${encodeURIComponent(email)}`, { prefer: 'return=minimal' });
+}
+
 app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
   const b = req.body || {};
   const id = String(req.params.id || '').trim();
@@ -2126,14 +2155,34 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
 }));
 
 app.delete('/api/users/:id', requireRole('admin'), h(async (req, res) => {
-  await restDelete(T.users, `id=eq.${req.params.id}`);
-  fireAudit('admin.user.delete', { req, actor: auditActor(req), targetType: 'user', targetId: req.params.id, status: 'success' });
+  const id = String(req.params.id || '').trim();
+  if (!id) return res.status(400).json({ error: 'Neplatné ID uživatele.' });
+  const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(id)}&limit=1`);
+  const user = rows && rows[0];
+  if (!user) return res.status(404).json({ error: 'Uživatel nebyl nalezen.' });
+  await cleanupUserRelations(user);
+  await restDelete(T.users, `id=eq.${encodeURIComponent(id)}`, { prefer: 'return=minimal' });
+  const verify = await restSelect(T.users, `id=eq.${encodeURIComponent(id)}&limit=1`);
+  if (verify && verify[0]) {
+    return res.status(409).json({ error: 'Uživatele se nepodařilo odstranit.', detail: 'user_still_exists' });
+  }
+  fireAudit('admin.user.delete', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: 'success', metadata: { email: user.email || null, role: user.role || null } });
   res.json({ ok: true });
 }));
 
 app.delete('/api/caregivers/:id', requireRole('admin'), h(async (req, res) => {
-  await restDelete(T.caregivers, `id=eq.${Number(req.params.id)}`);
-  fireAudit('admin.caregiver.delete', { req, actor: auditActor(req), targetType: 'caregiver', targetId: req.params.id, status: 'success' });
+  const caregiverId = Number(req.params.id);
+  if (!Number.isInteger(caregiverId) || caregiverId <= 0) return res.status(400).json({ error: 'Neplatné ID pečovatelky.' });
+  await restDelete(T.requests, `cid=eq.${caregiverId}`, { prefer: 'return=minimal' });
+  await restDelete(T.schedule, `cid=eq.${caregiverId}`, { prefer: 'return=minimal' });
+  await restDelete(T.reviews, `caregiver_id=eq.${caregiverId}`, { prefer: 'return=minimal' });
+  await restDelete(T.orders, `cid=eq.${caregiverId}`, { prefer: 'return=minimal' });
+  await restDelete(T.caregivers, `id=eq.${caregiverId}`, { prefer: 'return=minimal' });
+  const verify = await restSelect(T.caregivers, `id=eq.${caregiverId}&limit=1`);
+  if (verify && verify[0]) {
+    return res.status(409).json({ error: 'Pečovatelku se nepodařilo odstranit.', detail: 'caregiver_still_exists' });
+  }
+  fireAudit('admin.caregiver.delete', { req, actor: auditActor(req), targetType: 'caregiver', targetId: caregiverId, status: 'success' });
   res.json({ ok: true });
 }));
 
