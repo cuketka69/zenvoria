@@ -2854,13 +2854,19 @@ function ddRefresh(){document.querySelectorAll('select[data-enh]').forEach(s=>s.
 document.addEventListener('click',e=>{if(!e.target.closest('.dd'))closeAllDD();});
 
 /* ---------- SCROLL REVEAL ANIMACE (stejné jako patrikzdercik.cz) ---------- */
+let revealIO=null;
 function initReveal(){
   if(!('IntersectionObserver'in window))return;
-  const io=new IntersectionObserver(function(entries){
-    entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}});
-  },{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
+  if(!revealIO){
+    revealIO=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('visible');revealIO.unobserve(e.target);}});
+    },{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
+  }
+  const io=revealIO;
   function tag(sel,cls,stagger){
     document.querySelectorAll(sel).forEach(function(el,i){
+      if(el.dataset.rev)return; // už označeno → přeskoč (idempotentní)
+      el.dataset.rev='1';
       el.classList.add(cls);
       if(stagger)el.style.transitionDelay=(Math.min(i,6)*0.1)+'s';
       io.observe(el);
@@ -2869,22 +2875,24 @@ function initReveal(){
   // hero — postupný nástup po načtení
   ['.hero .eyebrow','.hero h1','.hero p.lead','.hero-cta'].forEach(function(sel,i){
     const el=document.querySelector(sel);
-    if(el){el.classList.add('reveal');el.style.transitionDelay=(i*0.12)+'s';io.observe(el);}
+    if(el&&!el.dataset.rev){el.dataset.rev='1';el.classList.add('reveal');el.style.transitionDelay=(i*0.12)+'s';io.observe(el);}
   });
   tag('.hero .trust','reveal',true);
   tag('#view-home .sec-head','reveal',false);
   tag('.about-lead','reveal',false);
   // foto karty „O nás" — střídavě zleva/zprava, široká zespoda
   document.querySelectorAll('.ap-card').forEach(function(el,i){
+    if(el.dataset.rev)return;
+    el.dataset.rev='1';
     el.classList.add(el.classList.contains('ap-wide')?'reveal':(i%2?'reveal-right':'reveal-left'));
     io.observe(el);
   });
   tag('.svc-card','reveal-scale',true);
   tag('#view-home .aud','reveal',true);
   tag('.val','reveal',true);
-  // navbar — stín při scrollu
+  // navbar — stín při scrollu (navěsit jen jednou)
   const hdr=document.querySelector('header.nav');
-  if(hdr)window.addEventListener('scroll',function(){hdr.classList.toggle('scrolled',window.scrollY>60);},{passive:true});
+  if(hdr&&!hdr.dataset.scrollBound){hdr.dataset.scrollBound='1';window.addEventListener('scroll',function(){hdr.classList.toggle('scrolled',window.scrollY>60);},{passive:true});}
 }
 
 /* ---------- TOAST ---------- */
@@ -5394,6 +5402,9 @@ async function initApp(){
     if(changeEmail)changeEmailToken=changeEmail;
   }catch(e){}
   initTheme();
+  // reveal hned na začátku — statické prvky (hero karty atd.) se schovají okamžitě,
+  // takže neproblikne obsah dřív, než se napojí scroll efekt. Dynamický obsah doplní druhé volání níže.
+  initReveal();
   // Pokud přicházíme z odkazu pro reset hesla, přepni na okno okamžitě
   // a token rovnou ověř — ať se nezobrazuje úvodní stránka ani formulář
   // dřív, než víme, jestli je odkaz platný.
