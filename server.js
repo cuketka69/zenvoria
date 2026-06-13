@@ -1642,22 +1642,39 @@ app.get('/api/bootstrap', h(async (req, res) => {
 // rodina vytvoří objednávku + propojenou poptávku pro pečovatelku
 app.post('/api/orders', requireRole('family', 'admin'), h(async (req, res) => {
   const b = req.body || {};
-  if (b.cid == null || !b.service || !b.date || !b.time || !b.addr) return res.status(400).json({ error: 'Neúplná objednávka.' });
+  const cid = Number(b.cid);
+  const service = trimmedString(b.service, 40);
+  const date = trimmedString(b.date, 10);
+  const time = trimmedString(b.time, 5);
+  const addr = trimmedString(b.addr, 250);
+  const note = trimmedString(b.note, 2000);
+  const hours = Number(b.hours == null ? 1 : b.hours);
+  const km = Number(b.km == null ? 0 : b.km);
+  if (!Number.isInteger(cid) || cid <= 0 || !service || !date || !time || !addr) {
+    return res.status(400).json({ error: 'Neúplná objednávka.' });
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Neplatné datum objednávky.' });
+  if (!/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Neplatný čas objednávky.' });
+  if (!Number.isInteger(hours) || hours < 1 || hours > 24) return res.status(400).json({ error: 'Neplatná délka péče.' });
+  if (!Number.isFinite(km) || km < 0 || km > 1000) return res.status(400).json({ error: 'Neplatná vzdálenost.' });
   const oid = await nextId(T.orders, 'oid');
-  const famName = req.session.name || b.famName || 'Rodina';
+  const famName = trimmedString(req.session.name || b.famName || 'Rodina', 120) || 'Rodina';
   let caregiverName = '';
-  const caregiverRows = await restSelect(T.caregivers, `id=eq.${Number(b.cid)}&select=id,name&limit=1`);
+  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended&limit=1`);
   if (caregiverRows && caregiverRows[0]) caregiverName = caregiverRows[0].name || '';
+  const caregiver = caregiverRows && caregiverRows[0];
+  if (!caregiver) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
+  if (caregiver.suspended || caregiver.verified === false) return res.status(400).json({ error: 'Pečovatelka není aktuálně dostupná.' });
   const order = await restInsert(T.orders, {
-    oid, cid: Number(b.cid), family_email: req.session.email, fam_name: famName,
-    service: b.service, hours: b.hours || 1, date: b.date, time: b.time, addr: b.addr,
-    note: b.note || '', km: b.km || 0, status: 'pending',
+    oid, cid, family_email: req.session.email, fam_name: famName,
+    service, hours, date, time, addr,
+    note, km, status: 'pending',
   });
   const reqId = await nextId(T.requests, 'id');
   const init = (famName.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
   await restInsert(T.requests, {
-    id: reqId, oid, cid: Number(b.cid), fam: famName, init,
-    service: b.service, date: b.date, time: b.time, hours: b.hours || 1, addr: b.addr,
+    id: reqId, oid, cid, fam: famName, init,
+    service, date, time, hours, addr,
   }, { prefer: 'return=minimal' });
   const orderView = mapOrder(order);
   const confirmationMail = reservationMail({ user: req.session, order: orderView, caregiverName });
@@ -1739,12 +1756,44 @@ app.post('/api/requests/:id/decline', requireRole('caregiver', 'admin'), h(async
 // pečovatelka podá žádost o ověření
 app.post('/api/verifications', requireRole('caregiver', 'admin'), h(async (req, res) => {
   const b = req.body || {};
+  const name = trimmedString(b.name, 120);
+  const email = trimmedString(req.session.role === 'admin' ? (b.email || req.session.email) : req.session.email, 320).toLowerCase();
+  const init = trimmedString(b.init, 4).toUpperCase();
+  const loc = trimmedString(b.loc, 120);
+  const rate = Number(b.rate);
+  const exp = Number(b.exp);
+  const phone = trimmedString(b.phone, 40);
+  const docType = trimmedString(b.docType, 40);
+  const docNum = trimmedString(b.docNum, 80);
+  const idFront = trimmedString(b.idFront, 2 * 1024 * 1024);
+  const idBack = trimmedString(b.idBack, 2 * 1024 * 1024);
+  const selfie = trimmedString(b.selfie, 2 * 1024 * 1024);
+  const services = Array.isArray(b.services) ? b.services.map((item) => trimmedString(item, 40)).filter(Boolean) : [];
+  const cert = trimmedString(b.cert, 120);
+  const issuer = trimmedString(b.issuer, 120);
+  const validUntil = trimmedString(b.validUntil, 10);
+  const fileName = trimmedString(b.fileName, 180);
+  const refs = trimmedString(b.refs, 1000);
+  const note = trimmedString(b.note, 2000);
+  const bio = trimmedString(b.bio, 4000);
+  if (!name || name.split(/\s+/).filter(Boolean).length < 2) return res.status(400).json({ error: 'Zadejte celé jméno a příjmení.' });
+  if (!isEmail(email)) return res.status(400).json({ error: 'Neplatný e-mail pečovatelky.' });
+  if (!loc) return res.status(400).json({ error: 'Chybí lokalita pečovatelky.' });
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100000) return res.status(400).json({ error: 'Neplatná hodinová sazba.' });
+  if (!Number.isInteger(exp) || exp < 0 || exp > 80) return res.status(400).json({ error: 'Neplatná délka praxe.' });
+  if (!phone) return res.status(400).json({ error: 'Chybí telefonní číslo.' });
+  if (!docType || !docNum) return res.status(400).json({ error: 'Chybí údaje o dokladu totožnosti.' });
+  if (!idFront || !idBack || !selfie) return res.status(400).json({ error: 'Chybí ověřovací fotografie.' });
+  if (!services.length || services.length > 20) return res.status(400).json({ error: 'Vyberte alespoň jednu službu.' });
+  if (!cert || !issuer) return res.status(400).json({ error: 'Chybí údaje o osvědčení.' });
+  if (validUntil && !/^\d{4}-\d{2}-\d{2}$/.test(validUntil)) return res.status(400).json({ error: 'Neplatná platnost osvědčení.' });
+  if (!fileName) return res.status(400).json({ error: 'Chybí název nahraného dokladu.' });
   const id = await nextId(T.verifications, 'id');
   const row = await restInsert(T.verifications, {
-    id, name: b.name, email: b.email || req.session.email, init: b.init, loc: b.loc, rate: b.rate, exp: b.exp,
-    phone: b.phone, doc_type: b.docType, doc_num: b.docNum, id_front: b.idFront, id_back: b.idBack, selfie: b.selfie,
-    services: b.services || [], cert: b.cert, issuer: b.issuer, valid_until: b.validUntil, file_name: b.fileName,
-    refs: b.refs, note: b.note, bio: b.bio, status: 'submitted', date: new Date().toISOString().slice(0, 10),
+    id, name, email, init, loc, rate, exp,
+    phone, doc_type: docType, doc_num: docNum, id_front: idFront, id_back: idBack, selfie,
+    services, cert, issuer, valid_until: validUntil, file_name: fileName,
+    refs, note, bio, status: 'submitted', date: new Date().toISOString().slice(0, 10),
   });
   res.json({ verification: mapVerification(row) });
 }));
@@ -1793,17 +1842,30 @@ app.post('/api/verifications/:id/reject', requireRole('admin'), h(async (req, re
 /* ---------------- RECENZE ---------------- */
 app.post('/api/reviews', requireAuth, h(async (req, res) => {
   const b = req.body || {};
-  if (b.caregiverId == null || !b.stars) return res.status(400).json({ error: 'Neúplná recenze.' });
-  await restInsert(T.reviews, { caregiver_id: Number(b.caregiverId), init: b.init, name: b.name, stars: b.stars, text: b.text }, { prefer: 'return=minimal' });
+  const caregiverId = Number(b.caregiverId);
+  const stars = Number(b.stars);
+  const init = trimmedString(b.init || (req.session.name || '').split(/\s+/).map((p) => p[0]).join('').slice(0, 2), 4).toUpperCase();
+  const name = trimmedString(b.name || req.session.name, 120);
+  const text = trimmedString(b.text, 2000);
+  if (!Number.isInteger(caregiverId) || caregiverId <= 0 || !Number.isInteger(stars)) return res.status(400).json({ error: 'Neúplná recenze.' });
+  if (stars < 1 || stars > 5) return res.status(400).json({ error: 'Neplatné hodnocení.' });
+  if (!name || text.length < 3) return res.status(400).json({ error: 'Recenze je příliš krátká.' });
+  const caregiverRows = await restSelect(T.caregivers, `id=eq.${caregiverId}&select=id&limit=1`);
+  if (!caregiverRows || !caregiverRows[0]) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
+  await restInsert(T.reviews, { caregiver_id: caregiverId, init, name, stars, text }, { prefer: 'return=minimal' });
   res.json({ ok: true });
 }));
 
 /* ---------------- CHAT ---------------- */
 app.post('/api/conversations', requireAuth, h(async (req, res) => {
   const b = req.body || {};
-  if (!b.name || String(b.name).trim().length < 2) return res.status(400).json({ error: 'Chybí název konverzace.' });
+  const name = trimmedString(b.name, 120);
+  const init = trimmedString(b.init, 4).toUpperCase();
+  const role = trimmedString(b.role || 'caregiver', 20);
+  if (!name || name.length < 2) return res.status(400).json({ error: 'Chybí název konverzace.' });
+  if (!['caregiver', 'family', 'admin'].includes(role)) return res.status(400).json({ error: 'Neplatný typ konverzace.' });
   const id = await nextId(T.conversations, 'id');
-  const row = await restInsert(T.conversations, { id, name: b.name, init: b.init, role: b.role || 'caregiver', unread: 0 });
+  const row = await restInsert(T.conversations, { id, name, init, role, unread: 0 });
   await saveConversationAccess(id, {
     ownerEmail: String(req.session.email || '').toLowerCase(),
     role: req.session.role || 'family',
