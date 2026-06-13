@@ -677,7 +677,7 @@ function renderSettings(){
   const name=auth.loggedIn?auth.name:'Host';
   document.getElementById('setName').textContent=name;
   document.getElementById('setEmail').textContent=auth.loggedIn?auth.email:'—';
-  document.getElementById('setRole').textContent=auth.role==='caregiver'?'Účet pečovatelky':'Účet rodiny';
+  document.getElementById('setRole').textContent=auth.role==='caregiver'?'Účet pečovatelky':(auth.role==='admin'?'Správce systému':'Účet rodiny');
   setAva(document.getElementById('setAva'),auth.role==='caregiver'?cgProfile.photo:null,initials(name));
 }
 function toggleSetting(key,el){appSettings[key]=el.checked;if(auth.loggedIn)apiSync(api('/users/me/settings',{method:'PATCH',body:{settings:appSettings}}));toast('✓ Nastavení uloženo');}
