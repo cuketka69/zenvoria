@@ -465,7 +465,7 @@ function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl
                           </td>
                           <td width="33.33%" valign="top" style="padding:34px 28px 32px 28px;border-right:1px solid rgba(217,169,29,0.25);">
                             <div style="font-size:13px;line-height:1.2;color:#D9A91D;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:14px;">Kontakt</div>
-                            <div style="color:#E4ECE6;font-size:15px;line-height:2;">✉ podpora@zenvoria.cz<br>☎ +420 800 123 456<br>⌘ www.zenvoria.cz</div>
+                            <div style="color:#E4ECE6;font-size:15px;line-height:2;">✉ miklasova@zenvoria.cz<br>☎ +420 800 123 456<br>⌘ www.zenvoria.cz</div>
                           </td>
                           <td width="33.33%" valign="top" style="padding:34px 28px 32px 28px;">
                             <div style="font-size:13px;line-height:1.2;color:#D9A91D;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:16px;">Sledujte nás</div>
