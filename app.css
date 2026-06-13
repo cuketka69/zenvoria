@@ -655,11 +655,13 @@
   .set-account .chip{margin-left:auto}
   .set-err{color:#B23A2E;font-size:13px;margin-top:10px;min-height:0}
   .set-links{display:flex;flex-direction:column;gap:10px}
-  .set-danger{border-color:rgba(178,58,46,.35)}
-  .set-danger h3{color:#B23A2E}
+  .set-danger{border-color:rgba(217,72,59,.55)}
+  .set-danger h3{color:#F26A5C}
   .set-danger-row{display:flex;gap:12px;flex-wrap:wrap}
-  .set-del{background:rgba(178,58,46,.1);color:#B23A2E;border:1px solid rgba(178,58,46,.4)}
-  .set-del:hover{background:#B23A2E;color:#fff}
+  .set-del{background:linear-gradient(135deg,#E1564A,#B23A2E);color:#fff;font-weight:700;
+    border:1px solid rgba(225,86,74,.7);box-shadow:0 10px 24px -12px rgba(178,58,46,.85)}
+  .set-del:hover{background:linear-gradient(135deg,#EC6557,#C0392B);transform:translateY(-1px);
+    box-shadow:0 16px 32px -12px rgba(225,86,74,.95)}
 
   /* legal / právní stránky */
   .legal-shell{padding:34px 20px 90px;background:
