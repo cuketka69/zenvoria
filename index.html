@@ -2,6 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
+<script>document.documentElement.classList.add('js');</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZENVORIA — Péče s lidskostí | Ověřené pečovatelky pro seniory</title>
 <meta name="description" content="ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Najděte ověřenou pečovatelku pro své blízké — jednoduše, bezpečně a s lidským přístupem.">
@@ -435,6 +436,8 @@
   .ap-wide{grid-column:1 / -1;min-height:360px}
   @media(max-width:680px){.about-photos{grid-template-columns:1fr}.ap-wide{grid-column:auto}}
   /* ---------- ANIMACE (scroll reveal — stejné jako patrikzdercik.cz) ---------- */
+  /* pre-hide reveal cílů už od prvního vykreslení (než naběhne JS) → žádné probliknutí */
+  html.js :is(.hero .eyebrow,.hero h1,.hero p.lead,.hero-cta,.hero .trust,#view-home .sec-head,.about-lead,.ap-card,.svc-card,#view-home .aud,.val):not(.visible){opacity:0}
   .reveal{opacity:0;transform:translateY(36px);transition:opacity .7s ease,transform .7s ease}
   .reveal.visible{opacity:1;transform:translateY(0)}
   .reveal-left{opacity:0;transform:translateX(-48px);transition:opacity .7s ease,transform .7s ease}
@@ -443,7 +446,8 @@
   .reveal-right.visible{opacity:1;transform:translateX(0)}
   .reveal-scale{opacity:0;transform:scale(.92);transition:opacity .6s ease,transform .6s ease}
   .reveal-scale.visible{opacity:1;transform:scale(1)}
-  @media (prefers-reduced-motion:reduce){.reveal,.reveal-left,.reveal-right,.reveal-scale{opacity:1!important;transform:none!important;transition:none}}
+  @media (prefers-reduced-motion:reduce){.reveal,.reveal-left,.reveal-right,.reveal-scale{opacity:1!important;transform:none!important;transition:none}
+    html.js :is(.hero .eyebrow,.hero h1,.hero p.lead,.hero-cta,.hero .trust,#view-home .sec-head,.about-lead,.ap-card,.svc-card,#view-home .aud,.val){opacity:1!important}}
   .nav-inner{transition:background .3s ease,box-shadow .3s ease}
   header.nav.scrolled .nav-inner{background:rgba(8,26,17,.92);box-shadow:0 18px 46px -20px rgba(0,0,0,.75)}
   .sort-row input[type=range]{accent-color:var(--gold);cursor:pointer}
