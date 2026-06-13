@@ -2615,7 +2615,7 @@
       <a role="button" tabindex="0" onclick="openLegal('cookies')">Zásady cookies</a>
     </div>
     <div class="foot-bottom">
-      <span>© 2026 ZENVORIA · Péče s lidskostí.</span>
+      <span>© <span id="footYear">2026</span> ZENVORIA · Péče s lidskostí.</span>
       <span style="display:flex;gap:8px"><span class="chip gold">Lidskost</span><span class="chip gold">Důvěra</span><span class="chip gold">Bezpečí</span></span>
     </div>
   </div>
@@ -5489,6 +5489,8 @@ async function initApp(){
     if(changeEmail)changeEmailToken=changeEmail;
   }catch(e){}
   initTheme();
+  // rok v patičce ať se aktualizuje sám
+  {const fy=document.getElementById('footYear');if(fy)fy.textContent=new Date().getFullYear();}
   // reveal hned na začátku — statické prvky (hero karty atd.) se schovají okamžitě,
   // takže neproblikne obsah dřív, než se napojí scroll efekt. Dynamický obsah doplní druhé volání níže.
   initReveal();
