@@ -1593,7 +1593,8 @@ function renderAdminVerify(){
         <div class="rd">${esc(v.loc)} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
         <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">🛡️ Identita:</b> ${esc(v.docType||'—')}${v.docNum?` č. ${esc(v.docNum)}`:''}${v.phone?` · ☎ ${esc(v.phone)}`:''}${v.idFront?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idfront')">🪪 přední ⬇</a>`:''}${v.idBack?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idback')">🪪 zadní ⬇</a>`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">🤳 selfie ⬇</a>`:''}</div>
         <div class="rd"><b style="color:var(--navy-800)">🎓 Osvědčení:</b> ${esc(v.cert)} — ${esc(v.issuer)} (platnost ${esc(v.validUntil)})</div>
-        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">${docIcon(v.fileName)} ${esc(v.fileName)} ⬇</a> · <b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
+        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">${docIcon(v.fileName)} ${esc(v.fileName)} ⬇</a></div>
+        <div class="rd"><b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
         ${v.refs?`<div class="rd"><b style="color:var(--navy-800)">Reference:</b> ${esc(v.refs)}</div>`:''}
         ${v.note?`<div class="rd" style="margin-top:6px;font-style:italic">„${esc(v.note)}"</div>`:''}
         <span class="rs">Podáno ${fmtDate(v.date)}</span>
