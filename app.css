@@ -699,16 +699,26 @@
   .legal-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
 
   /* toast */
-  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(120px);
-    background:var(--navy-900);color:var(--cream);padding:15px 24px;border-radius:14px;
-    box-shadow:var(--shadow);z-index:100;display:flex;align-items:center;gap:11px;font-size:14.5px;
-    transition:transform .4s cubic-bezier(.2,.8,.2,1);border:1px solid rgba(201,162,51,.4)}
-  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(140px);
+    background:var(--navy-900);color:var(--cream);padding:14px 20px 14px 16px;border-radius:16px;
+    box-shadow:0 18px 50px -12px rgba(0,0,0,.45),0 4px 12px rgba(0,0,0,.18);z-index:100;
+    display:flex;align-items:center;gap:13px;font-size:14.5px;line-height:1.4;max-width:min(92vw,420px);
+    opacity:0;transition:transform .45s cubic-bezier(.2,.85,.25,1),opacity .35s ease;
+    border:1px solid rgba(201,162,51,.4);overflow:hidden}
+  .toast::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--gold)}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
   .toast b{color:var(--gold)}
+  .toast .toast-ic{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+    font-size:18px;background:rgba(201,162,51,.18);color:var(--gold)}
+  .toast .toast-msg{flex:1;min-width:0}
   .toast.success{background:#16321B;border-color:#6FAE6A}
+  .toast.success::before{background:#6FAE6A}
   .toast.success b{color:#A6D49A}
+  .toast.success .toast-ic{background:rgba(111,174,106,.2);color:#A6D49A}
   .toast.error{background:#3A1A16;border-color:#D98A80}
+  .toast.error::before{background:#D98A80}
   .toast.error b{color:#F0B7AE}
+  .toast.error .toast-ic{background:rgba(217,138,128,.2);color:#F0B7AE}
 
   /* ---------- MOBILE MENU ---------- */
   .nav-badge{display:inline-flex;min-width:18px;height:18px;padding:0 5px;border-radius:10px;

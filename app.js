@@ -318,9 +318,11 @@ function initReveal(){
 
 /* ---------- TOAST ---------- */
 let toastT;
-function toast(msg,type){const t=document.getElementById('toast');t.innerHTML=msg;
+function toast(msg,type){const t=document.getElementById('toast');
+  const ic=type==='success'?'✓':type==='error'?'!':'★';
+  t.innerHTML=`<span class="toast-ic" aria-hidden="true">${ic}</span><span class="toast-msg">${msg}</span>`;
   t.className='toast show'+(type?' '+type:'');
-  clearTimeout(toastT);toastT=setTimeout(()=>{t.className='toast';},3200);}
+  clearTimeout(toastT);toastT=setTimeout(()=>{t.className='toast';},3600);}
 
 /* ---------- THEME ---------- */
 const MOON_ICON='<path d="M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>';
@@ -1853,6 +1855,15 @@ function downloadVer(id,which){
 }
 function approveVerification(id){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
+  askConfirm({
+    title:'Schválit ověření?',
+    message:`${v.name} bude označena jako ověřená a zveřejněna v katalogu pečovatelek.`,
+    icon:'✅',confirmLabel:'Schválit a zveřejnit',
+    onConfirm:()=>doApproveVerification(id)
+  });
+}
+function doApproveVerification(id){
+  const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
   v.status='approved';
   // přidat (nebo aktualizovat) pečovatelku ve veřejném seznamu
   let c=CAREGIVERS.find(x=>x.email===v.email);
@@ -1866,17 +1877,25 @@ function approveVerification(id){
   cgStatusMap[v.email]='verified';
   apiSync(api('/verifications/'+id+'/approve',{method:'POST'}).then(()=>bootstrap()).then(()=>{renderAdminVerify();renderNav();renderCare();}));
   renderAdminVerify();renderNav();renderCare();
-  toast(`✅ ${esc(v.name)} byla ověřena a zveřejněna.`);
+  toast(`<b>${esc(v.name)}</b> byla ověřena a zveřejněna.`,'success');
 }
 function rejectVerification(id){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
-  const reason=prompt('Důvod zamítnutí (uvidí ho pečovatelka):','Nečitelné nebo neplatné osvědčení.');
-  if(reason===null)return;
-  v.status='rejected';v.reason=reason.trim()||'Bez uvedení důvodu.';
+  askConfirm({
+    title:'Zamítnout žádost?',
+    message:`Žádost ${v.name} bude zamítnuta. Uvedený důvod uvidí pečovatelka.`,
+    icon:'⚠️',danger:true,confirmLabel:'Zamítnout žádost',
+    input:{label:'Důvod zamítnutí',value:'Nečitelné nebo neplatné osvědčení.',placeholder:'Napište důvod, který uvidí pečovatelka…'},
+    onConfirm:(reason)=>doRejectVerification(id,reason)
+  });
+}
+function doRejectVerification(id,reason){
+  const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
+  v.status='rejected';v.reason=(reason||'').trim()||'Bez uvedení důvodu.';
   cgStatusMap[v.email]='rejected';
   apiSync(api('/verifications/'+id+'/reject',{method:'POST'}));
   renderAdminVerify();renderNav();
-  toast(`⚠️ Žádost ${esc(v.name)} byla zamítnuta.`);
+  toast(`Žádost <b>${esc(v.name)}</b> byla zamítnuta.`,'error');
 }
 
 /* ---- ADMIN: pečovatelky ---- */
@@ -2589,17 +2608,31 @@ function askConfirm(o){
   const ok=document.getElementById('confirmOkBtn');
   ok.textContent=o.confirmLabel||'Potvrdit';
   ok.className='btn '+(o.danger?'btn-decline':'btn-gold');
+  // volitelné textové pole (např. důvod zamítnutí)
+  const wrap=document.getElementById('confirmInputWrap');
+  const inp=document.getElementById('confirmInput');
+  if(o.input){
+    document.getElementById('confirmInputLabel').textContent=o.input.label||'';
+    inp.value=o.input.value||'';
+    inp.placeholder=o.input.placeholder||'';
+    wrap.style.display='';
+  }else{wrap.style.display='none';inp.value='';}
   confirmCb=typeof o.onConfirm==='function'?o.onConfirm:null;
   const m=document.getElementById('confirmModal');
   m.classList.add('open');document.body.style.overflow='hidden';
-  setTimeout(()=>ok.focus(),60);
+  setTimeout(()=>{(o.input?inp:ok).focus();},60);
 }
 function closeConfirm(){
   const m=document.getElementById('confirmModal');
   if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
   confirmCb=null;
 }
-function confirmProceed(){const cb=confirmCb;closeConfirm();if(cb)cb();}
+function confirmProceed(){
+  const cb=confirmCb;
+  const val=document.getElementById('confirmInput').value;
+  closeConfirm();
+  if(cb)cb(val);
+}
 function setStars(crit,n){ratingTarget.scores[crit]=n;renderStars();}
 function renderStars(){
   document.getElementById('ratingCriteria').innerHTML=RATE_CRITERIA.map(c=>`

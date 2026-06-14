@@ -446,6 +446,10 @@
     <div class="cf-ic" id="confirmIcon">⚠️</div>
     <h3 id="confirmTitle">Opravdu pokračovat?</h3>
     <p class="msub" id="confirmMsg" style="margin-bottom:0"></p>
+    <div id="confirmInputWrap" style="display:none;margin-top:16px;text-align:left">
+      <label id="confirmInputLabel" for="confirmInput" style="display:block;font-size:13px;font-weight:600;color:var(--navy-800);margin-bottom:6px"></label>
+      <textarea id="confirmInput" class="inp" rows="3" style="resize:vertical"></textarea>
+    </div>
     <div class="cf-actions">
       <button class="btn btn-ghost" onclick="closeConfirm()">Zrušit</button>
       <button class="btn btn-gold" id="confirmOkBtn" onclick="confirmProceed()">Potvrdit</button>
