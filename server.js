@@ -1214,7 +1214,7 @@ function mapVerification(v) {
   return { id: Number(v.id), name: v.name, email: v.email, init: v.init, loc: v.loc, rate: v.rate, exp: v.exp,
     phone: v.phone, docType: v.doc_type, docNum: v.doc_num, idFront: v.id_front, idBack: v.id_back, selfie: v.selfie,
     services: v.services || [], cert: v.cert, issuer: v.issuer, validUntil: v.valid_until, fileName: v.file_name,
-    refs: v.refs, note: v.note, bio: v.bio, status: v.status, date: v.date };
+    refs: v.refs, note: v.note, bio: v.bio, status: v.status, date: v.date, reason: v.reason };
 }
 
 /* ----------------------------------------------------------------------
@@ -1851,7 +1851,7 @@ app.post('/api/verifications/:id/reject', requireRole('admin'), h(async (req, re
   const rows = await restSelect(T.verifications, `id=eq.${id}&select=email,name&limit=1`);
   const v = rows && rows[0];
   if (!v) return res.status(404).json({ error: 'Žádost nenalezena.' });
-  await restUpdate(T.verifications, `id=eq.${id}`, { status: 'rejected' }, { prefer: 'return=minimal' });
+  await restUpdate(T.verifications, `id=eq.${id}`, { status: 'rejected', reason: reason || null }, { prefer: 'return=minimal' });
   if (v && v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: false, reason }) });
   fireAudit('admin.verification.reject', { req, actor: auditActor(req), targetType: 'verification', targetId: id, status: 'success', metadata: { email: v && v.email || null, reason: reason ? 'provided' : 'empty' } });
   res.json({ ok: true });

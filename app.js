@@ -1893,7 +1893,7 @@ function doRejectVerification(id,reason){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
   v.status='rejected';v.reason=(reason||'').trim()||'Bez uvedení důvodu.';
   cgStatusMap[v.email]='rejected';
-  apiSync(api('/verifications/'+id+'/reject',{method:'POST'}));
+  apiSync(api('/verifications/'+id+'/reject',{method:'POST',body:{reason:v.reason}}));
   renderAdminVerify();renderNav();
   toast(`Žádost <b>${esc(v.name)}</b> byla zamítnuta.`,'error');
 }
