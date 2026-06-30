@@ -196,20 +196,8 @@
         </div>
         <div class="grid2" style="margin-top:6px">
           <div><label class="lbl">Jméno a příjmení</label><input class="inp" id="cpName" oninput="syncCgPreview()"></div>
-          <div><label class="lbl">Lokalita</label><input class="inp" id="cpLoc" list="locationOptions" placeholder="Začněte psát město nebo okres" oninput="syncCgPreview()"></div>
+          <div><label class="lbl">Lokalita</label><input class="inp" id="cpLoc" autocomplete="off" placeholder="Začněte psát město nebo okres" oninput="syncCgPreview()"></div>
         </div>
-        <datalist id="locationOptions">
-          <option value="Praha"><option value="Praha-východ"><option value="Praha-západ">
-          <option value="Kladno"><option value="Beroun"><option value="Benešov">
-          <option value="Mladá Boleslav"><option value="Příbram"><option value="Kolín">
-          <option value="Kutná Hora"><option value="Nymburk"><option value="Mělník">
-          <option value="Rakovník"><option value="Brno"><option value="Brno-venkov">
-          <option value="Ostrava"><option value="Plzeň"><option value="Liberec">
-          <option value="Hradec Králové"><option value="Pardubice"><option value="Olomouc">
-          <option value="České Budějovice"><option value="Ústí nad Labem"><option value="Zlín">
-          <option value="Jihlava"><option value="Karlovy Vary"><option value="Chomutov">
-          <option value="Most"><option value="Teplice"><option value="Děčín">
-        </datalist>
         <div class="grid2" style="margin-top:14px">
           <div><label class="lbl">Roky praxe</label><input class="inp" type="number" id="cpExp" min="0" max="40" oninput="syncCgPreview()"></div>
           <div><label class="lbl">Dojezdová vzdálenost (km)</label><input class="inp" type="number" id="cpRadius" min="1" max="60" step="1" oninput="syncCgPreview()"></div>
@@ -258,7 +246,7 @@
         <h3>Základní údaje</h3>
         <div class="grid2" style="margin-top:6px">
           <div><label class="lbl">Jméno a příjmení</label><input class="inp" id="vfName" placeholder="Jana Nováková"></div>
-          <div><label class="lbl">Lokalita</label><input class="inp" id="vfLoc" list="locationOptions" placeholder="Začněte psát město nebo okres"></div>
+          <div><label class="lbl">Lokalita</label><input class="inp" id="vfLoc" autocomplete="off" placeholder="Začněte psát město nebo okres"></div>
         </div>
         <div class="grid2" style="margin-top:14px">
           <div><label class="lbl">Hodinová sazba (Kč)</label><input class="inp" type="number" id="vfRate" min="150" max="600" step="10" value="240"></div>

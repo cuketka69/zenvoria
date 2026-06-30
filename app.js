@@ -11,6 +11,16 @@ const SERVICES=[
   {id:'hygiena',name:'Hygiena',icon:'M7 13h10v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6ZM6 13h12M9 13V7a3 3 0 0 1 6 0',desc:'Citlivá pomoc s osobní hygienou a péčí o tělo s respektem a důstojností.'},
   {id:'nakupy',name:'Nákupy',icon:'M6 6h15l-1.5 9h-12L6 6ZM6 6 5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z',desc:'Zajištění nákupů, léků a pochůzek, aby měl senior vše potřebné doma.'}
 ];
+const LOCATION_OPTIONS=[
+  'Praha','Praha-východ','Praha-západ','Beroun','Benešov','Brno','Brno-venkov','Bruntál',
+  'České Budějovice','Český Krumlov','Děčín','Frýdek-Místek','Havlíčkův Brod','Hradec Králové',
+  'Cheb','Chomutov','Jablonec nad Nisou','Jeseník','Jičín','Jihlava','Jindřichův Hradec','Karlovy Vary',
+  'Karviná','Kladno','Klatovy','Kolín','Kutná Hora','Liberec','Litoměřice','Louny','Mělník','Mladá Boleslav',
+  'Most','Náchod','Nový Jičín','Nymburk','Olomouc','Opava','Ostrava','Pardubice','Pelhřimov','Písek',
+  'Plzeň','Prachatice','Prostějov','Přerov','Příbram','Rakovník','Rychnov nad Kněžnou','Semily','Sokolov',
+  'Strakonice','Svitavy','Šumperk','Tábor','Tachov','Teplice','Trutnov','Třebíč','Uherské Hradiště',
+  'Ústí nad Labem','Ústí nad Orlicí','Vsetín','Vyškov','Zlín','Znojmo','Žďár nad Sázavou'
+];
 const VALUES=['Lidskost','Důvěra','Respekt','Bezpečí','Profesionalita'];
 const VAL_SUBS=['Empatie a srdce','Prověřeno a ověřeno','Důstojnost vždy','Pojištěno a chráněno','Zkušenost a péče'];
 const VAL_ICONS=['M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','m5 12 4 4 10-10','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'];
@@ -285,6 +295,83 @@ function enhanceSelect(sel){
 }
 function ddRefresh(){document.querySelectorAll('select[data-enh]').forEach(s=>s._ddRefresh&&s._ddRefresh());}
 document.addEventListener('click',e=>{if(!e.target.closest('.dd'))closeAllDD();});
+
+function locNorm(v){
+  return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function getLocationMatches(query){
+  const q=locNorm(query).trim();
+  if(!q)return LOCATION_OPTIONS.slice(0,10);
+  const starts=[],word=[],contains=[];
+  LOCATION_OPTIONS.forEach(name=>{
+    const n=locNorm(name);
+    if(n.startsWith(q))starts.push(name);
+    else if(n.split(/[\s-]+/).some(part=>part.startsWith(q)))word.push(name);
+    else if(n.includes(q))contains.push(name);
+  });
+  const primary=starts.concat(word);
+  return (primary.length?primary:contains).slice(0,8);
+}
+function closeLocationMenus(){document.querySelectorAll('.loc-ac.open').forEach(el=>el.classList.remove('open'));}
+function bindLocationAutocomplete(inputId,onPick){
+  const input=document.getElementById(inputId);
+  if(!input||input.dataset.locAc)return;
+  input.dataset.locAc='1';
+  const wrap=document.createElement('div');
+  wrap.className='loc-ac';
+  input.parentNode.insertBefore(wrap,input);
+  wrap.appendChild(input);
+  const menu=document.createElement('div');
+  menu.className='loc-ac-menu';
+  wrap.appendChild(menu);
+  let active=-1;
+  let current=[];
+  const syncActive=()=>{menu.querySelectorAll('.loc-ac-opt').forEach((el,i)=>el.classList.toggle('active',i===active));};
+  const render=items=>{
+    current=items.slice();
+    active=-1;
+    if(!items.length){
+      menu.innerHTML='<div class="loc-ac-empty">Nenalezena zadna odpovidajici lokalita.</div>';
+      wrap.classList.add('open');
+      return;
+    }
+    menu.innerHTML=items.map((name,i)=>`<div class="loc-ac-opt" data-i="${i}">${esc(name)}</div>`).join('');
+    menu.querySelectorAll('.loc-ac-opt').forEach(el=>{
+      el.addEventListener('mousedown',e=>{
+        e.preventDefault();
+        const idx=Number(el.dataset.i);
+        input.value=current[idx]||input.value;
+        closeLocationMenus();
+        if(onPick)onPick();
+      });
+    });
+    wrap.classList.add('open');
+  };
+  const refresh=()=>{
+    const value=input.value.trim();
+    if(!value){wrap.classList.remove('open');return;}
+    render(getLocationMatches(value));
+  };
+  input.addEventListener('focus',refresh);
+  input.addEventListener('input',refresh);
+  input.addEventListener('keydown',e=>{
+    if((e.key==='ArrowDown'||e.key==='ArrowUp')&&!wrap.classList.contains('open')){
+      refresh();
+      if(!wrap.classList.contains('open'))return;
+    }
+    if(!wrap.classList.contains('open')||!current.length)return;
+    if(e.key==='ArrowDown'){e.preventDefault();active=Math.min(active+1,current.length-1);syncActive();}
+    else if(e.key==='ArrowUp'){e.preventDefault();active=Math.max(active-1,0);syncActive();}
+    else if(e.key==='Enter'&&active>=0){e.preventDefault();input.value=current[active];closeLocationMenus();if(onPick)onPick();}
+    else if(e.key==='Escape'){wrap.classList.remove('open');}
+  });
+  input.addEventListener('blur',()=>setTimeout(()=>wrap.classList.remove('open'),120));
+}
+function initLocationAutocomplete(){
+  bindLocationAutocomplete('cpLoc',()=>syncCgPreview());
+  bindLocationAutocomplete('vfLoc');
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.loc-ac'))closeLocationMenus();});
 
 /* ---------- SCROLL REVEAL ANIMACE (stejné jako patrikzdercik.cz) ---------- */
 let revealIO=null;
@@ -652,6 +739,7 @@ async function ensureDeferredViewsLoaded(){
       host.innerHTML=html;
       deferredViewsLoaded=true;
       document.querySelectorAll('#deferredViews select').forEach(enhanceSelect);
+      initLocationAutocomplete();
       initReveal();
       return true;
     })

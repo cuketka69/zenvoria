@@ -450,6 +450,13 @@
   .dd-opt{padding:9px 12px;border-radius:9px;font-size:14px;color:var(--navy-800);cursor:pointer;white-space:nowrap;transition:.12s}
   .dd-opt:hover{background:var(--cream)}
   .dd-opt.sel{background:rgba(201,162,51,.18);color:var(--navy-900);font-weight:600}
+  .loc-ac{position:relative}
+  .loc-ac-menu{position:absolute;top:calc(100% + 8px);left:0;right:0;background:var(--white);border:1px solid var(--line);
+    border-radius:14px;box-shadow:var(--shadow);padding:6px;z-index:90;max-height:260px;overflow:auto;display:none}
+  .loc-ac.open .loc-ac-menu{display:block}
+  .loc-ac-opt{padding:10px 12px;border-radius:9px;font-size:14px;color:var(--navy-800);cursor:pointer;transition:.12s}
+  .loc-ac-opt:hover,.loc-ac-opt.active{background:rgba(201,162,51,.18);color:var(--navy-900);font-weight:600}
+  .loc-ac-empty{padding:10px 12px;font-size:13px;color:var(--muted)}
   /* ---------- O NÁS (zelené pozadí) ---------- */
   .about{position:relative;overflow:hidden;background:var(--cream)}
   .about::before{content:"";position:absolute;top:-120px;right:-120px;width:360px;height:360px;border-radius:50%;
