@@ -1775,11 +1775,39 @@ app.get('/api/bootstrap', h(async (req, res) => {
     return b.audience === 'specific' && Array.isArray(b.emails) && b.emails.includes(req.session.email);
   });
 
+  // --- fotky protistran do záznamů (pro avatary v objednávkách/poptávkách/rozvrhu) ---
+  const cgPhotoById = {};
+  (caregivers || []).forEach((c) => { if (c && c.photo) cgPhotoById[c.id] = c.photo; });
+  const famPhotoByEmail = {};
+  const oidToEmail = {};
+  if (viewer === 'admin') {
+    (usersRows || []).forEach((u) => { if (u.photo) famPhotoByEmail[u.email] = u.photo; });
+  } else {
+    const emails = new Set();
+    (orders || []).forEach((o) => { if (o.family_email) { emails.add(o.family_email); oidToEmail[o.oid] = o.family_email; } });
+    const reqOids = (requests || []).map((r) => r.oid).filter((x) => x != null && oidToEmail[x] === undefined);
+    if (reqOids.length) {
+      try {
+        const reqOrders = await restSelect(T.orders, `oid=in.(${reqOids.join(',')})&select=oid,family_email`);
+        (reqOrders || []).forEach((o) => { if (o.family_email) { emails.add(o.family_email); oidToEmail[o.oid] = o.family_email; } });
+      } catch (e) { /* fotky nejsou kritické */ }
+    }
+    if (emails.size) {
+      const list = [...emails].map((e) => `"${e}"`).join(',');
+      try {
+        const rows = await restSelect(T.users, `email=in.(${list})&select=email,photo`);
+        (rows || []).forEach((u) => { if (u.photo) famPhotoByEmail[u.email] = u.photo; });
+      } catch (e) { /* fotky nejsou kritické */ }
+    }
+  }
+  const famPhotoByName = {};
+  (orders || []).forEach((o) => { const p = o.family_email && famPhotoByEmail[o.family_email]; if (p && o.fam_name) famPhotoByName[o.fam_name] = p; });
+
   res.json({
     caregivers: caregiversForViewer,
-    orders: (orders || []).map(mapOrder),
-    requests: (requests || []).map(mapRequest),
-    schedule: (schedule || []).map((s) => ({ id: s.id, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours })),
+    orders: (orders || []).map((o) => ({ ...mapOrder(o), cgPhoto: cgPhotoById[o.cid] || null, famPhoto: famPhotoByEmail[o.family_email] || null })),
+    requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
+    schedule: (schedule || []).map((s) => ({ id: s.id, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null })),
     verifications: (verifications || []).map(mapVerification),
     users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null })),
     cgReviews, generalReviews,

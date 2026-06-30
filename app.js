@@ -2798,14 +2798,14 @@ function cgScheduleHTML(){
   if(!CG_SCHEDULE.length)return '<div class="empty">Zatím nemáte naplánované žádné služby.</div>';
   return CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date)).map((j,i)=>`
     <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openCgOrder(${i})">
-      <div class="ava">${j.init}</div>
+      ${avaHtml(j.init,j.photo)}
       <div class="od"><b>${sName(j.service)}</b><div class="det">${esc(j.fam)} · ${fmtDate(j.date)}<br>${timeRange(j.time,j.hours)}</div></div>
       <div class="ost"><span class="status ok">Potvrzeno</span><div class="pr">${(j.hours*cgProfile.rate).toLocaleString('cs-CZ')} Kč</div></div>
     </div>`).join('');
 }
 function reqCardHTML(r){
   return `<div class="req">
-    <div class="ava">${r.init}</div>
+    ${avaHtml(r.init,r.photo)}
     <div class="ri">
       <b>${esc(r.fam)}</b>
       <div class="rd">${sName(r.service)} · ${fmtDate(r.date)} · ${timeRange(r.time,r.hours)}</div>
@@ -2825,7 +2825,7 @@ function renderCgRequests(){
 function acceptRequest(id){
   const i=CG_REQUESTS.findIndex(r=>r.id===id);if(i<0)return;
   const r=CG_REQUESTS.splice(i,1)[0];
-  CG_SCHEDULE.push({fam:r.fam,init:r.init,service:r.service,date:r.date,time:r.time,hours:r.hours});
+  CG_SCHEDULE.push({fam:r.fam,init:r.init,service:r.service,date:r.date,time:r.time,hours:r.hours,photo:r.photo||null});
   if(r.oid){const o=ORDERS.find(x=>x.oid===r.oid);if(o)o.status='confirmed';}
   apiSync(api('/requests/'+id+'/accept',{method:'POST'}));
   toast(`Poptávka od <b>${esc(r.fam)}</b> přijata`,'success');refreshCg();
@@ -3076,7 +3076,7 @@ let curOrder=null;
 function openFamilyOrder(oid){
   const o=ORDERS.find(x=>x.oid===oid);if(!o)return;const c=cg(o.cid);
   curOrder={oid:o.oid,cid:o.cid,viewer:'family',title:sName(o.service),status:o.status,rated:!!o.rated,
-    cpName:c.name,cpInit:c.init,cpRole:'Pečovatelka',cpChatRole:'caregiver',
+    cpName:c.name,cpInit:c.init,cpPhoto:c.photo||o.cgPhoto||null,cpRole:'Pečovatelka',cpChatRole:'caregiver',
     dateLabel:fmtDate(o.date),timeLabel:timeRange(o.time,o.hours),hours:o.hours,price:orderPrice(o),
     rate:c.rate,km:o.km||0,transport:(c.kmPrice&&o.km)?c.kmPrice*o.km:0,addr:o.addr,note:o.note,
     back:'bookings',backLabel:'Zpět na objednávky'};
@@ -3085,7 +3085,7 @@ function openFamilyOrder(oid){
 function openCgOrder(i){
   const j=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date))[i];if(!j)return;
   curOrder={viewer:'caregiver',title:sName(j.service),status:'confirmed',
-    cpName:j.fam,cpInit:j.init,cpRole:'Klient',cpChatRole:'family',
+    cpName:j.fam,cpInit:j.init,cpPhoto:j.photo||null,cpRole:'Klient',cpChatRole:'family',
     dateLabel:fmtDate(j.date),timeLabel:timeRange(j.time,j.hours),hours:j.hours,price:j.hours*cgProfile.rate,
     rate:cgProfile.rate,transport:0,addr:'Adresa bude sdílena před službou',note:'',
     back:'cg-requests',backLabel:'Zpět na poptávky'};
@@ -3131,7 +3131,7 @@ function renderOrderDetail(){
   document.getElementById('orderDetailGrid').innerHTML=`
     <div class="pcard">
       <div class="phead" style="margin-bottom:18px">
-        <div class="ava">${esc(o.cpInit)}</div>
+        ${avaHtml(esc(o.cpInit),o.cpPhoto)}
         <div>
           <h1 style="font-size:24px">${esc(o.title)}</h1>
           <div class="pmeta"><span style="color:var(--muted);font-size:14px">${esc(o.cpRole)}: <b style="color:var(--navy-900)">${esc(o.cpName)}</b></span></div>
@@ -3273,10 +3273,10 @@ function ensureBroadcastConvo(){
 const CHAT_REPLIES=['Děkuji za zprávu, ozvu se co nejdříve.','Jistě, ráda pomůžu. Domluvíme detaily?',
   'Rozumím, zařídím to. 🙂','To zní dobře, potvrzuji termín.','Díky, budu se těšit!'];
 function chatNow(){return new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'});}
-function openChat(name,init,role){
+function openChat(name,init,role,photo){
   let c=CONVERSATIONS.find(x=>x.name===name);
   if(!c){
-    c={id:auth.loggedIn?chatTmpSeq--:++chatSeq,name,init:init||initials(name),role:role||'caregiver',msgs:[]};
+    c={id:auth.loggedIn?chatTmpSeq--:++chatSeq,name,init:init||initials(name),role:role||'caregiver',photo:photo||null,msgs:[]};
     CONVERSATIONS.unshift(c);
     if(auth.loggedIn){
       apiSync(api('/conversations',{method:'POST',body:{name,init:c.init,role:c.role}}).then(r=>{
@@ -3290,13 +3290,21 @@ function openChat(name,init,role){
       }));
     }
   }
+  else if(photo&&!c.photo)c.photo=photo;
   activeChat=c.id;go('chat');
   setTimeout(()=>document.getElementById('chatInput')?.focus(),140);
 }
-function makeChatAvatar(text){
+/* fotka protistrany konverzace — z konverzace, jinak dohledat pečovatelku podle jména */
+function convoPhoto(c){
+  if(c&&c.photo)return c.photo;
+  if(c&&c.role==='caregiver'){const cg=CAREGIVERS.find(x=>x.name===c.name);if(cg&&cg.photo)return cg.photo;}
+  return null;
+}
+function makeChatAvatar(text,photo){
   const el=document.createElement('div');
   el.className='ava';
-  el.textContent=text||'';
+  if(photo){el.style.backgroundImage=`url('${photo}')`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.color='transparent';}
+  else el.textContent=text||'';
   return el;
 }
 function renderChat(){
@@ -3313,7 +3321,7 @@ function renderChat(){
     const btn=document.createElement('button');
     btn.className='chat-li'+(c.id===activeChat?' on':'');
     btn.addEventListener('click',()=>selectChat(c.id));
-    btn.appendChild(makeChatAvatar(c.init));
+    btn.appendChild(makeChatAvatar(c.init,convoPhoto(c)));
     const ci=document.createElement('div');
     ci.className='ci';
     const name=document.createElement('b');
@@ -3331,7 +3339,7 @@ function renderChat(){
   c.unread=0;
   if(c.id===-1){broadcastsFor().forEach(b=>{if(!bcSeen.includes(b.id))bcSeen.push(b.id);});persist();}
   head.textContent='';
-  head.appendChild(makeChatAvatar(c.init));
+  head.appendChild(makeChatAvatar(c.init,convoPhoto(c)));
   const headMeta=document.createElement('div');
   const headName=document.createElement('b');
   headName.textContent=c.name;
