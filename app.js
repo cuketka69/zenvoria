@@ -315,16 +315,21 @@ function getLocationMatches(query){
 let locationAutocompleteSeq=0;
 async function fetchLocationMatches(query){
   const q=String(query||'').trim();
-  if(q.length<2)return [];
+  if(q.length<2)return { items: [], source: 'empty' };
   const seq=++locationAutocompleteSeq;
   try{
     const res=await fetch('/api/locations/autocomplete?q='+encodeURIComponent(q),{credentials:'include'});
     let data=null;try{data=await res.json();}catch(e){}
     if(seq!==locationAutocompleteSeq)return null;
-    if(res.ok&&data&&Array.isArray(data.items)&&data.items.length)return data.items.map(item=>item&&item.label).filter(Boolean);
+    if(res.ok&&data&&Array.isArray(data.items)){
+      return {
+        items:data.items.map(item=>item&&item.label).filter(Boolean),
+        source:data.source||'remote'
+      };
+    }
   }catch(e){}
   if(seq!==locationAutocompleteSeq)return null;
-  return getLocationMatches(q);
+  return { items:getLocationMatches(q), source:'fallback' };
 }
 function closeLocationMenus(){document.querySelectorAll('.loc-ac.open').forEach(el=>el.classList.remove('open'));}
 function bindLocationAutocomplete(inputId,onPick){
@@ -342,11 +347,11 @@ function bindLocationAutocomplete(inputId,onPick){
   let current=[];
   let timer=null;
   const syncActive=()=>{menu.querySelectorAll('.loc-ac-opt').forEach((el,i)=>el.classList.toggle('active',i===active));};
-  const render=items=>{
+  const render=(items,emptyText)=>{
     current=items.slice();
     active=-1;
     if(!items.length){
-      menu.innerHTML='<div class="loc-ac-empty">Nenalezena zadna odpovidajici lokalita.</div>';
+      menu.innerHTML=`<div class="loc-ac-empty">${esc(emptyText||'Nenalezena zadna odpovidajici lokalita.')}</div>`;
       wrap.classList.add('open');
       return;
     }
@@ -365,9 +370,12 @@ function bindLocationAutocomplete(inputId,onPick){
   const refresh=async()=>{
     const value=input.value.trim();
     if(!value){wrap.classList.remove('open');return;}
-    const items=await fetchLocationMatches(value);
-    if(items==null||value!==input.value.trim())return;
-    render(items);
+    const result=await fetchLocationMatches(value);
+    if(result==null||value!==input.value.trim())return;
+    let emptyText='Nenalezena zadna odpovidajici lokalita.';
+    if(result.source==='missing-key')emptyText='Geoapify API key neni nastaveny na serveru.';
+    else if(/^\d[\d\s]*$/.test(value)&&result.source==='fallback')emptyText='Vyhledani podle PSC bude fungovat po nastaveni Geoapify API klice.';
+    render(result.items||[],emptyText);
   };
   input.addEventListener('focus',refresh);
   input.addEventListener('input',()=>{
