@@ -949,8 +949,8 @@
   .adm-table .small{display:block;font-size:11.5px;color:var(--muted);margin-top:4px}
   .adm-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
   .table-scroll{overflow-x:auto}
-  .ver-done-scroll{max-height:340px;overflow-y:auto}
-  .ver-done-scroll thead th{position:sticky;top:0;background:var(--white);z-index:1}
+  .ver-done-scroll{max-height:none;overflow:visible}
+  .ver-done-scroll thead th{background:transparent;z-index:1}
   .audit-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
   .audit-meta .chip{padding:4px 9px;font-size:11px}
   @media(max-width:640px){.adm-table th:nth-child(3),.adm-table td:nth-child(3){display:none}}
@@ -998,12 +998,22 @@
   .doc-pill span{font-weight:600}
   /* náhled přílohy (obrázek/PDF) přímo na stránce */
   .adm-ver-toggle{display:flex;align-items:center;gap:12px;width:100%;padding:0;background:none;border:none;color:inherit;text-align:left;cursor:pointer}
-  .adm-ver-toggle-ic{display:grid;place-items:center;flex:0 0 auto;width:28px;height:28px;border-radius:999px;border:1px solid var(--line);color:var(--muted);transition:.18s;background:var(--white)}
-  .adm-ver-row.open .adm-ver-toggle-ic{transform:rotate(180deg);color:var(--gold-deep);border-color:rgba(201,162,51,.45);background:rgba(201,162,51,.1)}
+  .adm-ver-toggle-ic{display:grid;place-items:center;flex:0 0 auto;width:28px;height:28px;border-radius:999px;border:1px solid rgba(201,162,51,.35);color:var(--gold);transition:.18s;background:rgba(201,162,51,.08)}
+  .adm-ver-row.open .adm-ver-toggle-ic{transform:rotate(180deg);color:#F3C654;border-color:rgba(201,162,51,.55);background:rgba(201,162,51,.16)}
   .adm-ver-detail-row td{padding:0 18px 18px;border-top:none}
-  .adm-ver-detail{margin:0 0 4px 40px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(250,247,240,.96),rgba(245,240,230,.7))}
-  .vdone-fields{margin-top:0}
+  .adm-ver-detail{margin:0 0 4px 40px;padding:16px 18px;border:1px solid rgba(201,162,51,.2);border-radius:16px;
+    background:
+      radial-gradient(circle at top right,rgba(201,162,51,.14),transparent 32%),
+      linear-gradient(180deg,rgba(13,72,41,.96),rgba(11,60,35,.98));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+  .vdone-fields{margin-top:0;border-top-color:rgba(201,162,51,.18)}
+  .vdone-fields .vreq-field{border-bottom-color:rgba(201,162,51,.16)}
+  .vdone-fields .vreq-k{color:rgba(238,243,236,.72)}
+  .vdone-fields .vreq-v{color:#F3F6EF}
+  .vdone-fields .chip{background:rgba(255,255,255,.06);border:1px solid rgba(201,162,51,.2);color:#F3F6EF}
   .vdone-docs{margin-top:16px}
+  .vdone-docs .doc-pill{background:rgba(255,255,255,.06);border-color:rgba(201,162,51,.22);color:#F3F6EF}
+  .vdone-docs .doc-pill:hover{background:rgba(201,162,51,.12);border-color:rgba(201,162,51,.45);color:#F7D36B}
   @media(max-width:700px){
     .adm-ver-toggle{align-items:flex-start}
     .adm-ver-detail{margin-left:0}
