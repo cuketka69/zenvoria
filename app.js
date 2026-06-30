@@ -2474,7 +2474,7 @@ function renderAdminUsers(){
       <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${badge}</td>
       <td><div class="adm-actions">
-        <button class="btn btn-sm ${u.status==='suspended'?'btn-accept':'btn-decline'}" onclick="toggleSuspendUser(${u.id})">${u.status==='suspended'?'Obnovit':'Pozastavit'}</button>
+        <button class="btn btn-sm ${u.status==='suspended'?'btn-accept':'btn-gold'}" onclick="toggleSuspendUser(${u.id})">${u.status==='suspended'?'Obnovit':'Pozastavit'}</button>
         <button class="btn btn-sm btn-decline" onclick="removeUser(${u.id})">Odebrat</button>
       </div></td>
     </tr>`;}).join('');
@@ -2488,7 +2488,7 @@ function toggleSuspendUser(id){
   if(u.status!=='suspended'){
     askConfirm({title:'Pozastavit uživatele?',icon:pauseSVG(),
       message:`Účet ${esc(u.name)} bude pozastaven, dokud ho znovu neobnovíte.`,
-      confirmLabel:'Pozastavit',danger:true,onConfirm:doIt});
+      confirmLabel:'Pozastavit',onConfirm:doIt});
   }else doIt();
 }
 function removeUser(id){
