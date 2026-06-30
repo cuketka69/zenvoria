@@ -325,6 +325,8 @@ function toast(msg,type,icon){const t=document.getElementById('toast');
   clearTimeout(toastT);toastT=setTimeout(()=>{t.className='toast';},3600);}
 /* SVG obálka (zlatá – dědí currentColor z .toast-ic) pro toasty o e-mailu */
 function envelopeSVG(){return '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';}
+/* SVG zámek (zlatý) pro toasty o hesle */
+function lockSVG(){return '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><rect x="4.5" y="10" width="15" height="10" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15" r="1.4" fill="currentColor"/></svg>';}
 
 /* ---------- THEME ---------- */
 const MOON_ICON='<path d="M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>';
@@ -1055,7 +1057,7 @@ async function submitResetPassword(e){
       url.searchParams.delete('reset');
       history.replaceState({},'',url.pathname+(url.search?url.search:'')+url.hash);
     }catch(e){}
-    toast('✓ Nové heslo bylo uloženo.');
+    toast('Nové heslo bylo uloženo.',null,lockSVG());
     setTimeout(()=>go('login'),1800);
   }catch(err){
     if(/vypršel|neplatný/i.test(err.message||'')){
