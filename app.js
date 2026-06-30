@@ -1724,6 +1724,77 @@ function toggleMyVerifyDetail(btn){
   d.style.display=show?'':'none';
   btn.textContent=show?'Skrýt žádost':'Zobrazit žádost';
 }
+/* ---- ověřená pečovatelka: správa / přidávání osvědčení ---- */
+let addCertDocName='',addCertDocData='';
+function myCertifications(){
+  const all=[];
+  VERIFICATIONS.filter(x=>x.email===auth.email&&(x.status==='approved'||x.status==='verified')).forEach(v=>{
+    const certs=Array.isArray(v.certifications)&&v.certifications.length?v.certifications:(v.cert?[{name:v.cert,issuer:v.issuer,validUntil:v.validUntil}]:[]);
+    certs.forEach(c=>{if(c&&c.name)all.push(c);});
+  });
+  const seen=new Set();
+  return all.filter(c=>{const k=(c.name||'').toLowerCase()+'|'+(c.issuer||'').toLowerCase();if(seen.has(k))return false;seen.add(k);return true;});
+}
+function renderVerifiedPanel(){
+  const certs=myCertifications();
+  const pend=VERIFICATIONS.find(v=>v.email===auth.email&&v.status==='submitted');
+  const row=(l,r)=>`<div class="vsum-row"><span class="vsum-l">${l}</span><span class="vsum-r">${r}</span></div>`;
+  const certRows=certs.length?certs.map(c=>row(esc(c.name),esc(c.issuer||'—')+(c.validUntil?` · ${esc(c.validUntil)}`:''))).join(''):'<div class="vsum-row"><span class="vsum-l">Zatím žádné</span></div>';
+  const addBlock=pend
+    ? `<div class="verify-banner wait" style="margin-top:18px"><span class="vb-ic" style="color:#B7791F">${svgWrap(26,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.8 1.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>')}</span><div class="vb-t"><b>Nové osvědčení čeká na schválení</b><span>Správce ho zkontroluje, zpravidla do 48 hodin.</span></div></div>`
+    : `<div class="pdiv"></div>
+      <h3 style="margin-bottom:4px">Přidat osvědčení</h3>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:14px">Po schválení správcem se přidá k vašemu profilu.</p>
+      <div class="grid2">
+        <div><label class="lbl">Název osvědčení</label><input class="inp" id="acName" placeholder="Kurz první pomoci"></div>
+        <div><label class="lbl">Vystavil (instituce)</label><input class="inp" id="acIssuer" placeholder="Český červený kříž"></div>
+      </div>
+      <div class="grid2" style="margin-top:14px">
+        <div><label class="lbl">Platnost do (volitelné)</label><input class="inp" type="date" id="acValid"></div>
+        <div></div>
+      </div>
+      <div style="margin-top:14px">
+        <label class="lbl">Doklad (sken / foto / PDF)</label>
+        <label class="doc-drop"><span id="acDocText"><b>Nahrát soubor</b> — obrázek nebo PDF</span>
+          <input type="file" accept="image/*,.pdf,.doc,.docx,.odt,.rtf,.txt,.heic" hidden id="acDoc" onchange="onAddCertDoc(event)"></label>
+      </div>
+      <div class="set-err" id="acErr" style="margin-top:12px"></div>
+      <button type="button" class="btn btn-gold" style="margin-top:16px" id="acSubmit" onclick="addCertification()">Přidat osvědčení</button>`;
+  return `
+    <div class="vsum-head">
+      <span class="vsum-ic" style="color:#2E7D46">${svgWrap(28,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="m8 12 2.6 2.6L16 9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>')}</span>
+      <div><h3 style="margin:0">Jste ověřená pečovatelka</h3>
+        <span style="color:var(--muted);font-size:13px">Váš profil je viditelný rodinám ve vyhledávání.</span></div>
+    </div>
+    <div class="vsum-l" style="margin-bottom:8px">Vaše osvědčení</div>
+    <div class="vsum">${certRows}</div>
+    ${addBlock}`;
+}
+function onAddCertDoc(e){
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  addCertDocName=f.name;addCertDocData='';
+  document.getElementById('acDocText').innerHTML=`${paperclipSVG(15)} <b>${esc(f.name)}</b> — připraveno`;
+  readVerifyFile(f,res=>{addCertDocName=res.name;addCertDocData=res.data;document.getElementById('acDocText').innerHTML=`${paperclipSVG(15)} <b>${esc(res.name)}</b> — připraveno`;});
+}
+async function addCertification(){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  const err=document.getElementById('acErr');if(err)err.textContent='';
+  const name=g('acName').trim(),issuer=g('acIssuer').trim(),validUntil=g('acValid').trim();
+  if(!name){if(err){err.textContent='Zadejte název osvědčení.';}return;}
+  if(!issuer){if(err){err.textContent='Zadejte instituci, která osvědčení vystavila.';}return;}
+  if(!addCertDocName){if(err){err.textContent='Nahrajte doklad k osvědčení.';}return;}
+  const btn=document.getElementById('acSubmit');if(btn){btn.disabled=true;btn.textContent='Odesílám…';}
+  try{
+    const r=await api('/certifications',{method:'POST',body:{name,issuer,validUntil,fileName:addCertDocName,fileData:addCertDocData}});
+    if(r&&r.verification){VERIFICATIONS.unshift(r.verification);verSeq=Math.max(verSeq,r.verification.id||0);}
+    addCertDocName='';addCertDocData='';
+    toast('Osvědčení odesláno správci ke schválení.','success');
+    renderCgVerify();renderNav();
+  }catch(ex){
+    if(btn){btn.disabled=false;btn.textContent='Přidat osvědčení';}
+    if(err)err.textContent=(ex&&ex.message)||'Osvědčení se nepodařilo odeslat.';
+  }
+}
 /* ---- formulář ověření (pečovatelka) ---- */
 function renderCgVerify(){
   const st=cgStatus();
@@ -1735,6 +1806,18 @@ function renderCgVerify(){
     `<div class="verify-banner ${b.cls}"><span class="vb-ic">${b.ic}</span><div class="vb-t"><b>${b.t}</b><span>${b.s}${reason}</span></div></div>`;
   const form=document.getElementById('cgVerifyForm');
   const submittedBox=document.getElementById('cgVerifySubmitted');
+  const aside=document.getElementById('cgVerifyAside');
+  const vpanel=document.getElementById('cgVerifiedPanel');
+  const hide=el=>{if(el)el.style.display='none';};
+  hide(vpanel);
+  // Ověřená pečovatelka → schovej formulář i pravý panel, ukaž správu osvědčení
+  if(st==='verified'){
+    hide(form);hide(submittedBox);hide(aside);
+    if(vpanel){vpanel.style.display='';vpanel.innerHTML=renderVerifiedPanel();}
+    ddRefresh();
+    return;
+  }
+  if(aside)aside.style.display='';
   // Máš-li odeslanou (čekající) žádost → skryj formulář a ukaž její přehled (jen ke čtení)
   const mine=VERIFICATIONS.find(v=>v.email===auth.email&&v.status==='submitted');
   if(st==='submitted'&&mine&&submittedBox){

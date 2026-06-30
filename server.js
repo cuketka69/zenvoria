@@ -2013,6 +2013,40 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), h(async (req, 
   res.json({ verification: mapVerification(row) });
 }));
 
+/* ověřená pečovatelka přidá další osvědčení → nová žádost ke schválení (identita převzata z poslední žádosti) */
+app.post('/api/certifications', requireRole('caregiver', 'admin'), h(async (req, res) => {
+  const email = trimmedString(req.session.role === 'admin' ? (req.body && req.body.email) || req.session.email : req.session.email, 320).toLowerCase();
+  const b = req.body || {};
+  const name = trimmedString(b.name, 120);
+  const issuer = trimmedString(b.issuer, 120);
+  const validUntil = trimmedString(b.validUntil, 10);
+  const fileName = trimmedString(b.fileName, 180);
+  const fileData = sanitizeFileDataUrl(b.fileData);
+  if (!name) return res.status(400).json({ error: 'Zadejte název osvědčení.' });
+  if (!issuer) return res.status(400).json({ error: 'Zadejte instituci, která osvědčení vystavila.' });
+  if (validUntil && !/^\d{4}-\d{2}-\d{2}$/.test(validUntil)) return res.status(400).json({ error: 'Neplatná platnost osvědčení.' });
+  if (!fileName || !fileData) return res.status(400).json({ error: 'Nahrajte doklad k osvědčení.' });
+  const pend = await restSelect(T.verifications, `email=eq.${encodeURIComponent(email)}&status=eq.submitted&limit=1`);
+  if (pend && pend[0]) return res.status(409).json({ error: 'Už máte žádost čekající na schválení.' });
+  const baseRows = await restSelect(T.verifications, `email=eq.${encodeURIComponent(email)}&order=id.desc&limit=1`);
+  const base = (baseRows && baseRows[0]) || {};
+  const baseFiles = (base.files && typeof base.files === 'object' && !Array.isArray(base.files)) ? base.files : {};
+  const files = {};
+  ['idfront', 'idback', 'selfie'].forEach((k) => { if (baseFiles[k]) files[k] = baseFiles[k]; });
+  files.doc = fileData;
+  const id = await nextId(T.verifications, 'id');
+  const row = await restInsert(T.verifications, {
+    id, email,
+    name: base.name || '', init: base.init || '', loc: base.loc || '', rate: base.rate || 0, exp: base.exp || 0,
+    phone: base.phone || '', doc_type: base.doc_type || '', doc_num: base.doc_num || '',
+    id_front: base.id_front || '', id_back: base.id_back || '', selfie: base.selfie || '',
+    services: base.services || [], cert: name, issuer, valid_until: validUntil, file_name: fileName,
+    refs: '', note: 'Doplnění osvědčení', bio: base.bio || '', files, status: 'submitted',
+    date: new Date().toISOString().slice(0, 10),
+  });
+  res.json({ verification: mapVerification(row) });
+}));
+
 /* admin si stáhne přílohy žádosti (data URL) — nedávají se do bootstrapu kvůli velikosti */
 app.get('/api/verifications/:id/files', requireRole('admin'), h(async (req, res) => {
   const id = Number(req.params.id);
