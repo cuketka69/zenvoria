@@ -32,7 +32,7 @@ const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' K�
 /* SVG diamant se zeleným obrysem (ostrý, škálovatelný) */
 const diamondSVG=(s,col)=>`<svg width="${s||14}" height="${s||14}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 22 2.5 9.5 6 3.5H18l3.5 6L12 22Z" stroke="${col||'#0A5A34'}" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.5 9.5h19M6 3.5 9 9.5M18 3.5 15 9.5M9 9.5 12 3.5 15 9.5M9 9.5 12 22 15 9.5" stroke="${col||'#0A5A34'}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 /* ikona tarifu: PREMIUM = zelený SVG diamant (jasnější zelená kvůli tmavým kartám/bannerům), START = 🟢 */
-const planIcon=(k,h)=>k==='premium'?diamondSVG(h||16,'#13A552'):'🟢';
+const planIcon=(k,h)=>k==='premium'?diamondSVG(h||16,'#13A552'):`<svg width="${h||16}" height="${h||16}" viewBox="0 0 24 24" style="vertical-align:-2px"><circle cx="12" cy="12" r="9" fill="#13A552"/></svg>`;
 
 /* ---------- ADMIN: fronta žádostí o ověření ---------- */
 /* stav žádosti: submitted | approved | rejected */
@@ -328,7 +328,12 @@ function envelopeSVG(){return '<svg width="19" height="19" viewBox="0 0 24 24" f
 /* SVG zámek (zlatý) pro toasty o hesle */
 function lockSVG(){return '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><rect x="4.5" y="10" width="15" height="10" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15" r="1.4" fill="currentColor"/></svg>';}
 /* SVG osoba (zlatá) pro uvítací toasty po přihlášení */
-function userSVG(){return '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.7"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';}
+function userSVG(s){s=s||19;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.7"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;}
+/* malé inline SVG ikonky pro chipy/odznaky (dědí currentColor) */
+function capSVG(s){s=s||14;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 4 2 9l10 5 8-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 10v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 11.5V16c0 1.3 2.7 2.4 6 2.4s6-1.1 6-2.4v-4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;}
+function speechSVG(s){s=s||14;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M4 5h16v11H9l-5 4V5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;}
+function carSVG(s){s=s||14;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M5 11l1.6-4.6A2 2 0 0 1 8.5 5h7a2 2 0 0 1 1.9 1.4L19 11M4.5 11h15v5h-15v-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="8" cy="16.4" r="1.5" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16.4" r="1.5" stroke="currentColor" stroke-width="1.5"/></svg>`;}
+function starFillSVG(s){s=s||13;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px"><path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17.8 6.8 19.1l1-5.8L3.5 9.2l5.9-.9L12 3Z"/></svg>`;}
 
 /* ---------- THEME ---------- */
 const MOON_ICON='<path d="M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>';
@@ -417,7 +422,7 @@ function renderCare(){
       <div class="care-tags">
         ${cgBadges(c)}
         ${c.services.slice(0,2).map(s=>`<span class="chip">${sName(s)}</span>`).join('')}
-        ${c.kmPrice>0?`<span class="chip">🚗 ${c.kmPrice} Kč/km</span>`:''}
+        ${c.kmPrice>0?`<span class="chip">${carSVG()} ${c.kmPrice} Kč/km</span>`:''}
       </div>
       <div class="care-foot">
         <div class="price">${priceShort(c)}</div>
@@ -442,8 +447,8 @@ function openProfile(id){
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             ${cgBadges(c)}
-            ${c.cert?'<span class="chip">🎓 Ověřené vzdělání</span>':''}
-            ${(c.langs||[]).map(l=>`<span class="chip">🗣️ ${l}</span>`).join('')}
+            ${c.cert?`<span class="chip">${capSVG()} Ověřené vzdělání</span>`:''}
+            ${(c.langs||[]).map(l=>`<span class="chip">${speechSVG()} ${esc(l)}</span>`).join('')}
           </div>
         </div>
       </div>
@@ -1297,7 +1302,7 @@ function kmLabel(c){return (c.kmPrice&&c.kmPrice>0)?`${c.kmPrice} Kč / km`:'V c
 function cgBadges(c,opts){
   opts=opts||{};const b=[];
   if(c.idVerified&&c.verified)b.push('<span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>');
-  if(c.rating>=4.85)b.push('<span class="chip badge-top">⭐ Top hodnocení</span>');
+  if(c.rating>=4.85)b.push(`<span class="chip badge-top">${starFillSVG()} Top hodnocení</span>`);
   if(c.plan==='premium')b.push(`<span class="chip badge-prem">${diamondSVG(13)}<span style="margin-left:4px">Premium</span></span>`);
   return b.slice(0,opts.max||b.length).join('');
 }
@@ -1309,7 +1314,7 @@ function renderPricing(){
   const note=document.getElementById('planCurrentNote');
   note.innerHTML=isCg
     ?`<div class="verify-banner ok" style="margin-bottom:24px"><span class="vb-ic">${planIcon(cur,30)}</span><div class="vb-t"><b>Váš aktuální tarif: ${PLANS[cur].name}</b><span>${cur==='premium'?'Máte vyšší zobrazení a odznak Premium.':'Přejděte na PREMIUM pro vyšší zobrazení a více poptávek.'}</span></div></div>`
-    :`<div class="verify-banner wait" style="margin-bottom:24px"><span class="vb-ic">👩‍⚕️</span><div class="vb-t"><b>Jste pečovatelka?</b><span>Zaregistrujte se a vyberte si tarif. Ceník je informativní.</span></div></div>`;
+    :`<div class="verify-banner wait" style="margin-bottom:24px"><span class="vb-ic" style="color:var(--gold-deep)">${userSVG(26)}</span><div class="vb-t"><b>Jste pečovatelka?</b><span>Zaregistrujte se a vyberte si tarif. Ceník je informativní.</span></div></div>`;
   document.getElementById('planGrid').innerHTML=['start','premium'].map(key=>{
     const p=PLANS[key];const featured=key==='premium';
     let action;

@@ -116,9 +116,9 @@
           <div class="panel-h"><b>Rychlé akce</b></div>
           <div class="qa">
             <button class="qa-item" onclick="go('cg-calendar')"><span class="qa-ic"><img src="calendar.webp" alt="" width="30" height="30" loading="lazy" decoding="async" style="object-fit:contain"></span><span class="qa-l">Nastavit dostupnost</span><span class="qa-ar">›</span></button>
-            <button class="qa-item" onclick="go('cg-profile')"><span class="qa-ic">👤</span><span class="qa-l">Upravit veřejný profil</span><span class="qa-ar">›</span></button>
-            <button class="qa-item" onclick="go('pricing')"><span class="qa-ic">💎</span><span class="qa-l">Předplatné a tarify</span><span class="qa-ar">›</span></button>
-            <button class="qa-item" onclick="toast('🎓 Brzy spouštíme vzdělávací program pro pečovatelky.')"><span class="qa-ic">🎓</span><span class="qa-l">Vzdělávání</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('cg-profile')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="#C9A233" stroke-width="1.7"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="qa-l">Upravit veřejný profil</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('pricing')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 22 2.5 9.5 6 3.5H18l3.5 6L12 22Z" stroke="#C9A233" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.5 9.5h19M9 9.5 12 3.5 15 9.5M9 9.5 12 22 15 9.5" stroke="#C9A233" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="qa-l">Předplatné a tarify</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="toast('Brzy spouštíme vzdělávací program pro pečovatelky.')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 4 2 9l10 5 8-4" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 10v5" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round"/><path d="M6 11.5V16c0 1.3 2.7 2.4 6 2.4s6-1.1 6-2.4v-4.5" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="qa-l">Vzdělávání</span><span class="qa-ar">›</span></button>
           </div>
         </div>
       </div>
@@ -360,8 +360,8 @@
         <div class="chat-head" id="chatHead"></div>
         <div class="chat-body" id="chatBody"></div>
         <div style="display:flex;gap:8px;padding:10px 14px 0" id="chatActions">
-          <button type="button" class="btn btn-ghost btn-sm" onclick="sendTerm()">📅 Poslat termín</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="videoCall()">📹 Videohovor</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="sendTerm()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><rect x="3.5" y="5" width="17" height="16" rx="2.3" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Poslat termín</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="videoCall()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><rect x="3" y="6.5" width="12" height="11" rx="2.3" stroke="currentColor" stroke-width="1.7"/><path d="m15 10.5 5-2.8v8.6l-5-2.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Videohovor</button>
         </div>
         <form class="chat-input" id="chatForm" onsubmit="return sendChat(event)">
           <input id="chatInput" placeholder="Napište zprávu…" autocomplete="off" aria-label="Napsat zprávu">
@@ -690,7 +690,7 @@
           <button class="btn btn-ghost btn-block" style="margin-top:6px" onclick="go('bookings')">Všechny objednávky</button>
         </div>
         <div class="panel">
-          <div class="panel-h"><b>Důvěra a bezpečí</b><span class="badge ok">🛡️</span></div>
+          <div class="panel-h"><b>Důvěra a bezpečí</b><span class="badge ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 3 5 6v5.5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m9 11.5 2 2 3.6-3.9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
           <div id="famTrust"></div>
         </div>
       </div>
@@ -880,8 +880,8 @@
         <h3>Cena předplatného</h3>
         <p style="color:var(--muted);font-size:13.5px;margin:4px 0 14px">Nastavte měsíční cenu obou tarifů pro pečovatelky. <b>START</b> je vstupní tarif po schválení ověření, <b>PREMIUM</b> přidává vyšší zobrazení a další výhody.</p>
         <div class="grid2">
-          <div><label class="lbl">🟢 START (Kč / měsíc)</label><input class="inp" type="number" id="apStart" min="0" max="9999" step="10"></div>
-          <div><label class="lbl">💎 PREMIUM (Kč / měsíc)</label><input class="inp" type="number" id="apPremium" min="0" max="9999" step="10"></div>
+          <div><label class="lbl"><svg width="11" height="11" viewBox="0 0 24 24" style="vertical-align:0"><circle cx="12" cy="12" r="9" fill="#13A552"/></svg> START (Kč / měsíc)</label><input class="inp" type="number" id="apStart" min="0" max="9999" step="10"></div>
+          <div><label class="lbl"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-1px"><path d="M12 22 2.5 9.5 6 3.5H18l3.5 6L12 22Z" stroke="#13A552" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.5 9.5h19M9 9.5 12 3.5 15 9.5M9 9.5 12 22 15 9.5" stroke="#13A552" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg> PREMIUM (Kč / měsíc)</label><input class="inp" type="number" id="apPremium" min="0" max="9999" step="10"></div>
         </div>
         <div class="set-err" id="apErr" style="margin-top:10px"></div>
         <button class="btn btn-gold" type="submit" style="margin-top:18px">Uložit ceny</button>
@@ -955,9 +955,9 @@
       <h3>Soukromí a data</h3>
       <p class="set-sub">Vaše dokumenty a správa dat.</p>
       <div class="set-links">
-        <button class="qa-item" onclick="window.location.href='/ochrana-osobnich-udaju'"><span class="qa-ic">🔒</span><span class="qa-l">Ochrana osobních údajů</span><span class="qa-ar">›</span></button>
-        <button class="qa-item" onclick="window.location.href='/zasady-cookies'"><span class="qa-ic">🍪</span><span class="qa-l">Zásady cookies</span><span class="qa-ar">›</span></button>
-        <button class="qa-item" onclick="exportData()"><span class="qa-ic">⬇️</span><span class="qa-l">Exportovat moje data (JSON)</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="window.location.href='/ochrana-osobnich-udaju'"><span class="qa-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="4.5" y="10" width="15" height="10" rx="2.5" stroke="#C9A233" stroke-width="1.7"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15" r="1.4" fill="#C9A233"/></svg></span><span class="qa-l">Ochrana osobních údajů</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="window.location.href='/zasady-cookies'"><span class="qa-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3a9 9 0 1 0 9 9 3.2 3.2 0 0 1-4-4 3.2 3.2 0 0 1-5-5Z" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/><circle cx="9" cy="13" r="1" fill="#C9A233"/><circle cx="13" cy="16" r="1" fill="#C9A233"/><circle cx="15" cy="11" r="1" fill="#C9A233"/></svg></span><span class="qa-l">Zásady cookies</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="exportData()"><span class="qa-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 4v10m0 0 4-4m-4 4-4-4" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 18h14" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="qa-l">Exportovat moje data (JSON)</span><span class="qa-ar">›</span></button>
       </div>
     </div>
 
