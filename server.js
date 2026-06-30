@@ -193,7 +193,7 @@ function sanitizeSettingValue(key, value) {
 }
 
 /* příloha jako data URL (obrázek / PDF), s limitem velikosti */
-function sanitizeFileDataUrl(v, maxLen = 3 * 1024 * 1024) {
+function sanitizeFileDataUrl(v, maxLen = 7 * 1024 * 1024) {
   const s = typeof v === 'string' ? v : '';
   if (!s) return null;
   if (!/^data:(image\/|application\/pdf|application\/octet-stream|text\/)/i.test(s)) return null;
@@ -1354,7 +1354,7 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
   res.json({ received: true });
 });
 
-app.use(express.json({ limit: '8mb' }));
+app.use(express.json({ limit: '30mb' }));
 app.use(cookieParser());
 app.use(loadSession);
 app.use(refreshSessionCookie);
