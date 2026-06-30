@@ -1645,26 +1645,35 @@ function readVerifyFile(file,cb){
 
 /* přehled už odeslané žádosti (jen ke čtení) — pečovatelka nemůže poslat novou, ale vidí svou */
 function submittedVerificationCard(v){
-  const svc=(v.services||[]).map(s=>`<span class="chip">${esc(sName(s))}</span>`).join('')||'—';
-  const row=(l,r)=>`<div class="row"><span class="l">${l}</span><span class="r">${r}</span></div>`;
+  const svc=(v.services||[]).map(s=>`<span class="chip">${esc(sName(s))}</span>`).join('');
+  const row=(l,r)=>`<div class="vsum-row"><span class="vsum-l">${l}</span><span class="vsum-r">${r}</span></div>`;
+  const clock=svgWrap(30,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.8 1.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');
   return `
-    <h3>Odeslaná žádost o ověření</h3>
-    <p style="color:var(--muted);font-size:13.5px;margin:4px 0 16px">Máte <b>1 žádost</b> odeslanou ke schválení. Dokud ji správce nevyřídí, nelze odeslat novou.</p>
-    ${row('Stav','<span class="badge wait">Čeká na schválení</span>')}
-    ${row('Odesláno',esc(fmtDate(v.date)))}
-    ${row('Jméno',esc(v.name||'—'))}
-    ${row('Lokalita',esc(v.loc||'—'))}
-    <button type="button" class="btn btn-ghost btn-block" style="margin-top:16px" onclick="toggleMyVerifyDetail(this)">Zobrazit žádost</button>
-    <div id="cgVerifyDetail" style="display:none;margin-top:14px">
-      <div class="pdiv"></div>
-      ${row('Telefon',esc(v.phone||'—'))}
-      ${row('Doklad',esc(v.docType||'—')+(v.docNum?' č. '+esc(v.docNum):''))}
-      ${row('Služby','<span style="display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'+svc+'</span>')}
-      ${row('Osvědčení',esc(v.cert||'—')+(v.issuer?' — '+esc(v.issuer):''))}
-      ${v.validUntil?row('Platnost',esc(v.validUntil)):''}
-      ${v.fileName?row('Nahraný doklad',esc(v.fileName)):''}
-      ${v.refs?row('Reference',esc(v.refs)):''}
-      ${v.note?row('Poznámka',esc(v.note)):''}
+    <div class="vsum-head">
+      <span class="vsum-ic" style="color:#B7791F">${clock}</span>
+      <div>
+        <h3 style="margin:0">Odeslaná žádost o ověření</h3>
+        <span style="color:var(--muted);font-size:13px">Dokud ji správce nevyřídí, nelze odeslat novou.</span>
+      </div>
+    </div>
+    <div class="vsum">
+      ${row('Stav','<span class="badge wait">Čeká na schválení</span>')}
+      ${row('Odesláno',esc(fmtDate(v.date)))}
+      ${row('Jméno',esc(v.name||'—'))}
+      ${row('Lokalita',esc(v.loc||'—'))}
+    </div>
+    <button type="button" class="btn btn-ghost btn-block" style="margin-top:18px" onclick="toggleMyVerifyDetail(this)">Zobrazit podrobnosti</button>
+    <div id="cgVerifyDetail" style="display:none;margin-top:8px">
+      <div class="vsum">
+        ${row('Telefon',esc(v.phone||'—'))}
+        ${row('Doklad',esc(v.docType||'—')+(v.docNum?' · č. '+esc(v.docNum):''))}
+        ${row('Osvědčení',esc(v.cert||'—')+(v.issuer?'<br><span style="font-weight:400;color:var(--muted);font-size:13px">'+esc(v.issuer)+'</span>':''))}
+        ${v.validUntil?row('Platnost do',esc(v.validUntil)):''}
+        ${v.fileName?row('Nahraný doklad',esc(v.fileName)):''}
+        ${v.refs?row('Reference',esc(v.refs)):''}
+        ${v.note?row('Poznámka',esc(v.note)):''}
+      </div>
+      ${svc?`<div class="vsum-block"><div class="vsum-l" style="margin-bottom:10px">Nabízené služby</div><div style="display:flex;flex-wrap:wrap;gap:8px">${svc}</div></div>`:''}
     </div>`;
 }
 function toggleMyVerifyDetail(btn){

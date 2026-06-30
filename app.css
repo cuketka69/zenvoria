@@ -969,6 +969,17 @@
   .verify-banner .vb-t{flex:1;min-width:0}
   .verify-banner .vb-t b{display:block;color:var(--navy-900);font-size:15.5px}
   .verify-banner .vb-t span{font-size:13.5px;color:var(--muted)}
+  /* přehled odeslané žádosti o ověření (pečovatelka) */
+  .vsum-head{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+  .vsum-head h3{font-size:18px}
+  .vsum-ic{flex:0 0 auto;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;
+    background:rgba(183,121,31,.12);border:1px solid rgba(183,121,31,.28)}
+  .vsum{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--cream)}
+  .vsum-row{display:flex;justify-content:space-between;align-items:baseline;gap:18px;padding:11px 16px;border-bottom:1px solid var(--line)}
+  .vsum-row:last-child{border-bottom:none}
+  .vsum-l{color:var(--muted);font-size:13px;flex:0 0 auto;white-space:nowrap}
+  .vsum-r{color:var(--navy-900);font-weight:600;font-size:14px;text-align:right;min-width:0;overflow-wrap:anywhere}
+  .vsum-block{margin-top:16px}
   .doc-drop{display:block;border:1.5px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--muted);
     font-size:13.5px;cursor:pointer;transition:.18s;background:var(--cream)}
   .doc-drop:hover{border-color:var(--gold);color:var(--navy-800)}
