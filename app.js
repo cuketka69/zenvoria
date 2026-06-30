@@ -258,7 +258,7 @@ function toggleMenu(open){
 
 /* ---------- KEYBOARD ACTIVATION (role=button) ---------- */
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeAccountMenu();closeAllDD();return;}
+  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeVerifyValidModal();closeAccountMenu();closeAllDD();return;}
   if((e.key==='Enter'||e.key===' ')){
     const el=e.target;
     const r=el&&el.getAttribute&&el.getAttribute('role');
@@ -1651,7 +1651,9 @@ function renderCgVerify(){
   const setv=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
   setv('vfName',auth.name||cgProfile.name);
   setv('vfLoc',cgProfile.loc||'Praha 6');
+  setv('vfValid','');
   setVerifyPhoneValue('');
+  refreshVerifyValidTrigger();
   document.getElementById('vfDocText').innerHTML='<b>Nahrát soubor</b> — PDF, Word, obrázek nebo sken dokladu';
   document.getElementById('vfSelfieText').innerHTML='<b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte';
   document.getElementById('vfIdFrontText').innerHTML='<b>Přední strana</b> — foto nebo sken';
@@ -1710,6 +1712,66 @@ function setVerifyPhoneValue(phone){
   }
   prefixEl.value='+420';
   phoneEl.value=raw;
+}
+function fmtVerifyValidDate(iso){
+  const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m?`${m[3]}.${m[2]}.${m[1]}`:'Vybrat datum';
+}
+function refreshVerifyValidTrigger(){
+  const val=document.getElementById('vfValid')?.value||'';
+  const btn=document.getElementById('vfValidBtn');
+  if(btn)btn.textContent=fmtVerifyValidDate(val);
+}
+function ensureVerifyValidOptions(){
+  const day=document.getElementById('vfValidDay');
+  const month=document.getElementById('vfValidMonth');
+  const year=document.getElementById('vfValidYear');
+  if(!day||day.dataset.ready)return;
+  day.dataset.ready='1';
+  day.innerHTML='<option value="">--</option>'+Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+  month.innerHTML='<option value="">--</option>'+['leden','únor','březen','duben','květen','červen','červenec','srpen','září','říjen','listopad','prosinec'].map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
+  const now=new Date().getFullYear();
+  year.innerHTML='<option value="">--</option>'+Array.from({length:16},(_,i)=>`<option value="${now-2+i}">${now-2+i}</option>`).join('');
+}
+function openVerifyValidModal(){
+  ensureVerifyValidOptions();
+  const val=document.getElementById('vfValid')?.value||'';
+  const m=String(val).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  document.getElementById('vfValidDay').value=m?String(Number(m[3])):'';
+  document.getElementById('vfValidMonth').value=m?String(Number(m[2])):'';
+  document.getElementById('vfValidYear').value=m?m[1]:'';
+  const modal=document.getElementById('verifyDateModal');
+  if(modal){modal.classList.add('open');document.body.style.overflow='hidden';}
+}
+function closeVerifyValidModal(){
+  const modal=document.getElementById('verifyDateModal');
+  if(modal&&modal.classList.contains('open')){modal.classList.remove('open');document.body.style.overflow='';}
+}
+function applyVerifyValidDate(){
+  const day=document.getElementById('vfValidDay')?.value||'';
+  const month=document.getElementById('vfValidMonth')?.value||'';
+  const year=document.getElementById('vfValidYear')?.value||'';
+  const hidden=document.getElementById('vfValid');
+  if(!hidden)return;
+  if(!day||!month||!year){hidden.value='';refreshVerifyValidTrigger();closeVerifyValidModal();return;}
+  hidden.value=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  refreshVerifyValidTrigger();
+  closeVerifyValidModal();
+}
+function clearVerifyValidDate(){
+  const hidden=document.getElementById('vfValid');
+  if(hidden)hidden.value='';
+  if(document.getElementById('vfValidDay'))document.getElementById('vfValidDay').value='';
+  if(document.getElementById('vfValidMonth'))document.getElementById('vfValidMonth').value='';
+  if(document.getElementById('vfValidYear'))document.getElementById('vfValidYear').value='';
+  refreshVerifyValidTrigger();
+  closeVerifyValidModal();
+}
+function setVerifyValidToday(){
+  const now=new Date();
+  document.getElementById('vfValidDay').value=String(now.getDate());
+  document.getElementById('vfValidMonth').value=String(now.getMonth()+1);
+  document.getElementById('vfValidYear').value=String(now.getFullYear());
 }
 function submitVerify(e){
   e.preventDefault();

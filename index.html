@@ -458,6 +458,28 @@
 </div>
 
 <!-- ============ PLATBA PŘEDPLATNÉHO ============ -->
+<div class="modal" id="verifyDateModal" role="dialog" aria-modal="true" aria-labelledby="verifyDateTitle">
+  <div class="modal-scrim" onclick="closeVerifyValidModal()"></div>
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeVerifyValidModal()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <h3 id="verifyDateTitle">Platnost osvědčení</h3>
+    <p class="msub">Vyberte datum platnosti certifikace nebo pole ponechte prázdné.</p>
+    <div class="date-modal-grid">
+      <div><label class="lbl">Den</label><select class="inp" id="vfValidDay"></select></div>
+      <div><label class="lbl">Měsíc</label><select class="inp" id="vfValidMonth"></select></div>
+      <div><label class="lbl">Rok</label><select class="inp" id="vfValidYear"></select></div>
+    </div>
+    <div class="date-modal-actions">
+      <button class="btn btn-ghost" type="button" onclick="clearVerifyValidDate()">Vymazat</button>
+      <button class="btn btn-ghost" type="button" onclick="setVerifyValidToday()">Dnes</button>
+      <button class="btn btn-gold" type="button" onclick="applyVerifyValidDate()">Uložit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PLATBA PŘEDPLATNÉHO ============ -->
 <div class="modal" id="payModal" role="dialog" aria-modal="true" aria-labelledby="payTitle">
   <div class="modal-scrim" onclick="closePay()"></div>
   <div class="modal-card">
