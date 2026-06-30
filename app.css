@@ -997,6 +997,18 @@
   .doc-pill:hover{border-color:var(--gold);color:var(--gold-deep);background:var(--white)}
   .doc-pill span{font-weight:600}
   /* náhled přílohy (obrázek/PDF) přímo na stránce */
+  .adm-ver-toggle{display:flex;align-items:center;gap:12px;width:100%;padding:0;background:none;border:none;color:inherit;text-align:left;cursor:pointer}
+  .adm-ver-toggle-ic{display:grid;place-items:center;flex:0 0 auto;width:28px;height:28px;border-radius:999px;border:1px solid var(--line);color:var(--muted);transition:.18s;background:var(--white)}
+  .adm-ver-row.open .adm-ver-toggle-ic{transform:rotate(180deg);color:var(--gold-deep);border-color:rgba(201,162,51,.45);background:rgba(201,162,51,.1)}
+  .adm-ver-detail-row td{padding:0 18px 18px;border-top:none}
+  .adm-ver-detail{margin:0 0 4px 40px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(250,247,240,.96),rgba(245,240,230,.7))}
+  .vdone-fields{margin-top:0}
+  .vdone-docs{margin-top:16px}
+  @media(max-width:700px){
+    .adm-ver-toggle{align-items:flex-start}
+    .adm-ver-detail{margin-left:0}
+    .adm-ver-detail-row td{padding:0 12px 14px}
+  }
   .file-viewer{position:fixed;inset:0;z-index:200;background:rgba(8,20,14,.78);backdrop-filter:blur(3px);
     display:flex;align-items:center;justify-content:center;padding:24px;animation:fvin .18s ease}
   @keyframes fvin{from{opacity:0}to{opacity:1}}

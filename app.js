@@ -1966,10 +1966,48 @@ function summarizeVerifyCertifications(certs){
 function docPill(id,which,icon,label){
   return `<a role="button" tabindex="0" class="doc-pill" onclick="viewVer(${id},'${which}')">${icon}<span>${esc(label)}</span>${eyeSVG(13)}</a>`;
 }
+function certDocPill(id,idx,icon,label){
+  return `<a role="button" tabindex="0" class="doc-pill" onclick="viewVerCert(${id},${idx})">${icon}<span>${esc(label)}</span>${eyeSVG(13)}</a>`;
+}
 function eyeSVG(s){s=s||14;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/></svg>`;}
+function chevDownSVG(s){s=s||16;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;}
 function verifyCertDetails(v){
   const certs=Array.isArray(v&&v.certifications)&&v.certifications.length?v.certifications:[{name:v&&v.cert,issuer:v&&v.issuer,validUntil:v&&v.validUntil}];
   return certs.filter(item=>item&&item.name).map(item=>`${esc(item.name)} — ${esc(item.issuer||'—')}${item.validUntil?` (platnost ${esc(item.validUntil)})`:''}${item.fileName?` · doklad ${esc(item.fileName)}`:''}`).join('<br>');
+}
+function adminDoneVerifyDocs(v){
+  const certs=Array.isArray(v.certifications)&&v.certifications.length?v.certifications:[{name:v.cert,issuer:v.issuer,validUntil:v.validUntil,fileName:v.fileName}];
+  const docs=[];
+  if(v.idFront)docs.push(docPill(v.id,'idfront',idCardSVG(14),'Doklad - predni'));
+  if(v.idBack)docs.push(docPill(v.id,'idback',idCardSVG(14),'Doklad - zadni'));
+  if(v.selfie)docs.push(docPill(v.id,'selfie',selfieSVG(14),'Selfie'));
+  certs.forEach((item,idx)=>{
+    if(!item||!item.fileName)return;
+    docs.push(idx===0
+      ? docPill(v.id,'doc',docIcon(item.fileName),item.name||'Osvědčení')
+      : certDocPill(v.id,idx,docIcon(item.fileName),item.name||('Osvědčení '+(idx+1))));
+  });
+  return docs.join('');
+}
+const ADM_VER_DONE_OPEN={};
+function toggleAdminDoneVerify(id){
+  ADM_VER_DONE_OPEN[id]=!ADM_VER_DONE_OPEN[id];
+  renderAdminVerify();
+}
+function renderAdminDoneVerifyDetail(v){
+  const svc=(v.services||[]).map(s=>`<span class="chip">${esc(sName2(s))}</span>`).join('');
+  const docs=adminDoneVerifyDocs(v);
+  return `
+    <div class="vreq-fields vdone-fields">
+      <div class="vreq-field"><div class="vreq-k">${shieldSVG(14)} Identita</div><div class="vreq-v">${esc(v.docType||'—')}${v.docNum?` · č. ${esc(v.docNum)}`:''}${v.phone?` · ${esc(v.phone)}`:''}</div></div>
+      <div class="vreq-field"><div class="vreq-k">${capSVG(14)} Osvědčení</div><div class="vreq-v">${verifyCertDetails(v)||'—'}</div></div>
+      ${(v.services||[]).length?`<div class="vreq-field"><div class="vreq-k">Nabízené služby</div><div class="vreq-chips">${svc}</div></div>`:''}
+      ${v.refs?`<div class="vreq-field"><div class="vreq-k">Reference</div><div class="vreq-v">${esc(v.refs)}</div></div>`:''}
+      ${v.note?`<div class="vreq-field"><div class="vreq-k">Poznámka pečovatelky</div><div class="vreq-v">${esc(v.note)}</div></div>`:''}
+      ${v.reason?`<div class="vreq-field"><div class="vreq-k">Důvod rozhodnutí</div><div class="vreq-v">${esc(v.reason)}</div></div>`:''}
+      <div class="vreq-field"><div class="vreq-k">Podáno</div><div class="vreq-v">${fmtDate(v.date)}</div></div>
+    </div>
+    ${docs?`<div class="vreq-docs vdone-docs">${docs}</div>`:''}`;
 }
 function fmtVerifyValidDate(iso){
   const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -2164,43 +2202,52 @@ function renderAdminVerify(){
       ${avaHtml(v.init,userPhotoByEmail(v.email))}
       <div class="ri">
         <div class="vreq-top">
-          <div><b>${esc(v.name)}</b><div class="rd">${esc(v.loc)} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div></div>
+          <div><b>${esc(v.name)}</b><div class="rd">${esc(v.loc)} - sazba ${v.rate} Kc/hod - ${v.exp} let praxe</div></div>
           <div class="req-actions">
-            <button class="btn btn-sm btn-ghost" onclick="downloadWithFx(this,()=>downloadDossier(${v.id}))">${downloadSVG(15)}Stáhnout .zip</button>
-            <button class="btn btn-sm btn-gold" onclick="approveVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 5 5 9-11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Schválit</button>
-            <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Zamítnout</button>
+            <button class="btn btn-sm btn-ghost" onclick="downloadWithFx(this,()=>downloadDossier(${v.id}))">${downloadSVG(15)}Stahnout .zip</button>
+            <button class="btn btn-sm btn-gold" onclick="approveVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 5 5 9-11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Schvalit</button>
+            <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Zamitnout</button>
           </div>
         </div>
         <div class="vreq-fields">
-          <div class="vreq-field"><div class="vreq-k">${shieldSVG(14)} Identita</div><div class="vreq-v">${esc(v.docType||'—')}${v.docNum?' · č. '+esc(v.docNum):''}${v.phone?' · '+esc(v.phone):''}</div></div>
-          <div class="vreq-field"><div class="vreq-k">${capSVG(14)} Osvědčení</div><div class="vreq-v">${verifyCertDetails(v)}</div></div>
-          <div class="vreq-field"><div class="vreq-k">Nabízené služby</div><div class="vreq-chips">${v.services.map(s=>`<span class="chip">${esc(sName2(s))}</span>`).join('')}</div></div>
+          <div class="vreq-field"><div class="vreq-k">${shieldSVG(14)} Identita</div><div class="vreq-v">${esc(v.docType||'-')}${v.docNum?' - c. '+esc(v.docNum):''}${v.phone?' - '+esc(v.phone):''}</div></div>
+          <div class="vreq-field"><div class="vreq-k">${capSVG(14)} Osvedceni</div><div class="vreq-v">${verifyCertDetails(v)}</div></div>
+          <div class="vreq-field"><div class="vreq-k">Nabizene sluzby</div><div class="vreq-chips">${v.services.map(s=>`<span class="chip">${esc(sName2(s))}</span>`).join('')}</div></div>
           ${v.refs?`<div class="vreq-field"><div class="vreq-k">Reference</div><div class="vreq-v">${esc(v.refs)}</div></div>`:''}
-          ${v.note?`<div class="vreq-field"><div class="vreq-k">Poznámka</div><div class="vreq-v" style="font-style:italic">„${esc(v.note)}"</div></div>`:''}
+          ${v.note?`<div class="vreq-field"><div class="vreq-k">Poznamka</div><div class="vreq-v" style="font-style:italic">"${esc(v.note)}"</div></div>`:''}
         </div>
         <div class="vreq-docs">
-          ${v.idFront?docPill(v.id,'idfront',idCardSVG(14),'Doklad – přední'):''}
-          ${v.idBack?docPill(v.id,'idback',idCardSVG(14),'Doklad – zadní'):''}
+          ${v.idFront?docPill(v.id,'idfront',idCardSVG(14),'Doklad - predni'):''}
+          ${v.idBack?docPill(v.id,'idback',idCardSVG(14),'Doklad - zadni'):''}
           ${v.selfie?docPill(v.id,'selfie',selfieSVG(14),'Selfie'):''}
-          ${v.fileName?docPill(v.id,'doc',docIcon(v.fileName),'Osvědčení'):''}
+          ${v.fileName?docPill(v.id,'doc',docIcon(v.fileName),'Osvedceni'):''}
         </div>
-        <span class="rs">Podáno ${fmtDate(v.date)}</span>
+        <span class="rs">Podano ${fmtDate(v.date)}</span>
       </div>
-    </div>`).join(''):'<div class="empty">'+clockSVG(15)+' Žádné čekající žádosti.</div>';
+    </div>`).join(''):'<div class="empty">'+clockSVG(15)+' Zadne cekajici zadosti.</div>';
   document.getElementById('admVerDone').innerHTML=done.length?`
-    <table class="adm-table"><thead><tr><th>Pečovatelka</th><th>Osvědčení</th><th>Datum</th><th style="text-align:right">Výsledek</th></tr></thead><tbody>
-    ${done.slice().reverse().map(v=>`<tr>
-      <td><div class="u-cell">${avaHtml(esc(v.init),userPhotoByEmail(v.email))}<div><b>${esc(v.name)}</b><span>${esc(v.loc)}</span></div></div></td>
-      <td>${v.cert}</td><td>${fmtDate(v.date)}</td>
-      <td style="text-align:right">${verBadge(v.status)}${v.status==='rejected'&&v.reason?`<div class="rd" style="margin-top:4px">${v.reason}</div>`:''}</td>
-    </tr>`).join('')}</tbody></table>`:'<div class="empty">Zatím žádné zpracované žádosti.</div>';
+    <table class="adm-table"><thead><tr><th>Pecovatelka</th><th>Osvedceni</th><th>Datum</th><th style="text-align:right">Vysledek</th></tr></thead><tbody>
+    ${done.slice().reverse().map(v=>{
+      const open=!!ADM_VER_DONE_OPEN[v.id];
+      return `<tr class="adm-ver-row ${open?'open':''}">
+        <td>
+          <button type="button" class="adm-ver-toggle" onclick="toggleAdminDoneVerify(${v.id})" aria-expanded="${open?'true':'false'}">
+            <span class="adm-ver-toggle-ic">${chevDownSVG(16)}</span>
+            <span class="u-cell">${avaHtml(esc(v.init),userPhotoByEmail(v.email))}<span><b>${esc(v.name)}</b><span>${esc(v.loc)}</span></span></span>
+          </button>
+        </td>
+        <td>${esc(v.cert||'—')}</td><td>${fmtDate(v.date)}</td>
+        <td style="text-align:right">${verBadge(v.status)}</td>
+      </tr>
+      ${open?`<tr class="adm-ver-detail-row"><td colspan="4"><div class="adm-ver-detail">${renderAdminDoneVerifyDetail(v)}</div></td></tr>`:''}`;
+    }).join('')}</tbody></table>`:'<div class="empty">Zatím žádné zpracované žádosti.</div>';
 }
-/* ====== ZIP + XLSX generátor (bez knihoven, offline) ====== */
+/* ====== ZIP + XLSX generĂˇtor (bez knihoven, offline) ====== */
 const CRC_TABLE=(()=>{let c,t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;})();
 function crc32(buf){let c=0xFFFFFFFF;for(let i=0;i<buf.length;i++)c=CRC_TABLE[(c^buf[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
 function concatBytes(arrs){let len=arrs.reduce((s,a)=>s+a.length,0),out=new Uint8Array(len),o=0;arrs.forEach(a=>{out.set(a,o);o+=a.length;});return out;}
 function dataURLtoBytes(d){const b64=d.slice(d.indexOf(',')+1);const bin=atob(b64);const u=new Uint8Array(bin.length);for(let j=0;j<bin.length;j++)u[j]=bin.charCodeAt(j);return u;}
-/* ZIP se „store" metodou (bez komprese); files=[{name,data:Uint8Array}] -> Uint8Array */
+/* ZIP se â€žstore" metodou (bez komprese); files=[{name,data:Uint8Array}] -> Uint8Array */
 function zipStore(files){
   const enc=new TextEncoder();const chunks=[],central=[];let offset=0;
   files.forEach(f=>{
@@ -2423,12 +2470,22 @@ async function fetchVerFiles(id){
 /* otevře přílohu žádosti v náhledu na stránce (obrázek / PDF) místo stahování */
 async function viewVer(id,which){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
-  const labels={idfront:'Doklad – přední strana',idback:'Doklad – zadní strana',selfie:'Selfie',doc:'Osvědčení'};
+  const labels={idfront:'Doklad - predni strana',idback:'Doklad - zadni strana',selfie:'Selfie',doc:'Osvedceni'};
   const name=which==='selfie'?v.selfie:(which==='idfront'?v.idFront:(which==='idback'?v.idBack:v.fileName));
   const sf=await fetchVerFiles(id);
   const data=sf[which]||DOC_BLOBS[id+':'+which];
-  if(!data){toast('Soubor není k dispozici (žádost byla podaná před uložením příloh).','declined');return;}
-  openFileViewer(data,labels[which]||name||'Náhled',name,()=>downloadVerData(data,name||which));
+  if(!data){toast('Soubor neni k dispozici (zadost byla podana pred ulozenim priloh).','declined');return;}
+  openFileViewer(data,labels[which]||name||'Nahled',name,()=>downloadVerData(data,name||which));
+}
+async function viewVerCert(id,idx){
+  const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
+  const certs=Array.isArray(v.certifications)&&v.certifications.length?v.certifications:[{name:v.cert,issuer:v.issuer,validUntil:v.validUntil,fileName:v.fileName}];
+  const item=certs[idx];if(!item)return;
+  const sf=await fetchVerFiles(id);
+  const data=idx===0?(sf.doc||DOC_BLOBS[id+':doc']):((sf.certs&&sf.certs[idx-1])||DOC_BLOBS[id+':doc:'+(idx-1)]);
+  if(!data){toast('Soubor neni k dispozici (zadost byla podana pred ulozenim priloh).','declined');return;}
+  const name=item.fileName||('osvedceni-'+(idx+1));
+  openFileViewer(data,item.name||'Osvedceni',name,()=>downloadVerData(data,name));
 }
 function downloadVerData(data,fname){
   const a=document.createElement('a');a.href=data;a.download=fname||'soubor';
