@@ -1878,10 +1878,11 @@ function summarizeVerifyCertifications(certs){
   if(!certs.length)return '';
   return certs.length===1?certs[0].name:`${certs[0].name} + ${certs.length-1} další`;
 }
-/* stahovací „pilulka" dokumentu v admin kartě žádosti */
+/* „pilulka" dokumentu v admin kartě žádosti — klik otevře náhled na stránce */
 function docPill(id,which,icon,label){
-  return `<a role="button" tabindex="0" class="doc-pill" onclick="downloadVer(${id},'${which}')">${icon}<span>${esc(label)}</span>${downloadSVG(12)}</a>`;
+  return `<a role="button" tabindex="0" class="doc-pill" onclick="viewVer(${id},'${which}')">${icon}<span>${esc(label)}</span>${eyeSVG(13)}</a>`;
 }
+function eyeSVG(s){s=s||14;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/></svg>`;}
 function verifyCertDetails(v){
   const certs=Array.isArray(v&&v.certifications)&&v.certifications.length?v.certifications:[{name:v&&v.cert,issuer:v&&v.issuer,validUntil:v&&v.validUntil}];
   return certs.filter(item=>item&&item.name).map(item=>`${esc(item.name)} — ${esc(item.issuer||'—')}${item.validUntil?` (platnost ${esc(item.validUntil)})`:''}${item.fileName?` · doklad ${esc(item.fileName)}`:''}`).join('<br>');
@@ -2323,6 +2324,41 @@ const VER_FILES_CACHE={};
 async function fetchVerFiles(id){
   if(VER_FILES_CACHE[id])return VER_FILES_CACHE[id];
   try{const r=await api('/verifications/'+id+'/files');const f=(r&&r.files)||{};VER_FILES_CACHE[id]=f;return f;}catch(e){return {};}
+}
+/* otevře přílohu žádosti v náhledu na stránce (obrázek / PDF) místo stahování */
+async function viewVer(id,which){
+  const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
+  const labels={idfront:'Doklad – přední strana',idback:'Doklad – zadní strana',selfie:'Selfie',doc:'Osvědčení'};
+  const name=which==='selfie'?v.selfie:(which==='idfront'?v.idFront:(which==='idback'?v.idBack:v.fileName));
+  const sf=await fetchVerFiles(id);
+  const data=sf[which]||DOC_BLOBS[id+':'+which];
+  if(!data){toast('Soubor není k dispozici (žádost byla podaná před uložením příloh).','declined');return;}
+  openFileViewer(data,labels[which]||name||'Náhled',name,()=>downloadVerData(data,name||which));
+}
+function downloadVerData(data,fname){
+  const a=document.createElement('a');a.href=data;a.download=fname||'soubor';
+  document.body.appendChild(a);a.click();a.remove();
+}
+/* lehký modal pro náhled obrázku/PDF přímo na stránce */
+function openFileViewer(data,title,fname,onDownload){
+  const isPdf=/^data:application\/pdf/i.test(data);
+  const ov=document.createElement('div');ov.className='file-viewer';
+  const body=isPdf?`<iframe src="${data}"></iframe>`:`<img src="${data}" alt="${esc(title||'')}">`;
+  ov.innerHTML=`<div class="fv-card" onclick="event.stopPropagation()">
+    <div class="fv-head"><b>${esc(title||'Náhled')}</b>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button type="button" class="btn btn-ghost btn-sm fv-dl">${downloadSVG(14)} Stáhnout</button>
+        <button type="button" class="fv-close" aria-label="Zavřít">×</button>
+      </div>
+    </div>
+    <div class="fv-body">${body}</div>
+  </div>`;
+  const close=()=>{ov.remove();document.body.style.overflow='';};
+  ov.onclick=close;
+  ov.querySelector('.fv-close').onclick=close;
+  ov.querySelector('.fv-dl').onclick=()=>{if(onDownload)onDownload();};
+  document.addEventListener('keydown',function esc2(e){if(e.key==='Escape'){close();document.removeEventListener('keydown',esc2);}});
+  document.body.appendChild(ov);document.body.style.overflow='hidden';
 }
 async function downloadVer(id,which){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
