@@ -220,8 +220,17 @@
         </div>
         <div class="pdiv"></div>
         <h3>Jazyky</h3>
-        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vyberte jazyky, kterými mluvíte.</p>
-        <div class="cg-services" id="cpLangs"></div>
+        <div class="cg-lang-row">
+          <div class="cg-lang-current">
+            <div class="cg-lang-label">Aktuální jazyk</div>
+            <div class="cg-lang-summary" id="cpLangSummary"></div>
+          </div>
+          <button type="button" class="btn btn-ghost cg-lang-toggle" id="cpLangToggle" onclick="toggleCgLangPicker()">Změnit jazyk</button>
+        </div>
+        <div class="cg-lang-picker" id="cpLangPicker" hidden>
+          <p class="cg-lang-help">Vyberte jazyky, kterými mluvíte.</p>
+          <div class="cg-services" id="cpLangs"></div>
+        </div>
         <div class="pdiv"></div>
         <h3>Nabízené služby</h3>
         <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vyberte služby, které nabízíte.</p>

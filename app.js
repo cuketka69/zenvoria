@@ -3107,6 +3107,7 @@ function toggleAvail(i,val){
 function toggleSlot(i,k){cgSlots[i][k]=!cgSlots[i][k];saveCgAvail();renderCgCalendar();}
 
 /* caregiver profile editing */
+let cgLangPickerOpen=false;
 function renderCgProfile(){
   if(auth.role==='caregiver'&&auth.name)cgProfile.name=auth.name;
   document.getElementById('cpName').value=cgProfile.name;
@@ -3187,10 +3188,22 @@ function toggleCgService(id){
   renderCgServiceChips();syncCgPreview();
 }
 function renderCgLangChips(){
-  const wrap=document.getElementById('cpLangs');if(!wrap)return;
+  const wrap=document.getElementById('cpLangs');
+  const summary=document.getElementById('cpLangSummary');
+  const picker=document.getElementById('cpLangPicker');
+  const toggle=document.getElementById('cpLangToggle');
+  if(!wrap||!summary||!picker||!toggle)return;
   if(!Array.isArray(cgProfile.langs))cgProfile.langs=[];
+  summary.textContent=cgProfile.langs.length?cgProfile.langs.join(', '):'Žádný jazyk není vybraný';
+  picker.hidden=!cgLangPickerOpen;
+  toggle.textContent=cgLangPickerOpen?'Zavřít výběr':'Změnit jazyk';
+  toggle.setAttribute('aria-expanded',cgLangPickerOpen?'true':'false');
   wrap.innerHTML=LANGUAGES.map(l=>
     `<button type="button" class="cg-serv ${cgProfile.langs.includes(l)?'on':''}" onclick="toggleCgLang(${jsq(l)})">${esc(l)}</button>`).join('');
+}
+function toggleCgLangPicker(){
+  cgLangPickerOpen=!cgLangPickerOpen;
+  renderCgLangChips();
 }
 function toggleCgLang(l){
   if(!Array.isArray(cgProfile.langs))cgProfile.langs=[];
