@@ -327,6 +327,8 @@ function toast(msg,type,icon){const t=document.getElementById('toast');
 function envelopeSVG(){return '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';}
 /* SVG zámek (zlatý) pro toasty o hesle */
 function lockSVG(){return '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><rect x="4.5" y="10" width="15" height="10" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15" r="1.4" fill="currentColor"/></svg>';}
+/* SVG osoba (zlatá) pro uvítací toasty po přihlášení */
+function userSVG(){return '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.7"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';}
 
 /* ---------- THEME ---------- */
 const MOON_ICON='<path d="M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>';
@@ -958,7 +960,7 @@ async function submitLogin(e){
     loginAs(r.user.name,r.user.email,r.user.role);
     if(r.user.settings)Object.assign(appSettings,r.user.settings);
     await apiSync(bootstrap());updateAuthUI();renderCare();
-    toast(`✓ Vítejte zpět, <b>${esc(auth.name.split(/\s+/)[0])}</b>!`);
+    toast(`Vítejte zpět, <b>${esc(auth.name.split(/\s+/)[0])}</b>!`,null,userSVG());
     if(!resumePendingBooking())go(landingView());
   }catch(err){
     setFieldError('lf-pw',true);
