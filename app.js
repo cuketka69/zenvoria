@@ -1837,6 +1837,10 @@ function summarizeVerifyCertifications(certs){
   if(!certs.length)return '';
   return certs.length===1?certs[0].name:`${certs[0].name} + ${certs.length-1} další`;
 }
+/* stahovací „pilulka" dokumentu v admin kartě žádosti */
+function docPill(id,which,icon,label){
+  return `<a role="button" tabindex="0" class="doc-pill" onclick="downloadVer(${id},'${which}')">${icon}<span>${esc(label)}</span>${downloadSVG(12)}</a>`;
+}
 function verifyCertDetails(v){
   const certs=Array.isArray(v&&v.certifications)&&v.certifications.length?v.certifications:[{name:v&&v.cert,issuer:v&&v.issuer,validUntil:v&&v.validUntil}];
   return certs.filter(item=>item&&item.name).map(item=>`${esc(item.name)} — ${esc(item.issuer||'—')}${item.validUntil?` (platnost ${esc(item.validUntil)})`:''}${item.fileName?` · doklad ${esc(item.fileName)}`:''}`).join('<br>');
@@ -2018,23 +2022,31 @@ function renderAdminVerify(){
   const done=VERIFICATIONS.filter(v=>v.status!=='submitted');
   document.getElementById('admVerCount').textContent=q.length;
   document.getElementById('admVerQueue').innerHTML=q.length?q.map(v=>`
-    <div class="req" style="align-items:flex-start">
+    <div class="req vreq" style="align-items:flex-start">
       <div class="ava">${v.init}</div>
       <div class="ri">
-        <b>${esc(v.name)}</b>
-        <div class="rd">${esc(v.loc)} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
-        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">${shieldSVG(15)} Identita:</b> ${esc(v.docType||'—')}${v.docNum?` č. ${esc(v.docNum)}`:''}${v.phone?` · ${phoneSVG(14)} ${esc(v.phone)}`:''}${v.idFront?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idfront')">${idCardSVG(14)} přední ${downloadSVG(13)}</a>`:''}${v.idBack?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idback')">${idCardSVG(14)} zadní ${downloadSVG(13)}</a>`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">${selfieSVG(14)} selfie ${downloadSVG(13)}</a>`:''}</div>
-        <div class="rd"><b style="color:var(--navy-800)">${capSVG(15)} Osvědčení:</b> ${verifyCertDetails(v)}</div>
-        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">${docIcon(v.fileName)} ${esc(v.fileName)} ${downloadSVG(13)}</a></div>
-        <div class="rd"><b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
-        ${v.refs?`<div class="rd"><b style="color:var(--navy-800)">Reference:</b> ${esc(v.refs)}</div>`:''}
-        ${v.note?`<div class="rd" style="margin-top:6px;font-style:italic">„${esc(v.note)}"</div>`:''}
+        <div class="vreq-top">
+          <div><b>${esc(v.name)}</b><div class="rd">${esc(v.loc)} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div></div>
+          <div class="req-actions">
+            <button class="btn btn-sm btn-ghost" onclick="downloadWithFx(this,()=>downloadDossier(${v.id}))">${downloadSVG(15)}Stáhnout .zip</button>
+            <button class="btn btn-sm btn-gold" onclick="approveVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 5 5 9-11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Schválit</button>
+            <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Zamítnout</button>
+          </div>
+        </div>
+        <div class="vreq-fields">
+          <div class="vreq-field"><div class="vreq-k">${shieldSVG(14)} Identita</div><div class="vreq-v">${esc(v.docType||'—')}${v.docNum?' · č. '+esc(v.docNum):''}${v.phone?' · '+esc(v.phone):''}</div></div>
+          <div class="vreq-field"><div class="vreq-k">${capSVG(14)} Osvědčení</div><div class="vreq-v">${verifyCertDetails(v)}</div></div>
+          <div class="vreq-field"><div class="vreq-k">Nabízené služby</div><div class="vreq-chips">${v.services.map(s=>`<span class="chip">${esc(sName2(s))}</span>`).join('')}</div></div>
+          ${v.refs?`<div class="vreq-field"><div class="vreq-k">Reference</div><div class="vreq-v">${esc(v.refs)}</div></div>`:''}
+          ${v.note?`<div class="vreq-field"><div class="vreq-k">Poznámka</div><div class="vreq-v" style="font-style:italic">„${esc(v.note)}"</div></div>`:''}
+        </div>
+        <div class="vreq-docs">
+          ${v.idFront?docPill(v.id,'idfront',idCardSVG(14),'Doklad – přední'):''}
+          ${v.idBack?docPill(v.id,'idback',idCardSVG(14),'Doklad – zadní'):''}
+          ${v.selfie?docPill(v.id,'selfie',selfieSVG(14),'Selfie'):''}
+          ${v.fileName?docPill(v.id,'doc',docIcon(v.fileName),'Osvědčení'):''}
+        </div>
         <span class="rs">Podáno ${fmtDate(v.date)}</span>
-      </div>
-      <div class="req-actions">
-        <button class="btn btn-sm btn-ghost" onclick="downloadWithFx(this,()=>downloadDossier(${v.id}))"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Stáhnout .zip</button>
-        <button class="btn btn-sm btn-gold" onclick="approveVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 5 5 9-11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Schválit</button>
-        <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Zamítnout</button>
       </div>
     </div>`).join(''):'<div class="empty">Žádné čekající žádosti. '+sparkleSVG()+'</div>';
   document.getElementById('admVerDone').innerHTML=done.length?`
