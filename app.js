@@ -484,6 +484,7 @@ function phoneSVG(s){return svgWrap(s,'<path d="M6 3h3l1.5 5-2 1.5a11 11 0 0 0 5
 function handWaveSVG(s){return svgWrap(s,'<path d="M7 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1V4.5a1.5 1.5 0 0 1 3 0V10m0-1.5V5a1.5 1.5 0 0 1 3 0v6m0-3.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L4 14.2a1.6 1.6 0 0 1 2.6-1.8L8 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>');}
 function infoSVG(s){return svgWrap(s,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor"/>');}
 function sparkleSVG(s){s=s||15;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 3c.6 3.8 1.7 4.9 5.5 5.5C13.7 9.1 12.6 10.2 12 14c-.6-3.8-1.7-4.9-5.5-5.5C10.3 7.9 11.4 6.8 12 3Z" fill="currentColor"/><path d="M18 13c.3 1.9.9 2.5 2.8 2.8-1.9.3-2.5.9-2.8 2.7-.3-1.8-.9-2.4-2.7-2.7 1.8-.3 2.4-.9 2.7-2.8Z" fill="currentColor"/></svg>`;}
+function clockSVG(s){s=s||14;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><circle cx="12" cy="12" r="9" stroke="#C9A233" stroke-width="1.7"/><path d="M12 7.5V12l3 1.8" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;}
 function smileSVG(s){s=s||20;return `<span style="color:#C9A233">${svgWrap(s,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 14a4 4 0 0 0 7 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="9" cy="10" r="1.1" fill="currentColor"/><circle cx="15" cy="10" r="1.1" fill="currentColor"/>')}</span>`;}
 /* prostá fajfka (bez kruhu) pro inline ✓ v UI */
 function checkSVG(s){s=s||13;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M5 12.5l4.2 4.2L19 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;}
@@ -2093,7 +2094,7 @@ function renderAdminVerify(){
         </div>
         <span class="rs">Podáno ${fmtDate(v.date)}</span>
       </div>
-    </div>`).join(''):'<div class="empty">Žádné čekající žádosti. '+sparkleSVG()+'</div>';
+    </div>`).join(''):'<div class="empty">'+clockSVG(15)+' Žádné čekající žádosti.</div>';
   document.getElementById('admVerDone').innerHTML=done.length?`
     <table class="adm-table"><thead><tr><th>Pečovatelka</th><th>Osvědčení</th><th>Datum</th><th style="text-align:right">Výsledek</th></tr></thead><tbody>
     ${done.slice().reverse().map(v=>`<tr>
@@ -2866,7 +2867,7 @@ function reqCardHTML(r){
 }
 function renderCgRequests(){
   document.getElementById('cgReqBadge2').textContent=CG_REQUESTS.length;
-  document.getElementById('cgReqFull').innerHTML=CG_REQUESTS.length?CG_REQUESTS.map(reqCardHTML).join(''):'<div class="empty">Žádné nové poptávky. '+sparkleSVG()+'</div>';
+  document.getElementById('cgReqFull').innerHTML=CG_REQUESTS.length?CG_REQUESTS.map(reqCardHTML).join(''):'<div class="empty">'+clockSVG(15)+' Žádné nové poptávky.</div>';
   document.getElementById('cgConfirmed').innerHTML=cgScheduleHTML();
 }
 function acceptRequest(id){
