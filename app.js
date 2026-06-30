@@ -2055,6 +2055,53 @@ async function renderAdminAudit(){
   }
 }
 
+/* ---- audit log: čitelné české popisky ---- */
+const AUDIT_ACTION_LABELS={
+  'auth.login':'Přihlášení',
+  'auth.logout':'Odhlášení',
+  'auth.register':'Registrace účtu',
+  'auth.change_password':'Změna hesla',
+  'auth.forgot_password':'Žádost o obnovu hesla',
+  'auth.reset_password':'Obnova hesla',
+  'auth.change_email.request':'Žádost o změnu e-mailu',
+  'auth.change_email.code_sent':'Odeslání ověřovacího kódu (e-mail)',
+  'auth.change_email.confirm':'Potvrzení změny e-mailu',
+  'admin.user.update':'Úprava uživatele',
+  'admin.user.delete':'Odebrání uživatele',
+  'admin.caregiver.update':'Úprava pečovatelky',
+  'admin.caregiver.delete':'Odebrání pečovatelky',
+  'admin.verification.approve':'Schválení ověření',
+  'admin.verification.reject':'Zamítnutí ověření',
+  'admin.broadcast.create':'Odeslání hromadné zprávy',
+  'admin.settings.update':'Změna nastavení'
+};
+const AUDIT_STATUS_LABELS={success:'Úspěch',failed:'Selhalo',pending:'Probíhá'};
+const AUDIT_ROLE_LABELS={admin:'Správce',caregiver:'Pečovatelka',family:'Rodina'};
+const AUDIT_TARGET_LABELS={user:'Uživatel',caregiver:'Pečovatelka',verification:'Ověření',setting:'Nastavení',broadcast:'Hromadná zpráva',order:'Objednávka','reset-token':'Token pro obnovu','email-change':'Změna e-mailu'};
+const AUDIT_META_KEYS={reason:'Důvod',userFound:'Uživatel nalezen',plan:'Tarif',status:'Stav',amount:'Částka',audience:'Příjemci',key:'Klíč'};
+const AUDIT_REASONS={invalid_credentials:'Nesprávné údaje',suspended:'Účet pozastaven',expired:'Platnost vypršela',used:'Již použito',invalid:'Neplatné',not_found:'Nenalezeno'};
+const auditActionLabel=a=>AUDIT_ACTION_LABELS[a]||a;
+const auditStatusLabel=s=>AUDIT_STATUS_LABELS[s]||s;
+const auditRoleLabel=r=>AUDIT_ROLE_LABELS[r]||r;
+const auditTargetLabel=t=>AUDIT_TARGET_LABELS[t]||t;
+function auditMetaChip(k,v){
+  const key=AUDIT_META_KEYS[k]||k;
+  let val=String(v);
+  if(k==='reason')val=AUDIT_REASONS[v]||v;
+  else if(val==='true')val='Ano';else if(val==='false')val='Ne';
+  return `<span class="chip">${esc(key)}: ${esc(val)}</span>`;
+}
+/* cíl: „Uživatel · 3e4f61a2…" (zkráceně, plné ID v title) */
+function auditTargetHtml(log){
+  if(!log.targetType&&!log.targetId)return '<span>—</span>';
+  const typ=log.targetType?esc(auditTargetLabel(log.targetType)):'';
+  let id=log.targetId?String(log.targetId):'';
+  const full=id;
+  if(/^[0-9a-f-]{20,}$/i.test(id))id=id.slice(0,8)+'…';
+  const idHtml=id?`<span class="mono" title="${esc(full)}">${esc(id)}</span>`:'';
+  return `<span>${[typ,idHtml].filter(Boolean).join(' · ')}</span>`;
+}
+
 function renderAdminAuditRows(list){
   const body=document.getElementById('admAuditBody');
   const count=document.getElementById('admAuditCount');
@@ -2062,17 +2109,16 @@ function renderAdminAuditRows(list){
   count.textContent=list.length;
   body.innerHTML=list.length?list.map(log=>{
     const actor=esc(log.actorEmail||log.actorId||'—');
-    const target=esc([log.targetType,log.targetId].filter(Boolean).join(' · ')||'—');
     const meta=log.metadata&&typeof log.metadata==='object'
-      ?Object.entries(log.metadata).slice(0,3).map(([k,v])=>`<span class="chip">${esc(k)}: ${esc(String(v))}</span>`).join('')
+      ?Object.entries(log.metadata).slice(0,3).map(([k,v])=>auditMetaChip(k,v)).join('')
       :'';
     const statusCls=log.status==='success'?'ok':(log.status==='failed'?'bad':'wait');
     return `<tr>
       <td>
-        <b>${esc(log.action)}</b>
+        <b title="${esc(log.action)}">${esc(auditActionLabel(log.action))}</b>
         <div class="audit-meta">
-          <span class="badge ${statusCls}">${log.status}</span>
-          ${log.actorRole?`<span class="chip">${esc(log.actorRole)}</span>`:''}
+          <span class="badge ${statusCls}">${esc(auditStatusLabel(log.status))}</span>
+          ${log.actorRole?`<span class="chip">${esc(auditRoleLabel(log.actorRole))}</span>`:''}
         </div>
       </td>
       <td>
@@ -2080,7 +2126,7 @@ function renderAdminAuditRows(list){
         ${log.ip?`<span class="small">IP: ${esc(log.ip)}</span>`:''}
       </td>
       <td>
-        <span>${target}</span>
+        ${auditTargetHtml(log)}
         ${meta?`<div class="audit-meta">${meta}</div>`:''}
       </td>
       <td>
@@ -2095,7 +2141,7 @@ function applyAdminAuditFilters(){
   const q=(document.getElementById('admAuditSearch')?.value||'').trim().toLowerCase();
   const status=(document.getElementById('admAuditStatus')?.value||'').trim().toLowerCase();
   const filtered=AUDIT_LOGS.filter(log=>{
-    const hay=[log.action,log.actorEmail,log.actorId,log.targetType,log.targetId].filter(Boolean).join(' ').toLowerCase();
+    const hay=[log.action,auditActionLabel(log.action),log.actorEmail,log.actorId,log.targetType,auditTargetLabel(log.targetType),log.targetId,auditRoleLabel(log.actorRole)].filter(Boolean).join(' ').toLowerCase();
     if(q && !hay.includes(q)) return false;
     if(status && String(log.status||'').toLowerCase()!==status) return false;
     return true;
