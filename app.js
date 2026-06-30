@@ -3526,6 +3526,39 @@ function initAutoUpdate(){
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden){applyUpdateIfSafe();checkForUpdate();} });
   window.addEventListener('focus',()=>{applyUpdateIfSafe();checkForUpdate();});
 }
+/* ---------- ADMIN: automatické obnovení žádostí o ověření (bez ručního refreshe) ---------- */
+let lastVerSig=null,lastPendingVer=0,adminPolling=false;
+async function pollAdminVerifications(){
+  if(adminPolling||!(auth.loggedIn&&auth.role==='admin'))return;
+  adminPolling=true;
+  try{
+    const r=await api('/verifications');
+    if(!r||!Array.isArray(r.verifications))return;
+    const list=r.verifications;
+    const sig=list.map(v=>v.id+':'+v.status).join('|');
+    if(sig===lastVerSig)return;
+    const firstRun=lastVerSig===null;
+    lastVerSig=sig;
+    VERIFICATIONS=list;
+    verSeq=VERIFICATIONS.reduce((m,v)=>Math.max(m,v.id||0),0);
+    list.forEach(v=>{if(v.email){if(v.status==='approved'||v.status==='verified')cgStatusMap[v.email]='verified';else if(v.status==='rejected')cgStatusMap[v.email]='rejected';else if(v.status==='submitted')cgStatusMap[v.email]='submitted';}});
+    renderNav();
+    const av=activeView();
+    if(av==='admin-verify')renderAdminVerify();
+    else if(av==='admin-dash')renderAdminDash();
+    const pend=pendingVerCount();
+    if(!firstRun&&pend>lastPendingVer)toast('Nová žádost o ověření čeká na schválení.',null,shieldSVG(20));
+    lastPendingVer=pend;
+  }catch(e){}finally{adminPolling=false;}
+}
+function initAdminPoll(){
+  // počáteční stav ze startu, ať se hned nezbytečně nepřekresluje
+  lastVerSig=VERIFICATIONS.map(v=>v.id+':'+v.status).join('|');
+  lastPendingVer=pendingVerCount();
+  setInterval(pollAdminVerifications,12000);            // každých 12 s
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden)pollAdminVerifications(); });
+  window.addEventListener('focus',pollAdminVerifications);
+}
 async function initApp(){
   try{
     const url=new URL(window.location.href);
@@ -3609,5 +3642,6 @@ async function initApp(){
     if(!history.state||history.state.view!==v||(v==='legal'&&history.state.legalKey!==legalCurrentKey))history.replaceState(nextState,'','#'+hash);
   }catch(e){}
   initAutoUpdate();
+  initAdminPoll();
 }
 initApp();

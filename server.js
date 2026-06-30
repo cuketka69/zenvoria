@@ -2023,6 +2023,14 @@ app.get('/api/verifications/:id/files', requireRole('admin'), h(async (req, res)
   res.json({ files: row.files || {} });
 }));
 
+/* lehký seznam žádostí pro admin (bez příloh) — pro automatické obnovení stránky */
+app.get('/api/verifications', requireRole('admin'), h(async (req, res) => {
+  const cols = 'id,name,email,init,loc,rate,exp,phone,doc_type,doc_num,id_front,id_back,selfie,services,cert,issuer,valid_until,file_name,refs,note,bio,status,date,reason';
+  const rows = await restSelect(T.verifications, `select=${cols}&order=id.asc`);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ verifications: (rows || []).map(mapVerification) });
+}));
+
 // admin schválí žádost → vytvoří/aktualizuje pečovatelku (verified), žádost approved
 app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, res) => {
   const id = Number(req.params.id);
