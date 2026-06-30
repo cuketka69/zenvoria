@@ -350,6 +350,25 @@ async function sendMailSafe({ to, subject, text, html }) {
   }
 }
 
+/* odkazy na sociální sítě pro e-maily — drženo v cache, aktualizováno z DB
+   (při startu a po každém admin uložení), ať šablona zůstane synchronní */
+let emailSocialLinks = { facebook: '', instagram: '' };
+function socialIconSpan(glyph, url, last) {
+  const mr = last ? '' : 'margin-right:10px;';
+  const span = `<span style="display:inline-block;width:44px;height:44px;border:1px solid #D9A91D;border-radius:50%;color:#D9A91D;font-size:20px;line-height:44px;text-align:center;${mr}">${glyph}</span>`;
+  return url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block;">${span}</a>` : span;
+}
+function emailSocialIconsHtml() {
+  return socialIconSpan('f', emailSocialLinks.facebook, false) + socialIconSpan('◎', emailSocialLinks.instagram, true);
+}
+async function loadEmailSocialLinks() {
+  try {
+    const rows = await restSelect(T.settings, `key=eq.socialLinks&limit=1`);
+    const v = rows && rows[0] && rows[0].value;
+    if (v && typeof v === 'object') emailSocialLinks = { facebook: v.facebook || '', instagram: v.instagram || '' };
+  } catch (e) { /* ponech výchozí prázdné */ }
+}
+
 function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl, ctaNote, facts, closingTitle, closingSubtitle, footerNote }) {
   const factRows = (facts || []).map((item) =>
     `<tr>
@@ -493,11 +512,7 @@ function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl
                           </td>
                           <td width="33.33%" valign="top" style="padding:34px 28px 32px 28px;">
                             <div style="font-size:13px;line-height:1.2;color:#D9A91D;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:16px;">Sledujte nás</div>
-                            <div>
-                              <span style="display:inline-block;width:44px;height:44px;border:1px solid #D9A91D;border-radius:50%;color:#D9A91D;font-size:20px;line-height:44px;text-align:center;margin-right:10px;">f</span>
-                              <span style="display:inline-block;width:44px;height:44px;border:1px solid #D9A91D;border-radius:50%;color:#D9A91D;font-size:20px;line-height:44px;text-align:center;margin-right:10px;">in</span>
-                              <span style="display:inline-block;width:44px;height:44px;border:1px solid #D9A91D;border-radius:50%;color:#D9A91D;font-size:20px;line-height:44px;text-align:center;">◎</span>
-                            </div>
+                            <div>${emailSocialIconsHtml()}</div>
                           </td>
                         </tr>
                       </table>
@@ -2235,6 +2250,7 @@ app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   const value = sanitizeSettingValue(key, (req.body || {}).value);
   if (value == null) return res.status(400).json({ error: 'Neplatná hodnota nastavení.' });
   await supabaseRestRequest('POST', T.settings, { body: { key, value }, prefer: 'resolution=merge-duplicates,return=minimal' });
+  if (key === 'socialLinks') emailSocialLinks = { facebook: value.facebook || '', instagram: value.instagram || '' };
   fireAudit('admin.settings.update', { req, actor: auditActor(req), targetType: 'setting', targetId: key, status: 'success' });
   res.json({ ok: true });
 }));
@@ -2303,4 +2319,7 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(ROOT, 'index.html'));
 });
 
-app.listen(PORT, () => console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`);
+  loadEmailSocialLinks();
+});
