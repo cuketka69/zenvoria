@@ -1250,11 +1250,21 @@ function mapRequest(r) {
   return { id: Number(r.id), oid: r.oid != null ? Number(r.oid) : null, cid: r.cid != null ? Number(r.cid) : null,
     fam: r.fam, init: r.init, service: r.service, date: r.date, time: r.time, hours: r.hours, addr: r.addr };
 }
+const VERIFY_CERTS_MARKER = '[[CERTS]]';
+function decodeVerificationNote(note) {
+  const raw = String(note || '');
+  const idx = raw.indexOf(VERIFY_CERTS_MARKER);
+  if (idx < 0) return { note: raw, certifications: [] };
+  let certifications = [];
+  try { certifications = JSON.parse(raw.slice(idx + VERIFY_CERTS_MARKER.length)) || []; } catch (e) {}
+  return { note: raw.slice(0, idx).trim(), certifications: Array.isArray(certifications) ? certifications : [] };
+}
 function mapVerification(v) {
+  const parsed = decodeVerificationNote(v.note);
   return { id: Number(v.id), name: v.name, email: v.email, init: v.init, loc: v.loc, rate: v.rate, exp: v.exp,
     phone: v.phone, docType: v.doc_type, docNum: v.doc_num, idFront: v.id_front, idBack: v.id_back, selfie: v.selfie,
     services: v.services || [], cert: v.cert, issuer: v.issuer, validUntil: v.valid_until, fileName: v.file_name,
-    refs: v.refs, note: v.note, bio: v.bio, status: v.status, date: v.date, reason: v.reason };
+    refs: v.refs, note: parsed.note, certifications: parsed.certifications, bio: v.bio, status: v.status, date: v.date, reason: v.reason };
 }
 
 /* ----------------------------------------------------------------------
@@ -1900,12 +1910,19 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), h(async (req, 
   const idBack = trimmedString(b.idBack, 2 * 1024 * 1024);
   const selfie = trimmedString(b.selfie, 2 * 1024 * 1024);
   const services = Array.isArray(b.services) ? b.services.map((item) => trimmedString(item, 40)).filter(Boolean) : [];
-  const cert = trimmedString(b.cert, 120);
-  const issuer = trimmedString(b.issuer, 120);
-  const validUntil = trimmedString(b.validUntil, 10);
+  const rawCertifications = Array.isArray(b.certifications) ? b.certifications : [];
+  const certifications = rawCertifications.map((item) => ({
+    name: trimmedString(item && item.name, 120),
+    issuer: trimmedString(item && item.issuer, 120),
+    validUntil: trimmedString(item && item.validUntil, 10),
+  })).filter((item) => item.name || item.issuer || item.validUntil);
+  const firstCert = certifications[0] || null;
+  const cert = trimmedString(b.cert, 120) || (firstCert ? firstCert.name : '');
+  const issuer = trimmedString(b.issuer, 120) || (firstCert ? firstCert.issuer : '');
+  const validUntil = trimmedString(b.validUntil, 10) || (firstCert ? firstCert.validUntil : '');
   const fileName = trimmedString(b.fileName, 180);
   const refs = trimmedString(b.refs, 1000);
-  const note = trimmedString(b.note, 2000);
+  const note = trimmedString(b.note, 1600);
   const bio = trimmedString(b.bio, 4000);
   if (!name || name.split(/\s+/).filter(Boolean).length < 2) return res.status(400).json({ error: 'Zadejte celé jméno a příjmení.' });
   if (!isEmail(email)) return res.status(400).json({ error: 'Neplatný e-mail pečovatelky.' });
@@ -1916,15 +1933,20 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), h(async (req, 
   if (!docType || !docNum) return res.status(400).json({ error: 'Chybí údaje o dokladu totožnosti.' });
   if (!idFront || !idBack || !selfie) return res.status(400).json({ error: 'Chybí ověřovací fotografie.' });
   if (!services.length || services.length > 20) return res.status(400).json({ error: 'Vyberte alespoň jednu službu.' });
-  if (!cert || !issuer) return res.status(400).json({ error: 'Chybí údaje o osvědčení.' });
+  if (!certifications.length && (!cert || !issuer)) return res.status(400).json({ error: 'Chybí údaje o osvědčení.' });
+  if (certifications.some((item) => !item.name || !item.issuer)) return res.status(400).json({ error: 'Každé osvědčení musí mít název i instituci.' });
+  if (certifications.some((item) => item.validUntil && !/^\d{4}-\d{2}-\d{2}$/.test(item.validUntil))) return res.status(400).json({ error: 'Neplatná platnost osvědčení.' });
   if (validUntil && !/^\d{4}-\d{2}-\d{2}$/.test(validUntil)) return res.status(400).json({ error: 'Neplatná platnost osvědčení.' });
   if (!fileName) return res.status(400).json({ error: 'Chybí název nahraného dokladu.' });
+  const storedNote = certifications.length > 1
+    ? `${note}${note ? `\n${VERIFY_CERTS_MARKER}` : VERIFY_CERTS_MARKER}${JSON.stringify(certifications)}`
+    : note;
   const id = await nextId(T.verifications, 'id');
   const row = await restInsert(T.verifications, {
     id, name, email, init, loc, rate, exp,
     phone, doc_type: docType, doc_num: docNum, id_front: idFront, id_back: idBack, selfie,
     services, cert, issuer, valid_until: validUntil, file_name: fileName,
-    refs, note, bio, status: 'submitted', date: new Date().toISOString().slice(0, 10),
+    refs, note: storedNote, bio, status: 'submitted', date: new Date().toISOString().slice(0, 10),
   });
   res.json({ verification: mapVerification(row) });
 }));

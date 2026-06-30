@@ -1608,6 +1608,8 @@ let verifyIdFrontData='';
 let verifyIdBackName='';
 let verifyIdBackData='';
 /* služby vybrané ve formuláři ověření */
+let verifyExtraCerts=[];
+let verifyValidTarget='primary';
 let verifyServices=[];
 function renderVerifyServiceChips(){
   const wrap=document.getElementById('vfServices');if(!wrap)return;
@@ -1655,7 +1657,11 @@ function renderCgVerify(){
   setv('vfName',auth.name||cgProfile.name);
   setv('vfLoc',cgProfile.loc||'Praha 6');
   setv('vfValid','');
+  setv('vfCert','');
+  setv('vfIssuer','');
   setVerifyPhoneValue('');
+  verifyExtraCerts=[];
+  renderVerifyExtraCerts();
   refreshVerifyValidTrigger();
   document.getElementById('vfDocText').innerHTML='<b>Nahrát soubor</b> — PDF, Word, obrázek nebo sken dokladu';
   document.getElementById('vfSelfieText').innerHTML='<b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte';
@@ -1716,6 +1722,56 @@ function setVerifyPhoneValue(phone){
   prefixEl.value='+420';
   phoneEl.value=raw;
 }
+function renderVerifyExtraCerts(){
+  const wrap=document.getElementById('vfExtraCerts');if(!wrap)return;
+  wrap.innerHTML=verifyExtraCerts.map((item,idx)=>`
+    <div class="pcard" style="padding:18px 18px 16px;margin-top:${idx?12:0}px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px">
+        <b>Další osvědčení ${idx+2}</b>
+        <button type="button" class="btn btn-ghost" onclick="removeVerifyExtraCertification(${idx})">Odebrat</button>
+      </div>
+      <div class="grid2" style="margin-top:6px">
+        <div><label class="lbl">Název osvědčení nebo kurzu</label><input class="inp" value="${esc(item.name||'')}" oninput="updateVerifyExtraCertification(${idx},'name',this.value)" placeholder="Kurz pečovatelství č. ..."></div>
+        <div><label class="lbl">Vystaveno (instituce)</label><input class="inp" value="${esc(item.issuer||'')}" oninput="updateVerifyExtraCertification(${idx},'issuer',this.value)" placeholder="Diakonie ČCE"></div>
+      </div>
+      <div style="margin-top:14px">
+        <label class="lbl">Platnost do</label>
+        <button type="button" class="inp date-trigger" onclick="openVerifyValidModal(${idx})">${fmtVerifyValidDate(item.validUntil)}</button>
+      </div>
+    </div>`).join('');
+}
+function addVerifyExtraCertification(){
+  verifyExtraCerts.push({name:'',issuer:'',validUntil:''});
+  renderVerifyExtraCerts();
+}
+function removeVerifyExtraCertification(idx){
+  verifyExtraCerts.splice(idx,1);
+  renderVerifyExtraCerts();
+}
+function updateVerifyExtraCertification(idx,key,value){
+  if(!verifyExtraCerts[idx])return;
+  verifyExtraCerts[idx][key]=value;
+}
+function getVerifyCertifications(){
+  const first={
+    name:(document.getElementById('vfCert')?.value||'').trim(),
+    issuer:(document.getElementById('vfIssuer')?.value||'').trim(),
+    validUntil:(document.getElementById('vfValid')?.value||'').trim()
+  };
+  return [first].concat(verifyExtraCerts.map(item=>({
+    name:String(item.name||'').trim(),
+    issuer:String(item.issuer||'').trim(),
+    validUntil:String(item.validUntil||'').trim()
+  }))).filter(item=>item.name||item.issuer||item.validUntil);
+}
+function summarizeVerifyCertifications(certs){
+  if(!certs.length)return '';
+  return certs.length===1?certs[0].name:`${certs[0].name} + ${certs.length-1} další`;
+}
+function verifyCertDetails(v){
+  const certs=Array.isArray(v&&v.certifications)&&v.certifications.length?v.certifications:[{name:v&&v.cert,issuer:v&&v.issuer,validUntil:v&&v.validUntil}];
+  return certs.filter(item=>item&&item.name).map(item=>`${esc(item.name)} — ${esc(item.issuer||'—')}${item.validUntil?` (platnost ${esc(item.validUntil)})`:''}`).join('<br>');
+}
 function fmtVerifyValidDate(iso){
   const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m?`${m[3]}.${m[2]}.${m[1]}`:'Vybrat datum';
@@ -1738,9 +1794,12 @@ function ensureVerifyValidOptions(){
   [day,month,year].forEach(enhanceSelect);
   ddRefresh();
 }
-function openVerifyValidModal(){
+function openVerifyValidModal(idx){
   ensureVerifyValidOptions();
-  const val=document.getElementById('vfValid')?.value||'';
+  verifyValidTarget=typeof idx==='number'?idx:'primary';
+  const val=verifyValidTarget==='primary'
+    ?(document.getElementById('vfValid')?.value||'')
+    :((verifyExtraCerts[verifyValidTarget]&&verifyExtraCerts[verifyValidTarget].validUntil)||'');
   const m=String(val).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   document.getElementById('vfValidDay').value=m?String(Number(m[3])):'';
   document.getElementById('vfValidMonth').value=m?String(Number(m[2])):'';
@@ -1756,20 +1815,29 @@ function applyVerifyValidDate(){
   const day=document.getElementById('vfValidDay')?.value||'';
   const month=document.getElementById('vfValidMonth')?.value||'';
   const year=document.getElementById('vfValidYear')?.value||'';
-  const hidden=document.getElementById('vfValid');
-  if(!hidden)return;
-  if(!day||!month||!year){hidden.value='';refreshVerifyValidTrigger();closeVerifyValidModal();return;}
-  hidden.value=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-  refreshVerifyValidTrigger();
+  const value=(!day||!month||!year)?'':`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  if(verifyValidTarget==='primary'){
+    const hidden=document.getElementById('vfValid');
+    if(hidden)hidden.value=value;
+    refreshVerifyValidTrigger();
+  }else if(verifyExtraCerts[verifyValidTarget]){
+    verifyExtraCerts[verifyValidTarget].validUntil=value;
+    renderVerifyExtraCerts();
+  }
   closeVerifyValidModal();
 }
 function clearVerifyValidDate(){
-  const hidden=document.getElementById('vfValid');
-  if(hidden)hidden.value='';
+  if(verifyValidTarget==='primary'){
+    const hidden=document.getElementById('vfValid');
+    if(hidden)hidden.value='';
+    refreshVerifyValidTrigger();
+  }else if(verifyExtraCerts[verifyValidTarget]){
+    verifyExtraCerts[verifyValidTarget].validUntil='';
+    renderVerifyExtraCerts();
+  }
   if(document.getElementById('vfValidDay'))document.getElementById('vfValidDay').value='';
   if(document.getElementById('vfValidMonth'))document.getElementById('vfValidMonth').value='';
   if(document.getElementById('vfValidYear'))document.getElementById('vfValidYear').value='';
-  refreshVerifyValidTrigger();
   closeVerifyValidModal();
 }
 function setVerifyValidToday(){
@@ -1782,7 +1850,10 @@ function submitVerify(e){
   e.preventDefault();
   const g=id=>document.getElementById(id).value.trim();
   const err=document.getElementById('vfErr');err.textContent='';
-  const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum'),cert=g('vfCert'),issuer=g('vfIssuer');
+  const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum');
+  const certifications=getVerifyCertifications();
+  const cert=certifications[0]&&certifications[0].name||'';
+  const issuer=certifications[0]&&certifications[0].issuer||'';
   if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte celé jméno a příjmení.';return false;}
   if(!isPhone(phone)){err.textContent='Zadejte platné telefonní číslo.';return false;}
   if(!docNum){err.textContent='Zadejte číslo dokladu totožnosti.';return false;}
@@ -1834,8 +1905,9 @@ async function submitVerify(e){
   if(!verifyIdFrontName){err.textContent='Nahrajte prosim predni stranu dokladu totoznosti.';return false;}
   if(!verifyIdBackName){err.textContent='Nahrajte prosim zadni stranu dokladu totoznosti.';return false;}
   if(!verifySelfieName){err.textContent='Nahrajte prosim selfie pro overeni totoznosti.';return false;}
-  if(!cert){err.textContent='Uvedte nazev osvedceni nebo kurzu.';return false;}
-  if(!issuer){err.textContent='Uvedte, kdo osvedceni vystavil.';return false;}
+  if(!certifications.length){err.textContent='Uvedte alespon jedno osvedceni nebo kurz.';return false;}
+  if(certifications.some(item=>!item.name)){err.textContent='Doplnte nazev u kazdeho osvedceni.';return false;}
+  if(certifications.some(item=>!item.issuer)){err.textContent='Doplnte instituci u kazdeho osvedceni.';return false;}
   if(!verifyDocName){err.textContent='Nahrajte prosim doklad (osvedceni nebo diplom).';return false;}
   if(!services.length){err.textContent='Vyberte alespon jednu nabizenou sluzbu.';return false;}
   if(!document.getElementById('vfRules').checked){err.textContent='Potvrdte prosim pravdivost udaju a souhlas s pravidly.';return false;}
@@ -1845,7 +1917,7 @@ async function submitVerify(e){
     rate:+g('vfRate')||240,exp:+g('vfExp')||0,phone,
     docType:document.getElementById('vfDocType').value==='pas'?'Cestovni pas':'Obcansky prukaz',docNum,
     idFront:verifyIdFrontName,idBack:verifyIdBackName,selfie:verifySelfieName,
-    services,cert,issuer,validUntil:g('vfValid')||'',
+    services,cert:summarizeVerifyCertifications(certifications),issuer,validUntil:(certifications[0]&&certifications[0].validUntil)||'',certifications,
     fileName:verifyDocName,refs:g('vfRefs'),note:g('vfNote'),bio:cgProfile.bio,
     status:'submitted',date:new Date().toISOString().slice(0,10)
   };
@@ -1919,7 +1991,7 @@ function renderAdminVerify(){
         <b>${esc(v.name)}</b>
         <div class="rd">${esc(v.loc)} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
         <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">${shieldSVG(15)} Identita:</b> ${esc(v.docType||'—')}${v.docNum?` č. ${esc(v.docNum)}`:''}${v.phone?` · ${phoneSVG(14)} ${esc(v.phone)}`:''}${v.idFront?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idfront')">${idCardSVG(14)} přední ${downloadSVG(13)}</a>`:''}${v.idBack?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idback')">${idCardSVG(14)} zadní ${downloadSVG(13)}</a>`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">${selfieSVG(14)} selfie ${downloadSVG(13)}</a>`:''}</div>
-        <div class="rd"><b style="color:var(--navy-800)">${capSVG(15)} Osvědčení:</b> ${esc(v.cert)} — ${esc(v.issuer)} (platnost ${esc(v.validUntil)})</div>
+        <div class="rd"><b style="color:var(--navy-800)">${capSVG(15)} Osvědčení:</b> ${verifyCertDetails(v)}</div>
         <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">${docIcon(v.fileName)} ${esc(v.fileName)} ${downloadSVG(13)}</a></div>
         <div class="rd"><b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
         ${v.refs?`<div class="rd"><b style="color:var(--navy-800)">Reference:</b> ${esc(v.refs)}</div>`:''}
@@ -2124,7 +2196,7 @@ function downloadDossier(id){
     ['Jméno',v.name],['E-mail',v.email],['Telefon',v.phone||''],
     ['Lokalita',v.loc],['Hodinová sazba (Kč)',String(v.rate)],['Praxe (let)',String(v.exp)],
     ['Doklad totožnosti',(v.docType||'')+(v.docNum?' č. '+v.docNum:'')],['Doklad přední (soubor)',v.idFront||''],['Doklad zadní (soubor)',v.idBack||''],['Selfie (soubor)',v.selfie||''],
-    ['Osvědčení',v.cert||''],['Vystavil',v.issuer||''],['Platnost do',v.validUntil||''],
+    ['Osvědčení',Array.isArray(v.certifications)&&v.certifications.length?v.certifications.map(item=>`${item.name}${item.issuer?` — ${item.issuer}`:''}${item.validUntil?` (${item.validUntil})`:''}`).join(' | '):(v.cert||'')],['Vystavil',v.issuer||''],['Platnost do',v.validUntil||''],
     ['Doklad (soubor)',v.fileName||''],['Služby',(v.services||[]).map(sName2).join(', ')],
     ['Reference',v.refs||''],['Poznámka',v.note||''],
     ['Podáno',v.date||''],['Stav',v.status||'']
