@@ -2603,8 +2603,10 @@ function renderAdminCaregivers(){
 function toggleSuspendCg(id){
   const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
   const doIt=()=>{c.suspended=!c.suspended;
+    const u=USERS.find(x=>String(x.email||'').toLowerCase()===String(c.email||'').toLowerCase());
+    if(u)u.status=c.suspended?'suspended':'active';
     apiSync(api('/caregivers/'+id,{method:'PATCH',body:{suspended:c.suspended}}));
-    renderAdminCaregivers();renderCare();
+    renderAdminCaregivers();renderAdminUsers();renderCare();
     toast(c.suspended?`${esc(c.name)} pozastavena.`:`${esc(c.name)} obnovena.`);};
   if(!c.suspended){
     askConfirm({title:'Pozastavit pečovatelku?',icon:pauseSVG(),

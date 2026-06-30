@@ -2274,7 +2274,13 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     patch.avail = patch.avail.map((item) => trimmedString(item, 40));
   }
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
+  const currentRows = await restSelect(T.caregivers, `id=eq.${id}&select=id,email&limit=1`);
+  const currentCaregiver = currentRows && currentRows[0];
   const rows = await restUpdate(T.caregivers, `id=eq.${id}`, patch);
+  if (isAdmin && currentCaregiver && currentCaregiver.email && patch.suspended !== undefined) {
+    const nextUserStatus = patch.suspended ? 'suspended' : 'active';
+    await restUpdate(T.users, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, { status: nextUserStatus }, { prefer: 'return=minimal' });
+  }
   if (isAdmin && (b.suspended !== undefined || b.status !== undefined)) {
     fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { suspended: b.suspended, status: b.status } });
   }
