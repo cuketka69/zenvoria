@@ -2628,44 +2628,53 @@ function removeCaregiver(id){
 }
 
 /* ---- ADMIN: uživatelé (rodiny) ---- */
+function isUserEffectivelySuspended(u){
+  const cg=CAREGIVERS.find(c=>String(c.email||'').toLowerCase()===String(u&&u.email||'').toLowerCase());
+  return !!((u&&u.status==='suspended')||(cg&&cg.suspended));
+}
 function renderAdminUsers(){
   document.getElementById('admUsrCount').textContent=USERS.length;
   document.getElementById('admUsrBody').innerHTML=USERS.map(u=>{
-    const badge=u.status==='suspended'?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
+    const suspended=isUserEffectivelySuspended(u);
+    const badge=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivni</span>';
     return `<tr>
       <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${badge}</td>
       <td><div class="adm-actions">
-        <button class="btn btn-sm ${u.status==='suspended'?'btn-accept':'btn-gold'}" onclick="toggleSuspendUser(${u.id})">${u.status==='suspended'?'Obnovit':'Pozastavit'}</button>
+        <button class="btn btn-sm ${suspended?'btn-accept':'btn-gold'}" onclick="toggleSuspendUser(${u.id})">${suspended?'Obnovit':'Pozastavit'}</button>
         <button class="btn btn-sm btn-decline" onclick="removeUser(${u.id})">Odebrat</button>
       </div></td>
     </tr>`;}).join('');
 }
 function toggleSuspendUser(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
-  const doIt=()=>{u.status=u.status==='suspended'?'active':'suspended';
+  const cg=CAREGIVERS.find(c=>String(c.email||'').toLowerCase()===String(u.email||'').toLowerCase());
+  const suspended=isUserEffectivelySuspended(u);
+  const doIt=()=>{
+    u.status=suspended?'active':'suspended';
+    if(cg)cg.suspended=!suspended;
     apiSync(api('/users/'+u.id,{method:'PATCH',body:{status:u.status}}));
-    renderAdminUsers();
-    toast(u.status==='suspended'?`${esc(u.name)} pozastaven.`:`${esc(u.name)} obnoven.`);};
-  if(u.status!=='suspended'){
-    askConfirm({title:'Pozastavit uživatele?',icon:pauseSVG(),
-      message:`Účet ${esc(u.name)} bude pozastaven, dokud ho znovu neobnovíte.`,
-      confirmLabel:'Pozastavit',onConfirm:doIt});
+    if(cg)apiSync(api('/caregivers/'+cg.id,{method:'PATCH',body:{suspended:cg.suspended}}));
+    renderAdminUsers();renderAdminCaregivers();renderCare();
+    toast(u.status==='suspended'?`${esc(u.name)} pozastaven.`:`${esc(u.name)} obnoven.`);
+  };
+  if(!suspended){
+    askConfirm({title:'Pozastavit uzivatele?',icon:pauseSVG(),
+      message:`Ucet ${esc(u.name)} bude pozastaven, dokud ho znovu neobnovite.`,
+      confirmLabel:'Pozastavit',danger:true,onConfirm:doIt});
   }else doIt();
 }
 function removeUser(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
-  askConfirm({title:'Odebrat uživatele?',icon:trashSVG(),
-    message:`Opravdu chcete odebrat uživatele ${esc(u.name)}? Tato akce je nevratná.`,
+  askConfirm({title:'Odebrat uzivatele?',icon:trashSVG(),
+    message:`Opravdu chcete odebrat uzivatele ${esc(u.name)}? Tato akce je nevratna.`,
     confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
       USERS=USERS.filter(x=>x.id!==id);
       apiSync(api('/users/'+id,{method:'DELETE'}));
       renderAdminUsers();
-      toast(`${esc(u.name)} odebrán.`);
+      toast(`${esc(u.name)} odebran.`);
     }});
 }
-
-/* ---- ADMIN: objednávky ---- */
 function renderAdminOrders(){
   document.getElementById('admOrdCount').textContent=ORDERS.length;
   document.getElementById('admOrdBody').innerHTML=ORDERS.slice().reverse().map(o=>{
