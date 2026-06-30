@@ -1617,6 +1617,59 @@ function submitVerify(e){
   return false;
 }
 
+async function submitVerify(e){
+  e.preventDefault();
+  const g=id=>document.getElementById(id).value.trim();
+  const err=document.getElementById('vfErr');err.textContent='';
+  const btn=document.getElementById('vfSubmitBtn');
+  const name=g('vfName'),phone=g('vfPhone'),docNum=g('vfDocNum'),cert=g('vfCert'),issuer=g('vfIssuer');
+  const services=verifyServices.filter((id,idx,arr)=>arr.indexOf(id)===idx&&SERVICES.some(s=>s.id===id));
+  if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte cele jmeno a prijmeni.';return false;}
+  if(!isPhone(phone)){err.textContent='Zadejte platne telefonni cislo.';return false;}
+  if(!docNum){err.textContent='Zadejte cislo dokladu totoznosti.';return false;}
+  if(!verifyIdFrontName){err.textContent='Nahrajte prosim predni stranu dokladu totoznosti.';return false;}
+  if(!verifyIdBackName){err.textContent='Nahrajte prosim zadni stranu dokladu totoznosti.';return false;}
+  if(!verifySelfieName){err.textContent='Nahrajte prosim selfie pro overeni totoznosti.';return false;}
+  if(!cert){err.textContent='Uvedte nazev osvedceni nebo kurzu.';return false;}
+  if(!issuer){err.textContent='Uvedte, kdo osvedceni vystavil.';return false;}
+  if(!verifyDocName){err.textContent='Nahrajte prosim doklad (osvedceni nebo diplom).';return false;}
+  if(!services.length){err.textContent='Vyberte alespon jednu nabizenou sluzbu.';return false;}
+  if(!document.getElementById('vfRules').checked){err.textContent='Potvrdte prosim pravdivost udaju a souhlas s pravidly.';return false;}
+  if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){err.textContent='Uz mate zadost cekajici na schvaleni.';return false;}
+  const rec={
+    name,email:auth.email,init:initials(name),loc:g('vfLoc'),
+    rate:+g('vfRate')||240,exp:+g('vfExp')||0,phone,
+    docType:document.getElementById('vfDocType').value==='pas'?'Cestovni pas':'Obcansky prukaz',docNum,
+    idFront:verifyIdFrontName,idBack:verifyIdBackName,selfie:verifySelfieName,
+    services,cert,issuer,validUntil:g('vfValid')||'',
+    fileName:verifyDocName,refs:g('vfRefs'),note:g('vfNote'),bio:cgProfile.bio,
+    status:'submitted',date:new Date().toISOString().slice(0,10)
+  };
+  if(btn){btn.disabled=true;btn.dataset.label=btn.textContent;btn.textContent='Odesilam...';}
+  try{
+    const r=await api('/verifications',{method:'POST',body:rec});
+    const saved=(r&&r.verification)||Object.assign({id:++verSeq},rec);
+    if(saved.id>verSeq)verSeq=saved.id;
+    VERIFICATIONS.unshift(saved);
+    if(verifyDocData)DOC_BLOBS[saved.id+':doc']=verifyDocData;
+    if(verifySelfieData)DOC_BLOBS[saved.id+':selfie']=verifySelfieData;
+    if(verifyIdFrontData)DOC_BLOBS[saved.id+':idfront']=verifyIdFrontData;
+    if(verifyIdBackData)DOC_BLOBS[saved.id+':idback']=verifyIdBackData;
+    cgStatusMap[auth.email]='submitted';
+    cgProfile.services=services.slice();
+    verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
+    verifyIdFrontName='';verifyIdFrontData='';verifyIdBackName='';verifyIdBackData='';
+    persist();
+    toast('Zadost odeslana spravci k overeni.');
+    renderCgVerify();renderNav();
+  }catch(ex){
+    err.textContent=ex&&ex.message?ex.message:'Odeslani se nezdarilo.';
+  }finally{
+    if(btn){btn.disabled=false;if(btn.dataset.label)btn.textContent=btn.dataset.label;}
+  }
+  return false;
+}
+
 /* ---- ADMIN: dashboard ---- */
 function renderAdminDash(){
   setAva(document.getElementById('admDashAva'),null,initials(auth.name||'Správce systému'));
