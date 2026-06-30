@@ -102,6 +102,7 @@ const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !=
 const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const APP_URL = process.env.APP_URL || 'https://www.zenvoria.cz';
+const GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY || '';
 
 // --- Stripe (předplatné PREMIUM pro pečovatelky) ---
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
@@ -1354,6 +1355,55 @@ app.get('/api/version', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({ version: APP_VERSION });
 });
+
+function formatPostalCode(postcode) {
+  const digits = String(postcode || '').replace(/\D/g, '');
+  return digits.length === 5 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : String(postcode || '').trim();
+}
+function firstLocationPart(row) {
+  return row.city || row.town || row.village || row.hamlet || row.municipality || row.county || row.state || '';
+}
+app.get('/api/locations/autocomplete', h(async (req, res) => {
+  const q = trimmedString(req.query.q, 120);
+  if (!q || q.length < 2) return res.json({ items: [], source: 'empty' });
+  if (!GEOAPIFY_API_KEY) return res.json({ items: [], source: 'missing-key' });
+  const kind = /^[0-9\s]{2,}$/.test(q) ? 'postcode' : 'city';
+  const params = new URLSearchParams({
+    text: q,
+    lang: 'cs',
+    limit: '8',
+    format: 'json',
+    filter: 'countrycode:cz',
+    type: kind,
+    apiKey: GEOAPIFY_API_KEY,
+  });
+  const url = `https://api.geoapify.com/v1/geocode/autocomplete?${params.toString()}`;
+  const ext = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, 8000);
+  if (!ext.ok) {
+    const body = await ext.text().catch(() => '');
+    throw new Error(`Geoapify ${ext.status}: ${body || ext.statusText}`);
+  }
+  const payload = await ext.json();
+  const seen = new Set();
+  const items = (Array.isArray(payload?.results) ? payload.results : []).map((row) => {
+    const name = firstLocationPart(row);
+    const postcode = formatPostalCode(row.postcode);
+    const region = row.state || row.county || '';
+    const parts = [name, postcode, region].filter(Boolean);
+    const label = parts.join(', ');
+    const key = label.toLowerCase();
+    if (!name || !label || seen.has(key)) return null;
+    seen.add(key);
+    return {
+      label,
+      value: label,
+      name,
+      postcode,
+      region,
+    };
+  }).filter(Boolean);
+  res.json({ items, source: 'geoapify' });
+}));
 
 /* ---------------- AUTH ------------------ */
 async function findUserByEmail(email) {

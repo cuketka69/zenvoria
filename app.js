@@ -312,6 +312,20 @@ function getLocationMatches(query){
   const primary=starts.concat(word);
   return (primary.length?primary:contains).slice(0,8);
 }
+let locationAutocompleteSeq=0;
+async function fetchLocationMatches(query){
+  const q=String(query||'').trim();
+  if(q.length<2)return [];
+  const seq=++locationAutocompleteSeq;
+  try{
+    const res=await fetch('/api/locations/autocomplete?q='+encodeURIComponent(q),{credentials:'include'});
+    let data=null;try{data=await res.json();}catch(e){}
+    if(seq!==locationAutocompleteSeq)return null;
+    if(res.ok&&data&&Array.isArray(data.items)&&data.items.length)return data.items.map(item=>item&&item.label).filter(Boolean);
+  }catch(e){}
+  if(seq!==locationAutocompleteSeq)return null;
+  return getLocationMatches(q);
+}
 function closeLocationMenus(){document.querySelectorAll('.loc-ac.open').forEach(el=>el.classList.remove('open'));}
 function bindLocationAutocomplete(inputId,onPick){
   const input=document.getElementById(inputId);
@@ -326,6 +340,7 @@ function bindLocationAutocomplete(inputId,onPick){
   wrap.appendChild(menu);
   let active=-1;
   let current=[];
+  let timer=null;
   const syncActive=()=>{menu.querySelectorAll('.loc-ac-opt').forEach((el,i)=>el.classList.toggle('active',i===active));};
   const render=items=>{
     current=items.slice();
@@ -347,17 +362,23 @@ function bindLocationAutocomplete(inputId,onPick){
     });
     wrap.classList.add('open');
   };
-  const refresh=()=>{
+  const refresh=async()=>{
     const value=input.value.trim();
     if(!value){wrap.classList.remove('open');return;}
-    render(getLocationMatches(value));
+    const items=await fetchLocationMatches(value);
+    if(items==null||value!==input.value.trim())return;
+    render(items);
   };
   input.addEventListener('focus',refresh);
-  input.addEventListener('input',refresh);
+  input.addEventListener('input',()=>{
+    if(timer)clearTimeout(timer);
+    timer=setTimeout(refresh,180);
+  });
   input.addEventListener('keydown',e=>{
     if((e.key==='ArrowDown'||e.key==='ArrowUp')&&!wrap.classList.contains('open')){
-      refresh();
-      if(!wrap.classList.contains('open'))return;
+      if(timer)clearTimeout(timer);
+      timer=setTimeout(refresh,0);
+      return;
     }
     if(!wrap.classList.contains('open')||!current.length)return;
     if(e.key==='ArrowDown'){e.preventDefault();active=Math.min(active+1,current.length-1);syncActive();}
