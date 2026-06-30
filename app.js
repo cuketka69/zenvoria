@@ -1725,7 +1725,7 @@ function toggleMyVerifyDetail(btn){
   btn.textContent=show?'Skrýt žádost':'Zobrazit žádost';
 }
 /* ---- ověřená pečovatelka: správa / přidávání osvědčení ---- */
-let addCertDocName='',addCertDocData='';
+let addCertDocName='',addCertDocData='',addCertValid='';
 function myCertifications(){
   const all=[];
   VERIFICATIONS.filter(x=>x.email===auth.email&&(x.status==='approved'||x.status==='verified')).forEach(v=>{
@@ -1750,7 +1750,7 @@ function renderVerifiedPanel(){
         <div><label class="lbl">Vystavil (instituce)</label><input class="inp" id="acIssuer" placeholder="Český červený kříž"></div>
       </div>
       <div class="grid2" style="margin-top:14px">
-        <div><label class="lbl">Platnost do (volitelné)</label><input class="inp" type="date" id="acValid"></div>
+        <div><label class="lbl">Platnost do (volitelné)</label><input type="hidden" id="acValid" value="${esc(addCertValid)}"><button type="button" class="inp date-trigger" id="acValidBtn" onclick="openVerifyValidModal('addcert')">${fmtVerifyValidDate(addCertValid)}</button></div>
         <div></div>
       </div>
       <div style="margin-top:14px">
@@ -1779,7 +1779,7 @@ function onAddCertDoc(e){
 async function addCertification(){
   const g=id=>(document.getElementById(id)||{}).value||'';
   const err=document.getElementById('acErr');if(err)err.textContent='';
-  const name=g('acName').trim(),issuer=g('acIssuer').trim(),validUntil=g('acValid').trim();
+  const name=g('acName').trim(),issuer=g('acIssuer').trim(),validUntil=addCertValid||g('acValid').trim();
   if(!name){if(err){err.textContent='Zadejte název osvědčení.';}return;}
   if(!issuer){if(err){err.textContent='Zadejte instituci, která osvědčení vystavila.';}return;}
   if(!addCertDocName){if(err){err.textContent='Nahrajte doklad k osvědčení.';}return;}
@@ -1787,7 +1787,7 @@ async function addCertification(){
   try{
     const r=await api('/certifications',{method:'POST',body:{name,issuer,validUntil,fileName:addCertDocName,fileData:addCertDocData}});
     if(r&&r.verification){VERIFICATIONS.unshift(r.verification);verSeq=Math.max(verSeq,r.verification.id||0);}
-    addCertDocName='';addCertDocData='';
+    addCertDocName='';addCertDocData='';addCertValid='';
     toast('Osvědčení odesláno správci ke schválení.','success');
     renderCgVerify();renderNav();
   }catch(ex){
@@ -1812,9 +1812,9 @@ function renderCgVerify(){
   hide(vpanel);
   // Ověřená pečovatelka → schovej formulář i pravý panel, ukaž správu osvědčení
   if(st==='verified'){
+    addCertDocName='';addCertDocData='';addCertValid='';
     hide(form);hide(submittedBox);hide(aside);
-    if(vpanel){vpanel.style.display='';vpanel.innerHTML=renderVerifiedPanel();}
-    ddRefresh();
+    if(vpanel){vpanel.style.display='';vpanel.innerHTML=renderVerifiedPanel();ddRefresh();}
     return;
   }
   if(aside)aside.style.display='';
@@ -1995,10 +1995,11 @@ function ensureVerifyValidOptions(){
 }
 function openVerifyValidModal(idx){
   ensureVerifyValidOptions();
-  verifyValidTarget=typeof idx==='number'?idx:'primary';
+  verifyValidTarget=typeof idx==='number'?idx:(idx==='addcert'?'addcert':'primary');
   const val=verifyValidTarget==='primary'
     ?(document.getElementById('vfValid')?.value||'')
-    :((verifyExtraCerts[verifyValidTarget]&&verifyExtraCerts[verifyValidTarget].validUntil)||'');
+    :(verifyValidTarget==='addcert'?addCertValid
+    :((verifyExtraCerts[verifyValidTarget]&&verifyExtraCerts[verifyValidTarget].validUntil)||''));
   const m=String(val).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   document.getElementById('vfValidDay').value=m?String(Number(m[3])):'';
   document.getElementById('vfValidMonth').value=m?String(Number(m[2])):'';
@@ -2019,6 +2020,10 @@ function applyVerifyValidDate(){
     const hidden=document.getElementById('vfValid');
     if(hidden)hidden.value=value;
     refreshVerifyValidTrigger();
+  }else if(verifyValidTarget==='addcert'){
+    addCertValid=value;
+    const hidden=document.getElementById('acValid');if(hidden)hidden.value=value;
+    const btn=document.getElementById('acValidBtn');if(btn)btn.textContent=fmtVerifyValidDate(value);
   }else if(verifyExtraCerts[verifyValidTarget]){
     verifyExtraCerts[verifyValidTarget].validUntil=value;
     renderVerifyExtraCerts();
@@ -2030,6 +2035,10 @@ function clearVerifyValidDate(){
     const hidden=document.getElementById('vfValid');
     if(hidden)hidden.value='';
     refreshVerifyValidTrigger();
+  }else if(verifyValidTarget==='addcert'){
+    addCertValid='';
+    const hidden=document.getElementById('acValid');if(hidden)hidden.value='';
+    const btn=document.getElementById('acValidBtn');if(btn)btn.textContent=fmtVerifyValidDate('');
   }else if(verifyExtraCerts[verifyValidTarget]){
     verifyExtraCerts[verifyValidTarget].validUntil='';
     renderVerifyExtraCerts();
