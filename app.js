@@ -957,7 +957,6 @@ function updateAuthUI(){
         +mi("go('admin-verify')",zad,shieldIcon)
         +mi("go('admin-caregivers')",'Pečovatelky','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-users')",'Uživatelé','<circle cx="9" cy="8" r="3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M16 7a3 3 0 0 1 0 6m5 6c0-2.4-1.6-4.2-4-4.8" stroke="#7A736A" stroke-width="1.6"/>')
-        +mi("go('admin-audit')",'Audit logy','<path d="M8 4h8l3 3v13H5V4h3Z" stroke="#7A736A" stroke-width="1.6"/><path d="M8 9h8M8 13h8M8 17h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-social')",'Sociální sítě','<circle cx="6" cy="12" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="6.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="17.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><path d="m8 11 7-3.4M8 13l7 3.4" stroke="#7A736A" stroke-width="1.6"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
