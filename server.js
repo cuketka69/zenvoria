@@ -2037,20 +2037,22 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
   const rows = await restSelect(T.verifications, `id=eq.${id}&limit=1`);
   const v = rows && rows[0];
   if (!v) return res.status(404).json({ error: 'Žádost nenalezena.' });
-  // existuje už pečovatelka s tímto e-mailem?
+  // existuje už pečovatelka s tímto e-mailem? + profilová fotka z uživatele
   let cg = null;
   if (v.email) { const ex = await restSelect(T.caregivers, `email=eq.${encodeURIComponent(v.email)}&limit=1`); cg = ex && ex[0]; }
+  let userId = null, userPhoto = null;
+  if (v.email) { const uref = await restSelect(T.users, `email=eq.${encodeURIComponent(v.email)}&limit=1`); if (uref && uref[0]) { userId = uref[0].id; userPhoto = uref[0].photo || null; } }
   const data = {
     email: v.email, name: v.name, init: v.init, loc: v.loc, rate: v.rate, exp: v.exp,
     services: v.services || [], verified: true, id_verified: true, status: 'verified', suspended: false,
     bio: v.bio, cert: !!v.cert,
+    ...(userPhoto ? { photo: userPhoto } : {}),
   };
   if (cg) {
     await restUpdate(T.caregivers, `id=eq.${cg.id}`, data, { prefer: 'return=minimal' });
   } else {
     const newId = await nextId(T.caregivers, 'id');
-    const uref = await restSelect(T.users, `email=eq.${encodeURIComponent(v.email || '')}&limit=1`);
-    await restInsert(T.caregivers, { id: newId, user_id: (uref && uref[0] && uref[0].id) || null, ...data, rating: 0, reviews: 0, plan: 'start', langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
+    await restInsert(T.caregivers, { id: newId, user_id: userId, ...data, rating: 0, reviews: 0, plan: 'start', langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
   }
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'approved' }, { prefer: 'return=minimal' });
   if (v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: true }) });
