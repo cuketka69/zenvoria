@@ -1910,8 +1910,10 @@ async function submitVerify(e){
     verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
     verifyIdFrontName='';verifyIdFrontData='';verifyIdBackName='';verifyIdBackData='';
     persist();
-    toast('Zadost odeslana spravci k overeni.');
-    renderCgVerify();renderNav();
+    renderNav();
+    toast('Děkujeme! Vaši žádost jsme odeslali ke schválení.','success');
+    // krátká pauza, ať uživatel poděkování uvidí, pak zpět na úvodní stránku
+    setTimeout(()=>go(landingView()),1200);
   }catch(ex){
     err.textContent=ex&&ex.message?ex.message:'Odeslani se nezdarilo.';
   }finally{
