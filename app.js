@@ -1270,7 +1270,7 @@ function famOrderRow(o){
   </div>`;
 }
 function renderFamilyDash(){
-  const name=auth.loggedIn?auth.name:'U�ivatel';
+  const name=auth.loggedIn?auth.name:'Uživatel';
   setAva(document.getElementById('famDashAva'),null,initials(name));
   document.getElementById('famFirst').textContent=name.split(/\s+/)[0];
   const up=ORDERS.filter(o=>['pending','confirmed'].includes(o.status));
@@ -2342,10 +2342,10 @@ function renderCgDashboard(){
     :'Aktuálně nemáte žádné nové poptávky.';
   const earn=CG_SCHEDULE.reduce((s,j)=>s+j.hours*cgProfile.rate,0);
   const stats=[
-    {ic:'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',v:earn.toLocaleString('cs-CZ')+' K�',l:'V�d�lek tento m�s�c',t:null},
+    {ic:'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',v:earn.toLocaleString('cs-CZ')+' Kč',l:'Výdělek tento měsíc',t:null},
     {ic:'M8 2v4M16 2v4M4 9h16M4 5h16v15H4z',v:CG_SCHEDULE.length,l:'Nadcházející služby',t:null},
     {svg:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#C9A233" stroke-width="1.5"/><path d="M8.5 14a4.5 4.5 0 0 0 7 0" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="10" r="1.1" fill="#C9A233"/><circle cx="15" cy="10" r="1.1" fill="#C9A233"/></svg>',v:cgProfile.rating,l:'Hodnocení ('+cgProfile.reviews+')',t:null},
-    {svg:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="#C9A233" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="#C9A233" stroke-width="1.5"/></svg>',v:'�',l:'Zhl�dnut� profilu',t:null}
+    {svg:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="#C9A233" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="#C9A233" stroke-width="1.5"/></svg>',v:'—',l:'Zhlédnutí profilu',t:null}
   ];
   document.getElementById('cgStats').innerHTML=stats.map(s=>`
     <div class="stat">
