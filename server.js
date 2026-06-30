@@ -1336,7 +1336,11 @@ const ROOT = __dirname;
 const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 /* ---------------- HEALTH ---------------- */
-app.get('/api/health', (_req, res) => res.json({ ok: true, rest: REST_ENABLED }));
+app.get('/api/health', (_req, res) => res.json({
+  ok: true,
+  rest: REST_ENABLED,
+  geoapifyConfigured: !!GEOAPIFY_API_KEY,
+}));
 
 /* ---------------- VERZE (auto-reload klientů po deployi) ---------------- */
 /* Otisk frontendu — mění se s každou změnou kódu, takže ho klient pozná a obnoví stránku. */

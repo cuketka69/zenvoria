@@ -1651,6 +1651,7 @@ function renderCgVerify(){
   const setv=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
   setv('vfName',auth.name||cgProfile.name);
   setv('vfLoc',cgProfile.loc||'Praha 6');
+  setVerifyPhoneValue('');
   document.getElementById('vfDocText').innerHTML='<b>Nahrát soubor</b> — PDF, Word, obrázek nebo sken dokladu';
   document.getElementById('vfSelfieText').innerHTML='<b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte';
   document.getElementById('vfIdFrontText').innerHTML='<b>Přední strana</b> — foto nebo sken';
@@ -1691,11 +1692,30 @@ function onVerifyIdBack(e){
   document.getElementById('vfIdBackText').innerHTML=`${idCardSVG(15)} <b>${esc(f.name)}</b>`;
   readVerifyFile(f,res=>{verifyIdBackName=res.name;verifyIdBackData=res.data;document.getElementById('vfIdBackText').innerHTML=`${idCardSVG(15)} <b>${esc(res.name)}</b>`;});
 }
+function getVerifyPhoneValue(){
+  const prefix=(document.getElementById('vfPhonePrefix')?.value||'+420').trim();
+  const local=(document.getElementById('vfPhone')?.value||'').trim();
+  return `${prefix} ${local}`.trim();
+}
+function setVerifyPhoneValue(phone){
+  const raw=String(phone||'').trim();
+  const prefixEl=document.getElementById('vfPhonePrefix');
+  const phoneEl=document.getElementById('vfPhone');
+  if(!prefixEl||!phoneEl)return;
+  const match=raw.match(/^(\+\d{1,4})\s*(.*)$/);
+  if(match){
+    prefixEl.value=Array.from(prefixEl.options).some(o=>o.value===match[1])?match[1]:'+420';
+    phoneEl.value=match[2]||'';
+    return;
+  }
+  prefixEl.value='+420';
+  phoneEl.value=raw;
+}
 function submitVerify(e){
   e.preventDefault();
   const g=id=>document.getElementById(id).value.trim();
   const err=document.getElementById('vfErr');err.textContent='';
-  const name=g('vfName'),phone=g('vfPhone'),docNum=g('vfDocNum'),cert=g('vfCert'),issuer=g('vfIssuer');
+  const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum'),cert=g('vfCert'),issuer=g('vfIssuer');
   if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte celé jméno a příjmení.';return false;}
   if(!isPhone(phone)){err.textContent='Zadejte platné telefonní číslo.';return false;}
   if(!docNum){err.textContent='Zadejte číslo dokladu totožnosti.';return false;}
@@ -1739,7 +1759,7 @@ async function submitVerify(e){
   const g=id=>document.getElementById(id).value.trim();
   const err=document.getElementById('vfErr');err.textContent='';
   const btn=document.getElementById('vfSubmitBtn');
-  const name=g('vfName'),phone=g('vfPhone'),docNum=g('vfDocNum'),cert=g('vfCert'),issuer=g('vfIssuer');
+  const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum'),cert=g('vfCert'),issuer=g('vfIssuer');
   const services=verifyServices.filter((id,idx,arr)=>arr.indexOf(id)===idx&&SERVICES.some(s=>s.id===id));
   if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte cele jmeno a prijmeni.';return false;}
   if(!isPhone(phone)){err.textContent='Zadejte platne telefonni cislo.';return false;}

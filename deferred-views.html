@@ -256,7 +256,7 @@
         <h3>Ověření identity <span class="badge wait" style="font-size:11px">povinné</span></h3>
         <p style="color:var(--muted);font-size:13px;margin:4px 0 12px">Doklad a selfie slouží výhradně k ověření totožnosti (Zenvoria Verified).</p>
         <div class="grid2" style="margin-top:6px">
-          <div><label class="lbl">Telefon</label><input class="inp" id="vfPhone" type="tel" placeholder="+420 777 123 456"></div>
+          <div><label class="lbl">Telefon</label><div style="display:grid;grid-template-columns:120px 1fr;gap:10px"><select class="inp" id="vfPhonePrefix"><option value="+420">+420</option><option value="+421">+421</option><option value="+49">+49</option><option value="+43">+43</option><option value="+48">+48</option></select><input class="inp" id="vfPhone" type="tel" inputmode="tel" placeholder="777 123 456"></div></div>
           <div><label class="lbl">Typ dokladu</label>
             <select class="inp" id="vfDocType"><option value="op">Občanský průkaz</option><option value="pas">Cestovní pas</option></select>
           </div>
