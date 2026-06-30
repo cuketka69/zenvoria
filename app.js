@@ -3407,7 +3407,7 @@ async function initApp(){
   try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
   updateAuthUI();
   renderHome();renderFilters();renderCare();renderCalendar();
-  document.querySelectorAll('select').forEach(enhanceSelect);
+  document.querySelectorAll('select:not([data-no-enh])').forEach(enhanceSelect);
   initReveal();
   // deep-link: lze otevřít přímo konkrétní stránku přes #hash (bez případného ?query)
   let deep='';
