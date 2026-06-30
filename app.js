@@ -1734,7 +1734,7 @@ function ensureVerifyValidOptions(){
   day.innerHTML='<option value="">--</option>'+Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
   month.innerHTML='<option value="">--</option>'+['leden','únor','březen','duben','květen','červen','červenec','srpen','září','říjen','listopad','prosinec'].map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
   const now=new Date().getFullYear();
-  year.innerHTML='<option value="">--</option>'+Array.from({length:16},(_,i)=>`<option value="${now-2+i}">${now-2+i}</option>`).join('');
+  year.innerHTML='<option value="">--</option>'+Array.from({length:41},(_,i)=>`<option value="${now-20+i}">${now-20+i}</option>`).join('');
   [day,month,year].forEach(enhanceSelect);
   ddRefresh();
 }
