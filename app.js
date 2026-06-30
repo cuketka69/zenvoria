@@ -170,6 +170,8 @@ async function go(v,fromPop){
       if(cur!==v||(v==='legal'&&history.state&&history.state.legalKey!==legalCurrentKey))history.pushState(nextState,'','#'+nextHash);
     }catch(e){}
   }
+  // čeká-li nová verze, navigace je přirozený okamžik k obnovení na novou verzi
+  if(typeof updatePending!=='undefined'&&updatePending)applyUpdateIfSafe();
 }
 // Zpět/Vpřed v prohlížeči přepíná views (bez dalšího zápisu do historie).
 window.addEventListener('popstate',function(e){
@@ -2946,6 +2948,46 @@ async function bootstrap(){
   deriveCgMaps();
 }
 /* ---------- INIT ---------- */
+/* ---------- AUTO-UPDATE: obnovení stránky po novém deployi ---------- */
+let appVersion=null;       // verze frontendu při prvním načtení
+let updatePending=false;   // zjištěna nová verze → čeká na bezpečný okamžik k reloadu
+let updateChecking=false;
+async function fetchAppVersion(){
+  try{
+    const r=await fetch('/api/version',{cache:'no-store',credentials:'same-origin'});
+    if(!r.ok)return null;
+    const d=await r.json();
+    return (d&&d.version)||null;
+  }catch(e){return null;}
+}
+async function checkForUpdate(){
+  if(updateChecking)return;
+  updateChecking=true;
+  try{
+    const v=await fetchAppVersion();
+    if(!v)return;
+    if(appVersion===null){appVersion=v;return;}   // první úspěšná kontrola = výchozí verze
+    if(v!==appVersion){updatePending=true;applyUpdateIfSafe();}
+  }finally{updateChecking=false;}
+}
+/* reload jen v bezpečný okamžik — ne když uživatel píše nebo má otevřené modální okno */
+function reloadIsSafe(){
+  const ae=document.activeElement;
+  if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)&&ae.type!=='checkbox'&&ae.type!=='radio')return false;
+  if(document.body&&document.body.style.overflow==='hidden')return false; // otevřený modal/menu
+  return true;
+}
+function applyUpdateIfSafe(){
+  if(!updatePending||!reloadIsSafe())return false;
+  location.reload();
+  return true;
+}
+function initAutoUpdate(){
+  checkForUpdate();                 // zjisti a ulož aktuální verzi
+  setInterval(checkForUpdate,60000); // periodická kontrola každou minutu
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){applyUpdateIfSafe();checkForUpdate();} });
+  window.addEventListener('focus',()=>{applyUpdateIfSafe();checkForUpdate();});
+}
 async function initApp(){
   try{
     const url=new URL(window.location.href);
@@ -3028,5 +3070,6 @@ async function initApp(){
     const nextState=v==='legal'?{view:v,legalKey:legalCurrentKey}:{view:v};
     if(!history.state||history.state.view!==v||(v==='legal'&&history.state.legalKey!==legalCurrentKey))history.replaceState(nextState,'','#'+hash);
   }catch(e){}
+  initAutoUpdate();
 }
 initApp();

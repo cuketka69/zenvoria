@@ -1298,6 +1298,24 @@ const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(
 /* ---------------- HEALTH ---------------- */
 app.get('/api/health', (_req, res) => res.json({ ok: true, rest: REST_ENABLED }));
 
+/* ---------------- VERZE (auto-reload klientů po deployi) ---------------- */
+/* Otisk frontendu — mění se s každou změnou kódu, takže ho klient pozná a obnoví stránku. */
+const APP_VERSION = (() => {
+  try {
+    const hash = crypto.createHash('sha1');
+    for (const f of ['index.html', 'app.js', 'app.css', 'deferred-views.html']) {
+      try { hash.update(fs.readFileSync(path.join(__dirname, f))); } catch (e) { /* soubor může chybět */ }
+    }
+    return hash.digest('hex').slice(0, 12);
+  } catch (e) {
+    return String(Date.now());
+  }
+})();
+app.get('/api/version', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ version: APP_VERSION });
+});
+
 /* ---------------- AUTH ------------------ */
 async function findUserByEmail(email) {
   const rows = await restSelect(T.users, `email=eq.${encodeURIComponent((email || '').toLowerCase())}&limit=1`);
@@ -2235,19 +2253,22 @@ app.use((err, req, res, next) => {
 /* ----------------------------------------------------------------------
    6) STATIKA (frontend) — až po /api
    -------------------------------------------------------------------- */
-const IMMUTABLE_ASSET_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|css|js|woff2?)$/i;
+const IMMUTABLE_ASSET_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$/i;
+/* aplikační kód (app.js/app.css/*.html) se musí revalidovat, aby po deployi
+   reload stáhl novou verzi; statická média (obrázky/fonty) zůstanou immutable. */
+const REVALIDATE_ASSET_RE = /(?:\.html?|app\.js|app\.css|deferred-views\.html)$/i;
 app.use(express.static(ROOT, {
   extensions: ['html'],
   index: 'index.html',
   etag: true,
   lastModified: true,
   setHeaders(res, filePath) {
-    if (IMMUTABLE_ASSET_RE.test(filePath)) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    if (REVALIDATE_ASSET_RE.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');
       return;
     }
-    if (/\.html?$/i.test(filePath)) {
-      res.setHeader('Cache-Control', 'no-cache');
+    if (IMMUTABLE_ASSET_RE.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     }
   },
 }));
