@@ -1174,6 +1174,21 @@ function loadSession(req, _res, next) {
   }
   next();
 }
+async function enforceActiveSession(req, res, next) {
+  if (!req.session || !req.session.uid) return next();
+  try {
+    const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(req.session.uid)}&select=id,status&limit=1`);
+    const user = rows && rows[0];
+    if (!user || user.status === 'suspended') {
+      clearSession(res);
+      req.session = null;
+      return next();
+    }
+  } catch (e) {
+    console.warn('[auth] session status check failed:', e.message);
+  }
+  next();
+}
 function refreshSessionCookie(req, res, next) {
   if (req.session && req.sessionRefresh) {
     setSession(res, {
@@ -1357,6 +1372,7 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
 app.use(express.json({ limit: '30mb' }));
 app.use(cookieParser());
 app.use(loadSession);
+app.use(enforceActiveSession);
 app.use(refreshSessionCookie);
 app.use(requireCsrf);
 

@@ -851,6 +851,14 @@ async function logout(){
 }
 
 /* ---------- NASTAVENÍ ---------- */
+async function forceLogout(reason){
+  auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.photo=null;
+  closeAccountMenu();
+  await apiSync(bootstrap());
+  updateAuthUI();renderCare();
+  if(reason)toast(reason,'declined');
+  go('home');
+}
 let appSettings={email:true,requests:true,chat:true,reminders:true};
 function renderSettings(){
   ['email','requests','chat','reminders'].forEach(k=>{
@@ -3747,6 +3755,25 @@ function initAdminPoll(){
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden)pollAdminVerifications(); });
   window.addEventListener('focus',pollAdminVerifications);
 }
+let authWatchBusy=false;
+async function pollAuthSession(){
+  if(authWatchBusy||!auth.loggedIn)return;
+  authWatchBusy=true;
+  try{
+    const r=await fetch('/api/auth/me',{credentials:'same-origin',cache:'no-store'});
+    if(!r.ok){
+      if(r.status===401||r.status===403)await forceLogout('Ucet byl odhlasen spravcem.');
+      return;
+    }
+    const data=await r.json();
+    if(!data||!data.user)await forceLogout('Ucet byl odhlasen spravcem.');
+  }catch(e){}finally{authWatchBusy=false;}
+}
+function initAuthWatch(){
+  setInterval(pollAuthSession,15000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden)pollAuthSession(); });
+  window.addEventListener('focus',pollAuthSession);
+}
 async function initApp(){
   try{
     const url=new URL(window.location.href);
@@ -3831,5 +3858,6 @@ async function initApp(){
   }catch(e){}
   initAutoUpdate();
   initAdminPoll();
+  initAuthWatch();
 }
 initApp();
