@@ -281,16 +281,19 @@ function enhanceSelect(sel){
   btn.appendChild(lbl); btn.appendChild(car);
   const menu=document.createElement('div'); menu.className='dd-menu'; menu.setAttribute('role','listbox');
   const sync=()=>{lbl.textContent=sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:'';};
-  Array.from(sel.options).forEach((o,i)=>{
-    const it=document.createElement('div'); it.className='dd-opt'+(i===sel.selectedIndex?' sel':''); it.textContent=o.text; it.setAttribute('role','option');
-    it.onclick=()=>{sel.selectedIndex=i;sync();menu.querySelectorAll('.dd-opt').forEach(x=>x.classList.remove('sel'));it.classList.add('sel');wrap.classList.remove('open');sel.dispatchEvent(new Event('change',{bubbles:true}));};
-    menu.appendChild(it);
-  });
+  const build=()=>{
+    menu.innerHTML='';
+    Array.from(sel.options).forEach((o,i)=>{
+      const it=document.createElement('div'); it.className='dd-opt'+(i===sel.selectedIndex?' sel':''); it.textContent=o.text; it.setAttribute('role','option');
+      it.onclick=()=>{sel.selectedIndex=i;sync();menu.querySelectorAll('.dd-opt').forEach(x=>x.classList.remove('sel'));it.classList.add('sel');wrap.classList.remove('open');sel.dispatchEvent(new Event('change',{bubbles:true}));};
+      menu.appendChild(it);
+    });
+  };
   btn.onclick=e=>{e.stopPropagation();const op=wrap.classList.contains('open');closeAllDD();if(!op)wrap.classList.add('open');};
-  wrap.appendChild(btn); wrap.appendChild(menu);
+  wrap.appendChild(btn); wrap.appendChild(menu); build();
   sel.style.display='none'; sel.parentNode.insertBefore(wrap,sel.nextSibling); sync();
   // refresh popisku + zvýraznění (po programové změně hodnoty)
-  sel._ddRefresh=()=>{sync();const items=menu.querySelectorAll('.dd-opt');items.forEach((x,i)=>x.classList.toggle('sel',i===sel.selectedIndex));};
+  sel._ddRefresh=()=>{build();sync();const items=menu.querySelectorAll('.dd-opt');items.forEach((x,i)=>x.classList.toggle('sel',i===sel.selectedIndex));};
   sel.addEventListener('change',sel._ddRefresh);
 }
 function ddRefresh(){document.querySelectorAll('select[data-enh]').forEach(s=>s._ddRefresh&&s._ddRefresh());}
@@ -1732,6 +1735,8 @@ function ensureVerifyValidOptions(){
   month.innerHTML='<option value="">--</option>'+['leden','únor','březen','duben','květen','červen','červenec','srpen','září','říjen','listopad','prosinec'].map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
   const now=new Date().getFullYear();
   year.innerHTML='<option value="">--</option>'+Array.from({length:16},(_,i)=>`<option value="${now-2+i}">${now-2+i}</option>`).join('');
+  [day,month,year].forEach(enhanceSelect);
+  ddRefresh();
 }
 function openVerifyValidModal(){
   ensureVerifyValidOptions();
@@ -3407,7 +3412,7 @@ async function initApp(){
   try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
   updateAuthUI();
   renderHome();renderFilters();renderCare();renderCalendar();
-  document.querySelectorAll('select:not([data-no-enh])').forEach(enhanceSelect);
+  document.querySelectorAll('select').forEach(enhanceSelect);
   initReveal();
   // deep-link: lze otevřít přímo konkrétní stránku přes #hash (bez případného ?query)
   let deep='';
