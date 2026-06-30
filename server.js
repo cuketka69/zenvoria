@@ -192,6 +192,26 @@ function sanitizeSettingValue(key, value) {
   return null;
 }
 
+/* příloha jako data URL (obrázek / PDF), s limitem velikosti */
+function sanitizeFileDataUrl(v, maxLen = 3 * 1024 * 1024) {
+  const s = typeof v === 'string' ? v : '';
+  if (!s) return null;
+  if (!/^data:(image\/|application\/pdf|application\/octet-stream|text\/)/i.test(s)) return null;
+  if (s.length > maxLen) return null;
+  return s;
+}
+/* soubory přiložené k žádosti o ověření -> { idfront, idback, selfie, doc, certs:[...] } */
+function sanitizeVerificationFiles(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out = {};
+  ['idfront', 'idback', 'selfie', 'doc'].forEach((k) => { const f = sanitizeFileDataUrl(value[k]); if (f) out[k] = f; });
+  if (Array.isArray(value.certs)) {
+    const certs = value.certs.slice(0, 12).map((c) => sanitizeFileDataUrl(c)).filter(Boolean);
+    if (certs.length) out.certs = certs;
+  }
+  return out;
+}
+
 function getClientIp(req) {
   const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
   return forwarded || req.ip || req.socket?.remoteAddress || 'unknown';
@@ -1982,14 +2002,25 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), h(async (req, 
   const storedNote = certifications.length > 1
     ? `${note}${note ? `\n${VERIFY_CERTS_MARKER}` : VERIFY_CERTS_MARKER}${JSON.stringify(certifications)}`
     : note;
+  const files = sanitizeVerificationFiles(b.files);
   const id = await nextId(T.verifications, 'id');
   const row = await restInsert(T.verifications, {
     id, name, email, init, loc, rate, exp,
     phone, doc_type: docType, doc_num: docNum, id_front: idFront, id_back: idBack, selfie,
     services, cert, issuer, valid_until: validUntil, file_name: fileName,
-    refs, note: storedNote, bio, status: 'submitted', date: new Date().toISOString().slice(0, 10),
+    refs, note: storedNote, bio, files, status: 'submitted', date: new Date().toISOString().slice(0, 10),
   });
   res.json({ verification: mapVerification(row) });
+}));
+
+/* admin si stáhne přílohy žádosti (data URL) — nedávají se do bootstrapu kvůli velikosti */
+app.get('/api/verifications/:id/files', requireRole('admin'), h(async (req, res) => {
+  const id = Number(req.params.id);
+  const rows = await restSelect(T.verifications, `id=eq.${id}&select=files&limit=1`);
+  const row = rows && rows[0];
+  if (!row) return res.status(404).json({ error: 'Žádost nenalezena.' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ files: row.files || {} });
 }));
 
 // admin schválí žádost → vytvoří/aktualizuje pečovatelku (verified), žádost approved

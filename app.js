@@ -1994,6 +1994,7 @@ async function submitVerify(e){
     idFront:verifyIdFrontName,idBack:verifyIdBackName,selfie:verifySelfieName,
     services,cert:summarizeVerifyCertifications(certifications),issuer:(certifications[0]&&certifications[0].issuer)||'',validUntil:(certifications[0]&&certifications[0].validUntil)||'',certifications,
     fileName:verifyDocName,refs:g('vfRefs'),note:g('vfNote'),bio:cgProfile.bio,
+    files:{idfront:verifyIdFrontData||'',idback:verifyIdBackData||'',selfie:verifySelfieData||'',doc:verifyDocData||'',certs:verifyExtraCerts.map(it=>it.docData||'').filter(Boolean)},
     status:'submitted',date:new Date().toISOString().slice(0,10)
   };
   if(btn){btn.disabled=true;btn.dataset.label=btn.textContent;btn.textContent='Odesilam...';}
@@ -2273,33 +2274,34 @@ function downloadWithFx(btn,fn){
   },950);
 }
 /* stáhne ZIP složku: Excel s údaji + přiložené soubory (doklad, selfie) */
-function downloadDossier(id){
+async function downloadDossier(id){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
   const enc=new TextEncoder();
+  const certs=Array.isArray(v.certifications)&&v.certifications.length?v.certifications:[{name:v.cert,issuer:v.issuer,validUntil:v.validUntil,fileName:v.fileName}];
   const rows=[
     ['ZENVORIA — žádost o ověření pečovatelky',''],
     ['',''],
     ['Jméno',v.name],['E-mail',v.email],['Telefon',v.phone||''],
     ['Lokalita',v.loc],['Hodinová sazba (Kč)',String(v.rate)],['Praxe (let)',String(v.exp)],
     ['Doklad totožnosti',(v.docType||'')+(v.docNum?' č. '+v.docNum:'')],['Doklad přední (soubor)',v.idFront||''],['Doklad zadní (soubor)',v.idBack||''],['Selfie (soubor)',v.selfie||''],
-    ['Osvědčení',Array.isArray(v.certifications)&&v.certifications.length?v.certifications.map(item=>`${item.name}${item.issuer?` — ${item.issuer}`:''}${item.validUntil?` (${item.validUntil})`:''}`).join(' | '):(v.cert||'')],['Vystavil',v.issuer||''],['Platnost do',v.validUntil||''],
+    ['Osvědčení',certs.map(item=>`${item.name||''}${item.issuer?` — ${item.issuer}`:''}${item.validUntil?` (${item.validUntil})`:''}`).join(' | ')],['Vystavil',v.issuer||''],['Platnost do',v.validUntil||''],
     ['Doklad (soubor)',v.fileName||''],['Služby',(v.services||[]).map(sName2).join(', ')],
     ['Reference',v.refs||''],['Poznámka',v.note||''],
     ['Podáno',v.date||''],['Stav',v.status||'']
   ];
   const files=[{name:'udaje.xlsx',data:xlsxFromRows(rows)}];
-  // přílohy do podsložky "prilohy/"
-  [['doc',v.fileName],['idfront',v.idFront],['idback',v.idBack],['selfie',v.selfie]].forEach(([k,nm])=>{
-    if(!nm&&!DOC_BLOBS[id+':'+k])return;
-    const blob=DOC_BLOBS[id+':'+k];
-    if(blob){files.push({name:'prilohy/'+(nm||k),data:dataURLtoBytes(blob)});}
-    else{
-      const txt=`Zástupný soubor (demo).\nPůvodní příloha: ${nm||k}\nPečovatelka: ${v.name}\n\n`+
-        `Skutečný soubor nahrála pečovatelka ve svém prohlížeči; po obnovení stránky nebo u demo žádosti se generuje tento placeholder.`;
-      const base=(nm?nm.replace(/\.[^.]+$/,''):k);
-      files.push({name:'prilohy/'+base+'.txt',data:enc.encode(txt)});
-    }
-  });
+  // skutečné přílohy ze serveru (admin); fallback DOC_BLOBS (stejná session)
+  const sf=await fetchVerFiles(id);
+  const pick=k=>sf[k]||DOC_BLOBS[id+':'+k]||null;
+  const addFile=(data,nm,k)=>{
+    if(data){files.push({name:'prilohy/'+(nm||k),data:dataURLtoBytes(data)});}
+    else if(nm){files.push({name:'prilohy/'+nm.replace(/\.[^.]+$/,'')+'.txt',data:enc.encode('Soubor není k dispozici (demo).')});}
+  };
+  addFile(pick('idfront'),v.idFront,'doklad-predni');
+  addFile(pick('idback'),v.idBack,'doklad-zadni');
+  addFile(pick('selfie'),v.selfie,'selfie');
+  addFile(pick('doc'),(certs[0]&&certs[0].fileName)||v.fileName,'osvedceni-1');
+  (sf.certs||[]).forEach((d,i)=>{const nm=(certs[i+1]&&certs[i+1].fileName)||('osvedceni-'+(i+2));addFile(d||DOC_BLOBS[id+':doc:'+i],nm,'osvedceni-'+(i+2));});
   const zip=zipStore(files);
   const blob=new Blob([zip],{type:'application/zip'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='overeni-'+slug(v.name)+'.zip';
@@ -2316,10 +2318,17 @@ function docIcon(name){
   return paperclipSVG(14);
 }
 /* stažení nahraného dokladu / selfie pro kontrolu adminem */
-function downloadVer(id,which){
+/* přílohy žádosti ze serveru (data URL) — cache, ať se nestahují opakovaně */
+const VER_FILES_CACHE={};
+async function fetchVerFiles(id){
+  if(VER_FILES_CACHE[id])return VER_FILES_CACHE[id];
+  try{const r=await api('/verifications/'+id+'/files');const f=(r&&r.files)||{};VER_FILES_CACHE[id]=f;return f;}catch(e){return {};}
+}
+async function downloadVer(id,which){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
   const name=which==='selfie'?v.selfie:(which==='idfront'?v.idFront:(which==='idback'?v.idBack:v.fileName));
-  const data=DOC_BLOBS[id+':'+which];
+  const sf=await fetchVerFiles(id);
+  const data=sf[which]||DOC_BLOBS[id+':'+which];
   let href,fname=name||(which+'.txt');
   if(data){href=data;}
   else{
