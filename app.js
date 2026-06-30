@@ -887,8 +887,7 @@ const NAV_ADMIN=[
   {v:'admin-audit',label:'Audit logy',fn:"go('admin-audit')"},
   {v:'admin-broadcast',label:'Zprávy',fn:"go('admin-broadcast')"},
   {v:'admin-plans',label:'Tarify',fn:"go('admin-plans')"},
-  {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"},
-  {v:'admin-social',label:'Sociální sítě',fn:"go('admin-social')"}
+  {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"}
 ];
 const NAV_FAMILY=[
   {v:'fam-dash',label:'Přehled',fn:"go('fam-dash')"},
@@ -959,6 +958,7 @@ function updateAuthUI(){
         +mi("go('admin-caregivers')",'Pečovatelky','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-users')",'Uživatelé','<circle cx="9" cy="8" r="3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M16 7a3 3 0 0 1 0 6m5 6c0-2.4-1.6-4.2-4-4.8" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-audit')",'Audit logy','<path d="M8 4h8l3 3v13H5V4h3Z" stroke="#7A736A" stroke-width="1.6"/><path d="M8 9h8M8 13h8M8 17h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
+        +mi("go('admin-social')",'Sociální sítě','<circle cx="6" cy="12" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="6.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="17.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><path d="m8 11 7-3.4M8 13l7 3.4" stroke="#7A736A" stroke-width="1.6"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
         +mi("go('cg-requests')",'Poptávky','<path d="M3 6h18v12H3z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/>')
@@ -2168,6 +2168,8 @@ function saveAdminPlans(e){
 
 /* ---- ADMIN: sociální sítě ---- */
 function renderAdminSocial(){
+  // stránka je jen pro správce systému
+  if(!(auth.loggedIn&&auth.role==='admin')){go(auth.loggedIn?landingView():'home');return;}
   document.getElementById('asFacebook').value=socialLinks.facebook||'';
   document.getElementById('asInstagram').value=socialLinks.instagram||'';
   document.getElementById('asErr').textContent='';
