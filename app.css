@@ -1146,9 +1146,13 @@
     .foot-grid{grid-template-columns:1fr 1fr}
     .book-aside,.summary-card,.book-aside.book-aside{position:static}
   }
-  @media(max-width:760px){
+  /* ≤1115px: role položky se nevejdou do lišty → sbalit je do burger menu */
+  @media(max-width:1115px){
     .nav-links{display:none}
     .menu-toggle{display:flex}
+    .nav-right{margin-left:auto}
+  }
+  @media(max-width:760px){
     .nav-right .btn{display:none}
     .nav-right{margin-left:auto;gap:8px}
     .nav-inner{height:64px;gap:12px;padding:9px 14px}
