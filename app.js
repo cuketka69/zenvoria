@@ -318,7 +318,7 @@ async function fetchLocationMatches(query){
   if(q.length<2)return { items: [], source: 'empty' };
   const seq=++locationAutocompleteSeq;
   try{
-    const res=await fetch('/api/locations/autocomplete?q='+encodeURIComponent(q),{credentials:'include'});
+    const res=await fetch('/api/locations/autocomplete?q='+encodeURIComponent(q),{credentials:'include',cache:'no-store'});
     let data=null;try{data=await res.json();}catch(e){}
     if(seq!==locationAutocompleteSeq)return null;
     if(res.ok&&data&&Array.isArray(data.items)){

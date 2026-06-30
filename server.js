@@ -1364,6 +1364,7 @@ function firstLocationPart(row) {
   return row.city || row.town || row.village || row.hamlet || row.municipality || row.county || row.state || '';
 }
 app.get('/api/locations/autocomplete', h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   const q = trimmedString(req.query.q, 120);
   if (!q || q.length < 2) return res.json({ items: [], source: 'empty' });
   if (!GEOAPIFY_API_KEY) return res.json({ items: [], source: 'missing-key' });
