@@ -736,7 +736,7 @@ function todayISO(){
 
 /* ---------- AUTH ---------- */
 let regRole='family';
-const auth={loggedIn:false,name:'',email:'',role:'family'};
+const auth={loggedIn:false,name:'',email:'',role:'family',photo:null};
 const DEFERRED_VIEW_IDS=new Set([
   'profile','booking','bookings',
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
@@ -817,6 +817,14 @@ function avaHtml(init,photo,extra){
     ? `<div class="ava" style="${extra};background-image:url('${photo}');background-size:cover;background-position:center;color:transparent"></div>`
     : `<div class="ava"${extra?` style="${extra}"`:''}>${init}</div>`;
 }
+/* profilová fotka uživatele podle e-mailu (z uživatelů nebo z karty pečovatelky) */
+function userPhotoByEmail(email){
+  if(!email)return null;
+  const u=(typeof USERS!=='undefined'&&USERS||[]).find(x=>x.email===email);
+  if(u&&u.photo)return u.photo;
+  const c=(typeof CAREGIVERS!=='undefined'&&CAREGIVERS||[]).find(x=>x.email===email);
+  return (c&&c.photo)||null;
+}
 function setAva(el,photo,init){
   if(!el)return;
   if(photo){el.textContent='';el.style.backgroundImage=`url('${photo}')`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.color='transparent';}
@@ -826,8 +834,9 @@ function setAva(el,photo,init){
 function syncCgPhotoToList(){ if(CAREGIVERS[0])CAREGIVERS[0].photo=cgProfile.photo; }
 
 /* ---- session ---- */
-function loginAs(name,email,role){
+function loginAs(name,email,role,photo){
   auth.loggedIn=true;auth.name=name;auth.email=email;auth.role=role||'family';
+  if(photo!==undefined)auth.photo=photo||null;
   updateAuthUI();
 }
 async function logout(){
@@ -851,7 +860,39 @@ function renderSettings(){
   document.getElementById('setName').textContent=name;
   document.getElementById('setEmail').textContent=auth.loggedIn?auth.email:'—';
   document.getElementById('setRole').textContent=auth.role==='caregiver'?'Účet pečovatelky':(auth.role==='admin'?'Správce systému':'Účet rodiny');
-  setAva(document.getElementById('setAva'),auth.role==='caregiver'?cgProfile.photo:null,initials(name));
+  const photo=auth.photo||(auth.role==='caregiver'?cgProfile.photo:null);
+  setAva(document.getElementById('setAva'),photo,initials(name));
+  const rm=document.getElementById('setPhotoRemove');if(rm)rm.style.display=photo?'':'none';
+}
+/* nahrání/odebrání profilovky uživatele (Nastavení) — uloží se k uživateli a propíše do avatarů */
+function onUserPhoto(e){
+  const file=e.target.files&&e.target.files[0];if(!file)return;
+  if(!file.type.startsWith('image/')){toast('Vyberte prosím obrázek.','declined');return;}
+  const reader=new FileReader();
+  reader.onload=function(){
+    const img=new Image();
+    img.onload=function(){
+      const max=400;let w=img.width,h=img.height;
+      if(w>h){if(w>max){h=Math.round(h*max/w);w=max;}}else{if(h>max){w=Math.round(w*max/h);h=max;}}
+      const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+      const data=c.toDataURL('image/webp',0.85);
+      auth.photo=data;
+      if(auth.role==='caregiver'){cgProfile.photo=data;const me=CAREGIVERS.find(x=>x.email===auth.email);if(me){me.photo=data;apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{photo:data}}));}syncCgPhotoToList();}
+      apiSync(api('/users/me/photo',{method:'PATCH',body:{photo:data}}));
+      updateAuthUI();renderSettings();renderCare();
+      toast('Profilová fotka nahrána','success');
+    };
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+function removeUserPhoto(){
+  auth.photo=null;
+  const inp=document.getElementById('setPhotoInput');if(inp)inp.value='';
+  if(auth.role==='caregiver'){cgProfile.photo=null;const me=CAREGIVERS.find(x=>x.email===auth.email);if(me){me.photo=null;apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{photo:null}}));}syncCgPhotoToList();}
+  apiSync(api('/users/me/photo',{method:'PATCH',body:{photo:null}}));
+  updateAuthUI();renderSettings();renderCare();
+  toast('Profilová fotka odebrána');
 }
 function toggleSetting(key,el){appSettings[key]=el.checked;if(auth.loggedIn)apiSync(api('/users/me/settings',{method:'PATCH',body:{settings:appSettings}}));toast('Nastavení uloženo');}
 async function changePassword(e){
@@ -1060,7 +1101,7 @@ function updateAuthUI(){
     msgBtn.setAttribute('aria-label',u>0?`Zprávy — ${u} nepřečtené`:'Zprávy');
   }
   if(inn){
-    setAva(document.getElementById('avatarInit'), auth.role==='caregiver'?cgProfile.photo:null, initials(auth.name));
+    setAva(document.getElementById('avatarInit'), auth.photo||(auth.role==='caregiver'?cgProfile.photo:null), initials(auth.name));
     document.getElementById('avatarName').textContent=auth.name.split(/\s+/)[0];
     document.getElementById('amName').textContent=auth.name;
     document.getElementById('amEmail').textContent=auth.email;
@@ -1122,7 +1163,7 @@ async function submitLogin(e){
   const key=email.value.trim().toLowerCase();
   try{
     const r=await api('/auth/login',{method:'POST',body:{email:key,password:pw.value}});
-    loginAs(r.user.name,r.user.email,r.user.role);
+    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo);
     if(r.user.settings)Object.assign(appSettings,r.user.settings);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(`Vítejte zpět, <b>${esc(auth.name.split(/\s+/)[0])}</b>!`,null,userSVG());
@@ -1147,7 +1188,7 @@ async function submitRegister(e){
   if(tBad){document.getElementById('regTerms').focus();return false;}
   try{
     const r=await api('/auth/register',{method:'POST',body:{name:name.value.trim(),email:email.value.trim().toLowerCase(),password:pw.value,role:regRole}});
-    loginAs(r.user.name,r.user.email,r.user.role);
+    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(regRole==='caregiver'?'Účet pečovatelky vytvořen. Dokončete prosím ověření.':'Účet vytvořen. Vítejte v ZENVORIA!','success');
     if(!resumePendingBooking())go(landingView());
@@ -1391,7 +1432,7 @@ function famOrderRow(o){
 }
 function renderFamilyDash(){
   const name=auth.loggedIn?auth.name:'Uživatel';
-  setAva(document.getElementById('famDashAva'),null,initials(name));
+  setAva(document.getElementById('famDashAva'),auth.photo,initials(name));
   document.getElementById('famFirst').textContent=name.split(/\s+/)[0];
   const up=ORDERS.filter(o=>['pending','confirmed'].includes(o.status));
   const pend=ORDERS.filter(o=>o.status==='pending').length;
@@ -1985,7 +2026,7 @@ async function submitVerify(e){
 
 /* ---- ADMIN: dashboard ---- */
 function renderAdminDash(){
-  setAva(document.getElementById('admDashAva'),null,initials(auth.name||'Správce systému'));
+  setAva(document.getElementById('admDashAva'),auth.photo,initials(auth.name||'Správce systému'));
   const pend=pendingVerCount();
   const verified=CAREGIVERS.filter(c=>c.verified&&!c.suspended).length;
   document.getElementById('admIntro').textContent=pend
@@ -2004,7 +2045,7 @@ function renderAdminDash(){
   document.getElementById('admPendPreview').innerHTML=q.length
     ?q.slice(0,4).map(v=>`
       <div class="req">
-        <div class="ava">${v.init}</div>
+        ${avaHtml(v.init,userPhotoByEmail(v.email))}
         <div class="ri"><b>${esc(v.name)}</b><div class="rd">${esc(v.loc)} · ${v.exp} let praxe · ${fmtDate(v.date)}</div><span class="rs">${esc(v.cert)}</span></div>
         <div class="req-actions"><button class="btn btn-sm btn-gold" onclick="go('admin-verify')">Zkontrolovat</button></div>
       </div>`).join('')
@@ -2023,7 +2064,7 @@ function renderAdminVerify(){
   document.getElementById('admVerCount').textContent=q.length;
   document.getElementById('admVerQueue').innerHTML=q.length?q.map(v=>`
     <div class="req vreq" style="align-items:flex-start">
-      <div class="ava">${v.init}</div>
+      ${avaHtml(v.init,userPhotoByEmail(v.email))}
       <div class="ri">
         <div class="vreq-top">
           <div><b>${esc(v.name)}</b><div class="rd">${esc(v.loc)} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div></div>
@@ -2052,7 +2093,7 @@ function renderAdminVerify(){
   document.getElementById('admVerDone').innerHTML=done.length?`
     <table class="adm-table"><thead><tr><th>Pečovatelka</th><th>Osvědčení</th><th>Datum</th><th style="text-align:right">Výsledek</th></tr></thead><tbody>
     ${done.slice().reverse().map(v=>`<tr>
-      <td><div class="u-cell"><div class="ava">${esc(v.init)}</div><div><b>${esc(v.name)}</b><span>${esc(v.loc)}</span></div></div></td>
+      <td><div class="u-cell">${avaHtml(esc(v.init),userPhotoByEmail(v.email))}<div><b>${esc(v.name)}</b><span>${esc(v.loc)}</span></div></div></td>
       <td>${v.cert}</td><td>${fmtDate(v.date)}</td>
       <td style="text-align:right">${verBadge(v.status)}${v.status==='rejected'&&v.reason?`<div class="rd" style="margin-top:4px">${v.reason}</div>`:''}</td>
     </tr>`).join('')}</tbody></table>`:'<div class="empty">Zatím žádné zpracované žádosti.</div>';
@@ -2385,7 +2426,7 @@ function renderAdminUsers(){
   document.getElementById('admUsrBody').innerHTML=USERS.map(u=>{
     const badge=u.status==='suspended'?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
     return `<tr>
-      <td><div class="u-cell"><div class="ava">${esc(u.init)}</div><div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></td>
+      <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${badge}</td>
       <td><div class="adm-actions">
         <button class="btn btn-sm ${u.status==='suspended'?'btn-accept':'btn-decline'}" onclick="toggleSuspendUser(${u.id})">${u.status==='suspended'?'Obnovit':'Pozastavit'}</button>
@@ -2726,7 +2767,7 @@ function renderCgDashboard(){
     else{const b=VER_BANNER[st]||VER_BANNER.pending;
       notice.innerHTML=`<div class="verify-banner ${b.cls}"><span class="vb-ic">${b.ic}</span><div class="vb-t"><b>${b.t}</b><span>${b.s}</span></div><button class="btn btn-sm btn-gold" onclick="go('cg-verify')">${st==='submitted'?'Zobrazit stav':'Ověřit se'}</button></div>`;}
   }
-  setAva(document.getElementById('cgDashAva'),cgProfile.photo,initials(cgProfile.name));
+  setAva(document.getElementById('cgDashAva'),cgProfile.photo||auth.photo,initials(cgProfile.name));
   document.getElementById('cgFirst').textContent=cgFirstName().split(/\s+/)[0];
   document.getElementById('cgIntro').textContent=CG_REQUESTS.length
     ?`Máte ${CG_REQUESTS.length} ${CG_REQUESTS.length===1?'novou poptávku':'nové poptávky'} a ${CG_SCHEDULE.length} naplánovaných služeb.`
@@ -2899,8 +2940,10 @@ function onCgPhoto(e){
       const c=document.createElement('canvas');c.width=w;c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
       cgProfile.photo=c.toDataURL('image/webp',0.85);
+      auth.photo=cgProfile.photo;
       const me=CAREGIVERS.find(x=>x.email===auth.email);
       if(me){me.photo=cgProfile.photo;apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{photo:cgProfile.photo}}));}
+      apiSync(api('/users/me/photo',{method:'PATCH',body:{photo:cgProfile.photo}}));
       syncCgPhotoToList();updateCgAvatar();syncCgPreview();updateAuthUI();renderCare();
       toast('Profilová fotka nahrána');
     };
@@ -2909,10 +2952,11 @@ function onCgPhoto(e){
   reader.readAsDataURL(file);
 }
 function removeCgPhoto(){
-  cgProfile.photo=null;
+  cgProfile.photo=null;auth.photo=null;
   const inp=document.getElementById('cpPhotoInput');if(inp)inp.value='';
   const me=CAREGIVERS.find(x=>x.email===auth.email);
   if(me){me.photo=null;apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{photo:null}}));}
+  apiSync(api('/users/me/photo',{method:'PATCH',body:{photo:null}}));
   syncCgPhotoToList();updateCgAvatar();syncCgPreview();updateAuthUI();renderCare();
   toast('Profilová fotka odebrána');
 }
@@ -2987,7 +3031,7 @@ function saveCgProfile(){
   if(me){me.name=cgProfile.name;me.photo=cgProfile.photo||null;me.loc=cgProfile.loc;me.rate=cgProfile.rate;me.exp=cgProfile.exp;me.bio=cgProfile.bio;
     me.radius=cgProfile.radius;me.priceType=cgProfile.priceType;me.dayRate=cgProfile.dayRate;
     me.kmPrice=cgProfile.kmPrice;me.services=cgProfile.services.slice();me.langs=cgProfile.langs.slice();}
-  if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role);}
+  if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role,cgProfile.photo);}
   if(me&&me.id){apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{
     name:cgProfile.name,loc:cgProfile.loc,rate:cgProfile.rate,exp:me.exp,bio:cgProfile.bio,
     services:cgProfile.services,langs:cgProfile.langs,radius:cgProfile.radius,priceType:cgProfile.priceType,
@@ -3523,7 +3567,7 @@ async function initApp(){
     }
   }
   try{const m=await api('/auth/me');
-    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';
+    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';auth.photo=m.user.photo||null;
       if(m.user.settings)Object.assign(appSettings,m.user.settings);}
   }catch(e){console.warn('auth/me',e.message);}
   try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}

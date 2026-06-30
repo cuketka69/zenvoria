@@ -1221,7 +1221,7 @@ function requireConversationOwner(req, res, next) {
    -------------------------------------------------------------------- */
 function publicUser(u) {
   if (!u) return null;
-  return { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status, init: u.init, settings: u.settings };
+  return { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null };
 }
 function mapCaregiver(c) {
   return {
@@ -1698,6 +1698,18 @@ app.patch('/api/users/me/settings', requireAuth, h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+/* profilová fotka uživatele (data URL nebo null pro odebrání) */
+app.patch('/api/users/me/photo', requireAuth, h(async (req, res) => {
+  let photo = req.body && req.body.photo;
+  if (photo === null || photo === '' || photo === undefined) {
+    photo = null;
+  } else if (typeof photo !== 'string' || !/^data:image\//.test(photo) || photo.length > 3 * 1024 * 1024) {
+    return res.status(400).json({ error: 'Neplatná fotka.' });
+  }
+  await restUpdate(T.users, `id=eq.${req.session.uid}`, { photo }, { prefer: 'return=minimal' });
+  res.json({ ok: true, photo });
+}));
+
 /* ---------------- BOOTSTRAP (vše pro render) ---------------- */
 app.get('/api/bootstrap', h(async (req, res) => {
   const viewer = !req.session
@@ -1730,7 +1742,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
           ? restSelect(T.verifications, `email=eq.${encodeURIComponent(req.session.email)}&order=id.asc`)
           : []),
       viewer === 'admin'
-        ? restSelect(T.users, 'select=id,email,name,role,status,init,joined,orders_count&order=joined.asc')
+        ? restSelect(T.users, 'select=id,email,name,role,status,init,joined,orders_count,photo&order=joined.asc')
         : [],
       restSelect(T.reviews, 'select=*&order=id.asc'),
       viewer === 'admin'
@@ -1769,7 +1781,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     requests: (requests || []).map(mapRequest),
     schedule: (schedule || []).map((s) => ({ id: s.id, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours })),
     verifications: (verifications || []).map(mapVerification),
-    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role })),
+    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null })),
     cgReviews, generalReviews,
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),

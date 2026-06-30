@@ -951,6 +951,10 @@
         <div><b id="setName">Uživatel</b><span id="setEmail">uzivatel@email.cz</span></div>
         <span class="chip gold" id="setRole">Účet</span>
       </div>
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><rect x="3.5" y="6" width="17" height="13" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12.5" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M8 6l1.2-2h5.6L16 6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Nahrát profilovku<input type="file" accept="image/*" hidden id="setPhotoInput" onchange="onUserPhoto(event)"></label>
+        <button type="button" class="btn btn-ghost btn-sm" id="setPhotoRemove" style="display:none" onclick="removeUserPhoto()">Odebrat</button>
+      </div>
       <div class="pdiv"></div>
       <h4 class="set-h4">Zmena e-mailu</h4>
       <p class="set-sub" style="margin-top:6px">Na puvodni e-mail posleme potvrzovaci odkaz a novou adresu overite kodem.</p>
