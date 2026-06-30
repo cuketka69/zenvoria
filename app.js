@@ -1923,16 +1923,16 @@ async function submitVerify(e){
   if(!g('vfLoc')){verifyError(err,'Zadejte lokalitu (město nebo okres).');return false;}
   if(!isPhone(phone)){verifyError(err,'Zadejte platné telefonní číslo.');return false;}
   if(!docNum){verifyError(err,'Zadejte číslo dokladu totožnosti.');return false;}
-  if(!verifyIdFrontName){err.textContent='Nahrajte prosim predni stranu dokladu totoznosti.';return false;}
-  if(!verifyIdBackName){err.textContent='Nahrajte prosim zadni stranu dokladu totoznosti.';return false;}
-  if(!verifySelfieName){err.textContent='Nahrajte prosim selfie pro overeni totoznosti.';return false;}
-  if(!certifications.length){err.textContent='Uvedte alespon jedno osvedceni nebo kurz.';return false;}
-  if(certifications.some(item=>!item.name)){err.textContent='Doplnte nazev u kazdeho osvedceni.';return false;}
-  if(certifications.some(item=>!item.issuer)){err.textContent='Doplnte instituci u kazdeho osvedceni.';return false;}
-  if(certifications.some(item=>!item.fileName)){err.textContent='Nahrajte doklad u kazdeho osvedceni.';return false;}
-  if(!services.length){err.textContent='Vyberte alespon jednu nabizenou sluzbu.';return false;}
-  if(!document.getElementById('vfRules').checked){err.textContent='Potvrdte prosim pravdivost udaju a souhlas s pravidly.';return false;}
-  if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){err.textContent='Uz mate zadost cekajici na schvaleni.';return false;}
+  if(!verifyIdFrontName){verifyError(err,'Nahrajte prosím přední stranu dokladu totožnosti.');return false;}
+  if(!verifyIdBackName){verifyError(err,'Nahrajte prosím zadní stranu dokladu totožnosti.');return false;}
+  if(!verifySelfieName){verifyError(err,'Nahrajte prosím selfie pro ověření totožnosti.');return false;}
+  if(!certifications.length){verifyError(err,'Uveďte alespoň jedno osvědčení nebo kurz.');return false;}
+  if(certifications.some(item=>!item.name)){verifyError(err,'Doplňte název u každého osvědčení.');return false;}
+  if(certifications.some(item=>!item.issuer)){verifyError(err,'Doplňte instituci u každého osvědčení.');return false;}
+  if(certifications.some(item=>!item.fileName)){verifyError(err,'Nahrajte doklad u každého osvědčení.');return false;}
+  if(!services.length){verifyError(err,'Vyberte alespoň jednu nabízenou službu.');return false;}
+  if(!document.getElementById('vfRules').checked){verifyError(err,'Potvrďte prosím pravdivost údajů a souhlas s pravidly.');return false;}
+  if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){verifyError(err,'Už máte žádost čekající na schválení.');return false;}
   const rec={
     name,email:auth.email,init:initials(name),loc:g('vfLoc'),
     rate:+g('vfRate')||240,exp:+g('vfExp')||0,phone,
