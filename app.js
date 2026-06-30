@@ -1661,6 +1661,7 @@ function renderCgVerify(){
   setv('vfIssuer','');
   setVerifyPhoneValue('');
   verifyExtraCerts=[];
+  verifyDocName='';verifyDocData='';
   renderVerifyExtraCerts();
   refreshVerifyValidTrigger();
   document.getElementById('vfDocText').innerHTML='<b>Nahrát soubor</b> — PDF, Word, obrázek nebo sken dokladu';
@@ -1738,10 +1739,17 @@ function renderVerifyExtraCerts(){
         <label class="lbl">Platnost do</label>
         <button type="button" class="inp date-trigger" onclick="openVerifyValidModal(${idx})">${fmtVerifyValidDate(item.validUntil)}</button>
       </div>
+      <div style="margin-top:14px">
+        <label class="lbl">Doklad k tomuto osvědčení</label>
+        <label class="doc-drop">
+          <span>${item.docName?`${paperclipSVG(15)} <b>${esc(item.docName)}</b> — připraveno k odeslání`:'<b>Nahrát soubor</b> — PDF, Word, obrázek nebo sken dokladu'}</span>
+          <input type="file" accept="image/*,.pdf,.doc,.docx,.odt,.rtf,.txt,.heic" hidden onchange="onVerifyExtraDoc(event,${idx})">
+        </label>
+      </div>
     </div>`).join('');
 }
 function addVerifyExtraCertification(){
-  verifyExtraCerts.push({name:'',issuer:'',validUntil:''});
+  verifyExtraCerts.push({name:'',issuer:'',validUntil:'',docName:'',docData:''});
   renderVerifyExtraCerts();
 }
 function removeVerifyExtraCertification(idx){
@@ -1752,16 +1760,26 @@ function updateVerifyExtraCertification(idx,key,value){
   if(!verifyExtraCerts[idx])return;
   verifyExtraCerts[idx][key]=value;
 }
+function onVerifyExtraDoc(e,idx){
+  const item=verifyExtraCerts[idx];
+  const f=e.target.files&&e.target.files[0];
+  if(!item||!f)return;
+  item.docName=f.name;item.docData='';
+  renderVerifyExtraCerts();
+  readVerifyFile(f,res=>{if(!verifyExtraCerts[idx])return;verifyExtraCerts[idx].docName=res.name;verifyExtraCerts[idx].docData=res.data;renderVerifyExtraCerts();});
+}
 function getVerifyCertifications(){
   const first={
     name:(document.getElementById('vfCert')?.value||'').trim(),
     issuer:(document.getElementById('vfIssuer')?.value||'').trim(),
-    validUntil:(document.getElementById('vfValid')?.value||'').trim()
+    validUntil:(document.getElementById('vfValid')?.value||'').trim(),
+    fileName:verifyDocName||''
   };
   return [first].concat(verifyExtraCerts.map(item=>({
     name:String(item.name||'').trim(),
     issuer:String(item.issuer||'').trim(),
-    validUntil:String(item.validUntil||'').trim()
+    validUntil:String(item.validUntil||'').trim(),
+    fileName:String(item.docName||'').trim()
   }))).filter(item=>item.name||item.issuer||item.validUntil);
 }
 function summarizeVerifyCertifications(certs){
@@ -1770,7 +1788,7 @@ function summarizeVerifyCertifications(certs){
 }
 function verifyCertDetails(v){
   const certs=Array.isArray(v&&v.certifications)&&v.certifications.length?v.certifications:[{name:v&&v.cert,issuer:v&&v.issuer,validUntil:v&&v.validUntil}];
-  return certs.filter(item=>item&&item.name).map(item=>`${esc(item.name)} — ${esc(item.issuer||'—')}${item.validUntil?` (platnost ${esc(item.validUntil)})`:''}`).join('<br>');
+  return certs.filter(item=>item&&item.name).map(item=>`${esc(item.name)} — ${esc(item.issuer||'—')}${item.validUntil?` (platnost ${esc(item.validUntil)})`:''}${item.fileName?` · doklad ${esc(item.fileName)}`:''}`).join('<br>');
 }
 function fmtVerifyValidDate(iso){
   const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -1908,7 +1926,7 @@ async function submitVerify(e){
   if(!certifications.length){err.textContent='Uvedte alespon jedno osvedceni nebo kurz.';return false;}
   if(certifications.some(item=>!item.name)){err.textContent='Doplnte nazev u kazdeho osvedceni.';return false;}
   if(certifications.some(item=>!item.issuer)){err.textContent='Doplnte instituci u kazdeho osvedceni.';return false;}
-  if(!verifyDocName){err.textContent='Nahrajte prosim doklad (osvedceni nebo diplom).';return false;}
+  if(certifications.some(item=>!item.fileName)){err.textContent='Nahrajte doklad u kazdeho osvedceni.';return false;}
   if(!services.length){err.textContent='Vyberte alespon jednu nabizenou sluzbu.';return false;}
   if(!document.getElementById('vfRules').checked){err.textContent='Potvrdte prosim pravdivost udaju a souhlas s pravidly.';return false;}
   if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){err.textContent='Uz mate zadost cekajici na schvaleni.';return false;}
@@ -1928,6 +1946,7 @@ async function submitVerify(e){
     if(saved.id>verSeq)verSeq=saved.id;
     VERIFICATIONS.unshift(saved);
     if(verifyDocData)DOC_BLOBS[saved.id+':doc']=verifyDocData;
+    verifyExtraCerts.forEach((item,idx)=>{if(item.docData)DOC_BLOBS[saved.id+':doc:'+idx]=item.docData;});
     if(verifySelfieData)DOC_BLOBS[saved.id+':selfie']=verifySelfieData;
     if(verifyIdFrontData)DOC_BLOBS[saved.id+':idfront']=verifyIdFrontData;
     if(verifyIdBackData)DOC_BLOBS[saved.id+':idback']=verifyIdBackData;

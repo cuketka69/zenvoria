@@ -1915,6 +1915,7 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), h(async (req, 
     name: trimmedString(item && item.name, 120),
     issuer: trimmedString(item && item.issuer, 120),
     validUntil: trimmedString(item && item.validUntil, 10),
+    fileName: trimmedString(item && item.fileName, 180),
   })).filter((item) => item.name || item.issuer || item.validUntil);
   const firstCert = certifications[0] || null;
   const cert = trimmedString(b.cert, 120) || (firstCert ? firstCert.name : '');
@@ -1937,7 +1938,7 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), h(async (req, 
   if (certifications.some((item) => !item.name || !item.issuer)) return res.status(400).json({ error: 'Každé osvědčení musí mít název i instituci.' });
   if (certifications.some((item) => item.validUntil && !/^\d{4}-\d{2}-\d{2}$/.test(item.validUntil))) return res.status(400).json({ error: 'Neplatná platnost osvědčení.' });
   if (validUntil && !/^\d{4}-\d{2}-\d{2}$/.test(validUntil)) return res.status(400).json({ error: 'Neplatná platnost osvědčení.' });
-  if (!fileName) return res.status(400).json({ error: 'Chybí název nahraného dokladu.' });
+  if ((!certifications.length && !fileName) || certifications.some((item) => !item.fileName)) return res.status(400).json({ error: 'Chybí název nahraného dokladu.' });
   const storedNote = certifications.length > 1
     ? `${note}${note ? `\n${VERIFY_CERTS_MARKER}` : VERIFY_CERTS_MARKER}${JSON.stringify(certifications)}`
     : note;

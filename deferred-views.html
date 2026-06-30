@@ -295,15 +295,15 @@
           <div><label class="lbl">Platnost do</label><input type="hidden" id="vfValid"><button type="button" class="inp date-trigger" id="vfValidBtn" onclick="openVerifyValidModal()">Vybrat datum</button></div>
           <div></div>
         </div>
-        <div id="vfExtraCerts" style="margin-top:14px"></div>
-        <button type="button" class="btn btn-ghost" style="margin-top:14px" onclick="addVerifyExtraCertification()">Přidat další osvědčení</button>
         <div style="margin-top:14px">
-          <label class="lbl">Doklad (osvědčení, diplom)</label>
+          <label class="lbl">Doklad k tomuto osvědčení</label>
           <label class="doc-drop" id="vfDocLabel">
             <span id="vfDocText"><b>Nahrát soubor</b> — PDF, Word, obrázek nebo sken dokladu</span>
             <input type="file" accept="image/*,.pdf,.doc,.docx,.odt,.rtf,.txt,.heic" id="vfDoc" hidden onchange="onVerifyDoc(event)">
           </label>
         </div>
+        <div id="vfExtraCerts" style="margin-top:14px"></div>
+        <button type="button" class="btn btn-ghost" style="margin-top:14px" onclick="addVerifyExtraCertification()">Přidat další osvědčení</button>
         <div class="pdiv" style="margin:18px 0"></div>
         <h3 style="margin-bottom:6px">Nabízené služby</h3>
         <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vyberte alespoň jednu službu, kterou chcete nabízet. Později je upravíte ve svém profilu.</p>
