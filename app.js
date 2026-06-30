@@ -1487,6 +1487,19 @@ let verifyIdFrontName='';
 let verifyIdFrontData='';
 let verifyIdBackName='';
 let verifyIdBackData='';
+/* služby vybrané ve formuláři ověření */
+let verifyServices=[];
+function renderVerifyServiceChips(){
+  const wrap=document.getElementById('vfServices');if(!wrap)return;
+  const locked=(cgStatus()==='verified'||cgStatus()==='submitted');
+  wrap.innerHTML=SERVICES.map(s=>
+    `<button type="button" class="cg-serv ${verifyServices.includes(s.id)?'on':''}" ${locked?'disabled':''} onclick="toggleVerifyService('${s.id}')">${s.name}</button>`).join('');
+}
+function toggleVerifyService(id){
+  const i=verifyServices.indexOf(id);
+  if(i<0)verifyServices.push(id);else verifyServices.splice(i,1);
+  renderVerifyServiceChips();
+}
 /* obsah nahraných souborů (data URL) — v paměti, klíč `${verId}:doc` / `:selfie` */
 const DOC_BLOBS={};
 function withWebpName(name){
@@ -1527,6 +1540,8 @@ function renderCgVerify(){
   document.getElementById('vfIdBackText').innerHTML='<b>Zadní strana</b> — foto nebo sken';
   verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
   verifyIdFrontName='';verifyIdFrontData='';verifyIdBackName='';verifyIdBackData='';
+  verifyServices=(cgProfile.services||[]).slice();
+  renderVerifyServiceChips();
   const form=document.getElementById('cgVerifyForm');
   const btn=document.getElementById('vfSubmitBtn');
   const locked=(st==='verified'||st==='submitted');
@@ -1573,6 +1588,7 @@ function submitVerify(e){
   if(!cert){err.textContent='Uveďte název osvědčení nebo kurzu.';return false;}
   if(!issuer){err.textContent='Uveďte, kdo osvědčení vystavil.';return false;}
   if(!verifyDocName){err.textContent='Nahrajte prosím doklad (osvědčení nebo diplom).';return false;}
+  if(!verifyServices.length){err.textContent='Vyberte alespoň jednu nabízenou službu.';return false;}
   if(!document.getElementById('vfRules').checked){err.textContent='Potvrďte prosím pravdivost údajů a souhlas s pravidly.';return false;}
   // kontrola duplicity účtu (demo): stejný e-mail už nesmí mít čekající žádost
   if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){err.textContent='Už máte žádost čekající na schválení.';return false;}
@@ -1581,7 +1597,7 @@ function submitVerify(e){
     rate:+g('vfRate')||240,exp:+g('vfExp')||0,phone,
     docType:document.getElementById('vfDocType').value==='pas'?'Cestovní pas':'Občanský průkaz',docNum,
     idFront:verifyIdFrontName,idBack:verifyIdBackName,selfie:verifySelfieName,
-    services:cgProfile.services.slice(),cert,issuer,validUntil:g('vfValid')||'—',
+    services:verifyServices.slice(),cert,issuer,validUntil:g('vfValid')||'—',
     fileName:verifyDocName,refs:g('vfRefs'),note:g('vfNote'),bio:cgProfile.bio,
     status:'submitted',date:new Date().toISOString().slice(0,10)
   };
@@ -1591,6 +1607,7 @@ function submitVerify(e){
   if(verifyIdFrontData)DOC_BLOBS[rec.id+':idfront']=verifyIdFrontData;
   if(verifyIdBackData)DOC_BLOBS[rec.id+':idback']=verifyIdBackData;
   cgStatusMap[auth.email]='submitted';
+  cgProfile.services=verifyServices.slice(); // propsat výběr do profilu
   apiSync(api('/verifications',{method:'POST',body:rec}).then(r=>{if(r&&r.verification)rec.id=r.verification.id;}));
   verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
   verifyIdFrontName='';verifyIdFrontData='';verifyIdBackName='';verifyIdBackData='';
