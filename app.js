@@ -2056,9 +2056,9 @@ function renderAdminDash(){
 
 /* ---- ADMIN: fronta ověření ---- */
 function verBadge(st){
-  return st==='approved'?'<span class="badge ok">Schváleno</span>'
-    :st==='rejected'?'<span class="badge bad">Zamítnuto</span>'
-    :'<span class="badge wait">Čeká</span>';
+  return st==='approved'?`<span class="res-badge res-ok">${checkSVG(13)} Schváleno</span>`
+    :st==='rejected'?`<span class="res-badge res-bad"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Zamítnuto</span>`
+    :`<span class="res-badge res-wait">${svgWrap(13,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4.5l2.8 1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>')} Čeká</span>`;
 }
 function renderAdminVerify(){
   const q=VERIFICATIONS.filter(v=>v.status==='submitted');

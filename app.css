@@ -960,6 +960,11 @@
   .badge.bad{color:#B23A2E;background:#FBF3F1;border:1px solid #E3C9C4}
   .badge.off{color:var(--muted);background:var(--cream);border:1px solid var(--line)}
   .badge.gold{color:var(--navy-900);background:var(--gold);border:1px solid var(--gold);box-shadow:0 6px 16px -10px rgba(201,162,51,.7)}
+  /* výsledek zpracované žádosti — výrazné plné odznaky (čitelné i na tmavé kartě) */
+  .res-badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:6px 13px;border-radius:20px;white-space:nowrap;line-height:1}
+  .res-ok{color:#0C1A13;background:#6FAE6A;border:1px solid #7FBE79}
+  .res-bad{color:#fff;background:#C0473B;border:1px solid #CD5A4E}
+  .res-wait{color:#0C1A13;background:var(--gold);border:1px solid var(--gold)}
   /* ověřovací banner u pečovatelky */
   .verify-banner{display:flex;align-items:center;gap:16px;border-radius:18px;padding:18px 22px;margin-bottom:26px;border:1px solid var(--line)}
   .verify-banner.wait{background:linear-gradient(135deg,rgba(201,162,51,.14),rgba(201,162,51,.04));border-color:rgba(201,162,51,.4)}
