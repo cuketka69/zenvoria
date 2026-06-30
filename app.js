@@ -20,9 +20,9 @@ let cgSeq=0;
 /* tarif přihlášené pečovatelky podle e-mailu */
 let cgPlanMap={};
 const PLANS={
-  start:{name:'START',badge:'🟢',
+  start:{name:'START',
     feats:['Profil v aplikaci','Ověření identity','Přijímání rezervací','Kalendář dostupnosti','Chat s rodinami','Hodnocení klientů']},
-  premium:{name:'PREMIUM',badge:'💎',
+  premium:{name:'PREMIUM',
     feats:['Vše ze START','Vyšší zobrazení ve vyhledávání','Odznak PREMIUM','Neomezené poptávky','Statistiky profilu','Prioritní podpora','Video představení']}
 };
 /* ceny tarifů (Kč/měsíc). Cenu obou tarifů nastavuje admin v sekci Tarify. */
@@ -31,7 +31,7 @@ const planPrice=k=>planPrices[k]||0;
 const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' Kč / měsíc':'Zdarma';
 /* SVG diamant se zeleným obrysem (ostrý, škálovatelný) */
 const diamondSVG=(s,col)=>`<svg width="${s||14}" height="${s||14}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 22 2.5 9.5 6 3.5H18l3.5 6L12 22Z" stroke="${col||'#0A5A34'}" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.5 9.5h19M6 3.5 9 9.5M18 3.5 15 9.5M9 9.5 12 3.5 15 9.5M9 9.5 12 22 15 9.5" stroke="${col||'#0A5A34'}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-/* ikona tarifu: PREMIUM = zelený SVG diamant (jasnější zelená kvůli tmavým kartám/bannerům), START = 🟢 */
+/* ikona tarifu: PREMIUM = zelený SVG diamant, START = zelený SVG puntík */
 const planIcon=(k,h)=>k==='premium'?diamondSVG(h||16,'#13A552'):`<svg width="${h||16}" height="${h||16}" viewBox="0 0 24 24" style="vertical-align:-2px"><circle cx="12" cy="12" r="9" fill="#13A552"/></svg>`;
 
 /* ---------- ADMIN: fronta žádostí o ověření ---------- */
@@ -319,7 +319,7 @@ function initReveal(){
 /* ---------- TOAST ---------- */
 let toastT;
 function toast(msg,type,icon){const t=document.getElementById('toast');
-  const ic=icon!=null?icon:(type==='success'?'✓':type==='error'?'!':'★');
+  const ic=icon!=null?icon:(type==='success'?checkCircleSVG(20):(type==='error'||type==='declined')?warnSVG(20):infoSVG(20));
   t.innerHTML=`<span class="toast-ic" aria-hidden="true">${ic}</span><span class="toast-msg">${msg}</span>`;
   t.className='toast show'+(type?' '+type:'');
   clearTimeout(toastT);toastT=setTimeout(()=>{t.className='toast';},3600);}
@@ -351,6 +351,15 @@ function idCardSVG(s){return svgWrap(s,'<rect x="3" y="5.5" width="18" height="1
 function paperclipSVG(s){return svgWrap(s,'<path d="M18 7.5 9.5 16a3 3 0 0 1-4.2-4.2l8-8a4.5 4.5 0 0 1 6.4 6.4l-8 8a6 6 0 0 1-8.5-8.5l7.3-7.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');}
 function phoneSVG(s){return svgWrap(s,'<path d="M6 3h3l1.5 5-2 1.5a11 11 0 0 0 5 5l1.5-2 5 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>');}
 function handWaveSVG(s){return svgWrap(s,'<path d="M7 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1V4.5a1.5 1.5 0 0 1 3 0V10m0-1.5V5a1.5 1.5 0 0 1 3 0v6m0-3.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L4 14.2a1.6 1.6 0 0 1 2.6-1.8L8 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>');}
+function infoSVG(s){return svgWrap(s,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor"/>');}
+function sparkleSVG(s){s=s||15;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 3c.6 3.8 1.7 4.9 5.5 5.5C13.7 9.1 12.6 10.2 12 14c-.6-3.8-1.7-4.9-5.5-5.5C10.3 7.9 11.4 6.8 12 3Z" fill="currentColor"/><path d="M18 13c.3 1.9.9 2.5 2.8 2.8-1.9.3-2.5.9-2.8 2.7-.3-1.8-.9-2.4-2.7-2.7 1.8-.3 2.4-.9 2.7-2.8Z" fill="currentColor"/></svg>`;}
+function smileSVG(s){s=s||20;return `<span style="color:#C9A233">${svgWrap(s,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 14a4 4 0 0 0 7 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="9" cy="10" r="1.1" fill="currentColor"/><circle cx="15" cy="10" r="1.1" fill="currentColor"/>')}</span>`;}
+/* prostá fajfka (bez kruhu) pro inline ✓ v UI */
+function checkSVG(s){s=s||13;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M5 12.5l4.2 4.2L19 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;}
+/* SVG hvězda – výplň (on) i obrys (prázdná) pro hodnocení */
+function starOutlineSVG(s){s=s||13;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17.8 6.8 19.1l1-5.8L3.5 9.2l5.9-.9L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;}
+/* řetězec N hvězd (zlatá výplň) pro zobrazení hodnocení */
+function starsRow(n,s){n=Math.max(0,Math.round(n||0));return starFillSVG(s).repeat(n);}
 function imageSVG(s){return svgWrap(s,'<rect x="3.5" y="5" width="17" height="14" rx="2.3" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="10" r="1.6" stroke="currentColor" stroke-width="1.5"/><path d="m5 17 4.5-4.5 3 3L16 12l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>');}
 function pdfSVG(s){return svgWrap(s,'<path d="M7 3h7l4 4v14H7V3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 16.5h1.2a1.2 1.2 0 0 0 0-2.4H9v4M14.6 14.1v4M13.4 16h1.6M16.4 14.1h1.8M16.4 16h1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>');}
 
@@ -435,7 +444,7 @@ function renderCare(){
         <div style="flex:1">
           <div class="care-name">${esc(c.name)}</div>
           <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${esc(c.loc)}</div>
-          <div class="care-meta"><span class="stars">★</span><b style="color:var(--navy-900)">${c.rating}</b><span>(${c.reviews}) · ${c.exp} let praxe</span></div>
+          <div class="care-meta"><span class="stars">${starFillSVG()}</span><b style="color:var(--navy-900)">${c.rating}</b><span>(${c.reviews}) · ${c.exp} let praxe</span></div>
         </div>
       </div>
       <div class="care-tags">
@@ -462,7 +471,7 @@ function openProfile(id){
         <div>
           <h1>${esc(c.name)}</h1>
           <div class="pmeta">
-            <span class="stars">★★★★★ <b style="color:var(--navy-900)">${c.rating}</b> <span style="color:var(--muted)">(${c.reviews} hodnocení)</span></span>
+            <span class="stars">${starsRow(5)} <b style="color:var(--navy-900)">${c.rating}</b> <span style="color:var(--muted)">(${c.reviews} hodnocení)</span></span>
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             ${cgBadges(c)}
@@ -487,7 +496,7 @@ function openProfile(id){
       </div>
       <div class="pdiv"></div>
       <h3>Hodnocení (${revCount})</h3>
-      ${revs.map(r=>`<div class="rev"><div class="ava">${esc(r.init)}</div><div><div class="rb">${esc(r.name)} <span class="stars" style="font-size:12px">${'★'.repeat(r.stars)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join('')}
+      ${revs.map(r=>`<div class="rev"><div class="ava">${esc(r.init)}</div><div><div class="rb">${esc(r.name)} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join('')}
     </div>
     <div class="pcard book-aside">
       <h3 style="margin-bottom:4px">Objednat péči</h3>
@@ -510,7 +519,7 @@ let pendingBookingId=null;
 function resumePendingBooking(){
   if(pendingBookingId==null||!auth.loggedIn||auth.role!=='family')return false;
   const id=pendingBookingId;pendingBookingId=null;
-  toast('✓ Hotovo! Teď můžete dokončit objednávku.');
+  toast('Hotovo! Teď můžete dokončit objednávku.');
   openBooking(id);
   return true;
 }
@@ -519,7 +528,7 @@ function openBooking(id){
   if(!auth.loggedIn){
     pendingBookingId=id;
     pickRole('family');
-    toast('ℹ️ Pro objednání služby se prosím nejdřív zaregistrujte.');
+    toast('Pro objednání služby se prosím nejdřív zaregistrujte.');
     go('register');
     return;
   }
@@ -554,7 +563,7 @@ function updateSummary(){
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
       ${avaHtml(c.init,c.photo,'width:46px;height:46px;font-size:16px')}
       <div><div style="font-family:'Playfair Display',serif;font-size:16px;color:#fff">${esc(c.name)}</div>
-      <div style="font-size:12.5px;color:#A2B0A6">${esc(c.loc)} · ★ ${c.rating}</div></div>
+      <div style="font-size:12.5px;color:#A2B0A6">${esc(c.loc)} · ${starFillSVG(11)} ${c.rating}</div></div>
     </div>
     <div class="row"><span class="l">Služba</span><span class="r">${sName(state.bkService)}</span></div>
     <div class="row"><span class="l">Datum</span><span class="r">${dateStr}</span></div>
@@ -570,10 +579,10 @@ function confirmBooking(){
   const date=document.getElementById('bkDate').value;
   const time=document.getElementById('bkTime').value;
   const addr=document.getElementById('bkAddr').value.trim();
-  if(!date){toast('⚠️ Vyberte prosím datum péče.');document.getElementById('bkDate').focus();return;}
-  if(date<todayISO()){toast('⚠️ Datum nemůže být v minulosti.');document.getElementById('bkDate').focus();return;}
-  if(!time){toast('⚠️ Vyberte prosím čas.');document.getElementById('bkTime').focus();return;}
-  if(addr.length<5){toast('⚠️ Zadejte prosím platnou adresu.');document.getElementById('bkAddr').focus();return;}
+  if(!date){toast('Vyberte prosím datum péče.');document.getElementById('bkDate').focus();return;}
+  if(date<todayISO()){toast('Datum nemůže být v minulosti.');document.getElementById('bkDate').focus();return;}
+  if(!time){toast('Vyberte prosím čas.');document.getElementById('bkTime').focus();return;}
+  if(addr.length<5){toast('Zadejte prosím platnou adresu.');document.getElementById('bkAddr').focus();return;}
   const note=document.getElementById('bkNote').value.trim();
   const hours=state.bkHours;
   const km=Math.max(0,+document.getElementById('bkKm').value||0);
@@ -582,10 +591,10 @@ function confirmBooking(){
     .then(r=>{const o=r.order;
       ORDERS.unshift({oid:o.oid,cid:c.id,service:state.bkService,hours,date,time,addr,note,km,status:'pending'});
       orderSeq=Math.max(orderSeq,o.oid);
-      toast(`✓ Objednávka u <b>${esc(c.name)}</b> odeslána — čeká na potvrzení`,'success');
+      toast(`Objednávka u <b>${esc(c.name)}</b> odeslána — čeká na potvrzení`,'success');
       setTimeout(()=>go('bookings'),900);
     })
-    .catch(e=>toast('⚠️ Objednávku se nepodařilo odeslat: '+e.message,'declined'));
+    .catch(e=>toast('Objednávku se nepodařilo odeslat: '+e.message,'declined'));
 }
 
 /* ---------- DATE HELPER ---------- */
@@ -695,7 +704,7 @@ async function logout(){
   closeAccountMenu();
   await apiSync(bootstrap());
   updateAuthUI();renderCare();
-  toast('👋 Byli jste odhlášeni.');
+  toast('Byli jste odhlášeni.');
   go('home');
 }
 
@@ -712,7 +721,7 @@ function renderSettings(){
   document.getElementById('setRole').textContent=auth.role==='caregiver'?'Účet pečovatelky':(auth.role==='admin'?'Správce systému':'Účet rodiny');
   setAva(document.getElementById('setAva'),auth.role==='caregiver'?cgProfile.photo:null,initials(name));
 }
-function toggleSetting(key,el){appSettings[key]=el.checked;if(auth.loggedIn)apiSync(api('/users/me/settings',{method:'PATCH',body:{settings:appSettings}}));toast('✓ Nastavení uloženo');}
+function toggleSetting(key,el){appSettings[key]=el.checked;if(auth.loggedIn)apiSync(api('/users/me/settings',{method:'PATCH',body:{settings:appSettings}}));toast('Nastavení uloženo');}
 async function changePassword(e){
   e.preventDefault();
   const cur=document.getElementById('pwCurrent'),nw=document.getElementById('pwNew'),cf=document.getElementById('pwConfirm');
@@ -723,7 +732,7 @@ async function changePassword(e){
   try{
     await api('/auth/change-password',{method:'POST',body:{current:cur.value,next:nw.value}});
     cur.value=nw.value=cf.value='';
-    toast('✓ Heslo bylo změněno');
+    toast('Heslo bylo změněno');
   }catch(e2){err.textContent=e2.message||'Změna hesla se nezdařila.';}
   return false;
 }
@@ -732,7 +741,7 @@ async function requestEmailChange(){
   if(err)err.textContent='';
   try{
     await api('/auth/change-email/request',{method:'POST'});
-    toast('📧 Poslali jsme potvrzovaci odkaz na puvodni e-mail.');
+    toast('Poslali jsme potvrzovaci odkaz na puvodni e-mail.');
   }catch(e){
     if(err)err.textContent=e.message||'Nepodarilo se odeslat potvrzovaci e-mail.';
   }
@@ -780,7 +789,7 @@ async function submitChangeEmailNew(e,resend){
     document.getElementById('changeEmailTarget').textContent=newEmail;
     document.getElementById('changeEmailStepNew').style.display='none';
     document.getElementById('changeEmailStepCode').style.display='';
-    toast(resend?'📧 Poslali jsme novy overovaci kod.':'📧 Poslali jsme overovaci kod na novy e-mail.');
+    toast(resend?'Poslali jsme novy overovaci kod.':'Poslali jsme overovaci kod na novy e-mail.',null,envelopeSVG());
   }catch(e2){
     err.textContent=e2.message||'Kod se nepodarilo odeslat.';
     if(e2&&['invalid','expired','used'].includes(e2.reason||'')){
@@ -812,7 +821,7 @@ async function submitChangeEmailCode(){
     changeEmailToken='';
     updateAuthUI();
     renderSettings();
-    toast('✓ E-mail byl zmenen.');
+    toast('E-mail byl zmenen.');
   }catch(e){
     err.textContent=e.message||'Overeni noveho e-mailu se nezdarilo.';
     if(e&&['invalid','expired','used'].includes(e.reason||'')){
@@ -834,8 +843,8 @@ function exportData(){
     a.href=URL.createObjectURL(blob);a.download='zenvoria-data.json';
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-    toast('⬇️ Data byla exportována');
-  }catch(e){toast('⚠️ Export se nezdařil');}
+    toast('Data byla exportována');
+  }catch(e){toast('Export se nezdařil');}
 }
 function deleteAccount(){
   askConfirm({title:'Smazat účet?',icon:trashSVG(),
@@ -1008,12 +1017,12 @@ async function submitRegister(e){
     const r=await api('/auth/register',{method:'POST',body:{name:name.value.trim(),email:email.value.trim().toLowerCase(),password:pw.value,role:regRole}});
     loginAs(r.user.name,r.user.email,r.user.role);
     await apiSync(bootstrap());updateAuthUI();renderCare();
-    toast(regRole==='caregiver'?'✓ Účet pečovatelky vytvořen. Dokončete prosím ověření.':'✓ Účet vytvořen. Vítejte v ZENVORIA!');
+    toast(regRole==='caregiver'?'Účet pečovatelky vytvořen. Dokončete prosím ověření.':'Účet vytvořen. Vítejte v ZENVORIA!','success');
     if(!resumePendingBooking())go(landingView());
   }catch(err){
     setFieldError('rf-email',true);
     document.getElementById('rf-email-err')&&(document.getElementById('rf-email-err').textContent=err.message);
-    toast('⚠️ '+(err.message||'Registrace se nezdařila.'),'declined');
+    toast(''+(err.message||'Registrace se nezdařila.'),'declined');
   }
   return false;
 }
@@ -1211,7 +1220,7 @@ function renderCalendar(){
     const has=showDots&&BOOKED_DAYS.includes(d);
     const today=(d===TODAY.getDate()&&calMonth===TODAY.getMonth()&&calYear===TODAY.getFullYear());
     const lbl=has?`${d}. ${MONTHS[calMonth].toLowerCase()} ${calYear} — naplánovaná služba`:`${d}. ${MONTHS[calMonth].toLowerCase()} ${calYear}`;
-    html+=`<div class="day ${has?'has':''} ${today?'today':''}" ${has?'role="button" tabindex="0"':''} aria-label="${lbl}" onclick="${has?`toast('📅 Máte naplánovanou službu ${d}. ${MONTHS[calMonth].toLowerCase()}')`:''}">${d}</div>`;
+    html+=`<div class="day ${has?'has':''} ${today?'today':''}" ${has?'role="button" tabindex="0"':''} aria-label="${lbl}" onclick="${has?`toast('Máte naplánovanou službu ${d}. ${MONTHS[calMonth].toLowerCase()}')`:''}">${d}</div>`;
   }
   document.getElementById('calDays').innerHTML=html;
   renderOrders('up');
@@ -1277,11 +1286,11 @@ function renderFamilyDash(){
       ${nc?`<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openProfile(${nc.id})">
         ${avaHtml(nc.init,nc.photo)}
         <div class="od"><b>Přijde: ${esc(nc.name)}</b><div class="det">${fmtDate(next.date)} · ${next.time} · ${cgBadges(nc,{max:1})||'ověřená'}</div></div>
-        <div class="ost"><span class="status ok">★ ${nc.rating}</span></div>
+        <div class="ost"><span class="status ok">${starFillSVG(11)} ${nc.rating}</span></div>
       </div>`:'<div class="empty" style="padding:14px">Zatím nemáte naplánovanou péči.</div>'}
       <div class="qa" style="margin-top:10px">
         <button class="qa-item" onclick="go('bookings')"><span class="qa-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#C9A233" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="qa-l">Historie péče (${done} dokončených)</span><span class="qa-ar">›</span></button>
-        <button class="qa-item" onclick="toast('🚨 SOS linka 24/7: +420 800 999 111')"><span class="qa-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#C9A233" stroke-width="1.6"/><circle cx="12" cy="12" r="3.4" stroke="#C9A233" stroke-width="1.6"/><path d="m5.4 5.4 4 4M18.6 5.4l-4 4M18.6 18.6l-4-4M5.4 18.6l4-4" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="qa-l">SOS linka 24/7</span><span class="qa-ar">›</span></button>
+        <button class="qa-item" onclick="toast('SOS linka 24/7: +420 800 999 111')"><span class="qa-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#C9A233" stroke-width="1.6"/><circle cx="12" cy="12" r="3.4" stroke="#C9A233" stroke-width="1.6"/><path d="m5.4 5.4 4 4M18.6 5.4l-4 4M18.6 18.6l-4-4M5.4 18.6l4-4" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="qa-l">SOS linka 24/7</span><span class="qa-ar">›</span></button>
       </div>`;
   }
   const rec=CAREGIVERS.slice().filter(c=>c.verified&&!c.suspended).sort((a,b)=>(b.plan==='premium')-(a.plan==='premium')||b.rating-a.rating).slice(0,3);
@@ -1289,7 +1298,7 @@ function renderFamilyDash(){
     <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openProfile(${c.id})">
       ${avaHtml(c.init,c.photo)}
       <div class="od"><b>${esc(c.name)}</b><div class="det">${esc(c.loc)} · ${c.exp} let praxe</div></div>
-      <div class="ost"><span class="status ok">★ ${c.rating}</span><div class="pr">${c.rate} Kč</div></div>
+      <div class="ost"><span class="status ok">${starFillSVG(11)} ${c.rating}</span><div class="pr">${c.rate} Kč</div></div>
     </div>`).join('');
 }
 
@@ -1339,8 +1348,8 @@ function renderPricing(){
     let action;
     if(isCg){action=cur===key
       ?(key==='premium'
-        ? '<div class="plan-current">✓ Váš aktuální tarif</div><button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openBillingPortal(this)">Spravovat předplatné</button>'
-        : '<div class="plan-current">✓ Váš aktuální tarif</div>')
+        ? '<div class="plan-current">'+checkSVG()+' Váš aktuální tarif</div><button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openBillingPortal(this)">Spravovat předplatné</button>'
+        : '<div class="plan-current">'+checkSVG()+' Váš aktuální tarif</div>')
       :(key==='premium'
         ? `<button class="btn btn-gold btn-block" onclick="startPremiumCheckout(this)">Zaplatit a aktivovat PREMIUM</button>`
         : `<button class="btn btn-ghost btn-block" onclick="setPlan('start')">Přejít na START</button>`);}
@@ -1361,7 +1370,7 @@ function setPlan(key){
   if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
   const apply=()=>{cgPlanMap[auth.email]=key;const c=CAREGIVERS.find(x=>x.email===auth.email);if(c){c.plan=key;apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{plan:key}}));}
     renderPricing();renderCare();
-    toast(key==='premium'?'💎 Aktivován tarif PREMIUM!':'Tarif změněn na START.');};
+    toast(key==='premium'?'Aktivován tarif PREMIUM!':'Tarif změněn na START.',key==='premium'?null:undefined,key==='premium'?diamondSVG(20,'#13A552'):undefined);};
   if(key==='start'&&cgPlan()==='premium'){
     askConfirm({title:'Přejít na START?',icon:arrowDownSVG(),
       message:'Přijdete o odznak Premium a vyšší zobrazení ve vyhledávání.',
@@ -1381,7 +1390,7 @@ async function startPremiumCheckout(btn){
     if(btn){btn.disabled=false;btn.textContent=orig;}
     // Stripe není nakonfigurovaný → zatím použij dosavadní (mock) platbu
     if(/503|nakonfigurov/i.test(e.message||'')){openPayment();return;}
-    toast('⚠️ '+(e.message||'Platba se nezdařila.'),'declined');
+    toast(''+(e.message||'Platba se nezdařila.'),'declined');
   }
 }
 async function openBillingPortal(btn){
@@ -1393,7 +1402,7 @@ async function openBillingPortal(btn){
     throw new Error('Portál se nepodařilo otevřít.');
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent=orig;}
-    toast('⚠️ '+(e.message||'Správu předplatného se nepodařilo otevřít.'),'declined');
+    toast(''+(e.message||'Správu předplatného se nepodařilo otevřít.'),'declined');
   }
 }
 /* návrat ze Stripe Checkout (#pricing?paid=1) — tarif nastaví webhook, počkáme na něj */
@@ -1405,12 +1414,12 @@ async function handleBillingReturn(){
   history.replaceState({view:'pricing'},'','#pricing');
   go('pricing');
   if(/canceled=1/.test(q)){toast('Platba byla zrušena.');return;}
-  toast('💳 Platba proběhla. Aktivuji PREMIUM…');
+  toast('Platba proběhla. Aktivuji PREMIUM…');
   // webhook může chvíli trvat — pár pokusů obnovit data
   for(let i=0;i<5;i++){
     await new Promise(r=>setTimeout(r,1500));
     try{await bootstrap();updateAuthUI();renderCare();renderPricing();}catch(e){}
-    if(cgPlan()==='premium'){toast('💎 Aktivován tarif PREMIUM!');return;}
+    if(cgPlan()==='premium'){toast('Aktivován tarif PREMIUM!');return;}
   }
   toast('Platba přijata. Aktivace tarifu se projeví za okamžik.');
 }
@@ -1450,7 +1459,7 @@ function payConfirm(e){
 /* odkaz „Ověření" — pečovatelku pošle na formulář, ostatní na přihlášení */
 function goVerify(){
   if(auth.loggedIn&&auth.role==='caregiver')go('cg-verify');
-  else{toast('🛡️ Přihlaste se jako pečovatelka a dokončete ověření.');go('login');}
+  else{toast('Přihlaste se jako pečovatelka a dokončete ověření.');go('login');}
 }
 const VER_BANNER={
   verified:{cls:'ok',ic:`<span style="color:#2E7D46">${checkCircleSVG(28)}</span>`,t:'Jste ověřená pečovatelka',s:'Váš profil je viditelný rodinám ve vyhledávání.'},
@@ -1574,7 +1583,7 @@ function submitVerify(e){
   verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
   verifyIdFrontName='';verifyIdFrontData='';verifyIdBackName='';verifyIdBackData='';
   persist();
-  toast('🛡️ Žádost odeslána správci k ověření.');
+  toast('Žádost odeslána správci k ověření.');
   renderCgVerify();renderNav();
   return false;
 }
@@ -1636,7 +1645,7 @@ function renderAdminVerify(){
         <button class="btn btn-sm btn-gold" onclick="approveVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 5 5 9-11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Schválit</button>
         <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Zamítnout</button>
       </div>
-    </div>`).join(''):'<div class="empty">Žádné čekající žádosti. 🎉</div>';
+    </div>`).join(''):'<div class="empty">Žádné čekající žádosti. '+sparkleSVG()+'</div>';
   document.getElementById('admVerDone').innerHTML=done.length?`
     <table class="adm-table"><thead><tr><th>Pečovatelka</th><th>Osvědčení</th><th>Datum</th><th style="text-align:right">Výsledek</th></tr></thead><tbody>
     ${done.slice().reverse().map(v=>`<tr>
@@ -1735,7 +1744,7 @@ const TOUR_STEPS=[
    title:'6. Rychlá registrace',
    text:'Před první objednávkou vás požádáme o krátkou bezplatnou registraci — stačí jméno, e-mail a heslo. Je to kvůli vašemu bezpečí. Potom se vrátíte rovnou k objednávce.'},
   {sel:null,
-   title:'A to je vše! 😊',
+   title:'A to je vše! '+smileSVG(20),
    text:'Nakonec už jen vyberete den a čas a kliknete na „Rezervovat". S pečovatelkou si můžete kdykoli napsat přes „Zprávy" a všechny termíny najdete v „Moje objednávky". Průvodce si můžete kdykoli pustit znovu.'}
 ];
 /* kroky průvodce pro pečovatelky */
@@ -1753,7 +1762,7 @@ const TOUR_STEPS_CG=[
    title:'4. Nabídka a kalendář',
    text:'Ve svém profilu nastavíte, jaké služby nabízíte a za kolik. V kalendáři jednoduše označíte, kdy máte volno.'},
   {sel:null,
-   title:'A můžete pomáhat! 😊',
+   title:'A můžete pomáhat! '+smileSVG(20),
    text:'Rodiny vás samy osloví, vy jen potvrdíte termín. Platby probíhají bezpečně přes aplikaci. Průvodce si můžete kdykoli pustit znovu.'}
 ];
 let tourIdx=-1;
@@ -1851,7 +1860,7 @@ function downloadDossier(id){
   const blob=new Blob([zip],{type:'application/zip'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='overeni-'+slug(v.name)+'.zip';
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
-  toast('⬇️ Stahuji složku '+a.download);
+  toast('Stahuji složku '+a.download);
 }
 /* ikona podle přípony souboru (SVG) */
 function docIcon(name){
@@ -1881,7 +1890,7 @@ function downloadVer(id,which){
   }
   const a=document.createElement('a');a.href=href;a.download=fname;
   document.body.appendChild(a);a.click();a.remove();
-  toast('⬇️ Stahuji '+fname);
+  toast('Stahuji '+fname);
 }
 function approveVerification(id){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
@@ -1932,9 +1941,9 @@ function doRejectVerification(id,reason){
 function renderAdminCaregivers(){
   document.getElementById('admCgCount').textContent=CAREGIVERS.length;
   document.getElementById('admCgBody').innerHTML=CAREGIVERS.map(c=>{
-    const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge gold">✓ Ověřená</span>':'<span class="badge wait">Neověřená</span>');
+    const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge gold">'+checkSVG(12)+' Ověřená</span>':'<span class="badge wait">Neověřená</span>');
     return `<tr>
-      <td><div class="u-cell">${avaHtml(c.init,c.photo)}<div><b>${esc(c.name)}</b><span>★ ${c.rating} · ${c.exp} let praxe</span></div></div></td>
+      <td><div class="u-cell">${avaHtml(c.init,c.photo)}<div><b>${esc(c.name)}</b><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
       <td>${esc(c.loc)}</td><td>${c.rate} Kč</td><td>${badge}</td>
       <td><div class="adm-actions">
         <button class="btn btn-sm ${c.suspended?'btn-accept':'btn-decline'}" onclick="toggleSuspendCg(${c.id})">${c.suspended?'Obnovit':'Pozastavit'}</button>
@@ -1947,7 +1956,7 @@ function toggleSuspendCg(id){
   const doIt=()=>{c.suspended=!c.suspended;
     apiSync(api('/caregivers/'+id,{method:'PATCH',body:{suspended:c.suspended}}));
     renderAdminCaregivers();renderCare();
-    toast(c.suspended?`⏸️ ${esc(c.name)} pozastavena.`:`▶️ ${esc(c.name)} obnovena.`);};
+    toast(c.suspended?`${esc(c.name)} pozastavena.`:`${esc(c.name)} obnovena.`);};
   if(!c.suspended){
     askConfirm({title:'Pozastavit pečovatelku?',icon:pauseSVG(),
       message:`${esc(c.name)} se přestane zobrazovat rodinám, dokud ji znovu neobnovíte.`,
@@ -1963,7 +1972,7 @@ function removeCaregiver(id){
       if(c.email)cgStatusMap[c.email]='rejected';
       apiSync(api('/caregivers/'+id,{method:'DELETE'}));
       renderAdminCaregivers();renderCare();
-      toast(`🗑️ ${esc(c.name)} odebrána.`);
+      toast(`${esc(c.name)} odebrána.`);
     }});
 }
 
@@ -1986,7 +1995,7 @@ function toggleSuspendUser(id){
   const doIt=()=>{u.status=u.status==='suspended'?'active':'suspended';
     apiSync(api('/users/'+u.id,{method:'PATCH',body:{status:u.status}}));
     renderAdminUsers();
-    toast(u.status==='suspended'?`⏸️ ${esc(u.name)} pozastaven.`:`▶️ ${esc(u.name)} obnoven.`);};
+    toast(u.status==='suspended'?`${esc(u.name)} pozastaven.`:`${esc(u.name)} obnoven.`);};
   if(u.status!=='suspended'){
     askConfirm({title:'Pozastavit uživatele?',icon:pauseSVG(),
       message:`Účet ${esc(u.name)} bude pozastaven, dokud ho znovu neobnovíte.`,
@@ -2001,7 +2010,7 @@ function removeUser(id){
       USERS=USERS.filter(x=>x.id!==id);
       apiSync(api('/users/'+id,{method:'DELETE'}));
       renderAdminUsers();
-      toast(`🗑️ ${esc(u.name)} odebrán.`);
+      toast(`${esc(u.name)} odebrán.`);
     }});
 }
 
@@ -2110,7 +2119,7 @@ function exportAdminAuditCsv(){
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  toast('⬇️ Audit logy byly exportovány do CSV.','success');
+  toast('Audit logy byly exportovány do CSV.','success');
 }
 
 /* ---- ADMIN: ceny tarifů ---- */
@@ -2140,7 +2149,7 @@ function saveAdminPlans(e){
   planPrices.start=s;planPrices.premium=p;
   apiSync(api('/settings/planPrices',{method:'PUT',body:{value:planPrices}}));
   renderAdminPlans();renderCare();
-  toast('✓ Ceny tarifů byly uloženy.');
+  toast('Ceny tarifů byly uloženy.');
   return false;
 }
 
@@ -2199,7 +2208,7 @@ function sendBroadcast(e){
   }));
   renderAdminBroadcast();
   const n=aud==='specific'?emails.length:(aud==='caregivers'?'pečovatelkám':(aud==='families'?'rodinám':'všem'));
-  toast(`✉️ Zpráva odeslána ${aud==='specific'?n+' příjemcům':n}.`);
+  toast(`Zpráva odeslána ${aud==='specific'?n+' příjemcům':n}.`);
   return false;
 }
 
@@ -2291,7 +2300,7 @@ function reqCardHTML(r){
 }
 function renderCgRequests(){
   document.getElementById('cgReqBadge2').textContent=CG_REQUESTS.length;
-  document.getElementById('cgReqFull').innerHTML=CG_REQUESTS.length?CG_REQUESTS.map(reqCardHTML).join(''):'<div class="empty">Žádné nové poptávky. 🎉</div>';
+  document.getElementById('cgReqFull').innerHTML=CG_REQUESTS.length?CG_REQUESTS.map(reqCardHTML).join(''):'<div class="empty">Žádné nové poptávky. '+sparkleSVG()+'</div>';
   document.getElementById('cgConfirmed').innerHTML=cgScheduleHTML();
 }
 function acceptRequest(id){
@@ -2300,7 +2309,7 @@ function acceptRequest(id){
   CG_SCHEDULE.push({fam:r.fam,init:r.init,service:r.service,date:r.date,time:r.time,hours:r.hours});
   if(r.oid){const o=ORDERS.find(x=>x.oid===r.oid);if(o)o.status='confirmed';}
   apiSync(api('/requests/'+id+'/accept',{method:'POST'}));
-  toast(`✓ Poptávka od <b>${esc(r.fam)}</b> přijata`,'success');refreshCg();
+  toast(`Poptávka od <b>${esc(r.fam)}</b> přijata`,'success');refreshCg();
 }
 function declineRequest(id){
   const i=CG_REQUESTS.findIndex(r=>r.id===id);if(i<0)return;
@@ -2330,7 +2339,7 @@ function renderCgCalendar(){
   for(let d=1;d<=dim;d++){
     const has=booked.includes(d);
     const today=(d===TODAY.getDate()&&cgCalMonth===TODAY.getMonth()&&cgCalYear===TODAY.getFullYear());
-    html+=`<div class="day ${has?'has':''} ${today?'today':''}" ${has?'role="button" tabindex="0"':''} onclick="${has?`toast('📅 Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:''}">${d}</div>`;
+    html+=`<div class="day ${has?'has':''} ${today?'today':''}" ${has?'role="button" tabindex="0"':''} onclick="${has?`toast('Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:''}">${d}</div>`;
   }
   document.getElementById('cgCalDays').innerHTML=html;
   document.getElementById('cgAvail').innerHTML=DAYS_CZ.map((d,i)=>`
@@ -2358,7 +2367,7 @@ function toggleAvail(i,val){
   cgAvail[i]=val;
   if(val&&!(cgSlots[i].r||cgSlots[i].o||cgSlots[i].v)){cgSlots[i]={r:true,o:true,v:true};}
   saveCgAvail();renderCgCalendar();
-  toast(val?`✓ ${DAYS_CZ[i]} — nyní dostupná`:`${DAYS_CZ[i]} — označeno jako nedostupné`);
+  toast(val?`${DAYS_CZ[i]} — nyní dostupná`:`${DAYS_CZ[i]} — označeno jako nedostupné`,val?'success':undefined);
 }
 function toggleSlot(i,k){cgSlots[i][k]=!cgSlots[i][k];saveCgAvail();renderCgCalendar();}
 
@@ -2402,7 +2411,7 @@ function updateCgAvatar(){
 function onCgPhoto(e){
   const file=e.target.files&&e.target.files[0];
   if(!file)return;
-  if(!file.type.startsWith('image/')){toast('⚠️ Vyberte prosím obrázek.');return;}
+  if(!file.type.startsWith('image/')){toast('Vyberte prosím obrázek.');return;}
   const reader=new FileReader();
   reader.onload=function(){
     const img=new Image();
@@ -2415,7 +2424,7 @@ function onCgPhoto(e){
       const me=CAREGIVERS.find(x=>x.email===auth.email);
       if(me){me.photo=cgProfile.photo;apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{photo:cgProfile.photo}}));}
       syncCgPhotoToList();updateCgAvatar();syncCgPreview();updateAuthUI();renderCare();
-      toast('✓ Profilová fotka nahrána');
+      toast('Profilová fotka nahrána');
     };
     img.src=reader.result;
   };
@@ -2476,7 +2485,7 @@ function syncCgPreview(){
         <div style="flex:1">
           <div class="care-name">${name}</div>
           <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${loc} · dojezd do ${radius} km</div>
-          <div class="care-meta"><span class="stars">★</span><b style="color:var(--navy-900)">${cgProfile.rating}</b><span>(${cgProfile.reviews}) · ${exp} let praxe</span></div>
+          <div class="care-meta"><span class="stars">${starFillSVG()}</span><b style="color:var(--navy-900)">${cgProfile.rating}</b><span>(${cgProfile.reviews}) · ${exp} let praxe</span></div>
         </div>
       </div>
       <div class="care-tags"><span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>${servs}</div>
@@ -2507,7 +2516,7 @@ function saveCgProfile(){
     dayRate:cgProfile.dayRate,kmPrice:cgProfile.kmPrice,photo:cgProfile.photo||null
   }}));}
   renderCare();
-  toast('✓ Profil byl uložen a zveřejněn');
+  toast('Profil byl uložen a zveřejněn');
 }
 
 /* ---------- EARNINGS CHART ---------- */
@@ -2590,7 +2599,7 @@ function renderOrderDetail(){
   if(o.viewer==='caregiver'){action='';}
   else if(o.status==='done'){
     action=o.rated
-      ?`<button class="btn btn-ghost btn-block" style="margin-top:10px" disabled>Hodnocení odesláno ✓</button>`
+      ?`<button class="btn btn-ghost btn-block" style="margin-top:10px" disabled>Hodnocení odesláno ${checkSVG(13)}</button>`
       :`<button class="btn btn-navy btn-block" style="margin-top:10px" onclick="openRating(${o.cid},${o.oid})">Ohodnotit péči</button>`;
   }else if(declined){
     action=`<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openProfile(${o.cid})">Objednat znovu</button>`;
@@ -2694,7 +2703,7 @@ function renderStars(){
     <div class="rate-row">
       <span class="rr-l">${c.l}</span>
       <span class="rr-stars" role="group" aria-label="${c.l}">${[1,2,3,4,5].map(n=>
-        `<button type="button" class="${n<=ratingTarget.scores[c.k]?'on':''}" aria-label="${n} z 5" onclick="setStars('${c.k}',${n})">★</button>`).join('')}</span>
+        `<button type="button" class="${n<=ratingTarget.scores[c.k]?'on':''}" aria-label="${n} z 5" onclick="setStars('${c.k}',${n})">${starFillSVG(22)}</button>`).join('')}</span>
     </div>`).join('');
 }
 function submitRating(){
@@ -2708,7 +2717,7 @@ function submitRating(){
   if(curOrder&&curOrder.oid===oid)curOrder.rated=true;
   apiSync(api('/reviews',{method:'POST',body:{caregiverId:cid,init:initials(name),name,stars,text}}));
   closeRating();
-  toast('⭐ Děkujeme za vaše hodnocení!','success');
+  toast('Děkujeme za vaše hodnocení!','success');
   if(document.getElementById('view-order-detail')&&document.getElementById('view-order-detail').classList.contains('active'))renderOrderDetail();
 }
 
@@ -2840,7 +2849,7 @@ function sendTerm(){
     if(auth.loggedIn&&c.id>0)apiSync(api('/conversations/'+c.id+'/messages',{method:'POST',body:reply}));
   },1300);
 }
-function videoCall(){toast('📹 Videohovory spouštíme již brzy.');}
+function videoCall(){toast('Videohovory spouštíme již brzy.');}
 function scrollChat(){const b=document.getElementById('chatBody');if(b)b.scrollTop=b.scrollHeight;}
 function selectChat(id){activeChat=id;renderChat();document.getElementById('chatInput')?.focus();}
 function sendChat(e){
@@ -2896,7 +2905,7 @@ async function api(path,opts){
   return data;
 }
 /* fire-and-forget zápis na server s hláškou při chybě */
-function apiSync(p){return Promise.resolve(p).catch(e=>{console.error('[api]',e);toast('⚠️ Uložení do databáze se nezdařilo: '+e.message,'declined');});}
+function apiSync(p){return Promise.resolve(p).catch(e=>{console.error('[api]',e);toast('Uložení do databáze se nezdařilo: '+e.message,'declined');});}
 /* persist() je teď no-op — stav se ukládá přímo přes konkrétní /api volání */
 function persist(){}
 
@@ -2998,7 +3007,7 @@ async function initApp(){
     if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';
       if(m.user.settings)Object.assign(appSettings,m.user.settings);}
   }catch(e){console.warn('auth/me',e.message);}
-  try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('⚠️ Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
+  try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
   updateAuthUI();
   renderHome();renderFilters();renderCare();renderCalendar();
   document.querySelectorAll('select').forEach(enhanceSelect);

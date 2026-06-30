@@ -715,10 +715,10 @@
   .toast.success::before{background:#6FAE6A}
   .toast.success b{color:#A6D49A}
   .toast.success .toast-ic{background:rgba(111,174,106,.2);color:#A6D49A}
-  .toast.error{background:#3A1A16;border-color:#D98A80}
-  .toast.error::before{background:#D98A80}
-  .toast.error b{color:#F0B7AE}
-  .toast.error .toast-ic{background:rgba(217,138,128,.2);color:#F0B7AE}
+  .toast.error,.toast.declined{background:#3A1A16;border-color:#D98A80}
+  .toast.error::before,.toast.declined::before{background:#D98A80}
+  .toast.error b,.toast.declined b{color:#F0B7AE}
+  .toast.error .toast-ic,.toast.declined .toast-ic{background:rgba(217,138,128,.2);color:#F0B7AE}
 
   /* ---------- MOBILE MENU ---------- */
   .nav-badge{display:inline-flex;min-width:18px;height:18px;padding:0 5px;border-radius:10px;
