@@ -120,7 +120,7 @@ function isStrongPassword(value) {
 }
 
 const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
-const PUBLIC_SETTINGS_KEYS = ['planPrices'];
+const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks'];
 const ADMIN_UPDATABLE_USER_STATUSES = new Set(['active', 'suspended']);
 const ADMIN_UPDATABLE_CAREGIVER_STATUSES = new Set(['pending', 'verified', 'rejected']);
 const ADMIN_UPDATABLE_CAREGIVER_PLANS = new Set(['start', 'premium']);
@@ -162,8 +162,32 @@ function sanitizePlanPrices(value) {
   return { start: Math.round(start), premium: Math.round(premium) };
 }
 
+/* URL nebo prázdný řetězec; bez schématu doplní https:// */
+function sanitizeUrlOrEmpty(value, maxLen = 300) {
+  let v = String(value == null ? '' : value).trim();
+  if (!v) return '';
+  if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+  if (v.length > maxLen) return null;
+  try {
+    const u = new URL(v);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.toString();
+  } catch (e) {
+    return null;
+  }
+}
+
+function sanitizeSocialLinks(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const facebook = sanitizeUrlOrEmpty(value.facebook);
+  const instagram = sanitizeUrlOrEmpty(value.instagram);
+  if (facebook === null || instagram === null) return null;
+  return { facebook, instagram };
+}
+
 function sanitizeSettingValue(key, value) {
   if (key === 'planPrices') return sanitizePlanPrices(value);
+  if (key === 'socialLinks') return sanitizeSocialLinks(value);
   return null;
 }
 
@@ -1670,6 +1694,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
     planPrices: settings.planPrices || { start: 190, premium: 390 },
+    socialLinks: settings.socialLinks || { facebook: '', instagram: '' },
     settings,
   });
 }));

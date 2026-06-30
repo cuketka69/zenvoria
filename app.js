@@ -25,6 +25,15 @@ const PLANS={
   premium:{name:'PREMIUM',
     feats:['Vše ze START','Vyšší zobrazení ve vyhledávání','Odznak PREMIUM','Neomezené poptávky','Statistiky profilu','Prioritní podpora','Video představení']}
 };
+/* odkazy na sociální sítě Zenvoria — nastavuje admin v sekci Sociální sítě */
+let socialLinks={facebook:'',instagram:''};
+/* otevře nastavený profil sítě v nové záložce; když není nastaven, upozorní */
+function openSocial(net){
+  const url=socialLinks&&socialLinks[net];
+  if(url){window.open(url,'_blank','noopener');return;}
+  if(auth.loggedIn&&auth.role==='admin'){toast('Adresa zatím není nastavená — doplňte ji v sekci Sociální sítě.');go('admin-social');}
+  else toast('Tento profil zatím není k dispozici.');
+}
 /* ceny tarifů (Kč/měsíc). Cenu obou tarifů nastavuje admin v sekci Tarify. */
 let planPrices={start:190,premium:390};
 const planPrice=k=>planPrices[k]||0;
@@ -138,6 +147,7 @@ async function go(v,fromPop){
   if(v==='admin-orders')renderAdminOrders();
   if(v==='admin-audit')renderAdminAudit();
   if(v==='admin-plans')renderAdminPlans();
+  if(v==='admin-social')renderAdminSocial();
   if(v==='admin-broadcast')renderAdminBroadcast();
   if(v==='pricing')renderPricing();
   if(v==='settings')renderSettings();
@@ -613,7 +623,7 @@ const DEFERRED_VIEW_IDS=new Set([
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
   'chat',
   'order-detail','login','forgot','reset-password','change-email','register',
-  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans',
+  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social',
   'pricing','settings'
 ]);
 let deferredViewsLoaded=false;
@@ -877,7 +887,8 @@ const NAV_ADMIN=[
   {v:'admin-audit',label:'Audit logy',fn:"go('admin-audit')"},
   {v:'admin-broadcast',label:'Zprávy',fn:"go('admin-broadcast')"},
   {v:'admin-plans',label:'Tarify',fn:"go('admin-plans')"},
-  {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"}
+  {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"},
+  {v:'admin-social',label:'Sociální sítě',fn:"go('admin-social')"}
 ];
 const NAV_FAMILY=[
   {v:'fam-dash',label:'Přehled',fn:"go('fam-dash')"},
@@ -2155,6 +2166,33 @@ function saveAdminPlans(e){
   return false;
 }
 
+/* ---- ADMIN: sociální sítě ---- */
+function renderAdminSocial(){
+  document.getElementById('asFacebook').value=socialLinks.facebook||'';
+  document.getElementById('asInstagram').value=socialLinks.instagram||'';
+  document.getElementById('asErr').textContent='';
+}
+/* doplní https:// a ověří, že je to platná webová adresa (prázdné = povoleno) */
+function normalizeSocialUrl(v){
+  v=(v||'').trim();
+  if(!v)return '';
+  if(!/^https?:\/\//i.test(v))v='https://'+v;
+  try{const u=new URL(v);if(u.protocol!=='http:'&&u.protocol!=='https:')return null;return u.toString();}catch(e){return null;}
+}
+function saveAdminSocial(e){
+  e.preventDefault();
+  const err=document.getElementById('asErr');err.textContent='';
+  const fb=normalizeSocialUrl(document.getElementById('asFacebook').value);
+  const ig=normalizeSocialUrl(document.getElementById('asInstagram').value);
+  if(fb===null){err.textContent='Zadejte platnou adresu Facebooku (např. https://facebook.com/zenvoria).';return false;}
+  if(ig===null){err.textContent='Zadejte platnou adresu Instagramu (např. https://instagram.com/zenvoria).';return false;}
+  socialLinks.facebook=fb;socialLinks.instagram=ig;
+  apiSync(api('/settings/socialLinks',{method:'PUT',body:{value:socialLinks}}));
+  renderAdminSocial();
+  toast('Odkazy na sociální sítě byly uloženy.','success');
+  return false;
+}
+
 /* ---- ADMIN: hromadné zprávy ---- */
 function audienceLabel(b){
   if(b.audience==='all')return 'Všem';
@@ -2932,6 +2970,7 @@ async function bootstrap(){
   CONVERSATIONS=d.conversations||[];
   BROADCASTS=d.broadcasts||[];
   if(d.planPrices)Object.assign(planPrices,d.planPrices);
+  if(d.socialLinks)Object.assign(socialLinks,d.socialLinks);
   // seq čítače z maxim (kdyby něco generovalo id lokálně)
   orderSeq=ORDERS.reduce((m,o)=>Math.max(m,o.oid||0),0);
   reqSeq=CG_REQUESTS.reduce((m,r)=>Math.max(m,r.id||0),0);

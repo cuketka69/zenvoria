@@ -628,6 +628,13 @@
   footer h5{color:var(--cream);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px;font-weight:600}
   footer a{display:block;color:#A2B0A6;text-decoration:none;font-size:14px;padding:5px 0;cursor:pointer;transition:.16s}
   footer a:hover{color:var(--gold)}
+  /* ikony sociálních sítí (patička + admin náhled) */
+  .soc-links{display:flex;gap:10px;margin-top:16px}
+  .soc-btn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;
+    border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;transition:.16s;padding:0}
+  .soc-btn:hover{color:var(--gold);border-color:var(--gold);transform:translateY(-2px)}
+  footer .soc-btn{color:#A2B0A6;border-color:rgba(255,255,255,.18)}
+  footer .soc-btn:hover{color:var(--gold);border-color:var(--gold)}
   .foot-bottom{border-top:1px solid rgba(255,255,255,.08);padding-top:24px;display:flex;justify-content:space-between;align-items:center;font-size:13px;flex-wrap:wrap;gap:12px}
   .foot-legal{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:20px}
   .foot-legal a{display:inline;padding:0;font-size:13.5px}

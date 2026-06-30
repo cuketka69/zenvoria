@@ -745,6 +745,7 @@
             <button class="qa-item" onclick="go('admin-plans')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 22 2.5 9.5 6 3.5H18l3.5 6L12 22Z" stroke="#C9A233" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.5 9.5h19M9 9.5 12 3.5 15 9.5M9 9.5 12 22 15 9.5" stroke="#C9A233" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="qa-l">Ceny předplatného</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-orders')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><rect x="5" y="4.5" width="14" height="16.5" rx="2.3" stroke="#C9A233" stroke-width="1.7"/><rect x="9" y="3" width="6" height="3.2" rx="1.1" stroke="#C9A233" stroke-width="1.7"/><path d="M9 11h6M9 15h4" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="qa-l">Objednávky platformy</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-audit')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7V3Z" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 12h5M9.5 15.5h5" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="qa-l">Audit logy</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-social')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="2.4" stroke="#C9A233" stroke-width="1.7"/><circle cx="17" cy="6.5" r="2.4" stroke="#C9A233" stroke-width="1.7"/><circle cx="17" cy="17.5" r="2.4" stroke="#C9A233" stroke-width="1.7"/><path d="m8.1 10.9 6.8-3.3M8.1 13.1l6.8 3.3" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="qa-l">Sociální sítě</span><span class="qa-ar">›</span></button>
           </div>
         </div>
       </div>
@@ -892,6 +893,33 @@
         <div class="pdiv"></div>
         <div class="row" style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px"><span style="color:var(--muted)">Premium pečovatelek</span><span style="font-weight:700;color:var(--navy-900)" id="apPremCount">0</span></div>
         <div class="row" style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px"><span style="color:var(--muted)">Odhad měsíčních tržeb</span><span style="font-weight:700;color:var(--navy-900)" id="apRevenue">0 Kč</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN: SOCIÁLNÍ SÍTĚ ============ -->
+<div class="view" id="view-admin-social">
+  <div class="wrap">
+    <div class="page-head"><h1>Sociální sítě</h1><p>Vložte odkazy na profily ZENVORIA. Po uložení se ikony Facebooku a Instagramu (v patičce webu) otevřou na těchto adresách.</p></div>
+    <div class="profile-grid">
+      <form class="pcard" onsubmit="return saveAdminSocial(event)">
+        <h3>Odkazy na profily</h3>
+        <p style="color:var(--muted);font-size:13.5px;margin:4px 0 16px">Stačí vložit adresu profilu — pokud vynecháte „https://", doplníme ho. Prázdné pole znamená, že ikona nikam neodkazuje.</p>
+        <label class="lbl"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><path d="M15 8.5h2.3V5.6c-.4-.06-1.6-.16-3-.16-2.5 0-4.2 1.5-4.2 4.3V12H7.5v3.2H10V22h3.2v-6.8h2.6l.4-3.2h-3V9.4c0-.6.2-.9 1.1-.9Z" fill="#C9A233"/></svg>Facebook</label>
+        <input class="inp" id="asFacebook" type="url" inputmode="url" autocomplete="off" placeholder="https://facebook.com/zenvoria">
+        <label class="lbl" style="margin-top:16px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="#C9A233" stroke-width="1.8"/><circle cx="12" cy="12" r="4" stroke="#C9A233" stroke-width="1.8"/><circle cx="16.7" cy="7.3" r="1.15" fill="#C9A233"/></svg>Instagram</label>
+        <input class="inp" id="asInstagram" type="url" inputmode="url" autocomplete="off" placeholder="https://instagram.com/zenvoria">
+        <div class="set-err" id="asErr" style="margin-top:10px"></div>
+        <button class="btn btn-gold" type="submit" style="margin-top:18px">Uložit odkazy</button>
+      </form>
+      <div class="pcard book-aside">
+        <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="#7A736A" stroke-width="1.6"/></svg>Náhled — takto fungují ikony na webu</div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:14px">Klikem otevřou nastavený profil v nové záložce.</p>
+        <div class="soc-links">
+          <button type="button" class="soc-btn" onclick="openSocial('facebook')" aria-label="Facebook" title="Facebook"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 8.5h2.3V5.6c-.4-.06-1.6-.16-3-.16-2.5 0-4.2 1.5-4.2 4.3V12H7.5v3.2H10V22h3.2v-6.8h2.6l.4-3.2h-3V9.4c0-.6.2-.9 1.1-.9Z" fill="currentColor"/></svg></button>
+          <button type="button" class="soc-btn" onclick="openSocial('instagram')" aria-label="Instagram" title="Instagram"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><circle cx="16.7" cy="7.3" r="1.15" fill="currentColor"/></svg></button>
+        </div>
       </div>
     </div>
   </div>
