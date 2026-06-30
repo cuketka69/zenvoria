@@ -334,6 +334,25 @@ function capSVG(s){s=s||14;return `<svg width="${s}" height="${s}" viewBox="0 0 
 function speechSVG(s){s=s||14;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M4 5h16v11H9l-5 4V5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;}
 function carSVG(s){s=s||14;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M5 11l1.6-4.6A2 2 0 0 1 8.5 5h7a2 2 0 0 1 1.9 1.4L19 11M4.5 11h15v5h-15v-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="8" cy="16.4" r="1.5" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16.4" r="1.5" stroke="currentColor" stroke-width="1.5"/></svg>`;}
 function starFillSVG(s){s=s||13;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px"><path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17.8 6.8 19.1l1-5.8L3.5 9.2l5.9-.9L12 3Z"/></svg>`;}
+/* ikony pro potvrzovací modal / bannery (dědí currentColor) */
+function svgWrap(s,inner){s=s||30;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px">${inner}</svg>`;}
+function trashSVG(s){return svgWrap(s,'<path d="M5 7h14M10 7V5h4v2M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
+function pauseSVG(s){return svgWrap(s,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M10 9v6M14 9v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
+function checkCircleSVG(s){return svgWrap(s,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="m8 12 2.6 2.6L16 9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');}
+function warnSVG(s){return svgWrap(s,'<path d="M12 3.5 21 19H3L12 3.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1.1" fill="currentColor"/>');}
+function downloadSVG(s){return svgWrap(s,'<path d="M12 4v10m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 18h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
+function arrowDownSVG(s){return svgWrap(s,'<path d="M12 5v14m0 0 5-5m-5 5-5-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');}
+function docSVG(s){return svgWrap(s,'<path d="M7 3h7l4 4v14H7V3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 12h5M9.5 15.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
+function shieldSVG(s){return svgWrap(s,'<path d="M12 3 5 6v5.5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m9 11.5 2 2 3.6-3.9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');}
+function clipboardSVG(s){return svgWrap(s,'<rect x="5" y="4.5" width="14" height="16.5" rx="2.3" stroke="currentColor" stroke-width="1.7"/><rect x="9" y="3" width="6" height="3.2" rx="1.1" stroke="currentColor" stroke-width="1.7"/><path d="M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
+function editSVG(s){return svgWrap(s,'<path d="M5 19h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M14.5 5.5l3 3L9 17l-3.5.5.5-3.5 8.5-8.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>');}
+function selfieSVG(s){return svgWrap(s,'<rect x="3.5" y="6" width="17" height="13" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12.5" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M8 6l1.2-2h5.6L16 6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>');}
+function idCardSVG(s){return svgWrap(s,'<rect x="3" y="5.5" width="18" height="13" rx="2.3" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="11" r="2" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 16c.5-1.6 1.6-2.4 3-2.4s2.5.8 3 2.4M14 9.5h4M14 12.5h4M14 15h2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>');}
+function paperclipSVG(s){return svgWrap(s,'<path d="M18 7.5 9.5 16a3 3 0 0 1-4.2-4.2l8-8a4.5 4.5 0 0 1 6.4 6.4l-8 8a6 6 0 0 1-8.5-8.5l7.3-7.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');}
+function phoneSVG(s){return svgWrap(s,'<path d="M6 3h3l1.5 5-2 1.5a11 11 0 0 0 5 5l1.5-2 5 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>');}
+function handWaveSVG(s){return svgWrap(s,'<path d="M7 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1V4.5a1.5 1.5 0 0 1 3 0V10m0-1.5V5a1.5 1.5 0 0 1 3 0v6m0-3.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L4 14.2a1.6 1.6 0 0 1 2.6-1.8L8 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>');}
+function imageSVG(s){return svgWrap(s,'<rect x="3.5" y="5" width="17" height="14" rx="2.3" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="10" r="1.6" stroke="currentColor" stroke-width="1.5"/><path d="m5 17 4.5-4.5 3 3L16 12l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>');}
+function pdfSVG(s){return svgWrap(s,'<path d="M7 3h7l4 4v14H7V3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 16.5h1.2a1.2 1.2 0 0 0 0-2.4H9v4M14.6 14.1v4M13.4 16h1.6M16.4 14.1h1.8M16.4 16h1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>');}
 
 /* ---------- THEME ---------- */
 const MOON_ICON='<path d="M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>';
@@ -819,7 +838,7 @@ function exportData(){
   }catch(e){toast('⚠️ Export se nezdařil');}
 }
 function deleteAccount(){
-  askConfirm({title:'Smazat účet?',icon:'🗑️',
+  askConfirm({title:'Smazat účet?',icon:trashSVG(),
     message:'Tím se smažou všechna lokální data a akce je nevratná.',
     confirmLabel:'Smazat účet',danger:true,onConfirm:()=>{
       try{localStorage.removeItem(LS_KEY);localStorage.removeItem('zv_auth');}catch(e){}
@@ -929,7 +948,7 @@ function updateAuthUI(){
   }
   const mm=document.getElementById('mmAuth');
   const greet=document.getElementById('homeGreeting');
-  if(inn&&auth.role==='family'){greet.hidden=false;greet.innerHTML=`👋 Vítejte zpět, <b style="color:var(--navy-900)">${esc(auth.name.split(/\s+/)[0])}</b>`;}
+  if(inn&&auth.role==='family'){greet.hidden=false;greet.innerHTML=`<span style="color:#C9A233">${handWaveSVG(16)}</span> Vítejte zpět, <b style="color:var(--navy-900)">${esc(auth.name.split(/\s+/)[0])}</b>`;}
   else{greet.hidden=true;}
   const homeLink=(auth.role==='caregiver'||auth.role==='admin')?`<a role="button" tabindex="0" onclick="go('${landingView()}')">Přehled</a>`:"<a role=\"button\" tabindex=\"0\" onclick=\"go('bookings')\">Moje objednávky</a>";
   mm.innerHTML=inn
@@ -1344,7 +1363,7 @@ function setPlan(key){
     renderPricing();renderCare();
     toast(key==='premium'?'💎 Aktivován tarif PREMIUM!':'Tarif změněn na START.');};
   if(key==='start'&&cgPlan()==='premium'){
-    askConfirm({title:'Přejít na START?',icon:'⬇️',
+    askConfirm({title:'Přejít na START?',icon:arrowDownSVG(),
       message:'Přijdete o odznak Premium a vyšší zobrazení ve vyhledávání.',
       confirmLabel:'Přejít na START',onConfirm:apply});
   }else apply();
@@ -1434,10 +1453,10 @@ function goVerify(){
   else{toast('🛡️ Přihlaste se jako pečovatelka a dokončete ověření.');go('login');}
 }
 const VER_BANNER={
-  verified:{cls:'ok',ic:'✅',t:'Jste ověřená pečovatelka',s:'Váš profil je viditelný rodinám ve vyhledávání.'},
-  submitted:{cls:'wait',ic:'⏳',t:'Žádost čeká na schválení',s:'Správce kontroluje vaše doklady, zpravidla do 48 hodin.'},
-  rejected:{cls:'bad',ic:'⚠️',t:'Žádost byla zamítnuta',s:'Upravte prosím údaje a odešlete znovu.'},
-  pending:{cls:'wait',ic:'📝',t:'Dokončete své ověření',s:'Vyplňte formulář a nahrejte osvědčení, abyste se zobrazili rodinám.'}
+  verified:{cls:'ok',ic:`<span style="color:#2E7D46">${checkCircleSVG(28)}</span>`,t:'Jste ověřená pečovatelka',s:'Váš profil je viditelný rodinám ve vyhledávání.'},
+  submitted:{cls:'wait',ic:`<span style="color:#B7791F">${svgWrap(28,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.8 1.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>')}</span>`,t:'Žádost čeká na schválení',s:'Správce kontroluje vaše doklady, zpravidla do 48 hodin.'},
+  rejected:{cls:'bad',ic:`<span style="color:#C0473B">${warnSVG(28)}</span>`,t:'Žádost byla zamítnuta',s:'Upravte prosím údaje a odešlete znovu.'},
+  pending:{cls:'wait',ic:`<span style="color:#C9A233">${editSVG(28)}</span>`,t:'Dokončete své ověření',s:'Vyplňte formulář a nahrejte osvědčení, abyste se zobrazili rodinám.'}
 };
 let verifyDocName='';
 let verifySelfieName='';
@@ -1498,26 +1517,26 @@ function renderCgVerify(){
 function onVerifyDoc(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyDocName=f.name;verifyDocData='';
-  document.getElementById('vfDocText').innerHTML=`📎 <b>${esc(f.name)}</b> — připraveno k odeslání`;
-  readVerifyFile(f,res=>{verifyDocName=res.name;verifyDocData=res.data;document.getElementById('vfDocText').innerHTML=`📎 <b>${esc(res.name)}</b> — připraveno k odeslání`;});
+  document.getElementById('vfDocText').innerHTML=`${paperclipSVG(15)} <b>${esc(f.name)}</b> — připraveno k odeslání`;
+  readVerifyFile(f,res=>{verifyDocName=res.name;verifyDocData=res.data;document.getElementById('vfDocText').innerHTML=`${paperclipSVG(15)} <b>${esc(res.name)}</b> — připraveno k odeslání`;});
 }
 function onVerifySelfie(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifySelfieName=f.name;verifySelfieData='';
-  document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${esc(f.name)}</b> — selfie připraveno`;
-  readVerifyFile(f,res=>{verifySelfieName=res.name;verifySelfieData=res.data;document.getElementById('vfSelfieText').innerHTML=`🤳 <b>${esc(res.name)}</b> — selfie připraveno`;});
+  document.getElementById('vfSelfieText').innerHTML=`${selfieSVG(15)} <b>${esc(f.name)}</b> — selfie připraveno`;
+  readVerifyFile(f,res=>{verifySelfieName=res.name;verifySelfieData=res.data;document.getElementById('vfSelfieText').innerHTML=`${selfieSVG(15)} <b>${esc(res.name)}</b> — selfie připraveno`;});
 }
 function onVerifyIdFront(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyIdFrontName=f.name;verifyIdFrontData='';
-  document.getElementById('vfIdFrontText').innerHTML=`🪪 <b>${esc(f.name)}</b>`;
-  readVerifyFile(f,res=>{verifyIdFrontName=res.name;verifyIdFrontData=res.data;document.getElementById('vfIdFrontText').innerHTML=`🪪 <b>${esc(res.name)}</b>`;});
+  document.getElementById('vfIdFrontText').innerHTML=`${idCardSVG(15)} <b>${esc(f.name)}</b>`;
+  readVerifyFile(f,res=>{verifyIdFrontName=res.name;verifyIdFrontData=res.data;document.getElementById('vfIdFrontText').innerHTML=`${idCardSVG(15)} <b>${esc(res.name)}</b>`;});
 }
 function onVerifyIdBack(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyIdBackName=f.name;verifyIdBackData='';
-  document.getElementById('vfIdBackText').innerHTML=`🪪 <b>${esc(f.name)}</b>`;
-  readVerifyFile(f,res=>{verifyIdBackName=res.name;verifyIdBackData=res.data;document.getElementById('vfIdBackText').innerHTML=`🪪 <b>${esc(res.name)}</b>`;});
+  document.getElementById('vfIdBackText').innerHTML=`${idCardSVG(15)} <b>${esc(f.name)}</b>`;
+  readVerifyFile(f,res=>{verifyIdBackName=res.name;verifyIdBackData=res.data;document.getElementById('vfIdBackText').innerHTML=`${idCardSVG(15)} <b>${esc(res.name)}</b>`;});
 }
 function submitVerify(e){
   e.preventDefault();
@@ -1604,9 +1623,9 @@ function renderAdminVerify(){
       <div class="ri">
         <b>${esc(v.name)}</b>
         <div class="rd">${esc(v.loc)} · sazba ${v.rate} Kč/hod · ${v.exp} let praxe</div>
-        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">🛡️ Identita:</b> ${esc(v.docType||'—')}${v.docNum?` č. ${esc(v.docNum)}`:''}${v.phone?` · ☎ ${esc(v.phone)}`:''}${v.idFront?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idfront')">🪪 přední ⬇</a>`:''}${v.idBack?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idback')">🪪 zadní ⬇</a>`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">🤳 selfie ⬇</a>`:''}</div>
-        <div class="rd"><b style="color:var(--navy-800)">🎓 Osvědčení:</b> ${esc(v.cert)} — ${esc(v.issuer)} (platnost ${esc(v.validUntil)})</div>
-        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">${docIcon(v.fileName)} ${esc(v.fileName)} ⬇</a></div>
+        <div class="rd" style="margin-top:6px"><b style="color:var(--navy-800)">${shieldSVG(15)} Identita:</b> ${esc(v.docType||'—')}${v.docNum?` č. ${esc(v.docNum)}`:''}${v.phone?` · ${phoneSVG(14)} ${esc(v.phone)}`:''}${v.idFront?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idfront')">${idCardSVG(14)} přední ${downloadSVG(13)}</a>`:''}${v.idBack?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'idback')">${idCardSVG(14)} zadní ${downloadSVG(13)}</a>`:''}${v.selfie?` · <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'selfie')">${selfieSVG(14)} selfie ${downloadSVG(13)}</a>`:''}</div>
+        <div class="rd"><b style="color:var(--navy-800)">${capSVG(15)} Osvědčení:</b> ${esc(v.cert)} — ${esc(v.issuer)} (platnost ${esc(v.validUntil)})</div>
+        <div class="rd"><b style="color:var(--navy-800)">Doklad:</b> <a role="button" tabindex="0" class="doc-link" onclick="downloadVer(${v.id},'doc')">${docIcon(v.fileName)} ${esc(v.fileName)} ${downloadSVG(13)}</a></div>
         <div class="rd"><b style="color:var(--navy-800)">Služby:</b> ${v.services.map(sName2).join(', ')}</div>
         ${v.refs?`<div class="rd"><b style="color:var(--navy-800)">Reference:</b> ${esc(v.refs)}</div>`:''}
         ${v.note?`<div class="rd" style="margin-top:6px;font-style:italic">„${esc(v.note)}"</div>`:''}
@@ -1834,14 +1853,14 @@ function downloadDossier(id){
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
   toast('⬇️ Stahuji složku '+a.download);
 }
-/* ikona podle přípony souboru */
+/* ikona podle přípony souboru (SVG) */
 function docIcon(name){
   const e=(name||'').toLowerCase().split('.').pop();
-  if(['jpg','jpeg','png','gif','webp','heic','bmp'].includes(e))return '🖼️';
-  if(e==='pdf')return '📕';
-  if(['doc','docx','odt','rtf'].includes(e))return '📝';
-  if(e==='txt')return '📄';
-  return '📎';
+  if(['jpg','jpeg','png','gif','webp','heic','bmp'].includes(e))return imageSVG(14);
+  if(e==='pdf')return pdfSVG(14);
+  if(['doc','docx','odt','rtf'].includes(e))return editSVG(14);
+  if(e==='txt')return docSVG(14);
+  return paperclipSVG(14);
 }
 /* stažení nahraného dokladu / selfie pro kontrolu adminem */
 function downloadVer(id,which){
@@ -1869,7 +1888,7 @@ function approveVerification(id){
   askConfirm({
     title:'Schválit ověření?',
     message:`${v.name} bude označena jako ověřená a zveřejněna v katalogu pečovatelek.`,
-    icon:'✅',confirmLabel:'Schválit a zveřejnit',
+    icon:checkCircleSVG(),confirmLabel:'Schválit a zveřejnit',
     onConfirm:()=>doApproveVerification(id)
   });
 }
@@ -1895,7 +1914,7 @@ function rejectVerification(id){
   askConfirm({
     title:'Zamítnout žádost?',
     message:`Žádost ${v.name} bude zamítnuta. Uvedený důvod uvidí pečovatelka.`,
-    icon:'⚠️',danger:true,confirmLabel:'Zamítnout žádost',
+    icon:warnSVG(),danger:true,confirmLabel:'Zamítnout žádost',
     input:{label:'Důvod zamítnutí',value:'Nečitelné nebo neplatné osvědčení.',placeholder:'Napište důvod, který uvidí pečovatelka…'},
     onConfirm:(reason)=>doRejectVerification(id,reason)
   });
@@ -1930,14 +1949,14 @@ function toggleSuspendCg(id){
     renderAdminCaregivers();renderCare();
     toast(c.suspended?`⏸️ ${esc(c.name)} pozastavena.`:`▶️ ${esc(c.name)} obnovena.`);};
   if(!c.suspended){
-    askConfirm({title:'Pozastavit pečovatelku?',icon:'⏸️',
+    askConfirm({title:'Pozastavit pečovatelku?',icon:pauseSVG(),
       message:`${esc(c.name)} se přestane zobrazovat rodinám, dokud ji znovu neobnovíte.`,
       confirmLabel:'Pozastavit',danger:true,onConfirm:doIt});
   }else doIt();
 }
 function removeCaregiver(id){
   const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
-  askConfirm({title:'Odebrat pečovatelku?',icon:'🗑️',
+  askConfirm({title:'Odebrat pečovatelku?',icon:trashSVG(),
     message:`Opravdu chcete odebrat pečovatelku ${esc(c.name)}? Tato akce je nevratná.`,
     confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
       CAREGIVERS=CAREGIVERS.filter(x=>x.id!==id);
@@ -1969,14 +1988,14 @@ function toggleSuspendUser(id){
     renderAdminUsers();
     toast(u.status==='suspended'?`⏸️ ${esc(u.name)} pozastaven.`:`▶️ ${esc(u.name)} obnoven.`);};
   if(u.status!=='suspended'){
-    askConfirm({title:'Pozastavit uživatele?',icon:'⏸️',
+    askConfirm({title:'Pozastavit uživatele?',icon:pauseSVG(),
       message:`Účet ${esc(u.name)} bude pozastaven, dokud ho znovu neobnovíte.`,
       confirmLabel:'Pozastavit',danger:true,onConfirm:doIt});
   }else doIt();
 }
 function removeUser(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
-  askConfirm({title:'Odebrat uživatele?',icon:'🗑️',
+  askConfirm({title:'Odebrat uživatele?',icon:trashSVG(),
     message:`Opravdu chcete odebrat uživatele ${esc(u.name)}? Tato akce je nevratná.`,
     confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
       USERS=USERS.filter(x=>x.id!==id);
@@ -2638,7 +2657,9 @@ function askConfirm(o){
   o=o||{};
   document.getElementById('confirmTitle').textContent=o.title||'Opravdu pokračovat?';
   document.getElementById('confirmMsg').textContent=o.message||'';
-  document.getElementById('confirmIcon').textContent=o.icon||'⚠️';
+  const icEl=document.getElementById('confirmIcon');
+  icEl.style.color=o.danger?'#C0473B':'#C9A233';
+  icEl.innerHTML=o.icon||warnSVG();
   const ok=document.getElementById('confirmOkBtn');
   ok.textContent=o.confirmLabel||'Potvrdit';
   ok.className='btn '+(o.danger?'btn-decline':'btn-gold');
