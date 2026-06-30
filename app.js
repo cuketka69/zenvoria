@@ -1643,6 +1643,36 @@ function readVerifyFile(file,cb){
   }else{const r=new FileReader();r.onload=function(){cb({name:file.name,data:r.result});};r.readAsDataURL(file);}
 }
 
+/* přehled už odeslané žádosti (jen ke čtení) — pečovatelka nemůže poslat novou, ale vidí svou */
+function submittedVerificationCard(v){
+  const svc=(v.services||[]).map(s=>`<span class="chip">${esc(sName(s))}</span>`).join('')||'—';
+  const row=(l,r)=>`<div class="row"><span class="l">${l}</span><span class="r">${r}</span></div>`;
+  return `
+    <h3>Odeslaná žádost o ověření</h3>
+    <p style="color:var(--muted);font-size:13.5px;margin:4px 0 16px">Máte <b>1 žádost</b> odeslanou ke schválení. Dokud ji správce nevyřídí, nelze odeslat novou.</p>
+    ${row('Stav','<span class="badge wait">Čeká na schválení</span>')}
+    ${row('Odesláno',esc(fmtDate(v.date)))}
+    ${row('Jméno',esc(v.name||'—'))}
+    ${row('Lokalita',esc(v.loc||'—'))}
+    <button type="button" class="btn btn-ghost btn-block" style="margin-top:16px" onclick="toggleMyVerifyDetail(this)">Zobrazit žádost</button>
+    <div id="cgVerifyDetail" style="display:none;margin-top:14px">
+      <div class="pdiv"></div>
+      ${row('Telefon',esc(v.phone||'—'))}
+      ${row('Doklad',esc(v.docType||'—')+(v.docNum?' č. '+esc(v.docNum):''))}
+      ${row('Služby','<span style="display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'+svc+'</span>')}
+      ${row('Osvědčení',esc(v.cert||'—')+(v.issuer?' — '+esc(v.issuer):''))}
+      ${v.validUntil?row('Platnost',esc(v.validUntil)):''}
+      ${v.fileName?row('Nahraný doklad',esc(v.fileName)):''}
+      ${v.refs?row('Reference',esc(v.refs)):''}
+      ${v.note?row('Poznámka',esc(v.note)):''}
+    </div>`;
+}
+function toggleMyVerifyDetail(btn){
+  const d=document.getElementById('cgVerifyDetail');if(!d)return;
+  const show=d.style.display==='none';
+  d.style.display=show?'':'none';
+  btn.textContent=show?'Skrýt žádost':'Zobrazit žádost';
+}
 /* ---- formulář ověření (pečovatelka) ---- */
 function renderCgVerify(){
   const st=cgStatus();
@@ -1652,6 +1682,19 @@ function renderCgVerify(){
   const reason=(st==='rejected'&&rej&&rej.reason)?` Důvod: ${rej.reason}`:'';
   document.getElementById('cgVerifyBanner').innerHTML=
     `<div class="verify-banner ${b.cls}"><span class="vb-ic">${b.ic}</span><div class="vb-t"><b>${b.t}</b><span>${b.s}${reason}</span></div></div>`;
+  const form=document.getElementById('cgVerifyForm');
+  const submittedBox=document.getElementById('cgVerifySubmitted');
+  // Máš-li odeslanou (čekající) žádost → skryj formulář a ukaž její přehled (jen ke čtení)
+  const mine=VERIFICATIONS.find(v=>v.email===auth.email&&v.status==='submitted');
+  if(st==='submitted'&&mine&&submittedBox){
+    if(form)form.style.display='none';
+    submittedBox.style.display='';
+    submittedBox.innerHTML=submittedVerificationCard(mine);
+    ddRefresh();
+    return;
+  }
+  if(form)form.style.display='';
+  if(submittedBox)submittedBox.style.display='none';
   // prefill
   const setv=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
   setv('vfName',auth.name||cgProfile.name);
@@ -1672,10 +1715,9 @@ function renderCgVerify(){
   verifyIdFrontName='';verifyIdFrontData='';verifyIdBackName='';verifyIdBackData='';
   verifyServices=(cgProfile.services||[]).slice();
   renderVerifyServiceChips();
-  const form=document.getElementById('cgVerifyForm');
   const btn=document.getElementById('vfSubmitBtn');
   const locked=(st==='verified'||st==='submitted');
-  form.querySelectorAll('input,textarea,select,button').forEach(el=>el.disabled=locked);
+  if(form)form.querySelectorAll('input,textarea,select,button').forEach(el=>el.disabled=locked);
   if(btn){btn.disabled=locked;btn.textContent=st==='rejected'?'Odeslat znovu':'Odeslat k ověření';}
   document.getElementById('vfErr').textContent='';
   ddRefresh();
