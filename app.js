@@ -25,9 +25,9 @@ const PLANS={
   premium:{name:'PREMIUM',badge:'💎',
     feats:['Vše ze START','Vyšší zobrazení ve vyhledávání','Odznak PREMIUM','Neomezené poptávky','Statistiky profilu','Prioritní podpora','Video představení']}
 };
-/* ceny tarifů (Kč/měsíc). START je vždy zdarma; nastavuje se jen PREMIUM. */
-let planPrices={start:0,premium:390};
-const planPrice=k=>k==='start'?0:(planPrices[k]||0);
+/* ceny tarifů (Kč/měsíc). Cenu obou tarifů nastavuje admin v sekci Tarify. */
+let planPrices={start:190,premium:390};
+const planPrice=k=>planPrices[k]||0;
 const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' Kč / měsíc':'Zdarma';
 /* SVG diamant se zeleným obrysem (ostrý, škálovatelný) */
 const diamondSVG=(s,col)=>`<svg width="${s||14}" height="${s||14}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 22 2.5 9.5 6 3.5H18l3.5 6L12 22Z" stroke="${col||'#0A5A34'}" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.5 9.5h19M6 3.5 9 9.5M18 3.5 15 9.5M9 9.5 12 3.5 15 9.5M9 9.5 12 22 15 9.5" stroke="${col||'#0A5A34'}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -1319,7 +1319,7 @@ function renderPricing(){
       ${featured?'<span class="pl-tag">NEJOBLÍBENĚJŠÍ</span>':''}
       <h3>${planIcon(key,22)} ${p.name}</h3>
       <div class="pl-price">${planPrice(key)>0?planPrice(key).toLocaleString('cs-CZ')+' Kč <span>/ měsíc</span>':'Zdarma'}</div>
-      <div class="pl-sub">${featured?'Pro pečovatelky, které chtějí být více vidět.':'Základní tarif zdarma — automaticky po ověření.'}</div>
+      <div class="pl-sub">${featured?'Pro pečovatelky, které chtějí být více vidět.':(planPrice('start')>0?'Pro pečovatelky, které začínají.':'Základní tarif zdarma — automaticky po ověření.')}</div>
       <ul>${p.feats.map(f=>`<li>${f}</li>`).join('')}</ul>
       ${action}
     </div>`;}).join('');
@@ -2085,6 +2085,7 @@ function exportAdminAuditCsv(){
 
 /* ---- ADMIN: ceny tarifů ---- */
 function renderAdminPlans(){
+  document.getElementById('apStart').value=planPrices.start;
   document.getElementById('apPremium').value=planPrices.premium;
   document.getElementById('apErr').textContent='';
   document.getElementById('adminPlanPreview').innerHTML=['start','premium'].map(k=>`
@@ -2092,19 +2093,24 @@ function renderAdminPlans(){
       <span>${planIcon(k,15)} ${PLANS[k].name}</span>
       <b style="color:var(--navy-900)">${planPriceLabel(k)}</b>
     </div>`).join('');
-  const premCount=Object.values(cgPlanMap).filter(p=>p==='premium').length;
+  const plans=Object.values(cgPlanMap);
+  const premCount=plans.filter(p=>p==='premium').length;
+  const startCount=plans.filter(p=>p==='start').length;
+  const revenue=startCount*planPrice('start')+premCount*planPrice('premium');
   document.getElementById('apPremCount').textContent=premCount;
-  document.getElementById('apRevenue').textContent=(premCount*planPrice('premium')).toLocaleString('cs-CZ')+' Kč';
+  document.getElementById('apRevenue').textContent=revenue.toLocaleString('cs-CZ')+' Kč';
 }
 function saveAdminPlans(e){
   e.preventDefault();
+  const s=+document.getElementById('apStart').value;
   const p=+document.getElementById('apPremium').value;
   const err=document.getElementById('apErr');err.textContent='';
-  if(!(p>=0)){err.textContent='Zadejte platnou cenu.';return false;}
-  planPrices.premium=p;planPrices.start=0;
+  if(!(s>=0)){err.textContent='Zadejte platnou cenu tarifu START.';return false;}
+  if(!(p>=0)){err.textContent='Zadejte platnou cenu tarifu PREMIUM.';return false;}
+  planPrices.start=s;planPrices.premium=p;
   apiSync(api('/settings/planPrices',{method:'PUT',body:{value:planPrices}}));
-  renderAdminPlans();
-  toast('✓ Cena PREMIUM uložena.');
+  renderAdminPlans();renderCare();
+  toast('✓ Ceny tarifů byly uloženy.');
   return false;
 }
 
@@ -2172,8 +2178,11 @@ const cgProfile={
   name:'',loc:'',rate:0,exp:0,rating:0,reviews:0,photo:null,
   priceType:'hod',dayRate:0,radius:0,kmPrice:0,
   services:[],
+  langs:['Čeština'],
   bio:''
 };
+/* jazyky, které si pečovatelka může nastavit v profilu */
+const LANGUAGES=['Čeština','Slovenština','Angličtina','Němčina','Ukrajinština','Ruština','Polština','Vietnamština'];
 let CG_REQUESTS=[];
 let reqSeq=0;
 let AUDIT_LOGS=[];
@@ -2336,6 +2345,7 @@ function renderCgProfile(){
   if(cgProfile.priceType==='den')document.getElementById('cpRate').value=cgProfile.dayRate;
   document.getElementById('cpBio').value=cgProfile.bio;
   renderCgServiceChips();
+  renderCgLangChips();
   updateCgAvatar();
   syncCgPreview();
   ddRefresh();
@@ -2398,6 +2408,18 @@ function toggleCgService(id){
   if(i<0)cgProfile.services.push(id);else cgProfile.services.splice(i,1);
   renderCgServiceChips();syncCgPreview();
 }
+function renderCgLangChips(){
+  const wrap=document.getElementById('cpLangs');if(!wrap)return;
+  if(!Array.isArray(cgProfile.langs))cgProfile.langs=[];
+  wrap.innerHTML=LANGUAGES.map(l=>
+    `<button type="button" class="cg-serv ${cgProfile.langs.includes(l)?'on':''}" onclick="toggleCgLang(${jsq(l)})">${esc(l)}</button>`).join('');
+}
+function toggleCgLang(l){
+  if(!Array.isArray(cgProfile.langs))cgProfile.langs=[];
+  const i=cgProfile.langs.indexOf(l);
+  if(i<0)cgProfile.langs.push(l);else cgProfile.langs.splice(i,1);
+  renderCgLangChips();syncCgPreview();
+}
 function syncCgPreview(){
   const name=document.getElementById('cpName').value||'Vaše jméno';
   const loc=document.getElementById('cpLoc').value;
@@ -2443,14 +2465,15 @@ function saveCgProfile(){
   else if(cgProfile.priceType==='hod')cgProfile.rate=rv||cgProfile.rate;
   cgProfile.bio=document.getElementById('cpBio').value.trim().slice(0,500);
   // propsat změny do veřejné karty pečovatelky (Jana = id 1 / dle e-mailu)
+  if(!Array.isArray(cgProfile.langs))cgProfile.langs=[];
   const me=CAREGIVERS.find(x=>x.email===auth.email)||CAREGIVERS[0];
   if(me){me.name=cgProfile.name;me.photo=cgProfile.photo||null;me.loc=cgProfile.loc;me.rate=cgProfile.rate;me.exp=cgProfile.exp;me.bio=cgProfile.bio;
     me.radius=cgProfile.radius;me.priceType=cgProfile.priceType;me.dayRate=cgProfile.dayRate;
-    me.kmPrice=cgProfile.kmPrice;me.services=cgProfile.services.slice();}
+    me.kmPrice=cgProfile.kmPrice;me.services=cgProfile.services.slice();me.langs=cgProfile.langs.slice();}
   if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role);}
   if(me&&me.id){apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{
     name:cgProfile.name,loc:cgProfile.loc,rate:cgProfile.rate,exp:me.exp,bio:cgProfile.bio,
-    services:cgProfile.services,radius:cgProfile.radius,priceType:cgProfile.priceType,
+    services:cgProfile.services,langs:cgProfile.langs,radius:cgProfile.radius,priceType:cgProfile.priceType,
     dayRate:cgProfile.dayRate,kmPrice:cgProfile.kmPrice,photo:cgProfile.photo||null
   }}));}
   renderCare();
@@ -2865,7 +2888,7 @@ async function bootstrap(){
   cgReviews=d.cgReviews||{};
   CONVERSATIONS=d.conversations||[];
   BROADCASTS=d.broadcasts||[];
-  if(d.planPrices)Object.assign(planPrices,d.planPrices);planPrices.start=0;
+  if(d.planPrices)Object.assign(planPrices,d.planPrices);
   // seq čítače z maxim (kdyby něco generovalo id lokálně)
   orderSeq=ORDERS.reduce((m,o)=>Math.max(m,o.oid||0),0);
   reqSeq=CG_REQUESTS.reduce((m,r)=>Math.max(m,r.id||0),0);

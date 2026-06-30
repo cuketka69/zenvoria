@@ -1651,7 +1651,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     cgReviews, generalReviews,
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
-    planPrices: settings.planPrices || { start: 0, premium: 390 },
+    planPrices: settings.planPrices || { start: 190, premium: 390 },
     settings,
   });
 }));

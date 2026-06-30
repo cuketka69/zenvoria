@@ -224,6 +224,10 @@
           <textarea class="inp" id="cpBio" maxlength="500" oninput="syncCgPreview()"></textarea>
         </div>
         <div class="pdiv"></div>
+        <h3>Jazyky</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vyberte jazyky, kterými mluvíte.</p>
+        <div class="cg-services" id="cpLangs"></div>
+        <div class="pdiv"></div>
         <h3>Nabízené služby</h3>
         <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vyberte služby, které nabízíte.</p>
         <div class="cg-services" id="cpServices"></div>
@@ -873,14 +877,14 @@
     <div class="page-head"><h1>Tarify a ceny předplatného</h1><p>Nastavte měsíční cenu tarifů pro pečovatelky. Změna se ihned projeví v ceníku i u plateb.</p></div>
     <div class="profile-grid">
       <form class="pcard" onsubmit="return saveAdminPlans(event)">
-        <h3>Cena předplatného PREMIUM</h3>
-        <p style="color:var(--muted);font-size:13.5px;margin:4px 0 14px">Tarif <b>START je zdarma</b> a přiřadí se pečovatelce automaticky po schválení ověření — nenastavuje se. Nastavujete pouze měsíční cenu PREMIUM.</p>
+        <h3>Cena předplatného</h3>
+        <p style="color:var(--muted);font-size:13.5px;margin:4px 0 14px">Nastavte měsíční cenu obou tarifů pro pečovatelky. <b>START</b> je vstupní tarif po schválení ověření, <b>PREMIUM</b> přidává vyšší zobrazení a další výhody.</p>
         <div class="grid2">
+          <div><label class="lbl">🟢 START (Kč / měsíc)</label><input class="inp" type="number" id="apStart" min="0" max="9999" step="10"></div>
           <div><label class="lbl">💎 PREMIUM (Kč / měsíc)</label><input class="inp" type="number" id="apPremium" min="0" max="9999" step="10"></div>
-          <div></div>
         </div>
         <div class="set-err" id="apErr" style="margin-top:10px"></div>
-        <button class="btn btn-gold" type="submit" style="margin-top:18px">Uložit cenu</button>
+        <button class="btn btn-gold" type="submit" style="margin-top:18px">Uložit ceny</button>
       </form>
       <div class="pcard book-aside">
         <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#7A736A" stroke-width="1.6"/></svg>Přehled tarifů</div>
