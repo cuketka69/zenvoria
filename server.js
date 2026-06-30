@@ -103,12 +103,6 @@ const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const APP_URL = process.env.APP_URL || 'https://www.zenvoria.cz';
 
-// --- Hlavní admin účet (přihlašovací údaje z prostředí / Railway variables) ---
-// Server při startu tento účet v DB založí nebo aktualizuje (heslo bere vždy z ADMIN_PASSWORD).
-const BOOTSTRAP_ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-const BOOTSTRAP_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
-const BOOTSTRAP_ADMIN_NAME = (process.env.ADMIN_NAME || 'Administrátor').trim();
-
 // --- Stripe (předplatné PREMIUM pro pečovatelky) ---
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || ''; // whsec_...
@@ -2263,37 +2257,4 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(ROOT, 'index.html'));
 });
 
-/* ---------------- BOOTSTRAP ADMIN ---------------- */
-/* Hlavní admin se nedrží v kódu — přihlašovací údaje jsou v Railway variables
-   (ADMIN_EMAIL, ADMIN_PASSWORD, volitelně ADMIN_NAME). Při startu se účet v DB
-   založí, nebo se mu sjednotí role/stav a nastaví heslo podle proměnných. */
-async function ensureBootstrapAdmin() {
-  if (!REST_ENABLED) return;
-  if (!BOOTSTRAP_ADMIN_EMAIL || !BOOTSTRAP_ADMIN_PASSWORD) {
-    console.log('[zenvoria] ℹ️ ADMIN_EMAIL/ADMIN_PASSWORD nejsou nastaveny – hlavní admin se nezakládá.');
-    return;
-  }
-  if (!isEmail(BOOTSTRAP_ADMIN_EMAIL)) {
-    console.warn('[zenvoria] ⚠️ ADMIN_EMAIL není platný e-mail – hlavní admin přeskočen.');
-    return;
-  }
-  try {
-    const password_hash = bcrypt.hashSync(String(BOOTSTRAP_ADMIN_PASSWORD), 10);
-    const init = (BOOTSTRAP_ADMIN_NAME.split(/\s+/).map((p) => p[0]).join('').slice(0, 2) || 'AD').toUpperCase();
-    const existing = await findUserByEmail(BOOTSTRAP_ADMIN_EMAIL);
-    if (existing) {
-      await restUpdate(T.users, `id=eq.${existing.id}`, { password_hash, role: 'admin', status: 'active', name: BOOTSTRAP_ADMIN_NAME, init }, { prefer: 'return=minimal' });
-      console.log(`[zenvoria] 🔑 Hlavní admin aktualizován: ${BOOTSTRAP_ADMIN_EMAIL}`);
-    } else {
-      await restInsert(T.users, { email: BOOTSTRAP_ADMIN_EMAIL, password_hash, name: BOOTSTRAP_ADMIN_NAME, role: 'admin', init, status: 'active' }, { prefer: 'return=minimal' });
-      console.log(`[zenvoria] 🔑 Hlavní admin vytvořen: ${BOOTSTRAP_ADMIN_EMAIL}`);
-    }
-  } catch (e) {
-    console.error('[zenvoria] ⚠️ Založení hlavního admina selhalo:', e.message);
-  }
-}
-
-app.listen(PORT, () => {
-  console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`);
-  ensureBootstrapAdmin();
-});
+app.listen(PORT, () => console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`));
