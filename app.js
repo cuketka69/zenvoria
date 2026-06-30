@@ -318,11 +318,13 @@ function initReveal(){
 
 /* ---------- TOAST ---------- */
 let toastT;
-function toast(msg,type){const t=document.getElementById('toast');
-  const ic=type==='success'?'✓':type==='error'?'!':'★';
+function toast(msg,type,icon){const t=document.getElementById('toast');
+  const ic=icon!=null?icon:(type==='success'?'✓':type==='error'?'!':'★');
   t.innerHTML=`<span class="toast-ic" aria-hidden="true">${ic}</span><span class="toast-msg">${msg}</span>`;
   t.className='toast show'+(type?' '+type:'');
   clearTimeout(toastT);toastT=setTimeout(()=>{t.className='toast';},3600);}
+/* SVG obálka (zlatá – dědí currentColor z .toast-ic) pro toasty o e-mailu */
+function envelopeSVG(){return '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';}
 
 /* ---------- THEME ---------- */
 const MOON_ICON='<path d="M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>';
@@ -998,7 +1000,7 @@ function submitForgot(e){
       document.getElementById('forgotEmailEcho').textContent=email.value.trim().toLowerCase();
       document.getElementById('forgotFields').style.display='none';
       document.getElementById('forgotDone').style.display='block';
-      toast('📧 Odeslali jsme odkaz pro obnovu hesla.');
+      toast('Odeslali jsme odkaz pro obnovu hesla.',null,envelopeSVG());
     })
     .catch(err=>{
       document.getElementById('ff-email-err').textContent=err.message||'Odeslání odkazu se nezdařilo.';
