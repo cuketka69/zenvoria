@@ -1864,58 +1864,13 @@ function setVerifyValidToday(){
   document.getElementById('vfValidMonth').value=String(now.getMonth()+1);
   document.getElementById('vfValidYear').value=String(now.getFullYear());
 }
-function submitVerify(e){
-  e.preventDefault();
-  const g=id=>document.getElementById(id).value.trim();
-  const err=document.getElementById('vfErr');err.textContent='';
-  const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum');
-  const certifications=getVerifyCertifications();
-  const cert=certifications[0]&&certifications[0].name||'';
-  const issuer=certifications[0]&&certifications[0].issuer||'';
-  if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte celé jméno a příjmení.';return false;}
-  if(!isPhone(phone)){err.textContent='Zadejte platné telefonní číslo.';return false;}
-  if(!docNum){err.textContent='Zadejte číslo dokladu totožnosti.';return false;}
-  if(!verifyIdFrontName){err.textContent='Nahrajte prosím přední stranu dokladu totožnosti.';return false;}
-  if(!verifyIdBackName){err.textContent='Nahrajte prosím zadní stranu dokladu totožnosti.';return false;}
-  if(!verifySelfieName){err.textContent='Nahrajte prosím selfie pro ověření totožnosti.';return false;}
-  if(!cert){err.textContent='Uveďte název osvědčení nebo kurzu.';return false;}
-  if(!issuer){err.textContent='Uveďte, kdo osvědčení vystavil.';return false;}
-  if(!verifyDocName){err.textContent='Nahrajte prosím doklad (osvědčení nebo diplom).';return false;}
-  if(!verifyServices.length){err.textContent='Vyberte alespoň jednu nabízenou službu.';return false;}
-  if(!document.getElementById('vfRules').checked){err.textContent='Potvrďte prosím pravdivost údajů a souhlas s pravidly.';return false;}
-  // kontrola duplicity účtu (demo): stejný e-mail už nesmí mít čekající žádost
-  if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){err.textContent='Už máte žádost čekající na schválení.';return false;}
-  const rec={
-    id:++verSeq,name,email:auth.email,init:initials(name),loc:g('vfLoc'),
-    rate:+g('vfRate')||240,exp:+g('vfExp')||0,phone,
-    docType:document.getElementById('vfDocType').value==='pas'?'Cestovní pas':'Občanský průkaz',docNum,
-    idFront:verifyIdFrontName,idBack:verifyIdBackName,selfie:verifySelfieName,
-    services:verifyServices.slice(),cert,issuer,validUntil:g('vfValid')||'—',
-    fileName:verifyDocName,refs:g('vfRefs'),note:g('vfNote'),bio:cgProfile.bio,
-    status:'submitted',date:new Date().toISOString().slice(0,10)
-  };
-  VERIFICATIONS.unshift(rec);
-  if(verifyDocData)DOC_BLOBS[rec.id+':doc']=verifyDocData;
-  if(verifySelfieData)DOC_BLOBS[rec.id+':selfie']=verifySelfieData;
-  if(verifyIdFrontData)DOC_BLOBS[rec.id+':idfront']=verifyIdFrontData;
-  if(verifyIdBackData)DOC_BLOBS[rec.id+':idback']=verifyIdBackData;
-  cgStatusMap[auth.email]='submitted';
-  cgProfile.services=verifyServices.slice(); // propsat výběr do profilu
-  apiSync(api('/verifications',{method:'POST',body:rec}).then(r=>{if(r&&r.verification)rec.id=r.verification.id;}));
-  verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
-  verifyIdFrontName='';verifyIdFrontData='';verifyIdBackName='';verifyIdBackData='';
-  persist();
-  toast('Žádost odeslána správci k ověření.');
-  renderCgVerify();renderNav();
-  return false;
-}
-
 async function submitVerify(e){
   e.preventDefault();
   const g=id=>document.getElementById(id).value.trim();
   const err=document.getElementById('vfErr');err.textContent='';
   const btn=document.getElementById('vfSubmitBtn');
-  const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum'),cert=g('vfCert'),issuer=g('vfIssuer');
+  const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum');
+  const certifications=getVerifyCertifications();
   const services=verifyServices.filter((id,idx,arr)=>arr.indexOf(id)===idx&&SERVICES.some(s=>s.id===id));
   if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte cele jmeno a prijmeni.';return false;}
   if(!isPhone(phone)){err.textContent='Zadejte platne telefonni cislo.';return false;}
@@ -1935,7 +1890,7 @@ async function submitVerify(e){
     rate:+g('vfRate')||240,exp:+g('vfExp')||0,phone,
     docType:document.getElementById('vfDocType').value==='pas'?'Cestovni pas':'Obcansky prukaz',docNum,
     idFront:verifyIdFrontName,idBack:verifyIdBackName,selfie:verifySelfieName,
-    services,cert:summarizeVerifyCertifications(certifications),issuer,validUntil:(certifications[0]&&certifications[0].validUntil)||'',certifications,
+    services,cert:summarizeVerifyCertifications(certifications),issuer:(certifications[0]&&certifications[0].issuer)||'',validUntil:(certifications[0]&&certifications[0].validUntil)||'',certifications,
     fileName:verifyDocName,refs:g('vfRefs'),note:g('vfNote'),bio:cgProfile.bio,
     status:'submitted',date:new Date().toISOString().slice(0,10)
   };
