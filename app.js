@@ -1906,6 +1906,11 @@ function setVerifyValidToday(){
   document.getElementById('vfValidMonth').value=String(now.getMonth()+1);
   document.getElementById('vfValidYear').value=String(now.getFullYear());
 }
+/* zviditelní chybu ověřovacího formuláře — text u tlačítka + toast + odscrolluje k ní */
+function verifyError(el,msg){
+  if(el){el.textContent=msg;el.scrollIntoView({behavior:'smooth',block:'center'});}
+  toast(msg,'declined');
+}
 async function submitVerify(e){
   e.preventDefault();
   const g=id=>document.getElementById(id).value.trim();
@@ -1914,9 +1919,10 @@ async function submitVerify(e){
   const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum');
   const certifications=getVerifyCertifications();
   const services=verifyServices.filter((id,idx,arr)=>arr.indexOf(id)===idx&&SERVICES.some(s=>s.id===id));
-  if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte cele jmeno a prijmeni.';return false;}
-  if(!isPhone(phone)){err.textContent='Zadejte platne telefonni cislo.';return false;}
-  if(!docNum){err.textContent='Zadejte cislo dokladu totoznosti.';return false;}
+  if(name.split(/\s+/).filter(Boolean).length<2){verifyError(err,'Zadejte celé jméno a příjmení.');return false;}
+  if(!g('vfLoc')){verifyError(err,'Zadejte lokalitu (město nebo okres).');return false;}
+  if(!isPhone(phone)){verifyError(err,'Zadejte platné telefonní číslo.');return false;}
+  if(!docNum){verifyError(err,'Zadejte číslo dokladu totožnosti.');return false;}
   if(!verifyIdFrontName){err.textContent='Nahrajte prosim predni stranu dokladu totoznosti.';return false;}
   if(!verifyIdBackName){err.textContent='Nahrajte prosim zadni stranu dokladu totoznosti.';return false;}
   if(!verifySelfieName){err.textContent='Nahrajte prosim selfie pro overeni totoznosti.';return false;}
@@ -1957,7 +1963,7 @@ async function submitVerify(e){
     // krátká pauza, ať uživatel poděkování uvidí, pak zpět na úvodní stránku
     setTimeout(()=>go(landingView()),1200);
   }catch(ex){
-    err.textContent=ex&&ex.message?ex.message:'Odeslani se nezdarilo.';
+    verifyError(err,(ex&&ex.message)?ex.message:'Žádost se nepodařilo odeslat. Zkuste to prosím znovu.');
   }finally{
     if(btn){btn.disabled=false;if(btn.dataset.label)btn.textContent=btn.dataset.label;}
   }
