@@ -3260,15 +3260,16 @@ function syncCgPreview(){
     </div>`;
 }
 function saveCgProfile(){
+  // číslo z pole; prázdné → ponech starou hodnotu, ale 0 se uloží jako 0
+  const numOr=(id,fallback)=>{const raw=(document.getElementById(id).value||'').trim();if(raw==='')return fallback;const n=+raw;return Number.isFinite(n)?n:fallback;};
   cgProfile.name=document.getElementById('cpName').value.trim()||cgProfile.name;
   cgProfile.loc=document.getElementById('cpLoc').value;
-  cgProfile.exp=+document.getElementById('cpExp').value||cgProfile.exp;
-  cgProfile.radius=+document.getElementById('cpRadius').value||cgProfile.radius;
-  cgProfile.kmPrice=Math.max(0,+document.getElementById('cpKmPrice').value||0);
+  cgProfile.exp=numOr('cpExp',cgProfile.exp);
+  cgProfile.radius=numOr('cpRadius',cgProfile.radius);
+  cgProfile.kmPrice=Math.max(0,numOr('cpKmPrice',0));
   cgProfile.priceType=document.getElementById('cpPriceType').value;
-  const rv=+document.getElementById('cpRate').value||0;
-  if(cgProfile.priceType==='den')cgProfile.dayRate=rv||cgProfile.dayRate;
-  else if(cgProfile.priceType==='hod')cgProfile.rate=rv||cgProfile.rate;
+  const rv=numOr('cpRate',null);
+  if(rv!==null){if(cgProfile.priceType==='den')cgProfile.dayRate=rv;else if(cgProfile.priceType==='hod')cgProfile.rate=rv;}
   cgProfile.bio=document.getElementById('cpBio').value.trim().slice(0,500);
   // propsat změny do veřejné karty pečovatelky (Jana = id 1 / dle e-mailu)
   if(!Array.isArray(cgProfile.langs))cgProfile.langs=[];
