@@ -3008,7 +3008,8 @@ function renderCgDashboard(){
   document.getElementById('cgIntro').textContent=CG_REQUESTS.length
     ?`Máte ${CG_REQUESTS.length} ${CG_REQUESTS.length===1?'novou poptávku':'nové poptávky'} a ${CG_SCHEDULE.length} naplánovaných služeb.`
     :'Aktuálně nemáte žádné nové poptávky.';
-  const earn=CG_SCHEDULE.reduce((s,j)=>s+j.hours*cgProfile.rate,0);
+  const _now=new Date();
+  const earn=(CG_SCHEDULE||[]).reduce((s,j)=>{const d=j.date?new Date(j.date):null;return (d&&!isNaN(d)&&d.getMonth()===_now.getMonth()&&d.getFullYear()===_now.getFullYear())?s+(j.hours||0)*(cgProfile.rate||0):s;},0);
   const stats=[
     {ic:'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',v:earn.toLocaleString('cs-CZ')+' Kč',l:'Výdělek tento měsíc',t:null},
     {ic:'M8 2v4M16 2v4M4 9h16M4 5h16v15H4z',v:CG_SCHEDULE.length,l:'Nadcházející služby',t:null},
@@ -3286,20 +3287,36 @@ function saveCgProfile(){
 }
 
 /* ---------- EARNINGS CHART ---------- */
-const CG_EARNINGS=[
-  {m:'Led',v:14200},{m:'Úno',v:15800},{m:'Bře',v:13900},
-  {m:'Dub',v:17200},{m:'Kvě',v:16400},{m:'Čvn',v:18650}
-];
+const CG_MONTHS_SHORT=['Led','Úno','Bře','Dub','Kvě','Čvn','Čvc','Srp','Zář','Říj','Lis','Pro'];
+/* reálné výdělky za posledních 6 měsíců z naplánovaných služeb (hodiny × sazba) */
+function computeCgEarnings(){
+  const now=new Date();const rate=cgProfile.rate||0;
+  const buckets=[];const idx={};
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const key=d.getFullYear()+'-'+d.getMonth();
+    idx[key]=buckets.length;
+    buckets.push({m:CG_MONTHS_SHORT[d.getMonth()],v:0});
+  }
+  (CG_SCHEDULE||[]).forEach(j=>{
+    if(!j.date)return;
+    const d=new Date(j.date);if(isNaN(d))return;
+    const key=d.getFullYear()+'-'+d.getMonth();
+    if(idx[key]!==undefined)buckets[idx[key]].v+=(j.hours||0)*rate;
+  });
+  return buckets;
+}
 function renderEarnings(){
-  const max=Math.max(...CG_EARNINGS.map(e=>e.v));
-  const total=CG_EARNINGS.reduce((s,e)=>s+e.v,0);
+  const data=computeCgEarnings();
+  const max=Math.max(1,...data.map(e=>e.v));
+  const total=data.reduce((s,e)=>s+e.v,0);
   document.getElementById('earnTotal').textContent=total.toLocaleString('cs-CZ')+' Kč';
-  const n=CG_EARNINGS.length,yTop=18,yBot=90;
-  const pts=CG_EARNINGS.map((e,i)=>({x:(i+0.5)/n*100,y:yBot-(e.v/max)*(yBot-yTop),e,i}));
+  const n=data.length,yTop=18,yBot=90;
+  const pts=data.map((e,i)=>({x:(i+0.5)/n*100,y:yBot-(e.v/max)*(yBot-yTop),e,i}));
   const line=pts.map((p,i)=>`${i?'L':'M'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
   const area=`M${pts[0].x.toFixed(2)} 100 L`+pts.map(p=>`${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L')+` L${pts[n-1].x.toFixed(2)} 100 Z`;
   const dots=pts.map(p=>`<button class="lc-pt ${p.i===n-1?'cur':''}" style="left:${p.x.toFixed(2)}%;top:${p.y.toFixed(2)}%" aria-label="${p.e.m}: ${p.e.v.toLocaleString('cs-CZ')} Kč"><span class="lc-tipv">${p.e.v.toLocaleString('cs-CZ')} Kč</span></button>`).join('');
-  const labels=CG_EARNINGS.map(e=>`<span>${e.m}</span>`).join('');
+  const labels=data.map(e=>`<span>${e.m}</span>`).join('');
   document.getElementById('earnChart').innerHTML=`
     <div class="lc-plot">
       <svg class="lc-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
