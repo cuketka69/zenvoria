@@ -815,7 +815,7 @@ function initials(name){
 function avaHtml(init,photo,extra){
   extra=extra||'';
   return photo
-    ? `<div class="ava" style="${extra};background-image:url('${photo}');background-size:cover;background-position:center;color:transparent"></div>`
+    ? `<div class="ava"${extra?` style="${extra}"`:''}><img src="${esc(photo)}" alt="" loading="lazy" decoding="async"></div>`
     : `<div class="ava"${extra?` style="${extra}"`:''}>${init}</div>`;
 }
 /* profilová fotka uživatele podle e-mailu (z uživatelů nebo z karty pečovatelky) */
@@ -828,8 +828,9 @@ function userPhotoByEmail(email){
 }
 function setAva(el,photo,init){
   if(!el)return;
-  if(photo){el.textContent='';el.style.backgroundImage=`url('${photo}')`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.color='transparent';}
-  else{el.style.backgroundImage='';el.style.color='';el.textContent=init;}
+  el.style.backgroundImage='';el.style.color='';
+  if(photo){el.innerHTML=`<img src="${esc(photo)}" alt="" loading="lazy" decoding="async">`;}
+  else{el.textContent=init;}
 }
 /* propíše profilovou fotku pečovatelky do seznamu (Jana = id 1) */
 function syncCgPhotoToList(){ if(CAREGIVERS[0])CAREGIVERS[0].photo=cgProfile.photo; }
@@ -1735,19 +1736,33 @@ function toggleMyVerifyDetail(btn){
 /* ---- ověřená pečovatelka: správa / přidávání osvědčení ---- */
 let addCertDocName='',addCertDocData='',addCertValid='';
 function myCertifications(){
-  const all=[];
+  const all=[];const seen=new Set();
   VERIFICATIONS.filter(x=>x.email===auth.email&&(x.status==='approved'||x.status==='verified')).forEach(v=>{
-    const certs=Array.isArray(v.certifications)&&v.certifications.length?v.certifications:(v.cert?[{name:v.cert,issuer:v.issuer,validUntil:v.validUntil}]:[]);
-    certs.forEach(c=>{if(c&&c.name)all.push(c);});
+    const certs=Array.isArray(v.certifications)&&v.certifications.length?v.certifications:(v.cert?[{name:v.cert,issuer:v.issuer,validUntil:v.validUntil,fileName:v.fileName}]:[]);
+    certs.forEach((c,i)=>{
+      if(!c||!c.name)return;
+      const k=(c.name||'').toLowerCase()+'|'+(c.issuer||'').toLowerCase();
+      if(seen.has(k))return;seen.add(k);
+      all.push({name:c.name,issuer:c.issuer,validUntil:c.validUntil,fileName:c.fileName,verId:v.id,fileKey:i===0?'doc':('certs:'+(i-1))});
+    });
   });
-  const seen=new Set();
-  return all.filter(c=>{const k=(c.name||'').toLowerCase()+'|'+(c.issuer||'').toLowerCase();if(seen.has(k))return false;seen.add(k);return true;});
+  return all;
+}
+async function openMyCert(i){
+  const c=myCertifications()[i];if(!c)return;
+  const title=esc(c.name)+(c.issuer?' — '+esc(c.issuer):'')+(c.validUntil?' (platnost '+esc(c.validUntil)+')':'');
+  const sf=await fetchVerFiles(c.verId);
+  let data=null;
+  if(c.fileKey==='doc')data=sf.doc||DOC_BLOBS[c.verId+':doc'];
+  else{const m=String(c.fileKey).match(/^certs:(\d+)$/);if(m)data=(sf.certs&&sf.certs[+m[1]])||DOC_BLOBS[c.verId+':doc:'+m[1]];}
+  if(data)openFileViewer(data,title,c.fileName,()=>downloadVerData(data,c.fileName||'osvedceni'));
+  else toast('Doklad k tomuto osvědčení není k dispozici.','declined');
 }
 function renderVerifiedPanel(){
   const certs=myCertifications();
   const pend=VERIFICATIONS.find(v=>v.email===auth.email&&v.status==='submitted');
   const row=(l,r)=>`<div class="vsum-row"><span class="vsum-l">${l}</span><span class="vsum-r">${r}</span></div>`;
-  const certRows=certs.length?certs.map(c=>row(esc(c.name),esc(c.issuer||'—')+(c.validUntil?` · ${esc(c.validUntil)}`:''))).join(''):'<div class="vsum-row"><span class="vsum-l">Zatím žádné</span></div>';
+  const certRows=certs.length?certs.map((c,i)=>`<div class="vsum-row cert-row" role="button" tabindex="0" onclick="openMyCert(${i})" title="Zobrazit doklad"><span class="vsum-l" style="color:var(--navy-900);font-weight:600">${esc(c.name)}</span><span class="vsum-r" style="display:inline-flex;align-items:center;gap:8px;font-weight:400;color:var(--muted)">${esc(c.issuer||'—')}${c.validUntil?` · ${esc(c.validUntil)}`:''} ${eyeSVG(14)}</span></div>`).join(''):'<div class="vsum-row"><span class="vsum-l">Zatím žádné</span></div>';
   const addBlock=pend
     ? `<div class="verify-banner wait" style="margin-top:18px"><span class="vb-ic" style="color:#B7791F">${svgWrap(26,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.5l2.8 1.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>')}</span><div class="vb-t"><b>Nové osvědčení čeká na schválení</b><span>Správce ho zkontroluje, zpravidla do 48 hodin.</span></div></div>`
     : `<div class="pdiv"></div>
@@ -3130,17 +3145,11 @@ function updateCgAvatar(){
   const rm=document.getElementById('cpPhotoRemove');
   const photo=cgProfile.photo||auth.photo||null;
   if(!el)return;
+  el.style.backgroundImage='';el.style.color='';
   if(photo){
-    el.textContent='';
-    el.style.backgroundImage=`url('${photo}')`;
-    el.style.backgroundSize='cover';
-    el.style.backgroundPosition='center';
-    el.style.backgroundRepeat='no-repeat';
-    el.style.color='transparent';
+    el.innerHTML=`<img src="${esc(photo)}" alt="" decoding="async">`;
     if(rm)rm.style.display='';
   }else{
-    el.style.backgroundImage='';
-    el.style.color='';
     el.textContent=initials((document.getElementById('cpName')||{}).value||cgProfile.name);
     if(rm)rm.style.display='none';
   }
@@ -3229,12 +3238,11 @@ function syncCgPreview(){
   const priceHTML=priceType==='indiv'?'<b>Individuální</b>':(priceType==='den'?`<b>${(+rate).toLocaleString('cs-CZ')} Kč</b> <span>/ den</span>`:`<b>${rate} Kč</b> <span>/ hod</span>`);
   const servs=cgProfile.services.map(s=>`<span class="chip">${sName(s)}</span>`).join('');
   const photo=cgProfile.photo||auth.photo||null;
-  const avaStyle=photo?` style="background-image:url('${photo}');background-size:cover;background-position:center;color:transparent"`:'';
   if(!photo)updateCgAvatar();
   document.getElementById('cgPreview').innerHTML=`
     <div class="care-card" style="cursor:default">
       <div class="care-top">
-        <div class="ava"${avaStyle}>${photo?'':initials(name)}</div>
+        <div class="ava">${photo?`<img src="${esc(photo)}" alt="" decoding="async">`:initials(name)}</div>
         <div style="flex:1">
           <div class="care-name">${name}</div>
           <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${loc} · dojezd do ${radius} km</div>
@@ -3534,7 +3542,7 @@ function convoPhoto(c){
 function makeChatAvatar(text,photo){
   const el=document.createElement('div');
   el.className='ava';
-  if(photo){el.style.backgroundImage=`url('${photo}')`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.color='transparent';}
+  if(photo){el.innerHTML=`<img src="${esc(photo)}" alt="" decoding="async">`;}
   else el.textContent=text||'';
   return el;
 }

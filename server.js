@@ -2064,11 +2064,14 @@ app.post('/api/certifications', requireRole('caregiver', 'admin'), h(async (req,
 }));
 
 /* admin si stáhne přílohy žádosti (data URL) — nedávají se do bootstrapu kvůli velikosti */
-app.get('/api/verifications/:id/files', requireRole('admin'), h(async (req, res) => {
+app.get('/api/verifications/:id/files', requireAuth, h(async (req, res) => {
   const id = Number(req.params.id);
-  const rows = await restSelect(T.verifications, `id=eq.${id}&select=files&limit=1`);
+  const rows = await restSelect(T.verifications, `id=eq.${id}&select=files,email&limit=1`);
   const row = rows && rows[0];
   if (!row) return res.status(404).json({ error: 'Žádost nenalezena.' });
+  // přístup má admin, nebo pečovatelka ke svým vlastním přílohám
+  const isOwner = req.session.role === 'caregiver' && (row.email || '').toLowerCase() === (req.session.email || '').toLowerCase();
+  if (req.session.role !== 'admin' && !isOwner) return res.status(403).json({ error: 'Nemáte oprávnění.' });
   res.setHeader('Cache-Control', 'no-store');
   res.json({ files: row.files || {} });
 }));
