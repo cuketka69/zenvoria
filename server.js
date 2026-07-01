@@ -1743,6 +1743,10 @@ app.patch('/api/users/me/photo', requireAuth, h(async (req, res) => {
     return res.status(400).json({ error: 'Neplatná fotka.' });
   }
   await restUpdate(T.users, `id=eq.${req.session.uid}`, { photo }, { prefer: 'return=minimal' });
+  // pečovatelce propíšeme fotku i do její veřejné karty (aby ji viděly rodiny ve vyhledávání)
+  if (req.session.role === 'caregiver' && req.session.email) {
+    try { await restUpdate(T.caregivers, `email=eq.${encodeURIComponent(req.session.email)}`, { photo }, { prefer: 'return=minimal' }); } catch (e) { /* nekritické */ }
+  }
   res.json({ ok: true, photo });
 }));
 
