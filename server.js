@@ -1752,6 +1752,7 @@ app.patch('/api/users/me/photo', requireAuth, h(async (req, res) => {
 
 /* ---------------- BOOTSTRAP (vše pro render) ---------------- */
 app.get('/api/bootstrap', h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   const viewer = !req.session
     ? 'guest'
     : (req.session.role === 'admin' ? 'admin' : (req.session.role === 'caregiver' ? 'caregiver' : 'family'));

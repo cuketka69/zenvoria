@@ -3660,6 +3660,7 @@ async function api(path,opts){
     method,
     headers,
     credentials:'include',
+    cache:'no-store',
     body:opts&&opts.body!=null?JSON.stringify(opts.body):undefined
   });
   let data=null;try{data=await res.json();}catch(e){}
