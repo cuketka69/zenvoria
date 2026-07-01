@@ -833,7 +833,12 @@ function setAva(el,photo,init){
   else{el.textContent=init;}
 }
 /* propíše profilovou fotku pečovatelky do seznamu (Jana = id 1) */
-function syncCgPhotoToList(){ if(CAREGIVERS[0])CAREGIVERS[0].photo=cgProfile.photo; }
+/* propíše fotku PŘIHLÁŠENÉ pečovatelky do její vlastní karty (ne cizí, ne u hosta) */
+function syncCgPhotoToList(){
+  if(auth.role!=='caregiver'||!auth.email)return;
+  const me=CAREGIVERS.find(x=>x.email===auth.email);
+  if(me&&cgProfile.photo)me.photo=cgProfile.photo;
+}
 
 /* ---- session ---- */
 function loginAs(name,email,role,photo){
