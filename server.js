@@ -2257,7 +2257,7 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   }
   if (patch.radius !== undefined) {
     patch.radius = Number(patch.radius);
-    if (!Number.isFinite(patch.radius) || patch.radius < 0 || patch.radius > 500) return res.status(400).json({ error: 'Neplatný dojezd.' });
+    if (!Number.isFinite(patch.radius) || patch.radius < 0 || patch.radius > 5000) return res.status(400).json({ error: 'Neplatný dojezd.' });
   }
   if (patch.km_price !== undefined) {
     patch.km_price = Number(patch.km_price);
