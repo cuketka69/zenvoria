@@ -3229,7 +3229,7 @@ function renderCgLangChips(){
   toggle.textContent=cgLangPickerOpen?'Zavřít výběr':'Změnit jazyk';
   toggle.setAttribute('aria-expanded',cgLangPickerOpen?'true':'false');
   wrap.innerHTML=LANGUAGES.map(l=>
-    `<button type="button" class="cg-serv ${cgProfile.langs.includes(l)?'on':''}" onclick="toggleCgLang(${jsq(l)})">${esc(l)}</button>`).join('');
+    `<button type="button" class="cg-serv ${cgProfile.langs.includes(l)?'on':''}" onclick="toggleCgLang('${l}')">${esc(l)}</button>`).join('');
 }
 function toggleCgLangPicker(){
   cgLangPickerOpen=!cgLangPickerOpen;
