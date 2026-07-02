@@ -3129,6 +3129,7 @@ function toggleSlot(i,k){cgSlots[i][k]=!cgSlots[i][k];saveCgAvail();renderCgCale
 
 /* caregiver profile editing */
 let cgLangPickerOpen=false;
+let cgServPickerOpen=false;
 function renderCgProfile(){
   if(auth.role==='caregiver'&&auth.name)cgProfile.name=auth.name;
   document.getElementById('cpName').value=cgProfile.name;
@@ -3194,8 +3195,21 @@ function removeCgPhoto(){
   toast('Profilová fotka odebrána');
 }
 function renderCgServiceChips(){
-  document.getElementById('cpServices').innerHTML=SERVICES.map(s=>
+  const wrap=document.getElementById('cpServices');
+  const summary=document.getElementById('cpServSummary');
+  const picker=document.getElementById('cpServPicker');
+  const toggle=document.getElementById('cpServToggle');
+  if(!wrap)return;
+  if(!Array.isArray(cgProfile.services))cgProfile.services=[];
+  if(summary)summary.textContent=cgProfile.services.length?cgProfile.services.map(sName).join(', '):'Žádná služba není vybraná';
+  if(picker)picker.hidden=!cgServPickerOpen;
+  if(toggle){toggle.textContent=cgServPickerOpen?'Zavřít výběr':'Změnit služby';toggle.setAttribute('aria-expanded',cgServPickerOpen?'true':'false');}
+  wrap.innerHTML=SERVICES.map(s=>
     `<button type="button" class="cg-serv ${cgProfile.services.includes(s.id)?'on':''}" onclick="toggleCgService('${s.id}')">${s.name}</button>`).join('');
+}
+function toggleCgServPicker(){
+  cgServPickerOpen=!cgServPickerOpen;
+  renderCgServiceChips();
 }
 function toggleCgService(id){
   const i=cgProfile.services.indexOf(id);

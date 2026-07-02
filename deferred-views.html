@@ -233,8 +233,17 @@
         </div>
         <div class="pdiv"></div>
         <h3>Nabízené služby</h3>
-        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vyberte služby, které nabízíte.</p>
-        <div class="cg-services" id="cpServices"></div>
+        <div class="cg-lang-row">
+          <div class="cg-lang-current">
+            <div class="cg-lang-label">Aktuální služby</div>
+            <div class="cg-lang-summary" id="cpServSummary"></div>
+          </div>
+          <button type="button" class="btn btn-ghost cg-lang-toggle" id="cpServToggle" onclick="toggleCgServPicker()">Změnit služby</button>
+        </div>
+        <div class="cg-lang-picker" id="cpServPicker" hidden>
+          <p class="cg-lang-help">Vyberte služby, které nabízíte.</p>
+          <div class="cg-services" id="cpServices"></div>
+        </div>
         <button class="btn btn-gold" style="margin-top:24px" onclick="saveCgProfile()">Uložit změny</button>
       </div>
       <div class="pcard book-aside">
