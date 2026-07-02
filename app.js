@@ -3262,6 +3262,7 @@ function syncCgPreview(){
     const ic=svc?`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px"><path d="${svc.icon}" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`:'';
     return `<span class="chip svc-chip">${ic}${sName(s)}</span>`;
   }).join('');
+  const langs=(cgProfile.langs||[]).map(l=>`<span class="chip svc-chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px"><path d="M4 5h16v11H9l-5 4V5Z" stroke="#C9A233" stroke-width="1.6" stroke-linejoin="round"/></svg>${esc(l)}</span>`).join('');
   const photo=cgProfile.photo||auth.photo||null;
   if(!photo)updateCgAvatar();
   document.getElementById('cgPreview').innerHTML=`
@@ -3274,7 +3275,7 @@ function syncCgPreview(){
           <div class="care-meta"><span class="stars">${starFillSVG()}</span><b style="color:var(--navy-900)">${cgProfile.rating}</b><span>(${cgProfile.reviews}) · ${exp} let praxe</span></div>
         </div>
       </div>
-      <div class="care-tags"><span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>${servs}</div>
+      <div class="care-tags"><span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>${servs}${langs}</div>
       <div class="care-foot"><div class="price">${priceHTML}</div><button class="btn btn-gold" style="padding:9px 16px">Zobrazit profil</button></div>
     </div>`;
 }
