@@ -3297,6 +3297,9 @@ function saveCgProfile(){
     services:cgProfile.services,langs:cgProfile.langs,radius:cgProfile.radius,priceType:cgProfile.priceType,
     dayRate:cgProfile.dayRate,kmPrice:cgProfile.kmPrice,photo:cgProfile.photo||null
   }}));}
+  // po uložení zavři rozbalené výběry
+  cgServPickerOpen=false;cgLangPickerOpen=false;
+  renderCgServiceChips();renderCgLangChips();
   renderCare();
   toast('Profil byl uložen a zveřejněn');
 }
