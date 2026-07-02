@@ -3734,7 +3734,9 @@ async function bootstrap(){
   // profil přihlášené pečovatelky z její karty
   if(auth.loggedIn&&auth.role==='caregiver'){
     const me=CAREGIVERS.find(c=>c.email===auth.email);
-    if(me){Object.assign(cgProfile,{name:me.name,bio:me.bio,loc:me.loc,rate:me.rate,services:me.services,langs:me.langs,photo:me.photo||cgProfile.photo});
+    if(me){Object.assign(cgProfile,{name:me.name,bio:me.bio,loc:me.loc,rate:me.rate,services:me.services,langs:me.langs,photo:me.photo||cgProfile.photo,
+      exp:me.exp!=null?me.exp:cgProfile.exp,radius:me.radius!=null?me.radius:cgProfile.radius,
+      priceType:me.priceType||cgProfile.priceType,dayRate:me.dayRate!=null?me.dayRate:cgProfile.dayRate,kmPrice:me.kmPrice!=null?me.kmPrice:cgProfile.kmPrice});
       if(Array.isArray(me.avail)){cgSlots=me.avail;cgAvail=me.avail.map(s=>!!(s.r||s.o||s.v));}}
   }
   deriveCgMaps();
