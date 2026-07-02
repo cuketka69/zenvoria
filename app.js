@@ -170,13 +170,14 @@ async function go(v,fromPop){
   if(v!=='reset-password'&&v!=='change-email'){
     try{
       const url=new URL(window.location.href);
-      if(url.searchParams.has('reset')){
+      // replaceState prováděj JEN když je co čistit (jinak by přepsal historii a rozbil tlačítko Zpět)
+      if(url.searchParams.has('reset')||url.searchParams.has('changeEmail')){
         url.searchParams.delete('reset');
+        url.searchParams.delete('changeEmail');
+        const hash=(v==='legal'&&legalCurrentKey)?legalHash(legalCurrentKey):v;
+        const nextState=v==='legal'?{view:v,legalKey:legalCurrentKey}:{view:v};
+        history.replaceState(nextState,'',url.pathname+(url.search?url.search:'')+'#'+hash);
       }
-      if(url.searchParams.has('changeEmail'))url.searchParams.delete('changeEmail');
-      const hash=(v==='legal'&&legalCurrentKey)?legalHash(legalCurrentKey):v;
-      const nextState=v==='legal'?{view:v,legalKey:legalCurrentKey}:{view:v};
-      history.replaceState(nextState,'',url.pathname+(url.search?url.search:'')+'#'+hash);
       resetPwToken='';
       changeEmailToken='';
     }catch(e){}
