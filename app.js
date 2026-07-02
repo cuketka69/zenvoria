@@ -3256,7 +3256,11 @@ function syncCgPreview(){
   const bioEl=document.getElementById('cpBio');const cnt=document.getElementById('cpBioCount');
   if(cnt&&bioEl)cnt.textContent=`${bioEl.value.length} / 500`;
   const priceHTML=priceType==='indiv'?'<b>Individuální</b>':(priceType==='den'?`<b>${(+rate).toLocaleString('cs-CZ')} Kč</b> <span>/ den</span>`:`<b>${rate} Kč</b> <span>/ hod</span>`);
-  const servs=cgProfile.services.map(s=>`<span class="chip">${sName(s)}</span>`).join('');
+  const servs=cgProfile.services.map(s=>{
+    const svc=SERVICES.find(x=>x.id===s);
+    const ic=svc?`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px"><path d="${svc.icon}" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`:'';
+    return `<span class="chip svc-chip">${ic}${sName(s)}</span>`;
+  }).join('');
   const photo=cgProfile.photo||auth.photo||null;
   if(!photo)updateCgAvatar();
   document.getElementById('cgPreview').innerHTML=`
