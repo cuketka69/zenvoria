@@ -667,12 +667,10 @@ function resumePendingBooking(){
   return true;
 }
 function openBooking(id){
-  // Objednat smí jen přihlášený zákazník — jinak nejdřív registrace.
   if(!auth.loggedIn){
     pendingBookingId=id;
-    pickRole('family');
-    toast('Pro objednání služby se prosím nejdřív zaregistrujte.');
-    go('register');
+    toast('Pro objednání služby se prosím přihlaste.');
+    go('login');
     return;
   }
   state.caregiverId=id;const c=cg(id);
@@ -3572,21 +3570,24 @@ const CHAT_REPLIES=['Děkuji za zprávu, ozvu se co nejdříve.','Jistě, ráda 
   'Rozumím, zařídím to. 🙂','To zní dobře, potvrzuji termín.','Díky, budu se těšit!'];
 function chatNow(){return new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'});}
 function openChat(name,init,role,photo){
+  if(!auth.loggedIn){
+    toast('Pro poslání zprávy se prosím přihlaste.');
+    go('login');
+    return;
+  }
   let c=CONVERSATIONS.find(x=>x.name===name);
   if(!c){
-    c={id:auth.loggedIn?chatTmpSeq--:++chatSeq,name,init:init||initials(name),role:role||'caregiver',photo:photo||null,msgs:[]};
+    c={id:chatTmpSeq--,name,init:init||initials(name),role:role||'caregiver',photo:photo||null,msgs:[]};
     CONVERSATIONS.unshift(c);
-    if(auth.loggedIn){
-      apiSync(api('/conversations',{method:'POST',body:{name,init:c.init,role:c.role}}).then(r=>{
-        if(r&&r.conversation){
-          const oldId=c.id;
-          c.id=r.conversation.id;
-          chatSeq=Math.max(chatSeq,c.id);
-          if(activeChat===oldId)activeChat=c.id;
-          renderChat();
-        }
-      }));
-    }
+    apiSync(api('/conversations',{method:'POST',body:{name,init:c.init,role:c.role}}).then(r=>{
+      if(r&&r.conversation){
+        const oldId=c.id;
+        c.id=r.conversation.id;
+        chatSeq=Math.max(chatSeq,c.id);
+        if(activeChat===oldId)activeChat=c.id;
+        renderChat();
+      }
+    }));
   }
   else if(photo&&!c.photo)c.photo=photo;
   activeChat=c.id;go('chat');
