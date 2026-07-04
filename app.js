@@ -593,11 +593,21 @@ function renderCare(){
 }
 
 /* ---------- PROFILE ---------- */
-function openProfile(id){
+async function openProfile(id){
+  if(!document.getElementById('profileGrid')&&isDeferredView('profile')){
+    try{
+      await ensureDeferredViewsLoaded();
+    }catch(e){
+      toast('Nepodařilo se načíst profil pečovatelky.','declined');
+      return;
+    }
+  }
   state.caregiverId=id;const c=cg(id);
+  const grid=document.getElementById('profileGrid');
+  if(!c||!grid)return;
   const revs=[...(cgReviews[id]||[]),...REVIEWS];
   const revCount=c.reviews+((cgReviews[id]||[]).length);
-  document.getElementById('profileGrid').innerHTML=`
+  grid.innerHTML=`
     <div class="pcard">
       <div class="phead">
         ${avaHtml(c.init,c.photo)}
