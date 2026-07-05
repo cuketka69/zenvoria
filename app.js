@@ -109,6 +109,32 @@ function legalUrl(key){
     return 'https://www.zenvoria.cz/#'+legalHash(key);
   }
 }
+/* ---- čitelné (deep-link) URL profilu pečovatelky: #profile-<id>-<slug> ---- */
+function slugify(s){
+  return String(s||'')
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')   // odstraň diakritiku (ř→r, š→s…)
+    .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+}
+function profileHash(c){
+  if(!c)return 'profile';
+  const s=slugify(c.name);
+  return 'profile-'+c.id+(s?('-'+s):'');
+}
+function parseProfileId(deep){
+  const m=/^profile-(\d+)/.exec(deep||'');
+  return m?Number(m[1]):null;
+}
+/* hash a stav historie pro dané view (centrálně, ať je URL konzistentní) */
+function hashForView(v){
+  if(v==='legal'&&legalCurrentKey)return legalHash(legalCurrentKey);
+  if(v==='profile'&&state.caregiverId!=null)return profileHash(cg(state.caregiverId));
+  return v;
+}
+function stateForView(v){
+  if(v==='legal')return {view:v,legalKey:legalCurrentKey};
+  if(v==='profile'&&state.caregiverId!=null)return {view:v,caregiverId:state.caregiverId};
+  return {view:v};
+}
 async function copyLegalLink(){
   const url=legalUrl(legalCurrentKey);
   try{
@@ -174,9 +200,7 @@ async function go(v,fromPop){
       if(url.searchParams.has('reset')||url.searchParams.has('changeEmail')){
         url.searchParams.delete('reset');
         url.searchParams.delete('changeEmail');
-        const hash=(v==='legal'&&legalCurrentKey)?legalHash(legalCurrentKey):v;
-        const nextState=v==='legal'?{view:v,legalKey:legalCurrentKey}:{view:v};
-        history.replaceState(nextState,'',url.pathname+(url.search?url.search:'')+'#'+hash);
+        history.replaceState(stateForView(v),'',url.pathname+(url.search?url.search:'')+'#'+hashForView(v));
       }
       resetPwToken='';
       changeEmailToken='';
@@ -186,9 +210,10 @@ async function go(v,fromPop){
   if(!fromPop){
     try{
       const cur=history.state&&history.state.view;
-      const nextState=v==='legal'?{view:v,legalKey:legalCurrentKey}:{view:v};
-      const nextHash=(v==='legal'&&legalCurrentKey)?legalHash(legalCurrentKey):v;
-      if(cur!==v||(v==='legal'&&history.state&&history.state.legalKey!==legalCurrentKey))history.pushState(nextState,'','#'+nextHash);
+      const changed=cur!==v
+        ||(v==='legal'&&history.state&&history.state.legalKey!==legalCurrentKey)
+        ||(v==='profile'&&history.state&&history.state.caregiverId!==state.caregiverId);
+      if(changed)history.pushState(stateForView(v),'','#'+hashForView(v));
     }catch(e){}
   }
   // čeká-li nová verze, navigace je přirozený okamžik k obnovení na novou verzi
@@ -199,6 +224,10 @@ window.addEventListener('popstate',function(e){
   const v=(e.state&&e.state.view)||'home';
   if(v==='legal'&&e.state&&e.state.legalKey&&LEGAL[e.state.legalKey]){
     openLegal(e.state.legalKey,{fromPop:true,direct:true});
+    return;
+  }
+  if(v==='profile'&&e.state&&e.state.caregiverId!=null&&cg(e.state.caregiverId)){
+    openProfile(e.state.caregiverId,true);
     return;
   }
   if(document.getElementById('view-'+v)||isDeferredView(v))go(v,true);
@@ -593,7 +622,7 @@ function renderCare(){
 }
 
 /* ---------- PROFILE ---------- */
-async function openProfile(id){
+async function openProfile(id,fromPop){
   if(!document.getElementById('profileGrid')&&isDeferredView('profile')){
     try{
       await ensureDeferredViewsLoaded();
@@ -653,7 +682,7 @@ async function openProfile(id){
       <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openBooking(${c.id})">Objednat službu</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openChat(${jsq(c.name)},${jsq(c.init)},'caregiver')">Napsat zprávu</button>
     </div>`;
-  go('profile');
+  go('profile',fromPop);
 }
 
 /* ---------- BOOKING ---------- */
@@ -3941,6 +3970,7 @@ async function initApp(){
   let deep='';
   try{deep=(location.hash||'').replace(/^#/,'').split('?')[0];}catch(e){}
   if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('legal-')===0&&LEGAL[deep.slice(6)])openLegal(deep.slice(6),{direct:true});
+  else if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('profile-')===0){const pid=parseProfileId(deep);if(pid!=null&&cg(pid))await openProfile(pid);else await go('search');}
   else if(!resetPwToken&&!changeEmailToken&&deep&&(document.getElementById('view-'+deep)||isDeferredView(deep)))await go(deep);
   else if(!resetPwToken&&!changeEmailToken&&auth.loggedIn)await go(landingView());
   // návrat ze Stripe Checkout (#pricing?paid=1 / ?canceled=1)
@@ -3949,9 +3979,10 @@ async function initApp(){
   try{
     const active=document.querySelector('.view.active');
     const v=active?active.id.replace('view-',''):'home';
-    const hash=(v==='legal'&&legalCurrentKey)?legalHash(legalCurrentKey):v;
-    const nextState=v==='legal'?{view:v,legalKey:legalCurrentKey}:{view:v};
-    if(!history.state||history.state.view!==v||(v==='legal'&&history.state.legalKey!==legalCurrentKey))history.replaceState(nextState,'','#'+hash);
+    const changed=!history.state||history.state.view!==v
+      ||(v==='legal'&&history.state.legalKey!==legalCurrentKey)
+      ||(v==='profile'&&history.state.caregiverId!==state.caregiverId);
+    if(changed)history.replaceState(stateForView(v),'','#'+hashForView(v));
   }catch(e){}
   initAutoUpdate();
   initAdminPoll();
