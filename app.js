@@ -582,7 +582,7 @@ function renderCare(){
       </div>
       <div class="care-tags">
         ${cgBadges(c)}
-        ${c.services.slice(0,2).map(s=>`<span class="chip">${sName(s)}</span>`).join('')}
+        ${c.services.map(s=>`<span class="chip">${sName(s)}</span>`).join('')}
         ${c.kmPrice>0?`<span class="chip">${carSVG()} ${c.kmPrice} Kč/km</span>`:''}
       </div>
       <div class="care-foot">
