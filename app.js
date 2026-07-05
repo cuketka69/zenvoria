@@ -634,7 +634,7 @@ async function openProfile(id){
       <p class="bio">${esc(c.bio)}</p>
       <div class="pdiv"></div>
       <h3>Nabízené služby</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+      <div class="pservices" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
         ${c.services.map(s=>`<span class="chip gold">${sName(s)}</span>`).join('')}
       </div>
       <div class="pdiv"></div>
