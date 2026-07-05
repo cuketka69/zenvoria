@@ -619,7 +619,7 @@ async function openProfile(id){
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             ${cgBadges(c)}
             ${c.cert?`<span class="chip">${capSVG()} Ověřené vzdělání</span>`:''}
-            ${(c.langs||[]).map(l=>`<span class="chip">${speechSVG()} ${esc(l)}</span>`).join('')}
+            ${(c.langs||[]).map(l=>`<span class="chip plang">${speechSVG()} <span class="plang-full">${esc(l)}</span><span class="plang-short">${esc(langAbbr(l))}</span></span>`).join('')}
           </div>
         </div>
       </div>

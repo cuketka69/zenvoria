@@ -577,6 +577,9 @@
   .rev .rt{font-size:13.5px;color:var(--muted);margin-top:3px}
   /* ≤432px: nabízené služby v profilu jedna pod druhou */
   @media(max-width:432px){.pservices{flex-direction:column;align-items:flex-start}}
+  /* ≤432px: jazyky pod jménem ve zkratkách (CZ, SK…) */
+  .plang-short{display:none}
+  @media(max-width:432px){.plang-full{display:none}.plang-short{display:inline}}
 
   /* ---------- BOOKING VIEW ---------- */
   .booking-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:30px;align-items:start;padding-bottom:60px}
