@@ -1406,6 +1406,24 @@ app.get('/api/version', (_req, res) => {
   res.json({ version: APP_VERSION });
 });
 
+/* index.html s otiskem verze u app.css / app.js → po deployi vznikne nová URL
+   (app.css?v=HASH), takže i agresivní cache prohlížeče (iOS Safari) stáhne čerstvý
+   soubor. index.html samotný jede na no-cache, takže se otisk vždy přenačte. */
+const INDEX_HTML = (() => {
+  try {
+    return fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8')
+      .replace(/(href=")app\.css(")/g, `$1app.css?v=${APP_VERSION}$2`)
+      .replace(/(src=")app\.js(")/g, `$1app.js?v=${APP_VERSION}$2`);
+  } catch (e) {
+    return null;
+  }
+})();
+function sendIndex(res) {
+  res.setHeader('Cache-Control', 'no-cache');
+  if (INDEX_HTML) return res.type('html').send(INDEX_HTML);
+  return res.sendFile(path.join(ROOT, 'index.html'));
+}
+
 function formatPostalCode(postcode) {
   const digits = String(postcode || '').replace(/\D/g, '');
   return digits.length === 5 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : String(postcode || '').trim();
@@ -2521,6 +2539,8 @@ const IMMUTABLE_ASSET_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$/i;
 /* aplikační kód (app.js/app.css/*.html) se musí revalidovat, aby po deployi
    reload stáhl novou verzi; statická média (obrázky/fonty) zůstanou immutable. */
 const REVALIDATE_ASSET_RE = /(?:\.html?|app\.js|app\.css|deferred-views\.html)$/i;
+/* index.html vždy s otiskem verze (musí být PŘED express.static) */
+app.get(['/', '/index.html'], (_req, res) => sendIndex(res));
 app.use(express.static(ROOT, {
   extensions: ['html'],
   index: 'index.html',
@@ -2538,8 +2558,7 @@ app.use(express.static(ROOT, {
 }));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
-  res.setHeader('Cache-Control', 'no-cache');
-  res.sendFile(path.join(ROOT, 'index.html'));
+  sendIndex(res);
 });
 
 app.listen(PORT, () => {
