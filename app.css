@@ -575,6 +575,8 @@
   .rev .ava{width:42px;height:42px;font-size:15px}
   .rev .rb{font-weight:600;font-size:14px;color:var(--navy-900)}
   .rev .rt{font-size:13.5px;color:var(--muted);margin-top:3px}
+  /* ≤640px: obsah dlaždic pchips vycentrovaný */
+  @media(max-width:640px){.pchip{justify-content:center}}
   /* ≤432px: nabízené služby v profilu jedna pod druhou */
   @media(max-width:432px){.pservices{flex-direction:column;align-items:flex-start}}
   /* ≤432px: jazyky pod jménem ve zkratkách (CZ, SK…) */
