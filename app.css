@@ -1205,6 +1205,13 @@
   .msg.them{background:var(--white);border:1px solid var(--line);border-bottom-left-radius:5px;align-self:flex-start;color:var(--ink)}
   .msg.me{background:var(--navy-900);color:var(--cream);border-bottom-right-radius:5px;align-self:flex-end}
   .msg .mt{display:block;font-size:10.5px;opacity:.6;margin-top:4px;text-align:right}
+  /* obrázek ve zprávě */
+  .msg.has-img{padding:6px}
+  .msg-img{display:block;max-width:240px;max-height:260px;width:auto;height:auto;border-radius:11px;object-fit:cover;cursor:zoom-in}
+  .msg.has-img .mt{margin:5px 6px 1px}
+  .img-lightbox{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
+  .img-lightbox.open{display:flex}
+  .img-lightbox img{max-width:92vw;max-height:92vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
   .chat-input{display:flex;gap:10px;padding:14px 16px;border-top:1px solid var(--line);background:var(--white);flex:0 0 auto}
   .chat-input input{flex:1;border:1px solid var(--line);background:var(--cream);border-radius:12px;padding:12px 15px;font-family:inherit;font-size:14px;outline:none;color:var(--ink)}
   .chat-input input:focus{border-color:var(--gold);background:var(--white)}

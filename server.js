@@ -2267,11 +2267,19 @@ app.post('/api/reviews', requireAuth, h(async (req, res) => {
 /* ---------------- CHAT (reálný oboustranný) ---------------- */
 function conversationPairKey(a, b) { return [String(a), String(b)].sort().join('|'); }
 
+// obrázek v chatu jako data URL (jen obrázky, s limitem velikosti)
+function sanitizeChatImage(v) {
+  const s = typeof v === 'string' ? v : '';
+  if (!s) return null;
+  if (!/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(s)) return null;
+  if (s.length > 8 * 1024 * 1024) return null; // ~6 MB obrázek
+  return s;
+}
 async function loadConversationMessages(convId, me) {
-  const rows = await restSelect(T.messages, `conversation_id=eq.${Number(convId)}&order=created_at.asc&select=id,sender_id,text,t,created_at`);
+  const rows = await restSelect(T.messages, `conversation_id=eq.${Number(convId)}&order=created_at.asc&select=id,sender_id,text,image,t,created_at`);
   return (rows || []).map((m) => ({
     id: Number(m.id), me: String(m.sender_id || '') === String(me),
-    text: m.text, t: m.t || '', createdAt: m.created_at,
+    text: m.text, image: m.image || null, t: m.t || '', createdAt: m.created_at,
   }));
 }
 async function countConversationUnread(convId, me, readAt) {
@@ -2358,17 +2366,21 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   const me = String(req.session.uid || '');
   const conv = req.conversation;
   const text = String(b.text || '').trim();
-  if (!text) return res.status(400).json({ error: 'Chybí text zprávy.' });
+  const image = sanitizeChatImage(b.image);
+  if (b.image && !image) return res.status(400).json({ error: 'Neplatný nebo příliš velký obrázek.' });
+  if (!text && !image) return res.status(400).json({ error: 'Chybí text zprávy.' });
   if (text.length > 2000) return res.status(400).json({ error: 'Zpráva je příliš dlouhá.' });
   const t = trimmedString(b.t, 20);
   const now = new Date().toISOString();
-  const row = await restInsert(T.messages, { conversation_id: conv.id, sender_id: me, mine: true, text, t: t || '', created_at: now });
+  const row = await restInsert(T.messages, { conversation_id: conv.id, sender_id: me, mine: true, text, image, t: t || '', created_at: now });
+  const preview = text || (image ? '📷 Obrázek' : '');
   const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
-  await restUpdate(T.conversations, `id=eq.${conv.id}`, { last_text: text, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
+  await restUpdate(T.conversations, `id=eq.${conv.id}`, { last_text: preview, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
+  const msgOut = { id: Number(row.id), me: true, text, image: image || null, t: t || '', createdAt: now };
   // realtime: pushni zprávu protistraně (pro ni me:false)
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
-  emitToUser(other, { type: 'message', conversationId: Number(conv.id), message: { id: Number(row.id), me: false, text, t: t || '', createdAt: now } });
-  res.json({ message: { id: Number(row.id), me: true, text, t: t || '', createdAt: now } });
+  emitToUser(other, { type: 'message', conversationId: Number(conv.id), message: Object.assign({}, msgOut, { me: false }) });
+  res.json({ message: msgOut });
 }));
 
 /* ---------------- REALTIME (SSE) ---------------- */

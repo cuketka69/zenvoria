@@ -3928,7 +3928,7 @@ function renderChat(){
     const name=document.createElement('b');
     name.textContent=c.name;
     const preview=document.createElement('span');
-    preview.textContent=last?(last.me?'Vy: ':'')+last.text:'Nová konverzace';
+    preview.textContent=last?((last.me?'Vy: ':'')+(last.text||(last.image?'📷 Obrázek':''))):'Nová konverzace';
     ci.appendChild(name);
     ci.appendChild(preview);
     btn.appendChild(ci);
@@ -3954,8 +3954,13 @@ function renderChat(){
   body.textContent='';
   c.msgs.forEach(m=>{
     const row=document.createElement('div');
-    row.className='msg '+(m.me?'me':'them');
-    row.appendChild(document.createTextNode(m.text));
+    row.className='msg '+(m.me?'me':'them')+(m.image?' has-img':'');
+    if(m.image){
+      const im=document.createElement('img');im.className='msg-img';im.src=m.image;im.loading='lazy';im.alt='obrázek';
+      im.addEventListener('click',()=>openImgLightbox(m.image));
+      row.appendChild(im);
+    }
+    if(m.text)row.appendChild(document.createTextNode(m.text));
     const time=document.createElement('span');
     time.className='mt';
     time.textContent=m.t;
@@ -3992,7 +3997,55 @@ function sendTerm(){
   const d=new Date(Date.now()+2*86400000);
   sendChatText(`📅 Návrh termínu: ${d.toLocaleDateString('cs-CZ',{day:'numeric',month:'long'})} v 10:00 (4 h). Vyhovuje?`);
 }
-function videoCall(){toast('Videohovory spouštíme již brzy.');}
+/* obrázek: zmenši v prohlížeči (menší přenos i uložení) a pošli jako zprávu */
+function downscaleImage(file,maxDim,cb){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.naturalWidth,h=img.naturalHeight;
+      if(!w||!h){cb(reader.result);return;}
+      if(w>maxDim||h>maxDim){const s=maxDim/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
+      try{const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);cb(cv.toDataURL('image/jpeg',0.82));}
+      catch(e){cb(reader.result);}
+    };
+    img.onerror=()=>cb(null);
+    img.src=reader.result;
+  };
+  reader.onerror=()=>cb(null);
+  reader.readAsDataURL(file);
+}
+function onChatImage(input){
+  const f=input.files&&input.files[0];input.value='';
+  if(!f)return;
+  if(!/^image\//.test(f.type||'')){toast('Vyberte prosím obrázek.','declined');return;}
+  if(f.size>15*1024*1024){toast('Obrázek je příliš velký (max 15 MB).','declined');return;}
+  downscaleImage(f,1280,(dataUrl)=>{
+    if(!dataUrl){toast('Obrázek se nepodařilo načíst.','declined');return;}
+    sendChatImage(dataUrl);
+  });
+}
+async function sendChatImage(image){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);
+  if(!c||c.readonly||!(c.id>0)){toast('Vyberte konverzaci.');return;}
+  const tmp={id:0,me:true,text:'',image,t:chatNow(),pending:true};
+  c.msgs.push(tmp);c.last='📷 Obrázek';renderChat();
+  try{
+    const r=await api('/conversations/'+c.id+'/messages',{method:'POST',body:{image,t:tmp.t}});
+    const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs[i]=r.message;else c.msgs.push(r.message);
+    c.last='📷 Obrázek';c.lastAt=r.message.createdAt;renderChat();
+  }catch(err){
+    const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs.splice(i,1);renderChat();
+    toast(err.message||'Obrázek se nepodařilo odeslat.','declined');
+  }
+}
+function openImgLightbox(src){
+  let ov=document.getElementById('imgLightbox');
+  if(!ov){ov=document.createElement('div');ov.id='imgLightbox';ov.className='img-lightbox';ov.addEventListener('click',()=>ov.classList.remove('open'));document.body.appendChild(ov);}
+  ov.textContent='';
+  const im=document.createElement('img');im.src=src;ov.appendChild(im);
+  ov.classList.add('open');
+}
 function scrollChat(){const b=document.getElementById('chatBody');if(b)b.scrollTop=b.scrollHeight;}
 async function selectChat(id){activeChat=id;renderChat();if(id>0)await loadMessages(id);renderChat();document.getElementById('chatInput')?.focus();}
 function sendChat(e){
