@@ -323,6 +323,120 @@ function enhanceSelect(sel){
 function ddRefresh(){document.querySelectorAll('select[data-enh]').forEach(s=>s._ddRefresh&&s._ddRefresh());}
 document.addEventListener('click',e=>{if(!e.target.closest('.dd'))closeAllDD();});
 
+/* ---------- VLASTNÍ VÝBĚR DATA (custom date picker, nahrazuje nativní <input type=date>) ---------- */
+const DP_MONTHS=['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
+const DP_DOW=['po','út','st','čt','pá','so','ne'];
+function dpPad(n){return String(n).padStart(2,'0');}
+function dpIso(y,m,d){return `${y}-${dpPad(m+1)}-${dpPad(d)}`;}
+function enhanceDateInput(inp){
+  if(!inp||inp.dataset.enh)return;
+  inp.dataset.enh='1';
+  const wrap=document.createElement('div'); wrap.className='dd dp'+(inp.classList.contains('inp')?' dd-inp':'');
+  const btn=document.createElement('button'); btn.type='button'; btn.className='dd-btn'; btn.setAttribute('aria-haspopup','dialog');
+  const lbl=document.createElement('span'); lbl.className='dd-lbl dp-lbl';
+  const car=document.createElement('span'); car.className='dd-car';
+  car.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  btn.appendChild(lbl); btn.appendChild(car);
+  const menu=document.createElement('div'); menu.className='dd-menu dp-menu'; menu.setAttribute('role','dialog');
+  let viewY,viewM;
+  const fmtLbl=()=>{
+    if(!inp.value){lbl.textContent=inp.placeholder||'dd.mm.rrrr';lbl.classList.add('dp-ph');return;}
+    lbl.classList.remove('dp-ph');
+    const[y,m,d]=inp.value.split('-');
+    lbl.textContent=`${d}.${m}.${y}`;
+  };
+  const build=()=>{
+    menu.innerHTML='';
+    const head=document.createElement('div'); head.className='dp-head';
+    const prevB=document.createElement('button'); prevB.type='button'; prevB.className='dp-nav'; prevB.setAttribute('aria-label','Předchozí měsíc');
+    prevB.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m15 18-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const nextB=document.createElement('button'); nextB.type='button'; nextB.className='dp-nav'; nextB.setAttribute('aria-label','Další měsíc');
+    nextB.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m9 18 6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const title=document.createElement('div'); title.className='dp-title'; title.textContent=`${DP_MONTHS[viewM]} ${viewY}`;
+    prevB.onclick=e=>{e.stopPropagation();viewM--;if(viewM<0){viewM=11;viewY--;}build();};
+    nextB.onclick=e=>{e.stopPropagation();viewM++;if(viewM>11){viewM=0;viewY++;}build();};
+    head.appendChild(prevB);head.appendChild(title);head.appendChild(nextB);
+    menu.appendChild(head);
+    const dow=document.createElement('div'); dow.className='dp-dow';
+    DP_DOW.forEach(d=>{const s=document.createElement('span');s.textContent=d;dow.appendChild(s);});
+    menu.appendChild(dow);
+    const grid=document.createElement('div'); grid.className='dp-grid';
+    const first=new Date(viewY,viewM,1);
+    const startDow=(first.getDay()+6)%7;
+    const daysInMonth=new Date(viewY,viewM+1,0).getDate();
+    const daysInPrev=new Date(viewY,viewM,0).getDate();
+    const t=new Date(); const todayIso=dpIso(t.getFullYear(),t.getMonth(),t.getDate());
+    const selIso=inp.value||'';
+    for(let i=0;i<startDow;i++){
+      const cell=document.createElement('button'); cell.type='button'; cell.className='dp-day dp-out'; cell.textContent=daysInPrev-startDow+i+1; cell.disabled=true;
+      grid.appendChild(cell);
+    }
+    for(let d=1;d<=daysInMonth;d++){
+      const iso=dpIso(viewY,viewM,d);
+      const outOfRange=(inp.min&&iso<inp.min)||(inp.max&&iso>inp.max);
+      const cell=document.createElement('button'); cell.type='button';
+      cell.className='dp-day'+(iso===todayIso?' dp-today':'')+(iso===selIso?' dp-sel':'');
+      cell.textContent=d;
+      if(outOfRange){cell.disabled=true;}
+      else cell.onclick=e=>{
+        e.stopPropagation();
+        inp.value=iso;fmtLbl();
+        inp.dispatchEvent(new Event('change',{bubbles:true}));
+        wrap.classList.remove('open');
+      };
+      grid.appendChild(cell);
+    }
+    const trail=(7-((startDow+daysInMonth)%7))%7;
+    for(let i=1;i<=trail;i++){
+      const cell=document.createElement('button'); cell.type='button'; cell.className='dp-day dp-out'; cell.textContent=i; cell.disabled=true;
+      grid.appendChild(cell);
+    }
+    menu.appendChild(grid);
+    const foot=document.createElement('div'); foot.className='dp-foot';
+    const clearBtn=document.createElement('button'); clearBtn.type='button'; clearBtn.className='dp-link'; clearBtn.textContent='Vymazat';
+    clearBtn.onclick=e=>{e.stopPropagation();inp.value='';fmtLbl();inp.dispatchEvent(new Event('change',{bubbles:true}));wrap.classList.remove('open');};
+    const todayBtn=document.createElement('button'); todayBtn.type='button'; todayBtn.className='dp-link'; todayBtn.textContent='Dnes';
+    todayBtn.onclick=e=>{
+      e.stopPropagation();
+      inp.value=todayIso;fmtLbl();
+      inp.dispatchEvent(new Event('change',{bubbles:true}));
+      viewY=t.getFullYear();viewM=t.getMonth();
+      wrap.classList.remove('open');
+    };
+    foot.appendChild(clearBtn);foot.appendChild(todayBtn);
+    menu.appendChild(foot);
+  };
+  btn.onclick=e=>{
+    e.stopPropagation();
+    if(btn.disabled)return;
+    const op=wrap.classList.contains('open');
+    closeAllDD();
+    if(!op){
+      const t=new Date();
+      const base=inp.value?inp.value.split('-').map(Number):null;
+      viewY=base?base[0]:t.getFullYear();
+      viewM=base?base[1]-1:t.getMonth();
+      build();
+      wrap.classList.add('open');
+    }
+  };
+  wrap.appendChild(btn); wrap.appendChild(menu);
+  inp.style.display='none'; inp.parentNode.insertBefore(wrap,inp.nextSibling);
+  fmtLbl();
+  inp._ddRefresh=fmtLbl;
+  inp.addEventListener('change',fmtLbl);
+  inp.focus=()=>btn.focus();
+}
+function dpSetDisabled(inp,disabled){
+  if(!inp)return;
+  inp.disabled=disabled;
+  const wrap=inp.nextElementSibling;
+  if(!wrap||!wrap.classList.contains('dp'))return;
+  if(disabled)wrap.classList.remove('open');
+  const btn=wrap.querySelector('.dd-btn');
+  if(btn)btn.disabled=disabled;
+}
+
 function locNorm(v){
   return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 }
@@ -939,6 +1053,7 @@ function openBooking(id){
   const dateEl=document.getElementById('bkDate');
   dateEl.min=todayISO();
   dateEl.value=todayISO();
+  if(dateEl._ddRefresh)dateEl._ddRefresh();
   // pole vzdálenosti jen když pečovatel účtuje dopravu
   const kmWrap=document.getElementById('bkKmWrap');
   document.getElementById('bkKm').value=0;
@@ -1038,6 +1153,7 @@ async function ensureDeferredViewsLoaded(){
       host.innerHTML=html;
       deferredViewsLoaded=true;
       document.querySelectorAll('#deferredViews select').forEach(enhanceSelect);
+      document.querySelectorAll('#deferredViews input[type=date]').forEach(enhanceDateInput);
       initLocationAutocomplete();
       initReveal();
       return true;
@@ -2975,7 +3091,8 @@ function cgAdminToggleUntil(){
   const w=document.getElementById('cgAdminUntilWrap');
   const inp=document.getElementById('cgAdminUntil');
   const hint=w?w.querySelector('.cga-hint'):null;
-  if(inp)inp.disabled=!hasPlan;
+  if(inp&&inp._ddRefresh)inp._ddRefresh();
+  dpSetDisabled(inp,!hasPlan);
   if(w)w.classList.toggle('is-disabled',!hasPlan);
   if(hint)hint.textContent=hasPlan?'Prázdné = neomezeně':'Nastavíte po výběru tarifu';
 }
@@ -4537,6 +4654,7 @@ async function initApp(){
   updateAuthUI();
   renderHome();renderFilters();renderCare();renderCalendar();
   document.querySelectorAll('select').forEach(enhanceSelect);
+  document.querySelectorAll('input[type=date]').forEach(enhanceDateInput);
   initReveal();
   // deep-link: lze otevřít přímo konkrétní stránku přes #hash (bez případného ?query)
   let deep='';

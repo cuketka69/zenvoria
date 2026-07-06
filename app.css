@@ -461,6 +461,28 @@
   .dd-opt{padding:9px 12px;border-radius:9px;font-size:14px;color:var(--navy-800);cursor:pointer;white-space:nowrap;transition:.12s}
   .dd-opt:hover{background:var(--cream)}
   .dd-opt.sel{background:rgba(201,162,51,.18);color:var(--navy-900);font-weight:600}
+  /* ---------- VLASTNÍ VÝBĚR DATA (custom date picker) ---------- */
+  .dp-lbl.dp-ph{color:var(--muted)}
+  .dp-menu{width:266px;max-width:none;max-height:none;padding:12px}
+  .dp-head{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .dp-title{flex:1;text-align:center;font-weight:700;font-size:14px;color:var(--navy-900);text-transform:capitalize}
+  .dp-nav{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:8px;
+    background:none;color:var(--navy-800);cursor:pointer;transition:.12s}
+  .dp-nav:hover{background:var(--cream);color:var(--navy-900)}
+  .dp-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+  .dp-dow span{text-align:center;font-size:11.5px;color:var(--muted);text-transform:uppercase}
+  .dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  .dp-day{aspect-ratio:1/1;border:none;border-radius:8px;background:none;font-size:13.5px;color:var(--navy-800);
+    cursor:pointer;transition:.12s;display:flex;align-items:center;justify-content:center}
+  .dp-day:hover:not(:disabled){background:var(--cream)}
+  .dp-day.dp-out{color:var(--muted);opacity:.4;cursor:default}
+  .dp-day:disabled{opacity:.35;cursor:not-allowed}
+  .dp-day.dp-today{font-weight:700;color:var(--gold-deep)}
+  .dp-day.dp-sel{background:var(--gold);color:var(--navy-900);font-weight:700}
+  .dp-foot{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+  .dp-link{background:none;border:none;color:var(--gold-deep);font-size:13.5px;font-weight:600;cursor:pointer;padding:4px 6px}
+  .dp-link:hover{text-decoration:underline}
+  .is-disabled .dp .dd-btn{pointer-events:none;cursor:not-allowed}
   .loc-ac{position:relative}
   .loc-ac-menu{position:absolute;top:calc(100% + 8px);left:0;right:0;background:var(--white);border:1px solid var(--line);
     border-radius:14px;box-shadow:var(--shadow);padding:6px;z-index:90;max-height:260px;overflow:auto;display:none}
