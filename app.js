@@ -1945,8 +1945,8 @@ function cgStatus(){
   if(!auth.loggedIn||auth.role!=='caregiver')return 'none';
   return cgStatusMap[auth.email]||'pending';
 }
-/* tarif přihlášené pečovatelky */
-function cgPlan(){return cgPlanMap[auth.email]||'start';}
+/* tarif přihlášené pečovatelky (null = bez aktivního tarifu) */
+function cgPlan(){return cgPlanMap[auth.email]||null;}
 /* zobrazení ceny dle typu: za hodinu / za den / individuální */
 function priceLabel(c){
   if(c.priceType==='indiv')return 'Individuální nabídka';
@@ -1977,7 +1977,9 @@ function renderPricing(){
   const cur=isCg?cgPlan():null;
   const note=document.getElementById('planCurrentNote');
   note.innerHTML=isCg
-    ?`<div class="verify-banner ok" style="margin-bottom:24px"><span class="vb-ic">${planIcon(cur,30)}</span><div class="vb-t"><b>Váš aktuální tarif: ${PLANS[cur].name}</b><span>${cur==='premium'?'Máte vyšší zobrazení a odznak Premium.':'Přejděte na PREMIUM pro vyšší zobrazení a více poptávek.'}</span></div></div>`
+    ?(cur
+      ? `<div class="verify-banner ok" style="margin-bottom:24px"><span class="vb-ic">${planIcon(cur,30)}</span><div class="vb-t"><b>Váš aktuální tarif: ${PLANS[cur].name}</b><span>${cur==='premium'?'Máte vyšší zobrazení a odznak Premium.':'Přejděte na PREMIUM pro vyšší zobrazení a více poptávek.'}</span></div></div>`
+      : `<div class="verify-banner wait" style="margin-bottom:24px"><span class="vb-ic" style="color:var(--gold-deep)">${warnSVG(26)}</span><div class="vb-t"><b>Nemáte aktivní tarif</b><span>Bez tarifu vás rodiny neuvidí ve vyhledávání. Vyberte si START nebo PREMIUM.</span></div></div>`)
     :`<div class="verify-banner wait" style="margin-bottom:24px"><span class="vb-ic" style="color:var(--gold-deep)">${userSVG(26)}</span><div class="vb-t"><b>Jste pečovatelka?</b><span>Zaregistrujte se a vyberte si tarif. Ceník je informativní.</span></div></div>`;
   document.getElementById('planGrid').innerHTML=['start','premium'].map(key=>{
     const p=PLANS[key];const featured=key==='premium';
@@ -3027,7 +3029,7 @@ function doApproveVerification(id){
   else{
     CAREGIVERS.push({id:++cgSeq,name:v.name,email:v.email,init:v.init,loc:v.loc,rate:v.rate,
       rating:5.0,reviews:0,exp:v.exp,services:v.services.slice(),verified:true,cert:true,idVerified:true,
-      suspended:false,status:'verified',plan:cgPlanMap[v.email]||'start',langs:['Čeština'],
+      suspended:false,status:'verified',plan:cgPlanMap[v.email]||null,langs:['Čeština'],
       priceType:'hod',dayRate:v.rate*8,radius:10,kmPrice:0,bio:v.bio||''});
   }
   cgStatusMap[v.email]='verified';
@@ -4550,7 +4552,7 @@ function persist(){}
 /* odvodí cgStatusMap / cgPlanMap z dat (pečovatelky + žádosti) */
 function deriveCgMaps(){
   cgStatusMap={};cgPlanMap={};
-  CAREGIVERS.forEach(c=>{if(c.email){cgStatusMap[c.email]=c.verified?'verified':'pending';cgPlanMap[c.email]=c.plan||'start';}});
+  CAREGIVERS.forEach(c=>{if(c.email){cgStatusMap[c.email]=c.verified?'verified':'pending';cgPlanMap[c.email]=c.plan||null;}});
   VERIFICATIONS.forEach(v=>{if(!v.email)return;
     if(v.status==='submitted'&&cgStatusMap[v.email]!=='verified')cgStatusMap[v.email]='submitted';
     if(v.status==='rejected'&&cgStatusMap[v.email]!=='verified')cgStatusMap[v.email]='rejected';});
