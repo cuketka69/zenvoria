@@ -261,36 +261,21 @@
       <p>Najděte ověřenou pečovatelku ve svém okolí.</p>
     </div>
     <div class="search-bar">
-      <div class="field">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#7A736A" stroke-width="1.6"/><path d="m20 20-3-3" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <input id="q" placeholder="Hledat péče / lokalitu" oninput="renderCare()">
+      <div class="search-summary">
+        <span class="search-summary-ic">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#7A736A" stroke-width="1.6"/><path d="m20 20-3-3" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </span>
+        <div>
+          <b>Vyhledávání a filtry</b>
+          <span id="searchFilterSummary">Nastavte lokalitu, služby, cenu a další parametry.</span>
+        </div>
       </div>
-      <div class="field" style="max-width:230px">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.4" stroke="#7A736A" stroke-width="1.6"/></svg>
-        <select id="loc" onchange="renderCare()">
-          <option value="">Celá Praha</option>
-          <option>Praha 2</option><option>Praha 3</option><option>Praha 4</option>
-          <option>Praha 5</option><option>Praha 6</option><option>Praha 7</option>
-        </select>
-      </div>
-      <button class="btn btn-navy" onclick="renderCare()">Filtry</button>
+      <button class="btn btn-navy" type="button" onclick="openSearchFilters()">Filtry</button>
     </div>
     <div class="filters" id="servFilters"></div>
     <div class="sort-row">
       <span class="rescount" id="careCount"></span>
-      <label>Cena do <b id="priceMaxVal">300</b> Kč
-        <input type="range" id="priceMax" min="200" max="300" step="10" value="300" aria-label="Maximální cena za hodinu" oninput="document.getElementById('priceMaxVal').textContent=this.value;renderCare()">
-      </label>
-      <label><input type="checkbox" id="onlyVerified" onchange="renderCare()"> Jen ověřené</label>
-      <label>Řadit:
-        <select id="sortBy" onchange="renderCare()">
-          <option value="rec">Doporučené</option>
-          <option value="price-asc">Cena: nejlevnější</option>
-          <option value="price-desc">Cena: nejdražší</option>
-          <option value="rating">Nejlépe hodnocené</option>
-          <option value="exp">Nejvíc praxe</option>
-        </select>
-      </label>
+      <button class="btn btn-ghost" type="button" onclick="openSearchFilters()">Upravit filtry</button>
     </div>
     <div class="care-grid" id="careGrid"></div>
   </div>
@@ -424,6 +409,66 @@
 
 </main>
 
+<!-- ============ SEARCH FILTER MODAL ============ -->
+<div class="modal" id="searchFilterModal" role="dialog" aria-modal="true" aria-labelledby="searchFilterTitle">
+  <div class="modal-scrim" onclick="closeSearchFilters()"></div>
+  <div class="modal-card filter-modal">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeSearchFilters()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <h3 id="searchFilterTitle">Filtry vyhledávání</h3>
+    <p class="msub">Vyberte, podle čeho se mají pečovatelky zobrazit.</p>
+    <div class="filter-modal-grid">
+      <div>
+        <label class="lbl" for="filterQ">Hledaný výraz</label>
+        <input class="inp" id="filterQ" placeholder="Např. hygiena, Praha 6, Jana" oninput="searchDraft.q=this.value">
+      </div>
+      <div>
+        <label class="lbl" for="filterLoc">Lokalita</label>
+        <select class="inp" id="filterLoc" onchange="searchDraft.loc=this.value">
+          <option value="">Celá Praha</option>
+          <option>Praha 2</option><option>Praha 3</option><option>Praha 4</option>
+          <option>Praha 5</option><option>Praha 6</option><option>Praha 7</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <label class="lbl">Typ péče</label>
+      <div class="filter-service-grid" id="filterServiceGrid"></div>
+    </div>
+    <div class="filter-modal-grid" style="margin-top:16px">
+      <div>
+        <label class="lbl" for="filterSort">Řazení</label>
+        <select class="inp" id="filterSort" onchange="searchDraft.sortBy=this.value">
+          <option value="rec">Doporučené</option>
+          <option value="price-asc">Cena: nejlevnější</option>
+          <option value="price-desc">Cena: nejdražší</option>
+          <option value="rating">Nejlépe hodnocené</option>
+          <option value="exp">Nejvíc praxe</option>
+        </select>
+      </div>
+      <div>
+        <label class="lbl" for="filterVerified">Ověření</label>
+        <label class="filter-check">
+          <input id="filterVerified" type="checkbox" onchange="searchDraft.onlyVerified=this.checked">
+          <span>Zobrazit jen ověřené pečovatelky</span>
+        </label>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="filter-range-head">
+        <label class="lbl" for="filterPrice">Maximální cena</label>
+        <b id="filterPriceVal">300 Kč / hod</b>
+      </div>
+      <input id="filterPrice" type="range" min="200" max="300" step="10" value="300" oninput="setSearchDraftPrice(this.value)">
+    </div>
+    <div class="filter-modal-actions">
+      <button class="btn btn-ghost" type="button" onclick="resetSearchFilters()">Vymazat filtry</button>
+      <button class="btn btn-gold" type="button" onclick="applySearchFilters()">Použít filtry</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ RATING MODAL ============ -->
 <div class="modal" id="ratingModal" role="dialog" aria-modal="true" aria-labelledby="ratingTitle">
   <div class="modal-scrim" onclick="closeRating()"></div>
@@ -475,6 +520,36 @@
       <button class="btn btn-ghost" type="button" onclick="clearVerifyValidDate()">Vymazat</button>
       <button class="btn btn-ghost" type="button" onclick="setVerifyValidToday()">Dnes</button>
       <button class="btn btn-gold" type="button" onclick="applyVerifyValidDate()">Uložit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ NÁVRH TERMÍNU (chat) ============ -->
+<div class="modal" id="termModal" role="dialog" aria-modal="true" aria-labelledby="termTitle">
+  <div class="modal-scrim" onclick="closeTermModal()"></div>
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeTermModal()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <h3 id="termTitle">Navrhnout termín</h3>
+    <p class="msub">Vyberte datum, čas a délku péče.</p>
+    <div class="date-modal-grid" style="grid-template-columns:1fr 1fr">
+      <div><label class="lbl" for="termDate">Datum</label><input class="inp" type="date" id="termDate"></div>
+      <div><label class="lbl" for="termTime">Čas</label><input class="inp" type="time" id="termTime"></div>
+    </div>
+    <div style="margin-top:14px"><label class="lbl" for="termHours">Délka péče</label>
+      <select class="inp" id="termHours">
+        <option value="1">1 hodina</option>
+        <option value="2">2 hodiny</option>
+        <option value="3">3 hodiny</option>
+        <option value="4">4 hodiny</option>
+        <option value="6">6 hodin</option>
+        <option value="8">8 hodin</option>
+      </select>
+    </div>
+    <div class="date-modal-actions">
+      <button class="btn btn-ghost" type="button" onclick="closeTermModal()">Zrušit</button>
+      <button class="btn btn-gold" type="button" onclick="confirmTerm()">Poslat návrh</button>
     </div>
   </div>
 </div>

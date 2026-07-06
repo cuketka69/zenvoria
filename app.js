@@ -280,7 +280,7 @@ function toggleMenu(open){
 
 /* ---------- KEYBOARD ACTIVATION (role=button) ---------- */
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeVerifyValidModal();closeAccountMenu();closeAllDD();return;}
+  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeVerifyValidModal();closeSearchFilters();closeAccountMenu();closeAllDD();return;}
   if((e.key==='Enter'||e.key===' ')){
     const el=e.target;
     const r=el&&el.getAttribute&&el.getAttribute('role');
@@ -559,24 +559,144 @@ function renderHome(){
 }
 
 /* ---------- SEARCH RENDER ---------- */
-let activeFilter='';
-function renderFilters(){
-  const all=[{id:'',name:'Vše'},...SERVICES];
-  document.getElementById('servFilters').innerHTML=all.map(s=>
-    `<button class="fbtn ${activeFilter===s.id?'on':''}" onclick="setFilter('${s.id}')">${s.name}</button>`).join('');
+let searchFilters={q:'',loc:'',priceMax:300,onlyVerified:false,sortBy:'rec',service:''};
+let searchDraft=null;
+function filterLabelService(id){
+  return id?sName(id):'Všechny služby';
 }
-function setFilter(id){activeFilter=id;renderFilters();renderCare();}
-function filterByService(id){activeFilter=id;go('search');renderFilters();renderCare();}
+function sortLabel(sortBy){
+  return ({
+    rec:'Doporučené',
+    'price-asc':'Cena: nejlevnější',
+    'price-desc':'Cena: nejdražší',
+    rating:'Nejlépe hodnocené',
+    exp:'Nejvíc praxe'
+  })[sortBy]||'Doporučené';
+}
+function buildActiveSearchChips(){
+  const chips=[];
+  if(searchFilters.q)chips.push({kind:'q',label:`Hledání: ${searchFilters.q}`});
+  if(searchFilters.loc)chips.push({kind:'loc',label:searchFilters.loc});
+  if(searchFilters.service)chips.push({kind:'service',label:filterLabelService(searchFilters.service)});
+  if(searchFilters.priceMax<300)chips.push({kind:'priceMax',label:`Do ${searchFilters.priceMax} Kč / hod`});
+  if(searchFilters.onlyVerified)chips.push({kind:'onlyVerified',label:'Jen ověřené'});
+  if(searchFilters.sortBy!=='rec')chips.push({kind:'sortBy',label:sortLabel(searchFilters.sortBy)});
+  return chips;
+}
+function clearSearchChip(kind){
+  if(kind==='q')searchFilters.q='';
+  else if(kind==='loc')searchFilters.loc='';
+  else if(kind==='service')searchFilters.service='';
+  else if(kind==='priceMax')searchFilters.priceMax=300;
+  else if(kind==='onlyVerified')searchFilters.onlyVerified=false;
+  else if(kind==='sortBy')searchFilters.sortBy='rec';
+  renderFilters();
+  renderCare();
+}
+function renderFilters(){
+  const wrap=document.getElementById('servFilters');
+  const summary=document.getElementById('searchFilterSummary');
+  if(summary){
+    const bits=[];
+    if(searchFilters.q)bits.push(`hledání „${searchFilters.q}“`);
+    bits.push(searchFilters.loc||'celá Praha');
+    bits.push(filterLabelService(searchFilters.service));
+    if(searchFilters.onlyVerified)bits.push('jen ověřené');
+    bits.push(`do ${searchFilters.priceMax} Kč / hod`);
+    if(searchFilters.sortBy!=='rec')bits.push(sortLabel(searchFilters.sortBy));
+    summary.textContent=bits.join(' • ');
+  }
+  if(!wrap)return;
+  const chips=buildActiveSearchChips();
+  wrap.innerHTML=chips.length
+    ? chips.map(chip=>`<button class="fbtn on active-filter-chip" type="button" onclick="clearSearchChip('${chip.kind}')">${esc(chip.label)} <span aria-hidden="true">×</span></button>`).join('')
+    : `<span class="filter-empty">Momentálně nejsou zapnuté žádné omezující filtry.</span>`;
+}
+function renderSearchServiceOptions(){
+  const wrap=document.getElementById('filterServiceGrid');
+  if(!wrap||!searchDraft)return;
+  const all=[{id:'',name:'Všechny služby'},...SERVICES];
+  wrap.innerHTML=all.map(s=>
+    `<button class="filter-service-btn ${searchDraft.service===s.id?'on':''}" type="button" onclick="setSearchDraftService('${s.id}')">${esc(s.name)}</button>`
+  ).join('');
+}
+function syncSearchModal(){
+  if(!searchDraft)return;
+  const q=document.getElementById('filterQ');
+  const loc=document.getElementById('filterLoc');
+  const sort=document.getElementById('filterSort');
+  const only=document.getElementById('filterVerified');
+  const price=document.getElementById('filterPrice');
+  if(q)q.value=searchDraft.q;
+  if(loc){loc.value=searchDraft.loc;if(loc._ddRefresh)loc._ddRefresh();}
+  if(sort){sort.value=searchDraft.sortBy;if(sort._ddRefresh)sort._ddRefresh();}
+  if(only)only.checked=!!searchDraft.onlyVerified;
+  if(price)price.value=String(searchDraft.priceMax);
+  setSearchDraftPrice(searchDraft.priceMax,false);
+  renderSearchServiceOptions();
+}
+function openSearchFilters(){
+  searchDraft={...searchFilters};
+  syncSearchModal();
+  const modal=document.getElementById('searchFilterModal');
+  if(modal){modal.classList.add('open');document.body.style.overflow='hidden';}
+}
+function closeSearchFilters(){
+  const modal=document.getElementById('searchFilterModal');
+  if(modal&&modal.classList.contains('open')){modal.classList.remove('open');document.body.style.overflow='';}
+  searchDraft=null;
+}
+function setSearchDraftService(id){
+  if(!searchDraft)return;
+  searchDraft.service=id;
+  renderSearchServiceOptions();
+}
+function setSearchDraftPrice(value,store){
+  const numeric=Math.max(200,Math.min(300,Number(value)||300));
+  if(searchDraft&&store!==false)searchDraft.priceMax=numeric;
+  const out=document.getElementById('filterPriceVal');
+  const input=document.getElementById('filterPrice');
+  if(out)out.textContent=`${numeric} Kč / hod`;
+  if(input&&String(input.value)!==String(numeric))input.value=String(numeric);
+}
+function resetSearchFilters(){
+  searchDraft={q:'',loc:'',priceMax:300,onlyVerified:false,sortBy:'rec',service:''};
+  syncSearchModal();
+}
+function applySearchFilters(){
+  if(!searchDraft)return;
+  const q=document.getElementById('filterQ');
+  const loc=document.getElementById('filterLoc');
+  const sort=document.getElementById('filterSort');
+  const only=document.getElementById('filterVerified');
+  searchFilters={
+    q:(q&&q.value||'').trim(),
+    loc:(loc&&loc.value||'').trim(),
+    priceMax:Math.max(200,Math.min(300,Number(searchDraft.priceMax)||300)),
+    onlyVerified:!!(only&&only.checked),
+    sortBy:(sort&&sort.value)||'rec',
+    service:searchDraft.service||''
+  };
+  closeSearchFilters();
+  renderFilters();
+  renderCare();
+}
+function filterByService(id){
+  searchFilters.service=id||'';
+  go('search');
+  renderFilters();
+  renderCare();
+}
 
 function renderCare(){
-  const q=(document.getElementById('q').value||'').toLowerCase();
-  const loc=document.getElementById('loc').value;
-  const priceMax=+((document.getElementById('priceMax')||{}).value||999);
-  const onlyVer=(document.getElementById('onlyVerified')||{}).checked;
-  const sortBy=(document.getElementById('sortBy')||{}).value||'rec';
+  const q=searchFilters.q.toLowerCase();
+  const loc=searchFilters.loc;
+  const priceMax=searchFilters.priceMax||999;
+  const onlyVer=!!searchFilters.onlyVerified;
+  const sortBy=searchFilters.sortBy||'rec';
   let list=CAREGIVERS.filter(c=>{
     if(!c.verified||c.suspended)return false; // rodiny vidí jen ověřené a aktivní pečovatelky
-    const matchF=!activeFilter||c.services.includes(activeFilter);
+    const matchF=!searchFilters.service||c.services.includes(searchFilters.service);
     const matchL=!loc||c.loc===loc;
     const matchQ=!q||c.name.toLowerCase().includes(q)||c.loc.toLowerCase().includes(q)||
       c.services.some(s=>sName(s).toLowerCase().includes(q));
@@ -4005,9 +4125,36 @@ async function sendChatText(text){
     toast(err.message||'Zprávu se nepodařilo odeslat.','declined');
   }
 }
+/* návrh termínu: otevři výběr data/času/délky */
 function sendTerm(){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);
+  if(!c||c.readonly||!(c.id>0)){toast('Vyberte konverzaci.');return;}
+  openTermModal();
+}
+function openTermModal(){
   const d=new Date(Date.now()+2*86400000);
-  sendChatText(`📅 Návrh termínu: ${d.toLocaleDateString('cs-CZ',{day:'numeric',month:'long'})} v 10:00 (4 h). Vyhovuje?`);
+  const dEl=document.getElementById('termDate'),tEl=document.getElementById('termTime'),hEl=document.getElementById('termHours');
+  if(dEl){dEl.min=todayISO();dEl.value=d.toISOString().slice(0,10);}
+  if(tEl){tEl.value='10:00';}
+  if(hEl){hEl.value='4';if(hEl._ddRefresh)hEl._ddRefresh();}
+  const m=document.getElementById('termModal');if(m){m.classList.add('open');document.body.style.overflow='hidden';}
+}
+function closeTermModal(){
+  const m=document.getElementById('termModal');
+  if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
+}
+function hoursLabelCz(h){h=Number(h)||0;const w=h===1?'hodina':((h>=2&&h<=4)?'hodiny':'hodin');return h+' '+w;}
+function confirmTerm(){
+  const date=(document.getElementById('termDate')||{}).value||'';
+  const time=(document.getElementById('termTime')||{}).value||'';
+  const hours=(document.getElementById('termHours')||{}).value||'';
+  if(!date){toast('Vyberte datum.','declined');return;}
+  if(date<todayISO()){toast('Datum nemůže být v minulosti.','declined');return;}
+  if(!time){toast('Vyberte čas.','declined');return;}
+  const d=new Date(date+'T00:00:00');
+  const dateLabel=isNaN(d)?date:d.toLocaleDateString('cs-CZ',{weekday:'long',day:'numeric',month:'long'});
+  closeTermModal();
+  sendChatText(`📅 Návrh termínu: ${dateLabel} v ${time} (${hoursLabelCz(hours)}). Vyhovuje?`);
 }
 /* obrázek: zmenši a VŽDY překóduj přes canvas na čisté baseline JPEG
    (žádný fallback na rozbitý originál) → menší přenos i spolehlivé zobrazení */
