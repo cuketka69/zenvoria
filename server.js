@@ -120,6 +120,15 @@ function isStrongPassword(value) {
   return v.length >= 8 && /[a-z]/.test(v) && /[A-Z]/.test(v) && /\d/.test(v);
 }
 
+// veřejný náhodný token účtu do URL (bez matoucích znaků 0/o/1/l)
+const PUBLIC_ID_ALPHABET = '23456789abcdefghijkmnpqrstuvwxyz';
+function genPublicId(len = 10) {
+  const bytes = crypto.randomBytes(len);
+  let s = '';
+  for (let i = 0; i < len; i++) s += PUBLIC_ID_ALPHABET[bytes[i] % PUBLIC_ID_ALPHABET.length];
+  return s;
+}
+
 const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
 const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks'];
 const ADMIN_UPDATABLE_USER_STATUSES = new Set(['active', 'suspended']);
@@ -1256,11 +1265,11 @@ function requireConversationOwner(req, res, next) {
    -------------------------------------------------------------------- */
 function publicUser(u) {
   if (!u) return null;
-  return { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null };
+  return { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null };
 }
 function mapCaregiver(c) {
   return {
-    id: Number(c.id), name: c.name, init: c.init, loc: c.loc, rate: c.rate,
+    id: Number(c.id), publicId: c.public_id || null, name: c.name, init: c.init, loc: c.loc, rate: c.rate,
     rating: Number(c.rating), reviews: c.reviews, exp: c.exp, services: c.services || [],
     verified: c.verified, cert: c.cert, bio: c.bio, status: c.status, suspended: c.suspended,
     idVerified: c.id_verified, plan: c.plan, langs: c.langs || ['Čeština'],
@@ -1406,6 +1415,30 @@ app.get('/api/version', (_req, res) => {
   res.json({ version: APP_VERSION });
 });
 
+/* ---------------- VEŘEJNÝ PROFIL ÚČTU podle náhodného tokenu ---------------- */
+/* #u-<token> → pečovatelka (jen ověřená) nebo minimální profil rodiny. */
+app.get('/api/u/:token', h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const token = String(req.params.token || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 40);
+  if (!token) return res.status(404).json({ error: 'Profil nenalezen.' });
+  // 1) pečovatelka — veřejná jen když je ověřená a nepozastavená
+  const cgs = await restSelect(T.caregivers, `public_id=eq.${encodeURIComponent(token)}&limit=1`);
+  const c = cgs && cgs[0];
+  if (c && c.verified && !c.suspended) {
+    return res.json({ kind: 'caregiver', id: Number(c.id) });
+  }
+  // 2) rodina / uživatelský účet — minimální veřejná vizitka
+  const users = await restSelect(T.users, `public_id=eq.${encodeURIComponent(token)}&select=name,init,photo,role,joined,status&limit=1`);
+  const u = users && users[0];
+  if (u && u.status !== 'suspended' && u.role !== 'admin') {
+    return res.json({ kind: 'account', profile: {
+      name: u.name || '', init: u.init || '', photo: u.photo || null,
+      role: u.role || 'family', memberSince: u.joined || null,
+    } });
+  }
+  return res.status(404).json({ error: 'Profil nenalezen.' });
+}));
+
 /* index.html s otiskem verze u app.css / app.js → po deployi vznikne nová URL
    (app.css?v=HASH), takže i agresivní cache prohlížeče (iOS Safari) stáhne čerstvý
    soubor. index.html samotný jede na no-cache, takže se otisk vždy přenačte. */
@@ -1492,7 +1525,7 @@ app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(as
   if (await findUserByEmail(em)) return res.status(409).json({ error: 'Tento e-mail je už zaregistrovaný.' });
   const init = (safeName.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
   const password_hash = bcrypt.hashSync(String(password), 10);
-  const user = await restInsert(T.users, { email: em, password_hash, name: safeName, role: r, init });
+  const user = await restInsert(T.users, { email: em, password_hash, name: safeName, role: r, init, public_id: genPublicId() });
   const welcomeMail = registrationMail(user);
   await sendMailSafe({ to: user.email, ...welcomeMail });
   fireAudit('auth.register', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success' });
@@ -2128,7 +2161,7 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
     await restUpdate(T.caregivers, `id=eq.${cg.id}`, data, { prefer: 'return=minimal' });
   } else {
     const newId = await nextId(T.caregivers, 'id');
-    await restInsert(T.caregivers, { id: newId, user_id: userId, ...data, rating: 0, reviews: 0, plan: 'start', langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
+    await restInsert(T.caregivers, { id: newId, user_id: userId, public_id: genPublicId(), ...data, rating: 0, reviews: 0, plan: 'start', langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
   }
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'approved' }, { prefer: 'return=minimal' });
   if (v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: true }) });

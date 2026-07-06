@@ -80,7 +80,7 @@ const ORDER_STATUS={
 };
 
 /* ---------- STATE ---------- */
-const state={caregiverId:1,bkService:'osobni',bkHours:4};
+const state={caregiverId:1,bkService:'osobni',bkHours:4,profileToken:null,profileKind:null};
 let legalBackView='home';
 let legalCurrentKey='terms';
 const LEGAL_COMPANY={
@@ -109,30 +109,21 @@ function legalUrl(key){
     return 'https://www.zenvoria.cz/#'+legalHash(key);
   }
 }
-/* ---- čitelné (deep-link) URL profilu pečovatelky: #profile-<id>-<slug> ---- */
-function slugify(s){
-  return String(s||'')
-    .normalize('NFD').replace(/[̀-ͯ]/g,'')   // odstraň diakritiku (ř→r, š→s…)
-    .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
-}
-function profileHash(c){
-  if(!c)return 'profile';
-  const s=slugify(c.name);
-  return 'profile-'+c.id+(s?('-'+s):'');
-}
-function parseProfileId(deep){
-  const m=/^profile-(\d+)/.exec(deep||'');
-  return m?Number(m[1]):null;
+/* ---- veřejné (deep-link) URL účtu podle náhodného tokenu: #u-<token> ---- */
+function accountHash(token){ return 'u-'+token; }
+function parseAccountToken(deep){
+  const m=/^u-([A-Za-z0-9]+)/.exec(deep||'');
+  return m?m[1]:null;
 }
 /* hash a stav historie pro dané view (centrálně, ať je URL konzistentní) */
 function hashForView(v){
   if(v==='legal'&&legalCurrentKey)return legalHash(legalCurrentKey);
-  if(v==='profile'&&state.caregiverId!=null)return profileHash(cg(state.caregiverId));
+  if(v==='profile'&&state.profileToken)return accountHash(state.profileToken);
   return v;
 }
 function stateForView(v){
   if(v==='legal')return {view:v,legalKey:legalCurrentKey};
-  if(v==='profile'&&state.caregiverId!=null)return {view:v,caregiverId:state.caregiverId};
+  if(v==='profile')return {view:v,caregiverId:state.caregiverId,token:state.profileToken,kind:state.profileKind};
   return {view:v};
 }
 async function copyLegalLink(){
@@ -212,7 +203,7 @@ async function go(v,fromPop){
       const cur=history.state&&history.state.view;
       const changed=cur!==v
         ||(v==='legal'&&history.state&&history.state.legalKey!==legalCurrentKey)
-        ||(v==='profile'&&history.state&&history.state.caregiverId!==state.caregiverId);
+        ||(v==='profile'&&history.state&&history.state.token!==state.profileToken);
       if(changed)history.pushState(stateForView(v),'','#'+hashForView(v));
     }catch(e){}
   }
@@ -226,9 +217,10 @@ window.addEventListener('popstate',function(e){
     openLegal(e.state.legalKey,{fromPop:true,direct:true});
     return;
   }
-  if(v==='profile'&&e.state&&e.state.caregiverId!=null&&cg(e.state.caregiverId)){
-    openProfile(e.state.caregiverId,true);
-    return;
+  if(v==='profile'&&e.state){
+    if(e.state.kind==='account'&&e.state.token){openProfileByToken(e.state.token,true);return;}
+    if(e.state.caregiverId!=null&&cg(e.state.caregiverId)){openProfile(e.state.caregiverId,true);return;}
+    if(e.state.token){openProfileByToken(e.state.token,true);return;}
   }
   if(document.getElementById('view-'+v)||isDeferredView(v))go(v,true);
 });
@@ -634,6 +626,7 @@ async function openProfile(id,fromPop){
   state.caregiverId=id;const c=cg(id);
   const grid=document.getElementById('profileGrid');
   if(!c||!grid)return;
+  state.profileToken=c.publicId||null;state.profileKind='caregiver';
   const revs=[...(cgReviews[id]||[]),...REVIEWS];
   const revCount=c.reviews+((cgReviews[id]||[]).length);
   grid.innerHTML=`
@@ -681,6 +674,57 @@ async function openProfile(id,fromPop){
       <div class="total-row"><span class="l">${c.priceType==='indiv'?'Cena':'Od'}</span><span class="big">${c.priceType==='indiv'?'Dohodou':priceShort(c).replace(/<b>|<\/b>/g,'')}</span></div>
       <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openBooking(${c.id})">Objednat službu</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openChat(${jsq(c.name)},${jsq(c.init)},'caregiver')">Napsat zprávu</button>
+    </div>`;
+  go('profile',fromPop);
+}
+
+/* otevři veřejný profil podle náhodného tokenu (#u-<token>) — pečovatelka i rodina */
+async function openProfileByToken(token,fromPop){
+  token=String(token||'').replace(/[^A-Za-z0-9]/g,'');
+  if(!token){go('search');return;}
+  // pečovatelku, kterou už máme načtenou, otevři rovnou (bez dotazu na server)
+  const local=CAREGIVERS.find(x=>x.publicId===token);
+  if(local){return openProfile(local.id,fromPop);}
+  let data;
+  try{
+    const r=await fetch('/api/u/'+encodeURIComponent(token),{credentials:'same-origin'});
+    if(!r.ok)throw 0;
+    data=await r.json();
+  }catch(e){toast('Profil nenalezen.','declined');go('search');return;}
+  if(data.kind==='caregiver'&&cg(data.id))return openProfile(data.id,fromPop);
+  if(data.kind==='account'&&data.profile)return renderPublicAccount(data.profile,token,fromPop);
+  toast('Profil nenalezen.','declined');go('search');
+}
+
+/* přihlášený uživatel otevře svůj vlastní veřejný profil */
+function openMyPublicProfile(){
+  try{closeAccountMenu();}catch(e){}
+  if(auth.publicId)openProfileByToken(auth.publicId);
+  else toast('Veřejný profil zatím není k dispozici.','declined');
+}
+
+/* minimální veřejná vizitka účtu (rodina): jméno, foto, role, člen od */
+async function renderPublicAccount(p,token,fromPop){
+  if(!document.getElementById('profileGrid')&&isDeferredView('profile')){
+    try{await ensureDeferredViewsLoaded();}catch(e){toast('Nepodařilo se načíst profil.','declined');return;}
+  }
+  const grid=document.getElementById('profileGrid');
+  if(!grid)return;
+  state.caregiverId=null;state.profileToken=token;state.profileKind='account';
+  const roleLabel=p.role==='caregiver'?'Pečovatelka':'Rodina';
+  const since=p.memberSince?('Člen od '+String(p.memberSince).slice(0,4)):'';
+  grid.innerHTML=`
+    <div class="pcard">
+      <div class="phead">
+        ${avaHtml(p.init||initials(p.name),p.photo)}
+        <div>
+          <h1>${esc(p.name||'Uživatel')}</h1>
+          <div class="pmeta" style="margin-top:12px">
+            <span class="chip gold">${roleLabel}</span>
+            ${since?`<span class="chip">${esc(since)}</span>`:''}
+          </div>
+        </div>
+      </div>
     </div>`;
   go('profile',fromPop);
 }
@@ -775,7 +819,7 @@ function todayISO(){
 
 /* ---------- AUTH ---------- */
 let regRole='family';
-const auth={loggedIn:false,name:'',email:'',role:'family',photo:null};
+const auth={loggedIn:false,name:'',email:'',role:'family',photo:null,publicId:null};
 const DEFERRED_VIEW_IDS=new Set([
   'profile','booking','bookings',
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
@@ -879,9 +923,10 @@ function syncCgPhotoToList(){
 }
 
 /* ---- session ---- */
-function loginAs(name,email,role,photo){
+function loginAs(name,email,role,photo,publicId){
   auth.loggedIn=true;auth.name=name;auth.email=email;auth.role=role||'family';
   if(photo!==undefined)auth.photo=photo||null;
+  if(publicId!==undefined)auth.publicId=publicId||null;
   updateAuthUI();
 }
 async function logout(){
@@ -1179,6 +1224,7 @@ function updateAuthUI(){
         +mi("go('cg-profile')",'Můj profil','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
       : mi("go('bookings')",'Moje objednávky','<rect x="4" y="5" width="16" height="16" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M4 9h16M8 3v4M16 3v4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('chat')",zpr,chatIcon)
+        +mi("openMyPublicProfile()",'Můj veřejný profil','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('search')",'Hledat péči','<circle cx="11" cy="11" r="7" stroke="#7A736A" stroke-width="1.6"/><path d="m20 20-3-3" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>');
   }
   const mm=document.getElementById('mmAuth');
@@ -1216,7 +1262,7 @@ async function submitLogin(e){
   const key=email.value.trim().toLowerCase();
   try{
     const r=await api('/auth/login',{method:'POST',body:{email:key,password:pw.value}});
-    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo);
+    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId);
     if(r.user.settings)Object.assign(appSettings,r.user.settings);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(`Vítejte zpět, <b>${esc(auth.name.split(/\s+/)[0])}</b>!`,null,userSVG());
@@ -1241,7 +1287,7 @@ async function submitRegister(e){
   if(tBad){document.getElementById('regTerms').focus();return false;}
   try{
     const r=await api('/auth/register',{method:'POST',body:{name:name.value.trim(),email:email.value.trim().toLowerCase(),password:pw.value,role:regRole}});
-    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo);
+    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(regRole==='caregiver'?'Účet pečovatelky vytvořen. Dokončete prosím ověření.':'Účet vytvořen. Vítejte v ZENVORIA!','success');
     if(!resumePendingBooking())go(landingView());
@@ -3958,7 +4004,7 @@ async function initApp(){
     }
   }
   try{const m=await api('/auth/me');
-    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';auth.photo=m.user.photo||null;
+    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';auth.photo=m.user.photo||null;auth.publicId=m.user.publicId||null;
       if(m.user.settings)Object.assign(appSettings,m.user.settings);}
   }catch(e){console.warn('auth/me',e.message);}
   try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
@@ -3970,7 +4016,7 @@ async function initApp(){
   let deep='';
   try{deep=(location.hash||'').replace(/^#/,'').split('?')[0];}catch(e){}
   if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('legal-')===0&&LEGAL[deep.slice(6)])openLegal(deep.slice(6),{direct:true});
-  else if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('profile-')===0){const pid=parseProfileId(deep);if(pid!=null&&cg(pid))await openProfile(pid);else await go('search');}
+  else if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('u-')===0){await openProfileByToken(parseAccountToken(deep));}
   else if(!resetPwToken&&!changeEmailToken&&deep&&(document.getElementById('view-'+deep)||isDeferredView(deep)))await go(deep);
   else if(!resetPwToken&&!changeEmailToken&&auth.loggedIn)await go(landingView());
   // návrat ze Stripe Checkout (#pricing?paid=1 / ?canceled=1)
@@ -3981,7 +4027,7 @@ async function initApp(){
     const v=active?active.id.replace('view-',''):'home';
     const changed=!history.state||history.state.view!==v
       ||(v==='legal'&&history.state.legalKey!==legalCurrentKey)
-      ||(v==='profile'&&history.state.caregiverId!==state.caregiverId);
+      ||(v==='profile'&&history.state.token!==state.profileToken);
     if(changed)history.replaceState(stateForView(v),'','#'+hashForView(v));
   }catch(e){}
   initAutoUpdate();
