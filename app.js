@@ -889,7 +889,9 @@ function esc(v){
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
 }
-function jsq(v){return JSON.stringify(String(v==null?'':v));}
+/* JS řetězec bezpečný uvnitř dvojitých uvozovek atributu (onclick="…") —
+   JSON.stringify dá "…" a esc je změní na &quot;, prohlížeč je dekóduje zpět */
+function jsq(v){return esc(JSON.stringify(String(v==null?'':v)));}
 function initials(name){
   const p=name.trim().split(/\s+/);
   return ((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase()||'Z';
