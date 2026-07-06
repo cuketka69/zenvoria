@@ -2535,6 +2535,10 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   if ((b.suspended !== undefined || b.status !== undefined) && !isAdmin) {
     return res.status(403).json({ error: 'Pozastavení smí jen správce.' });
   }
+  // PREMIUM smí nastavit jen správce (jinak přes platbu); pečovatelka smí max. downgrade na START
+  if (b.plan !== undefined && !isAdmin && String(b.plan) !== 'start') {
+    return res.status(403).json({ error: 'PREMIUM lze aktivovat jen přes platbu.' });
+  }
   if (patch.name !== undefined) patch.name = trimmedString(patch.name, 120);
   if (patch.loc !== undefined) patch.loc = trimmedString(patch.loc, 120);
   if (patch.bio !== undefined) patch.bio = trimmedString(patch.bio, 4000);
@@ -2545,6 +2549,8 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   if (patch.plan !== undefined && !ADMIN_UPDATABLE_CAREGIVER_PLANS.has(String(patch.plan))) {
     return res.status(400).json({ error: 'Neplatný tarif pečovatelky.' });
   }
+  // změna tarifu → odpovídající stav předplatného
+  if (patch.plan !== undefined) patch.plan_status = patch.plan === 'premium' ? 'active' : 'canceled';
   if (patch.status !== undefined && !ADMIN_UPDATABLE_CAREGIVER_STATUSES.has(String(patch.status))) {
     return res.status(400).json({ error: 'Neplatný stav pečovatelky.' });
   }
@@ -2597,8 +2603,8 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     const nextUserStatus = patch.suspended ? 'suspended' : 'active';
     await restUpdate(T.users, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, { status: nextUserStatus }, { prefer: 'return=minimal' });
   }
-  if (isAdmin && (b.suspended !== undefined || b.status !== undefined)) {
-    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { suspended: b.suspended, status: b.status } });
+  if (isAdmin && (b.suspended !== undefined || b.status !== undefined || b.plan !== undefined)) {
+    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { suspended: b.suspended, status: b.status, plan: b.plan } });
   }
   res.json({ caregiver: rows && rows[0] ? mapCaregiver(rows[0]) : null });
 }));

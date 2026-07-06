@@ -2887,14 +2887,37 @@ function renderAdminCaregivers(){
   document.getElementById('admCgCount').textContent=CAREGIVERS.length;
   document.getElementById('admCgBody').innerHTML=CAREGIVERS.map(c=>{
     const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge gold">'+checkSVG(12)+' Ověřená</span>':'<span class="badge wait">Neověřená</span>');
+    const isPrem=c.plan==='premium';
+    const planBadge=isPrem?`<span class="badge gold">${diamondSVG(11)} PREMIUM</span>`:'<span class="badge">START</span>';
     return `<tr>
       <td><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(c.name)}</b><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
       <td>${esc(c.loc)}</td><td>${c.rate} Kč</td><td>${badge}</td>
+      <td>${planBadge}</td>
       <td><div class="adm-actions">
+        <button class="btn btn-sm ${isPrem?'btn-decline':'btn-gold'}" onclick="setCgPlan(${c.id},'${isPrem?'start':'premium'}')">${isPrem?'Zrušit PREMIUM':'Nastavit PREMIUM'}</button>
         <button class="btn btn-sm ${c.suspended?'btn-accept':'btn-decline'}" onclick="toggleSuspendCg(${c.id})">${c.suspended?'Obnovit':'Pozastavit'}</button>
         <button class="btn btn-sm btn-decline" onclick="removeCaregiver(${c.id})">Odebrat</button>
       </div></td>
     </tr>`;}).join('');
+}
+/* admin: ruční nastavení předplatného pečovatelky (PREMIUM / START) */
+function setCgPlan(id,plan){
+  const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
+  const toPrem=plan==='premium';
+  const doIt=()=>{
+    c.plan=plan;
+    apiSync(api('/caregivers/'+id,{method:'PATCH',body:{plan}}));
+    renderAdminCaregivers();renderCare();
+    toast(toPrem?`${esc(c.name)} má nyní PREMIUM.`:`PREMIUM u ${esc(c.name)} zrušeno.`,'success');
+  };
+  askConfirm({
+    title:toPrem?'Nastavit PREMIUM?':'Zrušit PREMIUM?',
+    icon:diamondSVG(20),
+    message:toPrem
+      ?`${esc(c.name)} získá vyšší zobrazení ve vyhledávání a odznak PREMIUM. Nastavujete ručně (bez platby přes Stripe).`
+      :`${esc(c.name)} se vrátí do bezplatného tarifu START. Případné aktivní předplatné přes Stripe tím nezrušíte — spravujte ho ve Stripe.`,
+    confirmLabel:toPrem?'Nastavit PREMIUM':'Zrušit PREMIUM',
+    danger:!toPrem,onConfirm:doIt});
 }
 function toggleSuspendCg(id){
   const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
