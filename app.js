@@ -294,10 +294,9 @@ document.addEventListener('keydown',e=>{
 function closeAllDD(){document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));}
 function enhanceSelect(sel){
   if(!sel||sel.dataset.enh)return;
-  if(sel.classList.contains('phone-prefix'))return; // předvolba zůstává nativní, sedí do pole
   sel.dataset.enh='1';
   const wrap=document.createElement('div');
-  wrap.className='dd'+(sel.closest('.sort-row')?' dd-bordered':(sel.classList.contains('inp')?' dd-inp':''));
+  wrap.className='dd'+(sel.closest('.sort-row')?' dd-bordered':(sel.classList.contains('inp')?' dd-inp':(sel.classList.contains('phone-prefix')?' dd-phone':'')));
   const btn=document.createElement('button'); btn.type='button'; btn.className='dd-btn'; btn.setAttribute('aria-haspopup','listbox');
   const lbl=document.createElement('span'); lbl.className='dd-lbl';
   const car=document.createElement('span'); car.className='dd-car';

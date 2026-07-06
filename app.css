@@ -827,10 +827,11 @@
   .auth-field input{flex:1;border:none;background:none;outline:none;font-family:inherit;
     font-size:15px;padding:13px 0;color:var(--ink)}
   .auth-field input::placeholder{color:#A89F92}
-  /* samostatná předvolba telefonu uvnitř pole (ikona | +420 | číslo) */
-  .auth-field .phone-prefix{flex:0 0 auto;border:none;background:none;outline:none;font-family:inherit;
-    font-size:15px;color:var(--ink);padding:13px 12px 13px 0;margin-right:4px;border-right:1px solid var(--line);cursor:pointer}
-  .auth-field.invalid .phone-prefix{color:#3D120E;border-right-color:#D98A80}
+  /* samostatná předvolba telefonu uvnitř pole (ikona | +420 ▾ | číslo) */
+  .auth-field .dd-phone{flex:0 0 auto;margin-right:4px;padding-right:12px;border-right:1px solid var(--line)}
+  .auth-field .dd-phone .dd-btn{padding:13px 0;font-size:15px;color:var(--ink);gap:6px}
+  .auth-field.invalid .dd-phone{border-right-color:#D98A80}
+  .auth-field.invalid .dd-phone .dd-btn{color:#3D120E}
   .pw-toggle{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;display:flex}
   .err{color:#B23A2E;font-size:12.5px;margin-top:6px;display:none}
   .auth-field.invalid .inp-wrap{border-color:#D98A80;background:#FBF3F1}
