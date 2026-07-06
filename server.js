@@ -1443,8 +1443,10 @@ app.get('/api/u/:token', h(async (req, res) => {
 const PRESENCE_ONLINE_MS = 2 * 60 * 1000; // aktivita do 2 minut = online
 function presenceOf(lastSeen) {
   const t = lastSeen ? Date.parse(lastSeen) : NaN;
-  if (!Number.isFinite(t)) return { online: false, lastSeen: null };
-  return { online: (Date.now() - t) <= PRESENCE_ONLINE_MS, lastSeen: new Date(t).toISOString() };
+  if (!Number.isFinite(t)) return { online: false, lastSeen: null, secondsAgo: null };
+  const diff = Date.now() - t;
+  // secondsAgo se počítá na serveru → text „naposledy" nezávisí na hodinách klienta
+  return { online: diff <= PRESENCE_ONLINE_MS, lastSeen: new Date(t).toISOString(), secondsAgo: Math.max(0, Math.round(diff / 1000)) };
 }
 async function lastSeenByUserId(uid) {
   if (!uid) return null;

@@ -683,16 +683,17 @@ async function openProfile(id,fromPop){
 
 /* ---------- PRESENCE (online / naposledy aktivní) ---------- */
 let profilePresenceTimer=null;
-function timeAgoCz(iso){
-  const t=Date.parse(iso);if(!Number.isFinite(t))return '';
-  let s=Math.max(0,Math.floor((Date.now()-t)/1000));
+/* text „naposledy…" ze serverem spočítaného počtu sekund (odolné vůči hodinám klienta) */
+function agoTextCz(sec){
+  let s=Math.max(0,Math.floor(sec||0));
   if(s<60)return 'před chvílí';
   const m=Math.floor(s/60);if(m<60)return `před ${m} min`;
   const h=Math.floor(m/60);if(h<24)return `před ${h} h`;
   const d=Math.floor(h/24);if(d===1)return 'včera';
-  if(d<7)return `před ${d} dny`;
-  try{return 'dne '+new Date(t).toLocaleDateString('cs-CZ');}catch(e){return '';}
+  if(d<30)return `před ${d} dny`;
+  return 'před delší dobou';
 }
+function presenceAgo(p){return agoTextCz(p&&p.secondsAgo!=null?p.secondsAgo:0);}
 /* naplní element {.pres-dot,.pres-txt}; vrátí false, když stav neznáme */
 function applyPresence(el,p){
   if(!el)return false;
@@ -702,7 +703,7 @@ function applyPresence(el,p){
   el.classList.toggle('is-online',online);
   el.classList.toggle('is-offline',!online);
   if(dot)dot.setAttribute('aria-hidden','true');
-  if(txt)txt.textContent=online?'Online':('Naposledy aktivní '+timeAgoCz(p.lastSeen));
+  if(txt)txt.textContent=online?'Online':('Naposledy aktivní '+presenceAgo(p));
   el.hidden=false;return true;
 }
 async function fetchCaregiverPresence(id){
@@ -765,7 +766,7 @@ function applyChatPresenceToDom(){
     const dot=st.querySelector('.pres-dot'),txt=st.querySelector('.pres-txt');
     if(p&&(p.online||p.lastSeen)){
       if(dot){dot.hidden=false;dot.classList.toggle('is-online',!!p.online);dot.classList.toggle('is-offline',!p.online);}
-      if(txt)txt.textContent=p.online?'Online':('Naposledy aktivní '+timeAgoCz(p.lastSeen));
+      if(txt)txt.textContent=p.online?'Online':('Naposledy aktivní '+presenceAgo(p));
     }else{
       if(dot)dot.hidden=true;if(txt)txt.textContent='';
     }
