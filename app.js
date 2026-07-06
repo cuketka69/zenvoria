@@ -3834,9 +3834,9 @@ async function loadConversations(){
   // ponech broadcast pseudo (id<=0) a jen existující reálné konverzace
   CONVERSATIONS=CONVERSATIONS.filter(c=>c.id<=0||keep[c.id]);
   list.forEach(cv=>upsertConversation(cv));
-  CONVERSATIONS.sort((a,b)=>{if(a.id===-1)return -1;if(b.id===-1)return 1;return (Date.parse(b.lastAt||0)||0)-(Date.parse(a.lastAt||0)||0);});
-  ensureBroadcastConvo();
-  updateAuthUI();
+  CONVERSATIONS.sort(sortConvs);
+  try{ensureBroadcastConvo();}catch(e){}
+  try{updateAuthUI();}catch(e){}
 }
 async function loadMessages(id){
   if(!(id>0))return;
@@ -3853,9 +3853,9 @@ async function enterChat(){
   renderChat();
   const inp=document.getElementById('chatInput');
   if(inp&&!inp.dataset.typingBound){inp.dataset.typingBound='1';inp.addEventListener('input',onChatTypingInput);}
-  await loadConversations();
+  try{await loadConversations();}catch(e){}
   if(activeChat==null||!CONVERSATIONS.find(c=>c.id===activeChat))activeChat=CONVERSATIONS[0]&&CONVERSATIONS[0].id;
-  if(activeChat>0)await loadMessages(activeChat);
+  if(activeChat>0){try{await loadMessages(activeChat);}catch(e){}}
   renderChat();
   startChatPolling();
 }
@@ -4061,7 +4061,8 @@ async function bootstrap(){
   VERIFICATIONS=d.verifications||[];
   USERS=d.users||[];
   cgReviews=d.cgReviews||{};
-  CONVERSATIONS=d.conversations||[];
+  // konverzace se načítají zvlášť přes /api/conversations (ne z bootstrapu) —
+  // bootstrap je NESMÍ přepsat na prázdno, jinak by zmizely načtené konverzace
   BROADCASTS=d.broadcasts||[];
   if(d.planPrices)Object.assign(planPrices,d.planPrices);
   if(d.socialLinks)Object.assign(socialLinks,d.socialLinks);
@@ -4081,6 +4082,7 @@ async function bootstrap(){
       if(Array.isArray(me.avail)){cgSlots=me.avail;cgAvail=me.avail.map(s=>!!(s.r||s.o||s.v));}}
   }
   deriveCgMaps();
+  if(auth.loggedIn){try{loadConversations();}catch(e){}}
 }
 /* ---------- INIT ---------- */
 /* ---------- AUTO-UPDATE: obnovení stránky po novém deployi ---------- */
