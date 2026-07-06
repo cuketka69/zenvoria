@@ -1268,12 +1268,22 @@
   .star:hover{transform:scale(1.14)}
   .modal-card textarea.inp{min-height:92px;margin-bottom:18px}
   /* admin: správcovský modal pečovatelky */
-  #cgAdminModal .modal-card{max-height:90vh;overflow-y:auto}
-  .cga-info{display:flex;flex-direction:column;margin-top:6px}
-  .cga-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;font-size:14px;border-bottom:1px solid var(--line)}
-  .cga-row:last-child{border-bottom:none}
-  .cga-row span{color:var(--muted)}
-  .cga-row b{color:var(--navy-900)}
+  #cgAdminModal .modal-card{max-height:90vh;overflow-y:auto;width:min(460px,94vw)}
+  .cga-head{display:flex;gap:14px;align-items:center;padding-right:26px;margin-bottom:22px}
+  .cga-head .ava{flex:0 0 auto}
+  .cga-head-tx{min-width:0}
+  .cga-head-tx h3{margin:0;font-size:21px}
+  .cga-meta{color:var(--muted);font-size:13px;margin:3px 0 0}
+  .cga-badges{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+  .cga-sec-title{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+  .cga-current{display:flex;align-items:center;gap:9px;background:var(--cream);border:1px solid var(--line);border-radius:12px;
+    padding:11px 14px;font-size:13.5px;color:var(--navy-800);margin-bottom:16px}
+  .cga-current b{color:var(--navy-900)}
+  .cga-current svg{flex:0 0 auto}
+  .cga-form{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .cga-hint{display:block;font-size:11.5px;color:var(--muted);margin-top:6px}
+  .cga-actions{display:flex;flex-direction:column;gap:10px}
+  @media(max-width:480px){.cga-form{grid-template-columns:1fr}}
   .filter-modal{width:min(720px,94vw)}
   .filter-modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
   .filter-service-grid{display:flex;flex-wrap:wrap;gap:10px}

@@ -2925,13 +2925,13 @@ function openCgAdmin(id){
   cgAdminId=id;
   document.getElementById('cgAdminTitle').textContent=c.name;
   document.getElementById('cgAdminSub').textContent=`${c.loc||''} · ${c.exp} let praxe · ${c.rate} Kč/hod`;
-  const statusTxt=c.suspended?'Pozastavená':(c.verified?'Ověřená':'Neověřená');
-  const planTxt=c.plan==='premium'?'PREMIUM':'START';
-  const untilTxt=(c.plan==='premium')?(c.trialUntil?('do '+fmtDate(c.trialUntil)):'neomezeně'):'—';
-  document.getElementById('cgAdminInfo').innerHTML=
-    `<div class="cga-row"><span>Stav</span><b>${esc(statusTxt)}</b></div>`+
-    `<div class="cga-row"><span>Předplatné</span><b>${planTxt}</b></div>`+
-    `<div class="cga-row"><span>Platnost předplatného</span><b>${esc(untilTxt)}</b></div>`;
+  setAva(document.getElementById('cgAdminAva'),c.photo||userPhotoByEmail(c.email),c.init);
+  const isPrem=c.plan==='premium';
+  const statusBadge=c.suspended?'<span class="badge off">Pozastavená</span>':(c.verified?`<span class="badge gold">${checkSVG(11)} Ověřená</span>`:'<span class="badge wait">Neověřená</span>');
+  const planBadge=isPrem?`<span class="badge gold">${diamondSVG(11)} PREMIUM</span>`:'<span class="badge">START</span>';
+  document.getElementById('cgAdminBadges').innerHTML=statusBadge+planBadge;
+  const validTxt=isPrem?(c.trialUntil?('platí do '+fmtDate(c.trialUntil)):'platí neomezeně'):'bezplatný tarif';
+  document.getElementById('cgAdminCurrent').innerHTML=`${planIcon(isPrem?'premium':'start',15)}<span>Aktuálně <b>${isPrem?'PREMIUM':'START'}</b> · ${esc(validTxt)}</span>`;
   const planEl=document.getElementById('cgAdminPlan');
   if(planEl){planEl.value=c.plan==='premium'?'premium':'start';if(planEl._ddRefresh)planEl._ddRefresh();}
   const untilEl=document.getElementById('cgAdminUntil');
