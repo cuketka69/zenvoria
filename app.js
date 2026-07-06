@@ -745,32 +745,32 @@ function initChatWatch(){
   chatWatchTimer=setInterval(()=>{if(auth.loggedIn&&activeView()!=='chat')loadConversations();},20000);
 }
 
-/* --- presence protistran v chatu --- */
-let chatPresence={};
+/* --- presence protistran v chatu (uložená na objektu konverzace) --- */
 let chatPresenceTimer=null;
+let chatTyping={cid:null,on:false,_t:null};
 async function fetchChatPresence(){
-  const items=CONVERSATIONS.filter(c=>c.id>0&&!c.readonly&&c.role!=='admin').map(c=>({name:c.name,role:c.role||'caregiver'}));
-  if(!items.length)return;
+  const targets=CONVERSATIONS.filter(c=>c.id>0&&!c.readonly&&c.role!=='admin');
+  if(!targets.length)return;
   try{
-    const r=await fetch('/api/presence/chat',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
-    if(!r.ok)throw 0;
-    const d=await r.json();
-    const map={};(d.items||[]).forEach(p=>{map[(p.role||'')+'|'+(p.name||'')]=p;});
-    chatPresence=map;
+    const r=await api('/presence/chat',{method:'POST',body:{items:targets.map(c=>({name:c.name,role:c.role||'caregiver'}))}});
+    const byKey={};(r.items||[]).forEach(p=>{byKey[(p.role||'')+'|'+(p.name||'')]=p;});
+    targets.forEach(c=>{const p=byKey[(c.role||'caregiver')+'|'+c.name];if(p)c.presence=p;});
     applyChatPresenceToDom();
   }catch(e){}
 }
 function applyChatPresenceToDom(){
-  document.querySelectorAll('#chatList .chat-li[data-pres-key]').forEach(btn=>{
+  document.querySelectorAll('#chatList .chat-li[data-cid]').forEach(btn=>{
     const dot=btn.querySelector('.chat-li-dot');if(!dot)return;
-    const p=chatPresence[btn.dataset.presKey];
+    const c=CONVERSATIONS.find(x=>String(x.id)===btn.dataset.cid);const p=c&&c.presence;
     if(p&&(p.online||p.lastSeen)){dot.hidden=false;dot.classList.toggle('is-online',!!p.online);dot.classList.toggle('is-offline',!p.online);}
     else dot.hidden=true;
   });
   const head=document.getElementById('chatHead'),st=document.getElementById('chatHeadState');
   if(head&&st&&head.dataset.presRead!=='1'){
-    const p=chatPresence[head.dataset.presKey||''];
     const dot=st.querySelector('.pres-dot'),txt=st.querySelector('.pres-txt');
+    // „píše…" má přednost před presence
+    if(chatTyping.on&&chatTyping.cid===activeChat){if(dot)dot.hidden=true;if(txt)txt.textContent='píše…';return;}
+    const c=CONVERSATIONS.find(x=>String(x.id)===head.dataset.cid);const p=c&&c.presence;
     if(p&&(p.online||p.lastSeen)){
       if(dot){dot.hidden=false;dot.classList.toggle('is-online',!!p.online);dot.classList.toggle('is-offline',!p.online);}
       if(txt)txt.textContent=p.online?'Online':('Naposledy aktivní '+presenceAgo(p));
@@ -786,6 +786,58 @@ function startChatPresence(){
     if(activeView()!=='chat'){clearInterval(chatPresenceTimer);chatPresenceTimer=null;return;}
     fetchChatPresence();
   },60000);
+}
+/* --- realtime přes SSE (okamžité zprávy, psaní, živá presence) --- */
+let es=null;
+function sortConvs(a,b){if(a.id===-1)return -1;if(b.id===-1)return 1;return (Date.parse(b.lastAt||0)||0)-(Date.parse(a.lastAt||0)||0);}
+function handleRealtime(msg){
+  if(!msg||!msg.type)return;
+  if(msg.type==='message'){
+    const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);
+    if(!c){loadConversations();return;}
+    if(!c.msgs.some(m=>m.id===msg.message.id))c.msgs.push(msg.message);
+    c.last=msg.message.text;c.lastAt=msg.message.createdAt;
+    if(activeChat===c.id&&activeView()==='chat'){c.unread=0;api('/conversations/'+c.id+'/read',{method:'POST'}).catch(()=>{});}
+    else c.unread=(c.unread||0)+1;
+    CONVERSATIONS.sort(sortConvs);
+    if(activeView()==='chat')renderChat();else updateAuthUI();
+    return;
+  }
+  if(msg.type==='typing'){
+    if(msg.conversationId!==activeChat)return;
+    chatTyping.cid=msg.conversationId;chatTyping.on=!!msg.on;
+    clearTimeout(chatTyping._t);
+    if(msg.on)chatTyping._t=setTimeout(()=>{chatTyping.on=false;applyChatPresenceToDom();},5000);
+    applyChatPresenceToDom();
+    return;
+  }
+  if(msg.type==='presence'){
+    const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);
+    if(!c)return;
+    c.presence={online:!!msg.online,lastSeen:msg.lastSeen||null,secondsAgo:msg.secondsAgo||0};
+    if(activeView()==='chat')applyChatPresenceToDom();
+    return;
+  }
+}
+function initRealtime(){
+  if(!auth.loggedIn){teardownRealtime();return;}
+  if(es)return;
+  try{es=new EventSource('/api/stream');}catch(e){es=null;return;}
+  es.onmessage=ev=>{try{handleRealtime(JSON.parse(ev.data));}catch(e){}};
+}
+function teardownRealtime(){if(es){try{es.close();}catch(e){}es=null;}}
+/* odeslání indikátoru „píše…" (throttle) */
+let _typingLastSent=0,_typingOffTimer=null;
+function sendTyping(on){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);
+  if(!c||!(c.id>0)||c.readonly)return;
+  api('/conversations/'+c.id+'/typing',{method:'POST',body:{on:!!on}}).catch(()=>{});
+}
+function onChatTypingInput(){
+  const now=Date.now();
+  if(now-_typingLastSent>2000){_typingLastSent=now;sendTyping(true);}
+  clearTimeout(_typingOffTimer);
+  _typingOffTimer=setTimeout(()=>{_typingLastSent=0;sendTyping(false);},3000);
 }
 
 /* otevři veřejný profil podle náhodného tokenu (#u-<token>) — pečovatelka i rodina */
@@ -1042,10 +1094,12 @@ function loginAs(name,email,role,photo,publicId){
   updateAuthUI();
   try{presencePing();}catch(e){}
   try{loadConversations();}catch(e){}
+  try{initRealtime();}catch(e){}
 }
 async function logout(){
   try{await api('/auth/logout',{method:'POST'});}catch(e){}
-  auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';
+  auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.publicId=null;
+  teardownRealtime();CONVERSATIONS=[];
   closeAccountMenu();
   await apiSync(bootstrap());
   updateAuthUI();renderCare();
@@ -1055,7 +1109,8 @@ async function logout(){
 
 /* ---------- NASTAVENÍ ---------- */
 async function forceLogout(reason){
-  auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.photo=null;
+  auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.photo=null;auth.publicId=null;
+  teardownRealtime();CONVERSATIONS=[];
   closeAccountMenu();
   await apiSync(bootstrap());
   updateAuthUI();renderCare();
@@ -3796,12 +3851,15 @@ function chatSignature(){
 }
 async function enterChat(){
   renderChat();
+  const inp=document.getElementById('chatInput');
+  if(inp&&!inp.dataset.typingBound){inp.dataset.typingBound='1';inp.addEventListener('input',onChatTypingInput);}
   await loadConversations();
   if(activeChat==null||!CONVERSATIONS.find(c=>c.id===activeChat))activeChat=CONVERSATIONS[0]&&CONVERSATIONS[0].id;
   if(activeChat>0)await loadMessages(activeChat);
   renderChat();
   startChatPolling();
 }
+/* pojistka: pokud vypadne SSE, dober zprávy pollingem (delší interval) */
 function startChatPolling(){
   if(chatPollTimer)clearInterval(chatPollTimer);
   chatPollTimer=setInterval(async()=>{
@@ -3810,7 +3868,7 @@ function startChatPolling(){
     await loadConversations();
     if(activeChat>0)await loadMessages(activeChat);
     if(chatSignature()!==before)renderChat();
-  },6000);
+  },15000);
 }
 async function openChat(caregiverId,name,init,role,email){
   if(!auth.loggedIn){toast('Pro poslání zprávy se prosím přihlaste.');go('login');return;}
@@ -3867,7 +3925,7 @@ function renderChat(){
     ci.appendChild(preview);
     btn.appendChild(ci);
     if(c.id>0&&!c.readonly&&c.role!=='admin'){
-      btn.dataset.presKey=(c.role||'caregiver')+'|'+c.name;
+      btn.dataset.cid=c.id;
       const dot=document.createElement('span');dot.className='pres-dot chat-li-dot';dot.hidden=true;
       btn.appendChild(dot);
     }
@@ -3885,8 +3943,8 @@ function renderChat(){
   headName.textContent=c.name;
   const headState=document.createElement('span');
   headState.id='chatHeadState';headState.className='chat-head-state';
-  if(c.readonly){headState.textContent='Oznámení od ZENVORIA';head.dataset.presRead='1';}
-  else{headState.innerHTML='<span class="pres-dot" hidden></span><span class="pres-txt"></span>';head.dataset.presRead='';head.dataset.presKey=(c.role||'caregiver')+'|'+c.name;}
+  if(c.readonly){headState.textContent='Oznámení od ZENVORIA';head.dataset.presRead='1';head.dataset.cid='';}
+  else{headState.innerHTML='<span class="pres-dot" hidden></span><span class="pres-txt"></span>';head.dataset.presRead='';head.dataset.cid=c.id;}
   headMeta.appendChild(headName);
   headMeta.appendChild(headState);
   head.appendChild(headMeta);
@@ -3917,6 +3975,7 @@ async function sendChatText(text){
   if(!c||c.readonly||!(c.id>0)){toast('Vyberte konverzaci.');return;}
   const tmp={id:0,me:true,text,t:chatNow(),pending:true};
   c.msgs.push(tmp);c.last=text;renderChat();
+  _typingLastSent=0;clearTimeout(_typingOffTimer);sendTyping(false);
   try{
     const r=await api('/conversations/'+c.id+'/messages',{method:'POST',body:{text,t:tmp.t}});
     const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs[i]=r.message;else c.msgs.push(r.message);
@@ -4202,5 +4261,6 @@ async function initApp(){
   initAuthWatch();
   initPresencePing();
   initChatWatch();
+  initRealtime();
 }
 initApp();

@@ -1444,12 +1444,12 @@ app.get('/api/u/:token', h(async (req, res) => {
 
 /* ---------------- PRESENCE (online / naposledy aktivní) ---------------- */
 const PRESENCE_ONLINE_MS = 2 * 60 * 1000; // aktivita do 2 minut = online
-function presenceOf(lastSeen) {
+function presenceOf(lastSeen, live) {
   const t = lastSeen ? Date.parse(lastSeen) : NaN;
-  if (!Number.isFinite(t)) return { online: false, lastSeen: null, secondsAgo: null };
+  if (!Number.isFinite(t)) return { online: !!live, lastSeen: null, secondsAgo: null };
   const diff = Date.now() - t;
-  // secondsAgo se počítá na serveru → text „naposledy" nezávisí na hodinách klienta
-  return { online: diff <= PRESENCE_ONLINE_MS, lastSeen: new Date(t).toISOString(), secondsAgo: Math.max(0, Math.round(diff / 1000)) };
+  // živé SSE spojení = online; jinak aktivita do 2 minut. secondsAgo počítá server.
+  return { online: !!live || diff <= PRESENCE_ONLINE_MS, lastSeen: new Date(t).toISOString(), secondsAgo: Math.max(0, Math.round(diff / 1000)) };
 }
 async function lastSeenByUserId(uid) {
   if (!uid) return null;
@@ -1478,7 +1478,7 @@ app.get('/api/presence/caregiver/:id', h(async (req, res) => {
   if (!Number.isInteger(id) || id <= 0) return res.json({ online: false, lastSeen: null });
   const rows = await restSelect(T.caregivers, `id=eq.${id}&select=user_id&limit=1`);
   const uid = rows && rows[0] ? rows[0].user_id : null;
-  return res.json(presenceOf(await lastSeenByUserId(uid)));
+  return res.json(presenceOf(await lastSeenByUserId(uid), uid && userOnline(uid)));
 }));
 
 // v chatu: stav protistran konverzací (jen pro přihlášené účastníky)
@@ -1490,13 +1490,15 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
     const name = trimmedString(it && it.name, 120);
     const role = trimmedString(it && it.role, 20) || 'caregiver';
     if (!name) { out.push({ name: '', role, online: false, lastSeen: null }); continue; }
-    let lastSeen = null;
-    if (role === 'caregiver') lastSeen = await lastSeenByCaregiverName(name);
-    else {
-      const u = await restSelect(T.users, `name=eq.${encodeURIComponent(name)}&role=eq.${encodeURIComponent(role)}&select=last_seen&limit=1`);
-      lastSeen = u && u[0] ? u[0].last_seen : null;
+    let uid = null;
+    if (role === 'caregiver') {
+      const cgs = await restSelect(T.caregivers, `name=eq.${encodeURIComponent(name)}&select=user_id&limit=1`);
+      uid = cgs && cgs[0] ? cgs[0].user_id : null;
+    } else {
+      const u = await restSelect(T.users, `name=eq.${encodeURIComponent(name)}&role=eq.${encodeURIComponent(role)}&select=id&limit=1`);
+      uid = u && u[0] ? u[0].id : null;
     }
-    out.push(Object.assign({ name, role }, presenceOf(lastSeen)));
+    out.push(Object.assign({ name, role }, presenceOf(await lastSeenByUserId(uid), uid && userOnline(uid))));
   }
   res.json({ items: out });
 }));
@@ -2363,7 +2365,77 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   const row = await restInsert(T.messages, { conversation_id: conv.id, sender_id: me, mine: true, text, t: t || '', created_at: now });
   const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
   await restUpdate(T.conversations, `id=eq.${conv.id}`, { last_text: text, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
+  // realtime: pushni zprávu protistraně (pro ni me:false)
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  sseSend(other, { type: 'message', conversationId: Number(conv.id), message: { id: Number(row.id), me: false, text, t: t || '', createdAt: now } });
   res.json({ message: { id: Number(row.id), me: true, text, t: t || '', createdAt: now } });
+}));
+
+/* ---------------- REALTIME (SSE) ---------------- */
+// registr živých spojení: userId -> Set<res>
+const sseClients = new Map();
+function userOnline(userId) { const s = sseClients.get(String(userId)); return !!(s && s.size); }
+function sseSend(userId, payload) {
+  const set = sseClients.get(String(userId));
+  if (!set || !set.size) return;
+  const data = 'data: ' + JSON.stringify(payload) + '\n\n';
+  for (const res of set) { try { res.write(data); } catch (e) { /* mrtvé spojení */ } }
+}
+function bumpLastSeen(userId) {
+  restUpdate(T.users, `id=eq.${encodeURIComponent(userId)}`, { last_seen: new Date().toISOString() }, { prefer: 'return=minimal' }).catch(() => {});
+}
+// oznam protistranám konverzací, že userId je online/offline
+async function broadcastPresence(userId, online) {
+  let rows;
+  try { rows = await restSelect(T.conversations, `or=(user_a.eq.${encodeURIComponent(userId)},user_b.eq.${encodeURIComponent(userId)})&select=id,user_a,user_b`); } catch (e) { return; }
+  const now = new Date().toISOString();
+  for (const conv of rows || []) {
+    const other = String(conv.user_a) === String(userId) ? conv.user_b : conv.user_a;
+    if (!userOnline(other)) continue;
+    sseSend(other, { type: 'presence', conversationId: Number(conv.id), online, lastSeen: online ? null : now, secondsAgo: 0 });
+  }
+}
+// stream událostí pro přihlášeného uživatele
+app.get('/api/stream', requireAuth, (req, res) => {
+  const uid = String(req.session.uid || '');
+  if (!uid) return res.status(401).end();
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.write(':ok\n\n');
+  let set = sseClients.get(uid);
+  const wasOffline = !set || set.size === 0;
+  if (!set) { set = new Set(); sseClients.set(uid, set); }
+  set.add(res);
+  const hb = setInterval(() => { try { res.write(':hb\n\n'); } catch (e) {} }, 25000);
+  bumpLastSeen(uid);
+  if (wasOffline) broadcastPresence(uid, true);
+  req.on('close', () => {
+    clearInterval(hb);
+    const s = sseClients.get(uid);
+    if (!s) return;
+    s.delete(res);
+    if (s.size === 0) { sseClients.delete(uid); bumpLastSeen(uid); broadcastPresence(uid, false); }
+  });
+});
+// indikátor psaní → protistraně
+app.post('/api/conversations/:id/typing', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const me = String(req.session.uid || '');
+  const conv = req.conversation;
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  sseSend(other, { type: 'typing', conversationId: Number(conv.id), on: !!(req.body && req.body.on) });
+  res.json({ ok: true });
+}));
+// označ konverzaci jako přečtenou
+app.post('/api/conversations/:id/read', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const me = String(req.session.uid || '');
+  const conv = req.conversation;
+  const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
+  await restUpdate(T.conversations, `id=eq.${conv.id}`, { [col]: new Date().toISOString() }, { prefer: 'return=minimal' }).catch(() => {});
+  res.json({ ok: true });
 }));
 
 /* ---------------- BROADCAST (admin) ---------------- */
