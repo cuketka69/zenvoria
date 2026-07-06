@@ -3958,6 +3958,7 @@ function renderChat(){
     if(m.image){
       const im=document.createElement('img');im.className='msg-img';im.src=m.image;im.loading='lazy';im.alt='obrázek';
       im.addEventListener('click',()=>openImgLightbox(m.image));
+      im.addEventListener('error',()=>{const ph=document.createElement('span');ph.className='msg-img-broken';ph.textContent='🖼️ obrázek nelze zobrazit';im.replaceWith(ph);});
       row.appendChild(im);
     }
     if(m.text)row.appendChild(document.createTextNode(m.text));
@@ -3997,33 +3998,39 @@ function sendTerm(){
   const d=new Date(Date.now()+2*86400000);
   sendChatText(`📅 Návrh termínu: ${d.toLocaleDateString('cs-CZ',{day:'numeric',month:'long'})} v 10:00 (4 h). Vyhovuje?`);
 }
-/* obrázek: zmenši v prohlížeči (menší přenos i uložení) a pošli jako zprávu */
-function downscaleImage(file,maxDim,cb){
-  const reader=new FileReader();
-  reader.onload=()=>{
-    const img=new Image();
-    img.onload=()=>{
-      let w=img.naturalWidth,h=img.naturalHeight;
-      if(!w||!h){cb(reader.result);return;}
-      if(w>maxDim||h>maxDim){const s=maxDim/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
-      try{const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);cb(cv.toDataURL('image/jpeg',0.82));}
-      catch(e){cb(reader.result);}
-    };
-    img.onerror=()=>cb(null);
-    img.src=reader.result;
-  };
-  reader.onerror=()=>cb(null);
-  reader.readAsDataURL(file);
+/* obrázek: zmenši a VŽDY překóduj přes canvas na čisté baseline JPEG
+   (žádný fallback na rozbitý originál) → menší přenos i spolehlivé zobrazení */
+async function decodeImage(file){
+  // createImageBitmap je nejspolehlivější; fallback na <img>
+  if(typeof createImageBitmap==='function'){
+    try{return await createImageBitmap(file);}catch(e){/* zkus <img> */}
+  }
+  return await new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);const im=new Image();
+    im.onload=()=>{URL.revokeObjectURL(url);(im.naturalWidth&&im.naturalHeight)?resolve(im):reject(new Error('decode'));};
+    im.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('decode'));};
+    im.src=url;
+  });
 }
-function onChatImage(input){
+async function downscaleImage(file,maxDim){
+  const src=await decodeImage(file);
+  let w=src.width||src.naturalWidth,h=src.height||src.naturalHeight;
+  if(!w||!h)throw new Error('empty');
+  if(w>maxDim||h>maxDim){const s=maxDim/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+  const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(src,0,0,w,h);
+  if(src.close)src.close();
+  return cv.toDataURL('image/jpeg',0.85);
+}
+async function onChatImage(input){
   const f=input.files&&input.files[0];input.value='';
   if(!f)return;
   if(!/^image\//.test(f.type||'')){toast('Vyberte prosím obrázek.','declined');return;}
-  if(f.size>15*1024*1024){toast('Obrázek je příliš velký (max 15 MB).','declined');return;}
-  downscaleImage(f,1280,(dataUrl)=>{
-    if(!dataUrl){toast('Obrázek se nepodařilo načíst.','declined');return;}
-    sendChatImage(dataUrl);
-  });
+  if(f.size>25*1024*1024){toast('Obrázek je příliš velký (max 25 MB).','declined');return;}
+  let dataUrl;
+  try{dataUrl=await downscaleImage(f,1280);}catch(e){dataUrl=null;}
+  if(!dataUrl){toast('Obrázek se nepodařilo zpracovat. Zkuste jiný.','declined');return;}
+  sendChatImage(dataUrl);
 }
 async function sendChatImage(image){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);
