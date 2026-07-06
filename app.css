@@ -583,8 +583,9 @@
   .presence.is-online{color:#1f7a45}
   /* dot v hlavičce/seznamu chatu */
   .chat-head-state{display:inline-flex;align-items:center;gap:7px}
-  .chat-li{position:relative}
-  .chat-li-dot{position:absolute;left:38px;top:36px;width:11px;height:11px;border:2px solid var(--white);border-radius:50%}
+  /* stav tečka v pravém dolním rohu profilovky v seznamu konverzací */
+  .chat-li-ava{position:relative;flex:0 0 auto;line-height:0}
+  .chat-li-dot{position:absolute;right:0;bottom:0;width:12px;height:12px;border:2px solid var(--cream);border-radius:50%;box-shadow:none}
   /* ≤640px: obsah dlaždic pchips vycentrovaný */
   @media(max-width:640px){.pchip{justify-content:center}}
   /* ≤432px: nabízené služby v profilu jedna pod druhou */

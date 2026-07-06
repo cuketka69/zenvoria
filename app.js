@@ -3914,7 +3914,15 @@ function renderChat(){
     const btn=document.createElement('button');
     btn.className='chat-li'+(c.id===activeChat?' on':'');
     btn.addEventListener('click',()=>selectChat(c.id));
-    btn.appendChild(makeChatAvatar(c.init,convoPhoto(c)));
+    const avaWrap=document.createElement('div');
+    avaWrap.className='chat-li-ava';
+    avaWrap.appendChild(makeChatAvatar(c.init,convoPhoto(c)));
+    if(c.id>0&&!c.readonly&&c.role!=='admin'){
+      btn.dataset.cid=c.id;
+      const dot=document.createElement('span');dot.className='pres-dot chat-li-dot';dot.hidden=true;
+      avaWrap.appendChild(dot);
+    }
+    btn.appendChild(avaWrap);
     const ci=document.createElement('div');
     ci.className='ci';
     const name=document.createElement('b');
@@ -3924,11 +3932,6 @@ function renderChat(){
     ci.appendChild(name);
     ci.appendChild(preview);
     btn.appendChild(ci);
-    if(c.id>0&&!c.readonly&&c.role!=='admin'){
-      btn.dataset.cid=c.id;
-      const dot=document.createElement('span');dot.className='pres-dot chat-li-dot';dot.hidden=true;
-      btn.appendChild(dot);
-    }
     listEl.appendChild(btn);
   });
   const c=CONVERSATIONS.find(x=>x.id===activeChat);
