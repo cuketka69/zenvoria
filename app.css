@@ -463,7 +463,8 @@
   .dd-opt.sel{background:rgba(201,162,51,.18);color:var(--navy-900);font-weight:600}
   /* ---------- VLASTNÍ VÝBĚR DATA (custom date picker) ---------- */
   .dp-lbl.dp-ph{color:var(--muted)}
-  .dp-menu{width:266px;max-width:none;max-height:none;padding:12px}
+  .dp-menu{position:fixed;top:0;left:0;width:266px;min-width:0;max-width:calc(100vw - 16px);max-height:none;padding:12px;z-index:200}
+  .dp-menu.open{opacity:1;transform:none;pointer-events:auto}
   .dp-head{display:flex;align-items:center;gap:6px;margin-bottom:8px}
   .dp-title{flex:1;text-align:center;font-weight:700;font-size:14px;color:var(--navy-900);text-transform:capitalize}
   .dp-nav{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:8px;

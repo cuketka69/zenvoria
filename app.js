@@ -292,7 +292,7 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ---------- VLASTNÍ ROZBALOVAČKA ---------- */
-function closeAllDD(){document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));}
+function closeAllDD(){document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(dpActiveClose){dpActiveClose();dpActiveClose=null;}}
 function enhanceSelect(sel){
   if(!sel||sel.dataset.enh)return;
   sel.dataset.enh='1';
@@ -321,7 +321,8 @@ function enhanceSelect(sel){
   sel.addEventListener('change',sel._ddRefresh);
 }
 function ddRefresh(){document.querySelectorAll('select[data-enh]').forEach(s=>s._ddRefresh&&s._ddRefresh());}
-document.addEventListener('click',e=>{if(!e.target.closest('.dd'))closeAllDD();});
+let dpActiveClose=null;
+document.addEventListener('click',e=>{if(!e.target.closest('.dd')&&!e.target.closest('.dp-menu'))closeAllDD();});
 
 /* ---------- VLASTNÍ VÝBĚR DATA (custom date picker, nahrazuje nativní <input type=date>) ---------- */
 const DP_MONTHS=['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
@@ -382,7 +383,7 @@ function enhanceDateInput(inp){
         e.stopPropagation();
         inp.value=iso;fmtLbl();
         inp.dispatchEvent(new Event('change',{bubbles:true}));
-        wrap.classList.remove('open');
+        closeMenu();
       };
       grid.appendChild(cell);
     }
@@ -394,33 +395,54 @@ function enhanceDateInput(inp){
     menu.appendChild(grid);
     const foot=document.createElement('div'); foot.className='dp-foot';
     const clearBtn=document.createElement('button'); clearBtn.type='button'; clearBtn.className='dp-link'; clearBtn.textContent='Vymazat';
-    clearBtn.onclick=e=>{e.stopPropagation();inp.value='';fmtLbl();inp.dispatchEvent(new Event('change',{bubbles:true}));wrap.classList.remove('open');};
+    clearBtn.onclick=e=>{e.stopPropagation();inp.value='';fmtLbl();inp.dispatchEvent(new Event('change',{bubbles:true}));closeMenu();};
     const todayBtn=document.createElement('button'); todayBtn.type='button'; todayBtn.className='dp-link'; todayBtn.textContent='Dnes';
     todayBtn.onclick=e=>{
       e.stopPropagation();
       inp.value=todayIso;fmtLbl();
       inp.dispatchEvent(new Event('change',{bubbles:true}));
       viewY=t.getFullYear();viewM=t.getMonth();
-      wrap.classList.remove('open');
+      closeMenu();
     };
     foot.appendChild(clearBtn);foot.appendChild(todayBtn);
     menu.appendChild(foot);
+  };
+  const reposition=()=>{
+    const r=btn.getBoundingClientRect();
+    const vw=document.documentElement.clientWidth,vh=document.documentElement.clientHeight;
+    const mw=menu.offsetWidth,mh=menu.offsetHeight;
+    let left=Math.min(Math.max(8,r.left),vw-mw-8);
+    let top=r.bottom+8;
+    if(top+mh>vh-8){const above=r.top-8-mh;top=above>8?above:Math.max(8,vh-8-mh);}
+    menu.style.left=left+'px';menu.style.top=top+'px';
+  };
+  const closeMenu=()=>{
+    wrap.classList.remove('open');menu.classList.remove('open');
+    if(menu.parentNode)menu.parentNode.removeChild(menu);
+    window.removeEventListener('scroll',reposition,true);window.removeEventListener('resize',reposition);
+    if(dpActiveClose===closeMenu)dpActiveClose=null;
+  };
+  const openMenu=()=>{
+    const t=new Date();
+    const base=inp.value?inp.value.split('-').map(Number):null;
+    viewY=base?base[0]:t.getFullYear();
+    viewM=base?base[1]-1:t.getMonth();
+    build();
+    document.body.appendChild(menu);
+    menu.style.left='-9999px';menu.style.top='-9999px';
+    reposition();
+    menu.classList.add('open');wrap.classList.add('open');
+    window.addEventListener('scroll',reposition,true);window.addEventListener('resize',reposition);
+    dpActiveClose=closeMenu;
   };
   btn.onclick=e=>{
     e.stopPropagation();
     if(btn.disabled)return;
     const op=wrap.classList.contains('open');
     closeAllDD();
-    if(!op){
-      const t=new Date();
-      const base=inp.value?inp.value.split('-').map(Number):null;
-      viewY=base?base[0]:t.getFullYear();
-      viewM=base?base[1]-1:t.getMonth();
-      build();
-      wrap.classList.add('open');
-    }
+    if(!op)openMenu();
   };
-  wrap.appendChild(btn); wrap.appendChild(menu);
+  wrap.appendChild(btn);
   inp.style.display='none'; inp.parentNode.insertBefore(wrap,inp.nextSibling);
   fmtLbl();
   inp._ddRefresh=fmtLbl;
