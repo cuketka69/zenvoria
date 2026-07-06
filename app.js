@@ -46,6 +46,7 @@ function openSocial(net){
 }
 /* ceny tarifů (Kč/měsíc). Cenu obou tarifů nastavuje admin v sekci Tarify. */
 let planPrices={start:190,premium:390};
+let signupPlan={plan:'start',days:0};
 const planPrice=k=>planPrices[k]||0;
 const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' Kč / měsíc':'Zdarma';
 /* SVG diamant se zeleným obrysem (ostrý, škálovatelný) */
@@ -3163,6 +3164,27 @@ function renderAdminPlans(){
   const revenue=startCount*planPrice('start')+premCount*planPrice('premium');
   document.getElementById('apPremCount').textContent=premCount;
   document.getElementById('apRevenue').textContent=revenue.toLocaleString('cs-CZ')+' Kč';
+  // tarif po registraci
+  const spPlanEl=document.getElementById('spPlan'),spDaysEl=document.getElementById('spDays'),spErr=document.getElementById('spErr');
+  if(spErr)spErr.textContent='';
+  if(spPlanEl){spPlanEl.value=signupPlan.plan==='premium'?'premium':'start';if(spPlanEl._ddRefresh)spPlanEl._ddRefresh();}
+  if(spDaysEl)spDaysEl.value=Number(signupPlan.days)||0;
+  spToggleDays();
+}
+function spToggleDays(){
+  const p=(document.getElementById('spPlan')||{}).value;
+  const w=document.getElementById('spDaysWrap');
+  if(w)w.style.display=p==='premium'?'':'none';
+}
+function saveSignupPlan(e){
+  e.preventDefault();
+  const plan=(document.getElementById('spPlan')||{}).value==='premium'?'premium':'start';
+  let days=parseInt((document.getElementById('spDays')||{}).value,10);
+  if(!Number.isFinite(days)||days<0)days=0;days=Math.min(365,days);
+  signupPlan={plan,days};
+  apiSync(api('/settings/signupPlan',{method:'PUT',body:{value:signupPlan}}));
+  toast(plan==='premium'?(days>0?`Nové pečovatelky dostanou PREMIUM na ${days} dní.`:'Nové pečovatelky dostanou PREMIUM (neomezeně).'):'Nové pečovatelky dostanou tarif START.','success');
+  return false;
 }
 function saveAdminPlans(e){
   e.preventDefault();
@@ -4238,6 +4260,7 @@ async function bootstrap(){
   // bootstrap je NESMÍ přepsat na prázdno, jinak by zmizely načtené konverzace
   BROADCASTS=d.broadcasts||[];
   if(d.planPrices)Object.assign(planPrices,d.planPrices);
+  if(d.signupPlan)signupPlan={plan:d.signupPlan.plan==='premium'?'premium':'start',days:Number(d.signupPlan.days)||0};
   if(d.socialLinks)Object.assign(socialLinks,d.socialLinks);
   // seq čítače z maxim (kdyby něco generovalo id lokálně)
   orderSeq=ORDERS.reduce((m,o)=>Math.max(m,o.oid||0),0);

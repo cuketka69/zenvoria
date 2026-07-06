@@ -913,6 +913,21 @@
         <div class="row" style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px"><span style="color:var(--muted)">Odhad měsíčních tržeb</span><span style="font-weight:700;color:var(--navy-900)" id="apRevenue">0 Kč</span></div>
       </div>
     </div>
+    <form class="pcard" style="margin-top:24px" onsubmit="return saveSignupPlan(event)">
+      <h3>Tarif po registraci</h3>
+      <p style="color:var(--muted);font-size:13.5px;margin:4px 0 14px">Jaký tarif dostane pečovatelka hned po schválení ověření. Můžete jí dát <b>PREMIUM na zkoušku</b> na určený počet dní — po vypršení se automaticky vrátí na START.</p>
+      <div class="grid2">
+        <div><label class="lbl" for="spPlan">Výchozí tarif</label>
+          <select class="inp" id="spPlan" onchange="spToggleDays()">
+            <option value="start">START (zdarma)</option>
+            <option value="premium">PREMIUM (zkušební)</option>
+          </select>
+        </div>
+        <div id="spDaysWrap"><label class="lbl" for="spDays">Délka PREMIUM (dní · 0 = neomezeně)</label><input class="inp" type="number" id="spDays" min="0" max="365" step="1" value="0"></div>
+      </div>
+      <div class="set-err" id="spErr" style="margin-top:10px"></div>
+      <button class="btn btn-gold" type="submit" style="margin-top:18px">Uložit tarif po registraci</button>
+    </form>
   </div>
 </div>
 

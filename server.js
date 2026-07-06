@@ -130,7 +130,7 @@ function genPublicId(len = 10) {
 }
 
 const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
-const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks'];
+const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks', 'signupPlan'];
 const ADMIN_UPDATABLE_USER_STATUSES = new Set(['active', 'suspended']);
 const ADMIN_UPDATABLE_CAREGIVER_STATUSES = new Set(['pending', 'verified', 'rejected']);
 const ADMIN_UPDATABLE_CAREGIVER_PLANS = new Set(['start', 'premium']);
@@ -195,9 +195,19 @@ function sanitizeSocialLinks(value) {
   return { facebook, instagram };
 }
 
+/* tarif po registraci: { plan: 'start'|'premium', days: 0..365 (0 = neomezeně) } */
+function sanitizeSignupPlan(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const plan = value.plan === 'premium' ? 'premium' : 'start';
+  let days = Number(value.days);
+  if (!Number.isFinite(days) || days < 0) days = 0;
+  days = Math.min(365, Math.round(days));
+  return { plan, days };
+}
 function sanitizeSettingValue(key, value) {
   if (key === 'planPrices') return sanitizePlanPrices(value);
   if (key === 'socialLinks') return sanitizeSocialLinks(value);
+  if (key === 'signupPlan') return sanitizeSignupPlan(value);
   return null;
 }
 
@@ -1971,6 +1981,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
     planPrices: settings.planPrices || { start: 190, premium: 390 },
     socialLinks: settings.socialLinks || { facebook: '', instagram: '' },
+    signupPlan: sanitizeSignupPlan(settings.signupPlan) || { plan: 'start', days: 0 },
     settings,
   });
 }));
@@ -2225,7 +2236,17 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
     await restUpdate(T.caregivers, `id=eq.${cg.id}`, data, { prefer: 'return=minimal' });
   } else {
     const newId = await nextId(T.caregivers, 'id');
-    await restInsert(T.caregivers, { id: newId, user_id: userId, public_id: genPublicId(), ...data, rating: 0, reviews: 0, plan: 'start', langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
+    // tarif po registraci dle admin nastavení (např. zkušební PREMIUM na N dní)
+    let plan = 'start', plan_status = 'canceled', trial_until = null;
+    try {
+      const spRows = await restSelect(T.settings, `key=eq.signupPlan&limit=1`);
+      const sp = sanitizeSignupPlan(spRows && spRows[0] && spRows[0].value) || { plan: 'start', days: 0 };
+      if (sp.plan === 'premium') {
+        plan = 'premium'; plan_status = 'trialing';
+        if (sp.days > 0) trial_until = new Date(Date.now() + sp.days * 86400000).toISOString();
+      }
+    } catch (e) { /* ponech START */ }
+    await restInsert(T.caregivers, { id: newId, user_id: userId, public_id: genPublicId(), ...data, rating: 0, reviews: 0, plan, plan_status, trial_until, langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
   }
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'approved' }, { prefer: 'return=minimal' });
   if (v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: true }) });
@@ -2857,7 +2878,18 @@ app.get('*', (req, res, next) => {
   sendIndex(res);
 });
 
+/* vypršelé zkušební PREMIUM (trial_until v minulosti) → zpět na START */
+async function expireTrials() {
+  if (!REST_ENABLED) return;
+  const nowIso = new Date().toISOString();
+  try {
+    await restUpdate(T.caregivers, `plan=eq.premium&trial_until=not.is.null&trial_until=lt.${encodeURIComponent(nowIso)}`, { plan: 'start', plan_status: 'canceled', trial_until: null }, { prefer: 'return=minimal' });
+  } catch (e) { console.warn('[trial] expire sweep failed:', e.message); }
+}
+setInterval(expireTrials, 30 * 60 * 1000).unref();
+
 app.listen(PORT, () => {
   console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`);
   loadEmailSocialLinks();
+  expireTrials();
 });
