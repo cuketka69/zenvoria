@@ -575,6 +575,16 @@
   .rev .ava{width:42px;height:42px;font-size:15px}
   .rev .rb{font-weight:600;font-size:14px;color:var(--navy-900)}
   .rev .rt{font-size:13.5px;color:var(--muted);margin-top:3px}
+  /* ---------- PRESENCE (online / naposledy aktivní) ---------- */
+  .pres-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--muted)}
+  .pres-dot.is-online{background:#2Fb463;box-shadow:0 0 0 3px rgba(47,180,99,.18)}
+  .pres-dot.is-offline{background:#B7AE9F}
+  .presence{display:inline-flex;align-items:center;gap:7px;margin-top:9px;font-size:13px;color:var(--muted)}
+  .presence.is-online{color:#1f7a45}
+  /* dot v hlavičce/seznamu chatu */
+  .chat-head-state{display:inline-flex;align-items:center;gap:7px}
+  .chat-li{position:relative}
+  .chat-li-dot{position:absolute;left:38px;top:36px;width:11px;height:11px;border:2px solid var(--white);border-radius:50%}
   /* ≤640px: obsah dlaždic pchips vycentrovaný */
   @media(max-width:640px){.pchip{justify-content:center}}
   /* ≤432px: nabízené služby v profilu jedna pod druhou */

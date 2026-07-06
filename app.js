@@ -639,6 +639,7 @@ async function openProfile(id,fromPop){
           <div class="pmeta">
             <span class="stars">${starsRow(5)} <b style="color:var(--navy-900)">${c.rating}</b> <span style="color:var(--muted)">(${c.reviews} hodnocení)</span></span>
           </div>
+          <div class="presence" id="profilePresence" hidden><span class="pres-dot"></span><span class="pres-txt"></span></div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             ${cgBadges(c)}
             ${c.cert?`<span class="chip">${capSVG()} Ověřené vzdělání</span>`:''}
@@ -677,6 +678,106 @@ async function openProfile(id,fromPop){
       <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openChat(${jsq(c.name)},${jsq(c.init)},'caregiver')">Napsat zprávu</button>
     </div>`;
   go('profile',fromPop);
+  startProfilePresence(id);
+}
+
+/* ---------- PRESENCE (online / naposledy aktivní) ---------- */
+let profilePresenceTimer=null;
+function timeAgoCz(iso){
+  const t=Date.parse(iso);if(!Number.isFinite(t))return '';
+  let s=Math.max(0,Math.floor((Date.now()-t)/1000));
+  if(s<60)return 'před chvílí';
+  const m=Math.floor(s/60);if(m<60)return `před ${m} min`;
+  const h=Math.floor(m/60);if(h<24)return `před ${h} h`;
+  const d=Math.floor(h/24);if(d===1)return 'včera';
+  if(d<7)return `před ${d} dny`;
+  try{return 'dne '+new Date(t).toLocaleDateString('cs-CZ');}catch(e){return '';}
+}
+/* naplní element {.pres-dot,.pres-txt}; vrátí false, když stav neznáme */
+function applyPresence(el,p){
+  if(!el)return false;
+  const dot=el.querySelector('.pres-dot'),txt=el.querySelector('.pres-txt');
+  if(!p||(!p.online&&!p.lastSeen)){el.hidden=true;return false;}
+  const online=!!p.online;
+  el.classList.toggle('is-online',online);
+  el.classList.toggle('is-offline',!online);
+  if(dot)dot.setAttribute('aria-hidden','true');
+  if(txt)txt.textContent=online?'Online':('Naposledy aktivní '+timeAgoCz(p.lastSeen));
+  el.hidden=false;return true;
+}
+async function fetchCaregiverPresence(id){
+  try{const r=await fetch('/api/presence/caregiver/'+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw 0;return await r.json();}
+  catch(e){return null;}
+}
+async function refreshProfilePresence(id){
+  const el=document.getElementById('profilePresence');
+  if(!el||state.caregiverId!==id||activeView()!=='profile')return;
+  applyPresence(el,await fetchCaregiverPresence(id));
+}
+function startProfilePresence(id){
+  if(profilePresenceTimer){clearInterval(profilePresenceTimer);profilePresenceTimer=null;}
+  refreshProfilePresence(id);
+  profilePresenceTimer=setInterval(()=>{
+    if(activeView()!=='profile'||state.caregiverId!==id){clearInterval(profilePresenceTimer);profilePresenceTimer=null;return;}
+    refreshProfilePresence(id);
+  },60000);
+}
+
+/* --- heartbeat: dej serveru vědět, že jsem aktivní --- */
+let presencePingTimer=null;
+async function presencePing(){
+  if(!auth.loggedIn)return;
+  if(document.visibilityState&&document.visibilityState!=='visible')return;
+  try{await fetch('/api/presence/ping',{method:'POST',credentials:'same-origin',cache:'no-store'});}catch(e){}
+}
+function initPresencePing(){
+  presencePing();
+  if(presencePingTimer)clearInterval(presencePingTimer);
+  presencePingTimer=setInterval(presencePing,45000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')presencePing();});
+}
+
+/* --- presence protistran v chatu --- */
+let chatPresence={};
+let chatPresenceTimer=null;
+async function fetchChatPresence(){
+  const items=CONVERSATIONS.filter(c=>c.id>0&&!c.readonly&&c.role!=='admin').map(c=>({name:c.name,role:c.role||'caregiver'}));
+  if(!items.length)return;
+  try{
+    const r=await fetch('/api/presence/chat',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
+    if(!r.ok)throw 0;
+    const d=await r.json();
+    const map={};(d.items||[]).forEach(p=>{map[(p.role||'')+'|'+(p.name||'')]=p;});
+    chatPresence=map;
+    applyChatPresenceToDom();
+  }catch(e){}
+}
+function applyChatPresenceToDom(){
+  document.querySelectorAll('#chatList .chat-li[data-pres-key]').forEach(btn=>{
+    const dot=btn.querySelector('.chat-li-dot');if(!dot)return;
+    const p=chatPresence[btn.dataset.presKey];
+    if(p&&(p.online||p.lastSeen)){dot.hidden=false;dot.classList.toggle('is-online',!!p.online);dot.classList.toggle('is-offline',!p.online);}
+    else dot.hidden=true;
+  });
+  const head=document.getElementById('chatHead'),st=document.getElementById('chatHeadState');
+  if(head&&st&&head.dataset.presRead!=='1'){
+    const p=chatPresence[head.dataset.presKey||''];
+    const dot=st.querySelector('.pres-dot'),txt=st.querySelector('.pres-txt');
+    if(p&&(p.online||p.lastSeen)){
+      if(dot){dot.hidden=false;dot.classList.toggle('is-online',!!p.online);dot.classList.toggle('is-offline',!p.online);}
+      if(txt)txt.textContent=p.online?'Online':('Naposledy aktivní '+timeAgoCz(p.lastSeen));
+    }else{
+      if(dot)dot.hidden=true;if(txt)txt.textContent='';
+    }
+  }
+}
+function startChatPresence(){
+  fetchChatPresence();
+  if(chatPresenceTimer)clearInterval(chatPresenceTimer);
+  chatPresenceTimer=setInterval(()=>{
+    if(activeView()!=='chat'){clearInterval(chatPresenceTimer);chatPresenceTimer=null;return;}
+    fetchChatPresence();
+  },60000);
 }
 
 /* otevři veřejný profil podle náhodného tokenu (#u-<token>) — pečovatelka i rodina */
@@ -931,6 +1032,7 @@ function loginAs(name,email,role,photo,publicId){
   if(photo!==undefined)auth.photo=photo||null;
   if(publicId!==undefined)auth.publicId=publicId||null;
   updateAuthUI();
+  try{presencePing();}catch(e){}
 }
 async function logout(){
   try{await api('/auth/logout',{method:'POST'});}catch(e){}
@@ -3710,6 +3812,11 @@ function renderChat(){
     ci.appendChild(name);
     ci.appendChild(preview);
     btn.appendChild(ci);
+    if(c.id>0&&!c.readonly&&c.role!=='admin'){
+      btn.dataset.presKey=(c.role||'caregiver')+'|'+c.name;
+      const dot=document.createElement('span');dot.className='pres-dot chat-li-dot';dot.hidden=true;
+      btn.appendChild(dot);
+    }
     listEl.appendChild(btn);
   });
   const c=CONVERSATIONS.find(x=>x.id===activeChat);
@@ -3723,7 +3830,9 @@ function renderChat(){
   const headName=document.createElement('b');
   headName.textContent=c.name;
   const headState=document.createElement('span');
-  headState.textContent=c.readonly?'Oznámení od ZENVORIA':'Online';
+  headState.id='chatHeadState';headState.className='chat-head-state';
+  if(c.readonly){headState.textContent='Oznámení od ZENVORIA';head.dataset.presRead='1';}
+  else{headState.innerHTML='<span class="pres-dot" hidden></span><span class="pres-txt"></span>';head.dataset.presRead='';head.dataset.presKey=(c.role||'caregiver')+'|'+c.name;}
   headMeta.appendChild(headName);
   headMeta.appendChild(headState);
   head.appendChild(headMeta);
@@ -3744,6 +3853,8 @@ function renderChat(){
   if(form)form.style.display=c.readonly?'none':'';
   scrollChat();
   updateAuthUI();
+  applyChatPresenceToDom();
+  startChatPresence();
 }
 function sendTerm(){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c){toast('Vyberte konverzaci.');return;}
@@ -4038,5 +4149,6 @@ async function initApp(){
   initAutoUpdate();
   initAdminPoll();
   initAuthWatch();
+  initPresencePing();
 }
 initApp();

@@ -1439,6 +1439,63 @@ app.get('/api/u/:token', h(async (req, res) => {
   return res.status(404).json({ error: 'Profil nenalezen.' });
 }));
 
+/* ---------------- PRESENCE (online / naposledy aktivní) ---------------- */
+const PRESENCE_ONLINE_MS = 2 * 60 * 1000; // aktivita do 2 minut = online
+function presenceOf(lastSeen) {
+  const t = lastSeen ? Date.parse(lastSeen) : NaN;
+  if (!Number.isFinite(t)) return { online: false, lastSeen: null };
+  return { online: (Date.now() - t) <= PRESENCE_ONLINE_MS, lastSeen: new Date(t).toISOString() };
+}
+async function lastSeenByUserId(uid) {
+  if (!uid) return null;
+  const u = await restSelect(T.users, `id=eq.${encodeURIComponent(uid)}&select=last_seen&limit=1`);
+  return u && u[0] ? u[0].last_seen : null;
+}
+async function lastSeenByCaregiverName(name) {
+  const cgs = await restSelect(T.caregivers, `name=eq.${encodeURIComponent(name)}&select=user_id&limit=1`);
+  return cgs && cgs[0] ? lastSeenByUserId(cgs[0].user_id) : null;
+}
+
+// heartbeat — přihlášený klient posílá pravidelně, uloží čas poslední aktivity
+app.post('/api/presence/ping', requireAuth, h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const uid = req.session && req.session.uid;
+  if (!uid) return res.status(401).json({ error: 'Nepřihlášeno.' });
+  const now = new Date().toISOString();
+  try { await restUpdate(T.users, `id=eq.${encodeURIComponent(uid)}`, { last_seen: now }, { prefer: 'return=minimal' }); } catch (e) {}
+  res.json({ ok: true, at: now });
+}));
+
+// veřejné: stav pečovatelky (podle jejího caregiver id)
+app.get('/api/presence/caregiver/:id', h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.json({ online: false, lastSeen: null });
+  const rows = await restSelect(T.caregivers, `id=eq.${id}&select=user_id&limit=1`);
+  const uid = rows && rows[0] ? rows[0].user_id : null;
+  return res.json(presenceOf(await lastSeenByUserId(uid)));
+}));
+
+// v chatu: stav protistran konverzací (jen pro přihlášené účastníky)
+app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const items = Array.isArray(req.body && req.body.items) ? req.body.items.slice(0, 50) : [];
+  const out = [];
+  for (const it of items) {
+    const name = trimmedString(it && it.name, 120);
+    const role = trimmedString(it && it.role, 20) || 'caregiver';
+    if (!name) { out.push({ name: '', role, online: false, lastSeen: null }); continue; }
+    let lastSeen = null;
+    if (role === 'caregiver') lastSeen = await lastSeenByCaregiverName(name);
+    else {
+      const u = await restSelect(T.users, `name=eq.${encodeURIComponent(name)}&role=eq.${encodeURIComponent(role)}&select=last_seen&limit=1`);
+      lastSeen = u && u[0] ? u[0].last_seen : null;
+    }
+    out.push(Object.assign({ name, role }, presenceOf(lastSeen)));
+  }
+  res.json({ items: out });
+}));
+
 /* index.html s otiskem verze u app.css / app.js → po deployi vznikne nová URL
    (app.css?v=HASH), takže i agresivní cache prohlížeče (iOS Safari) stáhne čerstvý
    soubor. index.html samotný jede na no-cache, takže se otisk vždy přenačte. */
