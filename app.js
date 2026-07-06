@@ -1477,8 +1477,10 @@ function deleteAccount(){
       try{localStorage.removeItem(LS_KEY);localStorage.removeItem('zv_auth');}catch(e){}
       auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.photo=null;auth.publicId=null;
       teardownRealtime();CONVERSATIONS=[];
+      await apiSync(bootstrap());
+      updateAuthUI();renderCare();
+      go('home');
       toast('Účet byl smazán.');
-      setTimeout(()=>location.reload(),700);
     }});
 }
 const NAV_GUEST=[
