@@ -1466,9 +1466,17 @@ function exportData(){
 }
 function deleteAccount(){
   askConfirm({title:'Smazat účet?',icon:trashSVG(),
-    message:'Tím se smažou všechna lokální data a akce je nevratná.',
-    confirmLabel:'Smazat účet',danger:true,onConfirm:()=>{
+    message:'Tím se trvale smaže váš účet a všechna související data. Akce je nevratná.',
+    confirmLabel:'Smazat účet',danger:true,onConfirm:async()=>{
+      try{
+        await api('/users/me',{method:'DELETE'});
+      }catch(e){
+        toast('Účet se nepodařilo smazat: '+e.message,'declined');
+        return;
+      }
       try{localStorage.removeItem(LS_KEY);localStorage.removeItem('zv_auth');}catch(e){}
+      auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.photo=null;auth.publicId=null;
+      teardownRealtime();CONVERSATIONS=[];
       toast('Účet byl smazán.');
       setTimeout(()=>location.reload(),700);
     }});

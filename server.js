@@ -2847,6 +2847,21 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// uživatel smaže sám sebe (nastavení účtu → "Smazat účet")
+app.delete('/api/users/me', requireAuth, h(async (req, res) => {
+  const id = String(req.session.uid || '').trim();
+  if (!id) return res.status(401).json({ error: 'Nepřihlášeno.' });
+  if (req.session.role === 'admin') return res.status(403).json({ error: 'Účet správce nelze smazat tímto způsobem.' });
+  const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(id)}&limit=1`);
+  const user = rows && rows[0];
+  if (!user) return res.status(404).json({ error: 'Uživatel nebyl nalezen.' });
+  await cleanupUserRelations(user);
+  await restDelete(T.users, `id=eq.${encodeURIComponent(id)}`, { prefer: 'return=minimal' });
+  fireAudit('auth.self_delete', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: 'success', metadata: { email: user.email || null, role: user.role || null } });
+  clearSession(res);
+  res.json({ ok: true });
+}));
+
 app.delete('/api/users/:id', requireRole('admin'), h(async (req, res) => {
   const id = String(req.params.id || '').trim();
   if (!id) return res.status(400).json({ error: 'Neplatné ID uživatele.' });
