@@ -1985,12 +1985,10 @@ function renderPricing(){
     const p=PLANS[key];const featured=key==='premium';
     let action;
     if(isCg){action=cur===key
-      ?(key==='premium'
-        ? '<div class="plan-current">'+checkSVG()+' Váš aktuální tarif</div><button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openBillingPortal(this)">Spravovat předplatné</button>'
-        : '<div class="plan-current">'+checkSVG()+' Váš aktuální tarif</div>')
+      ? '<div class="plan-current">'+checkSVG()+' Váš aktuální tarif</div><button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openBillingPortal(this)">Spravovat předplatné</button>'
       :(key==='premium'
-        ? `<button class="btn btn-gold btn-block" onclick="startPremiumCheckout(this)">Vyzkoušet PREMIUM zdarma na 3 měsíce</button>`
-        : `<button class="btn btn-ghost btn-block" onclick="setPlan('start')">Přejít na START zdarma na 3 měsíce</button>`);}
+        ? `<button class="btn btn-gold btn-block" onclick="switchToPlan(this,'premium')">Vyzkoušet PREMIUM zdarma na 3 měsíce</button>`
+        : `<button class="btn btn-ghost btn-block" onclick="switchToPlan(this,'start')">Přejít na START zdarma na 3 měsíce</button>`);}
     else{action=`<button class="btn ${featured?'btn-gold':'btn-ghost'} btn-block" onclick="go('register');pickRole('caregiver')">Vyzkoušet ${p.name} zdarma</button>`;}
     return `<div class="plan-card ${featured?'featured':''}">
       ${featured?'<span class="pl-tag">NEJOBLÍBENĚJŠÍ</span>':''}
@@ -2004,31 +2002,34 @@ function renderPricing(){
   const pm=document.getElementById('planPayInfo');
   if(pm)pm.textContent='';
 }
-/* aktivace/změna tarifu (po zaplacení nebo downgrade na START) */
+/* aktivace tarifu po (skutečném nebo mock) zaplacení */
 function setPlan(key){
-  if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
-  const apply=()=>{cgPlanMap[auth.email]=key;const c=CAREGIVERS.find(x=>x.email===auth.email);if(c){c.plan=key;apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{plan:key}}));}
-    renderPricing();renderCare();
-    toast(key==='premium'?'Aktivován tarif PREMIUM!':'Tarif změněn na START.',key==='premium'?null:undefined,key==='premium'?diamondSVG(20,'#13A552'):undefined);};
-  if(key==='start'&&cgPlan()==='premium'){
-    askConfirm({title:'Přejít na START?',icon:arrowDownSVG(),
-      message:'Přijdete o odznak Premium a vyšší zobrazení ve vyhledávání.',
-      confirmLabel:'Přejít na START',onConfirm:apply});
-  }else apply();
+  cgPlanMap[auth.email]=key;const c=CAREGIVERS.find(x=>x.email===auth.email);if(c){c.plan=key;apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{plan:key}}));}
+  renderPricing();renderCare();
+  toast(key==='premium'?'Aktivován tarif PREMIUM!':'Aktivován tarif START!',key==='premium'?null:undefined,key==='premium'?diamondSVG(20,'#13A552'):undefined);
 }
-/* ---- STRIPE: koupě předplatného PREMIUM ---- */
-async function startPremiumCheckout(btn){
+/* rozhodne, jestli je potřeba potvrzení (downgrade z PREMIUM), a spustí placení kartou pro daný tarif */
+function switchToPlan(btn,plan){
+  if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
+  if(plan==='start'&&cgPlan()==='premium'){
+    askConfirm({title:'Přejít na START?',icon:arrowDownSVG(),
+      message:'Přijdete o odznak Premium a vyšší zobrazení ve vyhledávání. Budete muset znovu zadat platební kartu.',
+      confirmLabel:'Přejít na START',onConfirm:()=>startPlanCheckout(btn,plan)});
+  }else startPlanCheckout(btn,plan);
+}
+/* ---- STRIPE: koupě předplatného (START i PREMIUM vyžadují kartu) ---- */
+async function startPlanCheckout(btn,plan){
   if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
   const orig=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Přesměrovávám na platbu…';}
   try{
-    const r=await api('/billing/checkout',{method:'POST'});
+    const r=await api('/billing/checkout',{method:'POST',body:{plan}});
     if(r&&r.url){window.location.href=r.url;return;} // přesměrování na Stripe Checkout
     throw new Error('Platební bránu se nepodařilo otevřít.');
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent=orig;}
     // Stripe není nakonfigurovaný → zatím použij dosavadní (mock) platbu
-    if(/503|nakonfigurov/i.test(e.message||'')){openPayment();return;}
+    if(/503|nakonfigurov/i.test(e.message||'')){openPayment(plan);return;}
     toast(''+(e.message||'Platba se nezdařila.'),'declined');
   }
 }
@@ -2049,24 +2050,32 @@ async function handleBillingReturn(){
   const h=location.hash||'';
   const q=h.indexOf('?')>=0?h.slice(h.indexOf('?')+1):'';
   if(!/(^|&)paid=1(&|$)/.test(q)&&!/(^|&)canceled=1(&|$)/.test(q))return;
+  const planMatch=q.match(/(?:^|&)plan=(start|premium)(?:&|$)/);
+  const plan=planMatch?planMatch[1]:'premium';
+  const planName=plan==='premium'?'PREMIUM':'START';
   // vyčisti parametry z URL, ať při refreshi nehlásí znovu
   history.replaceState({view:'pricing'},'','#pricing');
   go('pricing');
   if(/canceled=1/.test(q)){toast('Platba byla zrušena.');return;}
-  toast('Platba proběhla. Aktivuji PREMIUM…');
+  toast(`Platba proběhla. Aktivuji ${planName}…`);
   // webhook může chvíli trvat — pár pokusů obnovit data
   for(let i=0;i<5;i++){
     await new Promise(r=>setTimeout(r,1500));
     try{await bootstrap();updateAuthUI();renderCare();renderPricing();}catch(e){}
-    if(cgPlan()==='premium'){toast('Aktivován tarif PREMIUM!');return;}
+    if(cgPlan()===plan){toast(`Aktivován tarif ${planName}!`);return;}
   }
   toast('Platba přijata. Aktivace tarifu se projeví za okamžik.');
 }
-/* ---- PLATBA PŘEDPLATNÉHO PREMIUM (záložní mock, dokud Stripe není zapnutý) ---- */
-function openPayment(){
+/* ---- ULOŽENÍ KARTY PRO PŘEDPLATNÉ (záložní mock, dokud Stripe není zapnutý) ---- */
+let payTargetPlan='premium';
+function openPayment(plan){
   if(!(auth.loggedIn&&auth.role==='caregiver')){go('register');pickRole('caregiver');return;}
-  document.getElementById('paySub').textContent=`Měsíční předplatné · ${planPrice('premium').toLocaleString('cs-CZ')} Kč / měsíc`;
-  document.getElementById('payBtn').textContent=`Zaplatit ${planPrice('premium').toLocaleString('cs-CZ')} Kč`;
+  payTargetPlan=plan==='start'?'start':'premium';
+  const price=planPrice(payTargetPlan).toLocaleString('cs-CZ');
+  const payTitle=document.getElementById('payTitle');
+  if(payTitle)payTitle.textContent=`Předplatné ${payTargetPlan==='premium'?'PREMIUM':'START'}`;
+  document.getElementById('paySub').textContent=`Prvních 3 měsíce zdarma, poté ${price} Kč / měsíc`;
+  document.getElementById('payBtn').textContent='Uložit kartu a aktivovat';
   ['payCard','payExp','payCvc','payName'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('payErr').textContent='';
   const m=document.getElementById('payModal');m.classList.add('open');document.body.style.overflow='hidden';
@@ -2087,11 +2096,11 @@ function payConfirm(e){
   if(!/^\d{3,4}$/.test(cvc)){err.textContent='Zadejte CVC (3–4 číslice).';return false;}
   if(name.split(/\s+/).filter(Boolean).length<2){err.textContent='Zadejte jméno držitele karty.';return false;}
   const btn=document.getElementById('payBtn');const orig=btn.textContent;
-  btn.disabled=true;btn.textContent='Zpracovávám platbu…';
+  btn.disabled=true;btn.textContent='Ukládám kartu…';
   setTimeout(()=>{
     btn.disabled=false;btn.textContent=orig;
     closePay();
-    setPlan('premium');
+    setPlan(payTargetPlan);
   },1100);
   return false;
 }

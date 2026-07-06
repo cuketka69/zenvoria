@@ -778,84 +778,90 @@ function changeEmailCodeMail({ user, newEmail, code }) {
 }
 
 // ---- e-mail: aktivace předplatného PREMIUM (pečovatelce) ----
-function premiumActiveMail({ name, email, priceCzk }) {
+function planActiveMail({ name, email, priceCzk, plan }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  const planName = plan === 'start' ? 'START' : 'PREMIUM';
+  const benefit = plan === 'start'
+    ? 'Od teď je váš profil viditelný rodinám ve vyhledávání.'
+    : 'Od teď máte vyšší zobrazení ve vyhledávání a odznak Premium u profilu.';
   return {
-    subject: 'Vaše předplatné PREMIUM je aktivní',
+    subject: `Vaše předplatné ${planName} je aktivní`,
     text:
       `Dobrý den, ${name || firstName},\n\n` +
-      'vaše měsíční předplatné ZENVORIA PREMIUM je aktivní. Děkujeme!\n\n' +
-      'Od teď máte vyšší zobrazení ve vyhledávání a odznak Premium u profilu.\n\n' +
+      `vaše měsíční předplatné ZENVORIA ${planName} je aktivní. Děkujeme!\n\n` +
+      `${benefit}\n\n` +
       'S pozdravem,\nTým ZENVORIA',
     html: renderEmailLayout({
-      preheader: 'Předplatné PREMIUM je aktivní — děkujeme.',
-      title: 'PREMIUM je aktivní',
-      intro: `Děkujeme, ${firstName}. Vaše měsíční předplatné ZENVORIA PREMIUM bylo úspěšně aktivováno.`,
+      preheader: `Předplatné ${planName} je aktivní — děkujeme.`,
+      title: `${planName} je aktivní`,
+      intro: `Děkujeme, ${firstName}. Vaše měsíční předplatné ZENVORIA ${planName} bylo úspěšně aktivováno.`,
       bodyHtml:
-        '<p style="margin:0 0 14px 0;">Od této chvíle máte <b>vyšší zobrazení ve vyhledávání</b> a u profilu <b>odznak Premium</b>, který zvyšuje důvěru rodin.</p>' +
+        `<p style="margin:0 0 14px 0;">${benefit}</p>` +
         '<p style="margin:0;">Předplatné se automaticky obnovuje každý měsíc. Spravovat nebo zrušit ho můžete kdykoli ve svém účtu na Ceníku.</p>',
       ctaLabel: 'Spravovat předplatné',
       ctaUrl: `${APP_URL}/#pricing`,
       ctaNote: 'Účtenku k platbě vám zasílá platební brána Stripe samostatně.',
       facts: [
-        { label: 'Tarif', value: 'PREMIUM' },
+        { label: 'Tarif', value: planName },
         { label: 'Cena', value: (priceCzk ? `${priceCzk} Kč / měsíc` : '') },
         { label: 'Stav', value: 'Aktivní' },
       ],
       closingTitle: 'Děkujeme za důvěru.',
       closingSubtitle: 'Tým Zenvoria',
-      footerNote: 'Tento e-mail byl odeslán automaticky po aktivaci předplatného PREMIUM.',
+      footerNote: `Tento e-mail byl odeslán automaticky po aktivaci předplatného ${planName}.`,
     }),
   };
 }
-// ---- e-mail: předplatné PREMIUM ukončeno / zrušeno ----
-function premiumEndedMail({ name }) {
+// ---- e-mail: předplatné ukončeno / zrušeno ----
+function planEndedMail({ name, plan }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  const planName = plan === 'start' ? 'START' : 'PREMIUM';
   return {
-    subject: 'Vaše předplatné PREMIUM bylo ukončeno',
+    subject: `Vaše předplatné ${planName} bylo ukončeno`,
     text:
       `Dobrý den, ${name || firstName},\n\n` +
-      'vaše předplatné ZENVORIA PREMIUM bylo ukončeno. Váš profil pokračuje v tarifu START.\n\n' +
-      'Kdykoli se můžete vrátit k PREMIUM na Ceníku.\n\n' +
+      `vaše předplatné ZENVORIA ${planName} bylo ukončeno. Váš profil se nyní nezobrazuje rodinám ve vyhledávání.\n\n` +
+      'Kdykoli se můžete vrátit na Ceníku.\n\n' +
       'S pozdravem,\nTým ZENVORIA',
     html: renderEmailLayout({
-      preheader: 'Předplatné PREMIUM bylo ukončeno.',
-      title: 'PREMIUM ukončeno',
-      intro: `Dobrý den, ${firstName}. Vaše předplatné ZENVORIA PREMIUM bylo ukončeno a váš profil nyní pokračuje v bezplatném tarifu START.`,
+      preheader: `Předplatné ${planName} bylo ukončeno.`,
+      title: `${planName} ukončeno`,
+      intro: `Dobrý den, ${firstName}. Vaše předplatné ZENVORIA ${planName} bylo ukončeno a váš profil se nyní nezobrazuje rodinám ve vyhledávání.`,
       bodyHtml:
-        '<p style="margin:0 0 14px 0;">Přicházíte tím o vyšší zobrazení ve vyhledávání a odznak Premium.</p>' +
-        '<p style="margin:0;">Kdykoli se můžete k PREMIUM vrátit jediným kliknutím na Ceníku.</p>',
-      ctaLabel: 'Obnovit PREMIUM',
+        '<p style="margin:0 0 14px 0;">Přicházíte tím o zveřejnění profilu, kontaktování klientů a další výhody tarifu.</p>' +
+        '<p style="margin:0;">Kdykoli se můžete vrátit jediným kliknutím na Ceníku.</p>',
+      ctaLabel: 'Obnovit předplatné',
       ctaUrl: `${APP_URL}/#pricing`,
       ctaNote: '',
-      facts: [{ label: 'Aktuální tarif', value: 'START (zdarma)' }],
+      facts: [{ label: 'Aktuální tarif', value: 'Bez plánu' }],
       closingTitle: 'Budeme se těšit zpět.',
       closingSubtitle: 'Tým Zenvoria',
-      footerNote: 'Tento e-mail byl odeslán automaticky po ukončení předplatného PREMIUM.',
+      footerNote: `Tento e-mail byl odeslán automaticky po ukončení předplatného ${planName}.`,
     }),
   };
 }
 // ---- e-mail: problém s platbou předplatného ----
-function premiumPaymentIssueMail({ name }) {
+function planPaymentIssueMail({ name, plan }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  const planName = plan === 'start' ? 'START' : 'PREMIUM';
   return {
-    subject: 'Problém s platbou předplatného PREMIUM',
+    subject: `Problém s platbou předplatného ${planName}`,
     text:
       `Dobrý den, ${name || firstName},\n\n` +
-      'platbu za vaše předplatné PREMIUM se nepodařilo zpracovat.\n\n' +
-      'Aktualizujte prosím platební údaje ve svém účtu, jinak může být PREMIUM pozastaveno.\n\n' +
+      `platbu za vaše předplatné ${planName} se nepodařilo zpracovat.\n\n` +
+      `Aktualizujte prosím platební údaje ve svém účtu, jinak může být ${planName} pozastaveno.\n\n` +
       'S pozdravem,\nTým ZENVORIA',
     html: renderEmailLayout({
       preheader: 'Platbu předplatného se nepodařilo zpracovat.',
       title: 'Problém s platbou',
-      intro: `Dobrý den, ${firstName}. Platbu za vaše předplatné ZENVORIA PREMIUM se bohužel nepodařilo zpracovat.`,
+      intro: `Dobrý den, ${firstName}. Platbu za vaše předplatné ZENVORIA ${planName} se bohužel nepodařilo zpracovat.`,
       bodyHtml:
-        '<p style="margin:0 0 14px 0;">Zkontrolujte prosím a aktualizujte své platební údaje, abyste o PREMIUM nepřišli.</p>' +
+        `<p style="margin:0 0 14px 0;">Zkontrolujte prosím a aktualizujte své platební údaje, abyste o ${planName} nepřišli.</p>` +
         '<p style="margin:0;">Stripe se platbu pokusí zopakovat. Pokud potíže přetrvají, předplatné může být pozastaveno.</p>',
       ctaLabel: 'Aktualizovat platbu',
       ctaUrl: `${APP_URL}/#pricing`,
       ctaNote: '',
-      facts: [{ label: 'Tarif', value: 'PREMIUM' }, { label: 'Stav platby', value: 'Neúspěšná' }],
+      facts: [{ label: 'Tarif', value: planName }, { label: 'Stav platby', value: 'Neúspěšná' }],
       closingTitle: 'Rádi vám pomůžeme.',
       closingSubtitle: 'Tým Zenvoria',
       footerNote: 'Tento e-mail byl odeslán automaticky po neúspěšné platbě předplatného.',
@@ -1392,28 +1398,30 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
     switch (event.type) {
       case 'checkout.session.completed': {
         const email = (o.client_reference_id || (o.customer_details && o.customer_details.email) || '').toLowerCase();
-        const r = await setCaregiverPlan({ email, customerId: o.customer, subscriptionId: o.subscription, plan: 'premium', status: 'active' });
-        // e-mail o aktivaci jen při skutečném přechodu na PREMIUM
-        if (r && r.prevPlan !== 'premium' && r.row.email) {
-          const priceCzk = await premiumPriceCZK();
-          await sendMailSafe({ to: r.row.email, ...premiumActiveMail({ name: r.row.name, email: r.row.email, priceCzk }) });
+        const plan = (o.metadata && o.metadata.plan === 'start') ? 'start' : 'premium';
+        const r = await setCaregiverPlan({ email, customerId: o.customer, subscriptionId: o.subscription, plan, status: 'active' });
+        // e-mail o aktivaci jen při skutečném přechodu na tento tarif
+        if (r && r.prevPlan !== plan && r.row.email) {
+          const priceCzk = await planPriceCZK(plan);
+          await sendMailSafe({ to: r.row.email, ...planActiveMail({ name: r.row.name, email: r.row.email, priceCzk, plan }) });
         }
         break;
       }
       case 'customer.subscription.updated':
       case 'customer.subscription.created': {
+        const plan = (o.metadata && o.metadata.plan === 'start') ? 'start' : 'premium';
         const active = ['active', 'trialing', 'past_due'].includes(o.status);
-        const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: active ? 'premium' : 'start', status: o.status });
+        const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: active ? plan : null, status: o.status });
         // upozornění na problém s platbou (jen při přechodu do past_due/unpaid)
         if (r && r.row.email && ['past_due', 'unpaid'].includes(o.status) && !['past_due', 'unpaid'].includes(r.prevStatus || '')) {
-          await sendMailSafe({ to: r.row.email, ...premiumPaymentIssueMail({ name: r.row.name }) });
+          await sendMailSafe({ to: r.row.email, ...planPaymentIssueMail({ name: r.row.name, plan }) });
         }
         break;
       }
       case 'customer.subscription.deleted': {
-        const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: 'start', status: 'canceled' });
-        if (r && r.prevPlan === 'premium' && r.row.email) {
-          await sendMailSafe({ to: r.row.email, ...premiumEndedMail({ name: r.row.name }) });
+        const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: null, status: 'canceled' });
+        if (r && r.prevPlan && r.row.email) {
+          await sendMailSafe({ to: r.row.email, ...planEndedMail({ name: r.row.name, plan: r.prevPlan }) });
         }
         break;
       }
@@ -2739,20 +2747,22 @@ async function setCaregiverPlan({ email, customerId, subscriptionId, plan, statu
   return { row, prevPlan, prevStatus };
 }
 
-// cena PREMIUM (Kč/měsíc) ze serverových nastavení — nikdy se nevěří částce z prohlížeče
-async function premiumPriceCZK() {
+// cena tarifu (Kč/měsíc) ze serverových nastavení — nikdy se nevěří částce z prohlížeče
+async function planPriceCZK(plan) {
+  const fallback = plan === 'start' ? 190 : 390;
   try {
     const rows = await restSelect(T.settings, `key=eq.planPrices&limit=1`);
     const v = rows && rows[0] && rows[0].value;
-    const p = v && Number(v.premium);
+    const p = v && Number(v[plan]);
     if (p && p > 0) return Math.round(p);
   } catch (e) { console.warn('[stripe] nelze načíst cenu z nastavení:', e.message); }
-  return 390; // fallback
+  return fallback;
 }
 
-// 1) Vytvoří Stripe Checkout Session (předplatné) a vrátí URL k přesměrování
+// 1) Vytvoří Stripe Checkout Session (předplatné START nebo PREMIUM) a vrátí URL k přesměrování
 app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) => {
   if (!STRIPE_ENABLED) return res.status(503).json({ error: 'Platby nejsou nakonfigurované.' });
+  const plan = (req.body && req.body.plan) === 'start' ? 'start' : 'premium';
   const email = req.session.email;
   const cg = await caregiverByEmail(email);
   if (!cg) return res.status(404).json({ error: 'Profil pečovatelky nenalezen.' });
@@ -2764,9 +2774,14 @@ app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) =
     customerId = customer.id;
     await restUpdate(T.caregivers, `id=eq.${cg.id}`, { stripe_customer_id: customerId }, { prefer: 'return=minimal' });
   }
+  // přechod z jiného tarifu → nejdřív zrušit případné běžící předplatné, ať nevzniknou dvě souběžná
+  if (cg.stripe_subscription_id) {
+    try { await stripe.subscriptions.cancel(cg.stripe_subscription_id); } catch (e) { /* už zrušené/neexistuje */ }
+  }
 
   // dynamická cena z aplikace (admin → Tarify) — žádný předem vytvořený produkt ve Stripe není potřeba
-  const priceCzk = await premiumPriceCZK();
+  const priceCzk = await planPriceCZK(plan);
+  const planName = plan === 'start' ? 'START' : 'PREMIUM';
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     customer: customerId,
@@ -2777,14 +2792,19 @@ app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) =
         currency: STRIPE_CURRENCY,
         unit_amount: priceCzk * 100, // v haléřích
         recurring: { interval: 'month' },
-        product_data: { name: 'ZENVORIA PREMIUM', description: 'Měsíční předplatné pro pečovatelky — vyšší zobrazení a odznak Premium.' },
+        product_data: {
+          name: `ZENVORIA ${planName}`,
+          description: plan === 'start'
+            ? 'Měsíční předplatné pro pečovatelky — základní tarif.'
+            : 'Měsíční předplatné pro pečovatelky — vyšší zobrazení a odznak Premium.',
+        },
       },
     }],
     allow_promotion_codes: true,
-    success_url: `${APP_URL}/#pricing?paid=1`,
+    success_url: `${APP_URL}/#pricing?paid=1&plan=${plan}`,
     cancel_url: `${APP_URL}/#pricing?canceled=1`,
-    metadata: { caregiver_id: String(cg.id), email },
-    subscription_data: { trial_period_days: 90, metadata: { caregiver_id: String(cg.id), email } },
+    metadata: { caregiver_id: String(cg.id), email, plan },
+    subscription_data: { trial_period_days: 90, metadata: { caregiver_id: String(cg.id), email, plan } },
   });
   res.json({ url: session.url });
 }));
