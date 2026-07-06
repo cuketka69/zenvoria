@@ -153,7 +153,10 @@ async function copyLegalLink(){
 }
 
 /* ---------- NAV ---------- */
+/* stránky dostupné i bez přihlášení — vše ostatní nepřihlášeného návštěvníka pošle na Domů */
+const GUEST_ALLOWED_VIEWS=new Set(['home','search','howto','profile','pricing','legal','login','register','forgot','reset-password','change-email']);
 async function go(v,fromPop){
+  if(!auth.loggedIn&&!GUEST_ALLOWED_VIEWS.has(v))v='home';
   let target=document.getElementById('view-'+v);
   if(!target&&isDeferredView(v)){
     try{
