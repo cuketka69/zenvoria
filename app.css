@@ -1284,6 +1284,8 @@
   .cga-hint{display:block;font-size:11.5px;color:var(--muted);margin-top:6px}
   .cga-form .is-disabled{opacity:.55}
   .cga-form .is-disabled input{cursor:not-allowed}
+  .cga-edit-actions{display:flex;gap:10px;margin-top:16px}
+  .cga-edit-actions .btn:last-child{flex:1}
   .cga-actions{display:flex;flex-direction:column;gap:10px}
   @media(max-width:480px){.cga-form{grid-template-columns:1fr}}
   .filter-modal{width:min(720px,94vw)}

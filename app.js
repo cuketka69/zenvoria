@@ -2941,7 +2941,24 @@ function openCgAdmin(id){
   if(susBtn){susBtn.textContent=c.suspended?'Obnovit pečovatelku':'Pozastavit';susBtn.className='btn '+(c.suspended?'btn-accept':'btn-decline');}
   const unvBtn=document.getElementById('cgAdminUnverifyBtn');
   if(unvBtn)unvBtn.style.display=c.verified?'':'none';
+  // předplatné zobrazit sbalené — editor se odkryje až přes „Upravit předplatné"
+  const ed=document.getElementById('cgAdminEditor');if(ed)ed.hidden=true;
+  const eb=document.getElementById('cgAdminEditBtn');if(eb)eb.style.display='';
   const m=document.getElementById('cgAdminModal');if(m){m.classList.add('open');document.body.style.overflow='hidden';}
+}
+function cgAdminEditPlan(){
+  const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
+  const planEl=document.getElementById('cgAdminPlan');
+  if(planEl){planEl.value=c.plan==='premium'?'premium':'start';if(planEl._ddRefresh)planEl._ddRefresh();}
+  const untilEl=document.getElementById('cgAdminUntil');
+  if(untilEl)untilEl.value=c.trialUntil?String(c.trialUntil).slice(0,10):'';
+  cgAdminToggleUntil();
+  const ed=document.getElementById('cgAdminEditor');if(ed)ed.hidden=false;
+  const eb=document.getElementById('cgAdminEditBtn');if(eb)eb.style.display='none';
+}
+function cgAdminCancelEdit(){
+  const ed=document.getElementById('cgAdminEditor');if(ed)ed.hidden=true;
+  const eb=document.getElementById('cgAdminEditBtn');if(eb)eb.style.display='';
 }
 function closeCgAdmin(){const m=document.getElementById('cgAdminModal');if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}}
 function cgAdminToggleUntil(){

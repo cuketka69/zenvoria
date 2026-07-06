@@ -526,19 +526,25 @@
 
     <div class="cga-sec-title">Předplatné</div>
     <div class="cga-current" id="cgAdminCurrent"></div>
-    <div class="cga-form">
-      <div><label class="lbl" for="cgAdminPlan">Tarif</label>
-        <select class="inp" id="cgAdminPlan" onchange="cgAdminToggleUntil()">
-          <option value="start">START (zdarma)</option>
-          <option value="premium">PREMIUM</option>
-        </select>
+    <div id="cgAdminEditor" hidden>
+      <div class="cga-form">
+        <div><label class="lbl" for="cgAdminPlan">Tarif</label>
+          <select class="inp" id="cgAdminPlan" onchange="cgAdminToggleUntil()">
+            <option value="start">START (zdarma)</option>
+            <option value="premium">PREMIUM</option>
+          </select>
+        </div>
+        <div id="cgAdminUntilWrap"><label class="lbl" for="cgAdminUntil">Platí do</label>
+          <input class="inp" type="date" id="cgAdminUntil">
+          <span class="cga-hint">Prázdné = neomezeně</span>
+        </div>
       </div>
-      <div id="cgAdminUntilWrap"><label class="lbl" for="cgAdminUntil">Platí do</label>
-        <input class="inp" type="date" id="cgAdminUntil">
-        <span class="cga-hint">Prázdné = neomezeně</span>
+      <div class="cga-edit-actions">
+        <button class="btn btn-ghost" type="button" onclick="cgAdminCancelEdit()">Zrušit</button>
+        <button class="btn btn-gold" type="button" onclick="cgAdminSavePlan()">Uložit předplatné</button>
       </div>
     </div>
-    <button class="btn btn-gold btn-block" style="margin-top:16px" type="button" onclick="cgAdminSavePlan()">Uložit předplatné</button>
+    <button class="btn btn-ghost btn-block" id="cgAdminEditBtn" style="margin-top:14px" type="button" onclick="cgAdminEditPlan()">Upravit předplatné</button>
 
     <div class="cga-sec-title" style="margin-top:24px">Akce</div>
     <div class="cga-actions">
