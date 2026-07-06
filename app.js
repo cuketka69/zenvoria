@@ -748,7 +748,6 @@ function renderCare(){
   const q=(document.getElementById('q').value||'').toLowerCase();
   const loc=document.getElementById('loc').value;
   const priceMax=+((document.getElementById('priceMax')||{}).value||999);
-  const onlyVer=(document.getElementById('onlyVerified')||{}).checked;
   const sortBy=(document.getElementById('sortBy')||{}).value||'rec';
   let list=CAREGIVERS.filter(c=>{
     if(!c.verified||c.suspended||!hasPerm(c,'publishServices'))return false; // rodiny vidí jen ověřené, aktivní a zveřejněné pečovatelky
@@ -756,7 +755,7 @@ function renderCare(){
     const matchL=!loc||c.loc===loc;
     const matchQ=!q||c.name.toLowerCase().includes(q)||c.loc.toLowerCase().includes(q)||
       c.services.some(s=>sName(s).toLowerCase().includes(q));
-    return matchF&&matchL&&matchQ&&c.rate<=priceMax&&(!onlyVer||c.verified);
+    return matchF&&matchL&&matchQ&&c.rate<=priceMax;
   });
   const sorters={'price-asc':(a,b)=>a.rate-b.rate,'price-desc':(a,b)=>b.rate-a.rate,
     'rating':(a,b)=>b.rating-a.rating,'exp':(a,b)=>b.exp-a.exp};
