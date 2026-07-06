@@ -47,6 +47,21 @@ function openSocial(net){
 /* ceny tarifů (Kč/měsíc). Cenu obou tarifů nastavuje admin v sekci Tarify. */
 let planPrices={start:190,premium:390};
 let signupPlan={plan:'none',days:0};
+/* oprávnění tarifů (viz admin Tarify → Oprávnění tarifů); bez plánu = nikdy nic */
+const PLAN_PERM_LABELS=[
+  ['manageProfile','Správa profilu'],
+  ['publishServices','Zveřejnění nabídky služeb'],
+  ['contactClients','Kontaktování klientů'],
+  ['receiveRequests','Přijímání poptávek'],
+  ['reviews','Hodnocení od klientů'],
+  ['priorityRanking','Přednostní zobrazení ve vyhledávání'],
+  ['premiumBadge','Označení Ověřená/Premium pečovatel'],
+  ['highlightedProfile','Zvýrazněný profil'],
+  ['priorityRequests','Prioritní zasílání nových poptávek'],
+  ['viewStats','Statistiky zobrazení profilu'],
+  ['prioritySupport','Přednostní zákaznická podpora']
+];
+let planPermissions={start:{},premium:{}};
 const planPrice=k=>planPrices[k]||0;
 const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' Kč / měsíc':'Zdarma';
 /* SVG diamant se zeleným obrysem (ostrý, škálovatelný) */
@@ -733,7 +748,7 @@ function renderCare(){
   const onlyVer=(document.getElementById('onlyVerified')||{}).checked;
   const sortBy=(document.getElementById('sortBy')||{}).value||'rec';
   let list=CAREGIVERS.filter(c=>{
-    if(!c.verified||c.suspended)return false; // rodiny vidí jen ověřené a aktivní pečovatelky
+    if(!c.verified||c.suspended||!hasPerm(c,'publishServices'))return false; // rodiny vidí jen ověřené, aktivní a zveřejněné pečovatelky
     const matchF=!activeFilter||c.services.includes(activeFilter);
     const matchL=!loc||c.loc===loc;
     const matchQ=!q||c.name.toLowerCase().includes(q)||c.loc.toLowerCase().includes(q)||
@@ -743,15 +758,15 @@ function renderCare(){
   const sorters={'price-asc':(a,b)=>a.rate-b.rate,'price-desc':(a,b)=>b.rate-a.rate,
     'rating':(a,b)=>b.rating-a.rating,'exp':(a,b)=>b.exp-a.exp};
   if(sorters[sortBy])list.sort(sorters[sortBy]);
-  // Premium pečovatelky mají vyšší zobrazení v doporučeném řazení
-  if(!sorters[sortBy])list.sort((a,b)=>(b.plan==='premium')-(a.plan==='premium'));
+  // pečovatelky s oprávněním "přednostní zobrazení" mají vyšší zobrazení v doporučeném řazení
+  if(!sorters[sortBy])list.sort((a,b)=>(hasPerm(b,'priorityRanking')?1:0)-(hasPerm(a,'priorityRanking')?1:0));
   const cnt=document.getElementById('careCount');
   if(cnt){const n=list.length;cnt.textContent=n+' '+(n===1?'pečovatelka':(n>=2&&n<=4?'pečovatelky':'pečovatelek'));}
   const g=document.getElementById('careGrid');
   if(!list.length){g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted)">Žádná pečovatelka neodpovídá filtru.</div>`;return;}
   g.innerHTML=list.map(c=>`
-    <div class="care-card ${c.plan==='premium'?'is-premium':''}" onclick="openProfile(${c.id})">
-      ${c.plan==='premium'?`<span class="prem-ribbon">${diamondSVG(13)}PREMIUM</span>`:''}
+    <div class="care-card ${hasPerm(c,'highlightedProfile')?'is-premium':''}" onclick="openProfile(${c.id})">
+      ${hasPerm(c,'highlightedProfile')?`<span class="prem-ribbon">${diamondSVG(13)}PREMIUM</span>`:''}
       <div class="care-top">
         ${avaHtml(c.init,c.photo)}
         <div style="flex:1">
@@ -786,6 +801,9 @@ async function openProfile(id,fromPop){
   const grid=document.getElementById('profileGrid');
   if(!c||!grid)return;
   state.profileToken=c.publicId||null;state.profileKind='caregiver';
+  if(!(auth.role==='caregiver'&&auth.email&&c.email&&auth.email.toLowerCase()===c.email.toLowerCase())){
+    api('/caregivers/'+id+'/view',{method:'POST'}).catch(()=>{});
+  }
   const revs=[...(cgReviews[id]||[]),...REVIEWS];
   const revCount=c.reviews+((cgReviews[id]||[]).length);
   grid.innerHTML=`
@@ -1896,7 +1914,7 @@ function renderFamilyDash(){
         <button class="qa-item" onclick="toast('SOS linka 24/7: +420 800 999 111')"><span class="qa-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#C9A233" stroke-width="1.6"/><circle cx="12" cy="12" r="3.4" stroke="#C9A233" stroke-width="1.6"/><path d="m5.4 5.4 4 4M18.6 5.4l-4 4M18.6 18.6l-4-4M5.4 18.6l4-4" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="qa-l">SOS linka 24/7</span><span class="qa-ar">›</span></button>
       </div>`;
   }
-  const rec=CAREGIVERS.slice().filter(c=>c.verified&&!c.suspended).sort((a,b)=>(b.plan==='premium')-(a.plan==='premium')||b.rating-a.rating).slice(0,3);
+  const rec=CAREGIVERS.slice().filter(c=>c.verified&&!c.suspended&&hasPerm(c,'publishServices')).sort((a,b)=>(hasPerm(b,'priorityRanking')?1:0)-(hasPerm(a,'priorityRanking')?1:0)||b.rating-a.rating).slice(0,3);
   document.getElementById('famRecommended').innerHTML=rec.map(c=>`
     <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openProfile(${c.id})">
       ${avaHtml(c.init,c.photo)}
@@ -1929,12 +1947,14 @@ function priceShort(c){
 }
 /* doprava: cena za km, 0 = v ceně */
 function kmLabel(c){return (c.kmPrice&&c.kmPrice>0)?`${c.kmPrice} Kč / km`:'V ceně';}
+/* oprávnění pečovatelky podle jejího tarifu (viz admin Tarify → Oprávnění tarifů) */
+function hasPerm(c,key){return !!(c&&c.perms&&c.perms[key]);}
 /* odznaky pečovatelky pro karty a profil */
 function cgBadges(c,opts){
   opts=opts||{};const b=[];
   if(c.idVerified&&c.verified)b.push('<span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>');
   if(c.rating>=4.85)b.push(`<span class="chip badge-top">${starFillSVG()} Top hodnocení</span>`);
-  if(c.plan==='premium')b.push(`<span class="chip badge-prem">${diamondSVG(13)}<span style="margin-left:4px">Premium</span></span>`);
+  if(hasPerm(c,'premiumBadge'))b.push(`<span class="chip badge-prem">${diamondSVG(13)}<span style="margin-left:4px">Premium</span></span>`);
   return b.slice(0,opts.max||b.length).join('');
 }
 
@@ -3228,11 +3248,14 @@ function removeUser(id){
 }
 function renderAdminOrders(){
   document.getElementById('admOrdCount').textContent=ORDERS.length;
-  document.getElementById('admOrdBody').innerHTML=ORDERS.slice().reverse().map(o=>{
+  // poptávky pečovatelek s oprávněním "prioritní zasílání poptávek" se admin řadí navrch
+  const sorted=ORDERS.slice().reverse().sort((a,b)=>(hasPerm(cg(b.cid),'priorityRequests')?1:0)-(hasPerm(cg(a.cid),'priorityRequests')?1:0));
+  document.getElementById('admOrdBody').innerHTML=sorted.map(o=>{
     const c=cg(o.cid);const st=ORDER_STATUS[o.status]||{cls:'pending',label:o.status};
     const cls=st.cls==='ok'?'ok':(st.cls==='done'?'ok':(st.cls==='declined'?'bad':'wait'));
+    const priority=hasPerm(c,'priorityRequests');
     return `<tr>
-      <td><b>${sName(o.service)}</b><div class="rd" style="font-size:12px;color:var(--muted)">${o.hours} h</div></td>
+      <td><b>${sName(o.service)}</b>${priority?` <span class="badge gold" style="margin-left:6px">Prioritní</span>`:''}<div class="rd" style="font-size:12px;color:var(--muted)">${o.hours} h</div></td>
       <td>${c?esc(c.name):'—'}</td>
       <td>${fmtDate(o.date)} · ${o.time}</td>
       <td><span class="badge ${cls}">${st.label}</span></td>
@@ -3401,6 +3424,7 @@ function renderAdminPlans(){
   if(spPlanEl){spPlanEl.value=signupPlan.plan==='premium'?'premium':(signupPlan.plan==='start'?'start':'none');if(spPlanEl._ddRefresh)spPlanEl._ddRefresh();}
   if(spDaysEl)spDaysEl.value=Number(signupPlan.days)||0;
   spToggleDays();
+  renderPlanPermTable();
 }
 function spToggleDays(){
   const val=(document.getElementById('spPlan')||{}).value;
@@ -3435,6 +3459,25 @@ function saveAdminPlans(e){
   apiSync(api('/settings/planPrices',{method:'PUT',body:{value:planPrices}}));
   renderAdminPlans();renderCare();
   toast('Ceny tarifů byly uloženy.');
+  return false;
+}
+/* ---- ADMIN: oprávnění tarifů (checkbox matice START/PREMIUM) ---- */
+function renderPlanPermTable(){
+  const t=document.getElementById('permTable');if(!t)return;
+  const chk=(plan,key)=>`<label class="perm-chk"><input type="checkbox" data-plan="${plan}" data-key="${key}" ${planPermissions[plan]&&planPermissions[plan][key]?'checked':''}></label>`;
+  t.innerHTML=`<div class="perm-row perm-head"><span>Oprávnění</span><span>START</span><span>PREMIUM</span></div>`
+    +PLAN_PERM_LABELS.map(([key,label])=>`<div class="perm-row"><span>${esc(label)}</span>${chk('start',key)}${chk('premium',key)}</div>`).join('');
+}
+function savePlanPermissions(e){
+  e.preventDefault();
+  const next={start:{},premium:{}};
+  document.querySelectorAll('#permTable input[type=checkbox]').forEach(inp=>{
+    const plan=inp.dataset.plan,key=inp.dataset.key;
+    if(next[plan])next[plan][key]=inp.checked;
+  });
+  planPermissions=next;
+  apiSync(api('/settings/planPermissions',{method:'PUT',body:{value:planPermissions}}));
+  toast('Oprávnění tarifů byla uložena.','success');
   return false;
 }
 
@@ -3532,7 +3575,8 @@ const cgProfile={
   priceType:'hod',dayRate:0,radius:0,kmPrice:0,
   services:[],
   langs:['Čeština'],
-  bio:''
+  bio:'',
+  views:0,perms:null
 };
 /* jazyky, které si pečovatelka může nastavit v profilu */
 const LANGUAGES=['Čeština','Slovenština','Angličtina','Němčina','Ukrajinština','Ruština','Polština','Vietnamština'];
@@ -3575,7 +3619,7 @@ function renderCgDashboard(){
     {ic:'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',v:earn.toLocaleString('cs-CZ')+' Kč',l:'Výdělek tento měsíc',t:null},
     {ic:'M8 2v4M16 2v4M4 9h16M4 5h16v15H4z',v:CG_SCHEDULE.length,l:'Nadcházející služby',t:null},
     {svg:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#C9A233" stroke-width="1.5"/><path d="M8.5 14a4.5 4.5 0 0 0 7 0" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="10" r="1.1" fill="#C9A233"/><circle cx="15" cy="10" r="1.1" fill="#C9A233"/></svg>',v:cgProfile.rating,l:'Hodnocení ('+cgProfile.reviews+')',t:null},
-    {svg:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="#C9A233" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="#C9A233" stroke-width="1.5"/></svg>',v:'—',l:'Zhlédnutí profilu',t:null}
+    {svg:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="#C9A233" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="#C9A233" stroke-width="1.5"/></svg>',v:(cgProfile.perms&&cgProfile.perms.viewStats)?Number(cgProfile.views||0).toLocaleString('cs-CZ'):'—',l:'Zhlédnutí profilu',t:null}
   ];
   document.getElementById('cgStats').innerHTML=stats.map(s=>`
     <div class="stat">
@@ -3591,6 +3635,14 @@ function renderCgDashboard(){
   const prev=CG_REQUESTS.slice(0,2);
   document.getElementById('cgReqBadge').textContent=CG_REQUESTS.length;
   document.getElementById('cgReqPreview').innerHTML=prev.length?prev.map(reqCardHTML).join(''):'<div class="empty">Žádné nové poptávky.</div>';
+}
+/* zákaznická podpora — reakční doba se liší podle oprávnění "přednostní zákaznická podpora" u tarifu */
+function cgSupportInfo(){
+  if(cgProfile.perms&&cgProfile.perms.prioritySupport){
+    toast('Prioritní podpora: napište na podpora@zenvoria.cz, odpovíme do 4 hodin.','success');
+  }else{
+    toast('Zákaznická podpora: napište na podpora@zenvoria.cz, odpovíme do 48 hodin.');
+  }
 }
 function cgScheduleHTML(){
   if(!CG_SCHEDULE.length)return '<div class="empty">Zatím nemáte naplánované žádné služby.</div>';
@@ -4499,6 +4551,7 @@ async function bootstrap(){
   BROADCASTS=d.broadcasts||[];
   if(d.planPrices)Object.assign(planPrices,d.planPrices);
   if(d.signupPlan)signupPlan={plan:d.signupPlan.plan==='premium'?'premium':(d.signupPlan.plan==='start'?'start':'none'),days:Number(d.signupPlan.days)||0};
+  if(d.planPermissions)planPermissions=d.planPermissions;
   if(d.socialLinks)Object.assign(socialLinks,d.socialLinks);
   // seq čítače z maxim (kdyby něco generovalo id lokálně)
   orderSeq=ORDERS.reduce((m,o)=>Math.max(m,o.oid||0),0);
@@ -4512,7 +4565,8 @@ async function bootstrap(){
     const me=CAREGIVERS.find(c=>c.email===auth.email);
     if(me){Object.assign(cgProfile,{name:me.name,bio:me.bio,loc:me.loc,rate:me.rate,services:me.services,langs:me.langs,photo:me.photo||cgProfile.photo,
       exp:me.exp!=null?me.exp:cgProfile.exp,radius:me.radius!=null?me.radius:cgProfile.radius,
-      priceType:me.priceType||cgProfile.priceType,dayRate:me.dayRate!=null?me.dayRate:cgProfile.dayRate,kmPrice:me.kmPrice!=null?me.kmPrice:cgProfile.kmPrice});
+      priceType:me.priceType||cgProfile.priceType,dayRate:me.dayRate!=null?me.dayRate:cgProfile.dayRate,kmPrice:me.kmPrice!=null?me.kmPrice:cgProfile.kmPrice,
+      views:me.views!=null?me.views:cgProfile.views,perms:me.perms||cgProfile.perms});
       if(Array.isArray(me.avail)){cgSlots=me.avail;cgAvail=me.avail.map(s=>!!(s.r||s.o||s.v));}}
   }
   deriveCgMaps();

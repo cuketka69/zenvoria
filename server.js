@@ -130,7 +130,7 @@ function genPublicId(len = 10) {
 }
 
 const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
-const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks', 'signupPlan'];
+const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks', 'signupPlan', 'planPermissions'];
 const ADMIN_UPDATABLE_USER_STATUSES = new Set(['active', 'suspended']);
 const ADMIN_UPDATABLE_CAREGIVER_STATUSES = new Set(['pending', 'verified', 'rejected']);
 const ADMIN_UPDATABLE_CAREGIVER_PLANS = new Set(['start', 'premium']);
@@ -204,9 +204,39 @@ function sanitizeSignupPlan(value) {
   days = Math.min(365, Math.round(days));
   return { plan, days };
 }
+/* oprávnění tarifů: co pečovatelka s daným plánem smí — bez plánu (null) nemá nikdy nic */
+const PLAN_PERMISSION_KEYS = ['manageProfile', 'publishServices', 'contactClients', 'receiveRequests', 'reviews',
+  'priorityRanking', 'premiumBadge', 'highlightedProfile', 'priorityRequests', 'viewStats', 'prioritySupport'];
+function defaultPlanPermissions() {
+  const startOn = new Set(['manageProfile', 'publishServices', 'contactClients', 'receiveRequests', 'reviews']);
+  const start = {}, premium = {};
+  PLAN_PERMISSION_KEYS.forEach((k) => { start[k] = startOn.has(k); premium[k] = true; });
+  return { start, premium };
+}
+function sanitizePlanPermissions(value) {
+  const def = defaultPlanPermissions();
+  const src = (value && typeof value === 'object' && !Array.isArray(value)) ? value : {};
+  const out = { start: {}, premium: {} };
+  for (const plan of ['start', 'premium']) {
+    const s = (src[plan] && typeof src[plan] === 'object') ? src[plan] : {};
+    PLAN_PERMISSION_KEYS.forEach((k) => { out[plan][k] = typeof s[k] === 'boolean' ? s[k] : def[plan][k]; });
+  }
+  return out;
+}
+function permsForPlan(plan, permsSetting) {
+  if (plan !== 'start' && plan !== 'premium') {
+    const none = {}; PLAN_PERMISSION_KEYS.forEach((k) => { none[k] = false; }); return none;
+  }
+  return (permsSetting || defaultPlanPermissions())[plan];
+}
+async function getPlanPermissions() {
+  const rows = await restSelect(T.settings, `key=eq.planPermissions&limit=1`);
+  return sanitizePlanPermissions(rows && rows[0] && rows[0].value);
+}
 function sanitizeSettingValue(key, value) {
   if (key === 'planPrices') return sanitizePlanPrices(value);
   if (key === 'socialLinks') return sanitizeSocialLinks(value);
+  if (key === 'planPermissions') return sanitizePlanPermissions(value);
   if (key === 'signupPlan') return sanitizeSignupPlan(value);
   return null;
 }
@@ -1280,7 +1310,7 @@ function publicUser(u) {
   if (!u) return null;
   return { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null };
 }
-function mapCaregiver(c) {
+function mapCaregiver(c, permsSetting) {
   return {
     id: Number(c.id), publicId: c.public_id || null, name: c.name, init: c.init, loc: c.loc, rate: c.rate,
     rating: Number(c.rating), reviews: c.reviews, exp: c.exp, services: c.services || [],
@@ -1289,16 +1319,18 @@ function mapCaregiver(c) {
     langs: c.langs || ['Čeština'],
     priceType: c.price_type, dayRate: c.day_rate, radius: c.radius, kmPrice: c.km_price,
     photo: c.photo || null, email: c.email || null, avail: c.avail || null,
+    views: Number(c.views || 0), perms: permsForPlan(c.plan, permsSetting),
   };
 }
 function mapCaregiverForViewer(c, opts = {}) {
-  const row = mapCaregiver(c);
+  const row = mapCaregiver(c, opts.perms);
   if (opts.viewer === 'admin' || opts.includePrivate) return row;
   delete row.email;
   delete row.avail;
   delete row.idVerified;
   delete row.planStatus;
   delete row.trialUntil;
+  delete row.views;
   return row;
 }
 function mapOrder(o) {
@@ -1931,9 +1963,10 @@ app.get('/api/bootstrap', h(async (req, res) => {
     else (cgReviews[r.caregiver_id] = cgReviews[r.caregiver_id] || []).push(row);
   });
 
+  const planPerms = sanitizePlanPermissions(settings.planPermissions);
   const caregiversForViewer = (caregivers || []).map((c) => {
     const includePrivate = viewer === 'caregiver' && ownCaregiver && Number(c.id) === Number(ownCaregiver.id);
-    return mapCaregiverForViewer(c, { viewer, includePrivate });
+    return mapCaregiverForViewer(c, { viewer, includePrivate, perms: planPerms });
   });
   const broadcastsForViewer = (broadcasts || []).filter((b) => {
     if (viewer === 'admin') return true;
@@ -1985,6 +2018,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     planPrices: settings.planPrices || { start: 190, premium: 390 },
     socialLinks: settings.socialLinks || { facebook: '', instagram: '' },
     signupPlan: sanitizeSignupPlan(settings.signupPlan) || { plan: 'none', days: 0 },
+    planPermissions: planPerms,
     settings,
   });
 }));
@@ -2011,11 +2045,13 @@ app.post('/api/orders', requireRole('family', 'admin'), h(async (req, res) => {
   const oid = await nextId(T.orders, 'oid');
   const famName = trimmedString(req.session.name || b.famName || 'Rodina', 120) || 'Rodina';
   let caregiverName = '';
-  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended&limit=1`);
+  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended,plan&limit=1`);
   if (caregiverRows && caregiverRows[0]) caregiverName = caregiverRows[0].name || '';
   const caregiver = caregiverRows && caregiverRows[0];
   if (!caregiver) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
   if (caregiver.suspended || caregiver.verified === false) return res.status(400).json({ error: 'Pečovatelka není aktuálně dostupná.' });
+  const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
+  if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
   const order = await restInsert(T.orders, {
     oid, cid, family_email: req.session.email, fam_name: famName,
     service, hours, date, time, addr,
@@ -2284,8 +2320,10 @@ app.post('/api/reviews', requireAuth, h(async (req, res) => {
   if (!Number.isInteger(caregiverId) || caregiverId <= 0 || !Number.isInteger(stars)) return res.status(400).json({ error: 'Neúplná recenze.' });
   if (stars < 1 || stars > 5) return res.status(400).json({ error: 'Neplatné hodnocení.' });
   if (!name || text.length < 3) return res.status(400).json({ error: 'Recenze je příliš krátká.' });
-  const caregiverRows = await restSelect(T.caregivers, `id=eq.${caregiverId}&select=id&limit=1`);
+  const caregiverRows = await restSelect(T.caregivers, `id=eq.${caregiverId}&select=id,plan&limit=1`);
   if (!caregiverRows || !caregiverRows[0]) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
+  const reviewPerms = permsForPlan(caregiverRows[0].plan, await getPlanPermissions());
+  if (!reviewPerms.reviews) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá hodnocení.' });
   await restInsert(T.reviews, { caregiver_id: caregiverId, init, name, stars, text }, { prefer: 'return=minimal' });
   res.json({ ok: true });
 }));
@@ -2373,6 +2411,11 @@ app.post('/api/conversations', requireAuth, h(async (req, res) => {
   let rows = await restSelect(T.conversations, `pair_key=eq.${encodeURIComponent(key)}&select=*&limit=1`);
   let conv = rows && rows[0];
   if (!conv) {
+    if (req.session.role === 'caregiver') {
+      const ownCg = await currentCaregiverRow(req);
+      const chatPerms = permsForPlan(ownCg && ownCg.plan, await getPlanPermissions());
+      if (!chatPerms.contactClients) return res.status(403).json({ error: 'Kontaktování klientů není ve vašem aktuálním tarifu dostupné.' });
+    }
     const id = await nextId(T.conversations, 'id');
     conv = await restInsert(T.conversations, { id, user_a: me, user_b: String(other), pair_key: key, created_at: new Date().toISOString() });
   }
@@ -2545,8 +2588,9 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   const b = req.body || {};
   const isAdmin = req.session && req.session.role === 'admin';
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID pečovatelky.' });
+  let ownCaregiver = null;
   if (!isAdmin) {
-    const ownCaregiver = await currentCaregiverRow(req);
+    ownCaregiver = await currentCaregiverRow(req);
     if (!ownCaregiver || Number(ownCaregiver.id) !== id) {
       return res.status(403).json({ error: 'Tento profil nemůžete upravit.' });
     }
@@ -2557,6 +2601,12 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     plan: 'plan', priceType: 'price_type', dayRate: 'day_rate', radius: 'radius', kmPrice: 'km_price',
     photo: 'photo', avail: 'avail', suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until' };
   for (const k in map) if (b[k] !== undefined) patch[map[k]] = b[k];
+  // úprava vlastního profilu vyžaduje oprávnění „Správa profilu" u aktuálního tarifu
+  const PROFILE_FIELD_KEYS = new Set(['name', 'loc', 'rate', 'exp', 'bio', 'services', 'langs', 'priceType', 'dayRate', 'radius', 'kmPrice', 'photo', 'avail']);
+  if (!isAdmin && Object.keys(b).some((k) => PROFILE_FIELD_KEYS.has(k))) {
+    const perms = permsForPlan(ownCaregiver.plan, await getPlanPermissions());
+    if (!perms.manageProfile) return res.status(403).json({ error: 'Úprava profilu není ve vašem aktuálním tarifu dostupná.' });
+  }
   // pozastavení / stav / ověření / trvání předplatného smí měnit jen správce
   if ((b.suspended !== undefined || b.status !== undefined || b.verified !== undefined || b.trialUntil !== undefined) && !isAdmin) {
     return res.status(403).json({ error: 'Tuto změnu smí provést jen správce.' });
@@ -2643,7 +2693,18 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   if (isAdmin && (b.suspended !== undefined || b.status !== undefined || b.plan !== undefined || b.verified !== undefined || b.trialUntil !== undefined)) {
     fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { suspended: b.suspended, status: b.status, plan: b.plan, verified: b.verified, trialUntil: b.trialUntil } });
   }
-  res.json({ caregiver: rows && rows[0] ? mapCaregiver(rows[0]) : null });
+  res.json({ caregiver: rows && rows[0] ? mapCaregiver(rows[0], await getPlanPermissions()) : null });
+}));
+
+// zaznamenání zhlédnutí veřejného profilu (statistiky zobrazení profilu — PREMIUM)
+app.post('/api/caregivers/:id/view', rateLimit('caregiver-view', { windowMs: 60 * 1000, max: 60, message: 'Příliš mnoho požadavků, zkuste to za chvíli.' }), h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID pečovatelky.' });
+  const rows = await restSelect(T.caregivers, `id=eq.${id}&select=id,views&limit=1`);
+  const row = rows && rows[0];
+  if (!row) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
+  await restUpdate(T.caregivers, `id=eq.${id}`, { views: Number(row.views || 0) + 1 }, { prefer: 'return=minimal' });
+  res.json({ ok: true });
 }));
 
 /* ---------------- STRIPE: předplatné PREMIUM ---------------- */
