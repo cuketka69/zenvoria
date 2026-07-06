@@ -4020,7 +4020,10 @@ async function downscaleImage(file,maxDim){
   const cv=document.createElement('canvas');cv.width=w;cv.height=h;
   const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(src,0,0,w,h);
   if(src.close)src.close();
-  return cv.toDataURL('image/jpeg',0.85);
+  // WebP = menší soubor → rychlejší načtení; fallback na JPEG, kde WebP canvas neumí
+  let out=cv.toDataURL('image/webp',0.82);
+  if(!/^data:image\/webp/.test(out))out=cv.toDataURL('image/jpeg',0.85);
+  return out;
 }
 async function onChatImage(input){
   const f=input.files&&input.files[0];input.value='';
