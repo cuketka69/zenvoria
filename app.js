@@ -2935,9 +2935,9 @@ function openCgAdmin(id){
       ? '<span class="badge">START</span>'
       : '<span class="badge off">Bez plánu</span>');
   document.getElementById('cgAdminBadges').innerHTML=statusBadge+planBadge;
-  const validTxt=planKey==='premium'
-    ? (c.trialUntil?('platí do '+fmtDate(c.trialUntil)):'platí neomezeně')
-    : (planKey==='start'?'placený tarif':'bez aktivního předplatného');
+  const validTxt=planKey==='none'
+    ? 'bez aktivního předplatného'
+    : (c.trialUntil?('platí do '+fmtDate(c.trialUntil)):'platí neomezeně');
   const currentIcon=planKey==='premium'?planIcon('premium',15):(planKey==='start'?planIcon('start',15):'');
   const currentLabel=planKey==='premium'?'PREMIUM':(planKey==='start'?'START':'Bez plánu');
   document.getElementById('cgAdminCurrent').innerHTML=`${currentIcon}<span>Aktuálně <b>${currentLabel}</b> · ${esc(validTxt)}</span>`;
@@ -2971,13 +2971,13 @@ function cgAdminCancelEdit(){
 }
 function closeCgAdmin(){const m=document.getElementById('cgAdminModal');if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}}
 function cgAdminToggleUntil(){
-  const prem=(document.getElementById('cgAdminPlan')||{}).value==='premium';
+  const hasPlan=(document.getElementById('cgAdminPlan')||{}).value!=='none';
   const w=document.getElementById('cgAdminUntilWrap');
   const inp=document.getElementById('cgAdminUntil');
   const hint=w?w.querySelector('.cga-hint'):null;
-  if(inp)inp.disabled=!prem;
-  if(w)w.classList.toggle('is-disabled',!prem);
-  if(hint)hint.textContent=prem?'Prázdné = neomezeně':'Nastavíte po přepnutí na PREMIUM';
+  if(inp)inp.disabled=!hasPlan;
+  if(w)w.classList.toggle('is-disabled',!hasPlan);
+  if(hint)hint.textContent=hasPlan?'Prázdné = neomezeně':'Nastavíte po výběru tarifu';
 }
 function cgAdminSavePlan(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
@@ -2985,7 +2985,7 @@ function cgAdminSavePlan(){
   const plan=rawPlan==='premium'?'premium':(rawPlan==='start'?'start':null);
   const until=(document.getElementById('cgAdminUntil')||{}).value||'';
   const body={plan};
-  body.trialUntil=(plan==='premium'&&until)?new Date(until+'T23:59:59').toISOString():null;
+  body.trialUntil=(plan&&until)?new Date(until+'T23:59:59').toISOString():null;
   c.plan=plan;c.trialUntil=body.trialUntil;
   apiSync(api('/caregivers/'+c.id,{method:'PATCH',body}));
   renderAdminCaregivers();renderCare();openCgAdmin(c.id);
