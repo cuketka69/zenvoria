@@ -3254,9 +3254,13 @@ function renderAdminPlans(){
   spToggleDays();
 }
 function spToggleDays(){
-  const p=(document.getElementById('spPlan')||{}).value;
+  const prem=(document.getElementById('spPlan')||{}).value==='premium';
   const w=document.getElementById('spDaysWrap');
-  if(w)w.style.display=p==='premium'?'':'none';
+  const inp=document.getElementById('spDays');
+  const hint=w?w.querySelector('.cga-hint'):null;
+  if(inp)inp.disabled=!prem;
+  if(w)w.classList.toggle('is-disabled',!prem);
+  if(hint)hint.textContent=prem?'0 = neomezeně':'Platí jen pro PREMIUM';
 }
 function saveSignupPlan(e){
   e.preventDefault();
