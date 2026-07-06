@@ -560,7 +560,28 @@ function renderHome(){
 
 /* ---------- SEARCH RENDER ---------- */
 let activeFilter='';
+function getSearchLocations(){
+  const seen=new Set();
+  CAREGIVERS.forEach(c=>{
+    const loc=String((c&&c.loc)||'').trim();
+    if(!loc||!c.verified||c.suspended)return;
+    seen.add(loc);
+  });
+  return Array.from(seen).sort((a,b)=>a.localeCompare(b,'cs'));
+}
+function renderSearchLocations(){
+  const sel=document.getElementById('loc');
+  if(!sel)return;
+  const current=sel.value||'';
+  const locations=getSearchLocations();
+  sel.innerHTML=['<option value="">Celá Praha</option>']
+    .concat(locations.map(loc=>`<option value="${esc(loc)}">${esc(loc)}</option>`))
+    .join('');
+  sel.value=locations.includes(current)?current:'';
+  if(sel._ddRefresh)sel._ddRefresh();
+}
 function renderFilters(){
+  renderSearchLocations();
   const all=[{id:'',name:'Vše'},...SERVICES];
   document.getElementById('servFilters').innerHTML=all.map(s=>
     `<button class="fbtn ${activeFilter===s.id?'on':''}" onclick="setFilter('${s.id}')">${s.name}</button>`).join('');
