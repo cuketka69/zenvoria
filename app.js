@@ -165,7 +165,7 @@ async function go(v,fromPop){
   if(v==='cg-calendar')renderCgCalendar();
   if(v==='cg-profile')renderCgProfile();
   if(v==='cg-verify')renderCgVerify();
-  if(v==='chat')renderChat();
+  if(v==='chat')enterChat();
   if(v==='fam-dash')renderFamilyDash();
   if(v==='admin-dash')renderAdminDash();
   if(v==='admin-verify')renderAdminVerify();
@@ -675,7 +675,7 @@ async function openProfile(id,fromPop){
       <div class="row"><span class="l">Reakce</span><span class="r">do 2 hodin</span></div>
       <div class="total-row"><span class="l">${c.priceType==='indiv'?'Cena':'Od'}</span><span class="big">${c.priceType==='indiv'?'Dohodou':priceShort(c).replace(/<b>|<\/b>/g,'')}</span></div>
       <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openBooking(${c.id})">Objednat službu</button>
-      <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openChat(${jsq(c.name)},${jsq(c.init)},'caregiver')">Napsat zprávu</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openChat(${c.id},${jsq(c.name)},${jsq(c.init)},'caregiver')">Napsat zprávu</button>
     </div>`;
   go('profile',fromPop);
   startProfilePresence(id);
@@ -736,6 +736,13 @@ function initPresencePing(){
   if(presencePingTimer)clearInterval(presencePingTimer);
   presencePingTimer=setInterval(presencePing,45000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')presencePing();});
+}
+/* průběžně obnovuj seznam konverzací (nepřečtené) i mimo chat */
+let chatWatchTimer=null;
+function initChatWatch(){
+  if(chatWatchTimer)clearInterval(chatWatchTimer);
+  if(auth.loggedIn)loadConversations();
+  chatWatchTimer=setInterval(()=>{if(auth.loggedIn&&activeView()!=='chat')loadConversations();},20000);
 }
 
 /* --- presence protistran v chatu --- */
@@ -1034,6 +1041,7 @@ function loginAs(name,email,role,photo,publicId){
   if(publicId!==undefined)auth.publicId=publicId||null;
   updateAuthUI();
   try{presencePing();}catch(e){}
+  try{loadConversations();}catch(e){}
 }
 async function logout(){
   try{await api('/auth/logout',{method:'POST'});}catch(e){}
@@ -3636,7 +3644,7 @@ function renderOrderDetail(){
       <div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Délka</span><span style="font-weight:600;color:var(--navy-900)">${o.hours} h</span></div>
       ${o.transport>0?`<div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Doprava</span><span style="font-weight:600;color:var(--navy-900)">${o.transport.toLocaleString('cs-CZ')} Kč (${o.km} km)</span></div>`:''}
       <div class="total-row"><span class="l" style="color:var(--muted)">Celkem</span><span class="big">${o.price.toLocaleString('cs-CZ')} Kč</span></div>
-      <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openChat(${jsq(o.cpName)},${jsq(o.cpInit)},${jsq(o.cpChatRole)})">Napsat zprávu</button>
+      <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openChat(${o.viewer==='family'?o.cid:'null'},${jsq(o.cpName)},${jsq(o.cpInit)},${jsq(o.cpChatRole)})">Napsat zprávu</button>
       ${action}
     </div>`;
 }
@@ -3749,31 +3757,76 @@ function ensureBroadcastConvo(){
   c.readonly=true;
   c.unread=(activeChat===-1)?0:list.filter(b=>!bcSeen.includes(b.id)).length;
 }
-const CHAT_REPLIES=['Děkuji za zprávu, ozvu se co nejdříve.','Jistě, ráda pomůžu. Domluvíme detaily?',
-  'Rozumím, zařídím to. 🙂','To zní dobře, potvrzuji termín.','Díky, budu se těšit!'];
 function chatNow(){return new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'});}
-function openChat(name,init,role,photo){
-  if(!auth.loggedIn){
-    toast('Pro poslání zprávy se prosím přihlaste.');
-    go('login');
-    return;
-  }
-  let c=CONVERSATIONS.find(x=>x.name===name);
-  if(!c){
-    c={id:chatTmpSeq--,name,init:init||initials(name),role:role||'caregiver',photo:photo||null,msgs:[]};
-    CONVERSATIONS.unshift(c);
-    apiSync(api('/conversations',{method:'POST',body:{name,init:c.init,role:c.role}}).then(r=>{
-      if(r&&r.conversation){
-        const oldId=c.id;
-        c.id=r.conversation.id;
-        chatSeq=Math.max(chatSeq,c.id);
-        if(activeChat===oldId)activeChat=c.id;
-        renderChat();
-      }
-    }));
-  }
-  else if(photo&&!c.photo)c.photo=photo;
-  activeChat=c.id;go('chat');
+/* --- reálný oboustranný chat: data ze serveru --- */
+let chatPollTimer=null;
+function convClient(cv){
+  return {id:cv.id,name:cv.name,init:cv.init||initials(cv.name||''),photo:cv.photo||null,
+    role:cv.role||'caregiver',msgs:cv.msgs||[],last:cv.last||'',unread:cv.unread||0,lastAt:cv.lastAt||null};
+}
+function upsertConversation(cv){
+  let c=CONVERSATIONS.find(x=>x.id===cv.id);
+  if(c){c.name=cv.name;c.init=cv.init||c.init;c.photo=cv.photo||c.photo;c.role=cv.role||c.role;
+    c.last=cv.last!=null?cv.last:c.last;c.unread=cv.unread||0;c.lastAt=cv.lastAt||c.lastAt;if(cv.msgs)c.msgs=cv.msgs;}
+  else{CONVERSATIONS.unshift(convClient(cv));}
+  return CONVERSATIONS.find(x=>x.id===cv.id);
+}
+async function loadConversations(){
+  if(!auth.loggedIn)return;
+  let list;
+  try{const r=await api('/conversations');list=r.conversations||[];}catch(e){return;}
+  const keep={};list.forEach(cv=>keep[cv.id]=cv);
+  // ponech broadcast pseudo (id<=0) a jen existující reálné konverzace
+  CONVERSATIONS=CONVERSATIONS.filter(c=>c.id<=0||keep[c.id]);
+  list.forEach(cv=>upsertConversation(cv));
+  CONVERSATIONS.sort((a,b)=>{if(a.id===-1)return -1;if(b.id===-1)return 1;return (Date.parse(b.lastAt||0)||0)-(Date.parse(a.lastAt||0)||0);});
+  ensureBroadcastConvo();
+  updateAuthUI();
+}
+async function loadMessages(id){
+  if(!(id>0))return;
+  const c=CONVERSATIONS.find(x=>x.id===id);if(!c)return;
+  try{const r=await api('/conversations/'+id+'/messages');c.msgs=r.messages||[];c.unread=0;}catch(e){}
+}
+function chatSignature(){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);
+  const last=c&&c.msgs.length?c.msgs[c.msgs.length-1]:null;
+  const msgSig=c?(c.msgs.length+':'+(last&&last.id||0)):'0';
+  return CONVERSATIONS.map(x=>x.id+'/'+(x.unread||0)+'/'+(x.last||'')).join('|')+'#'+activeChat+'#'+msgSig;
+}
+async function enterChat(){
+  renderChat();
+  await loadConversations();
+  if(activeChat==null||!CONVERSATIONS.find(c=>c.id===activeChat))activeChat=CONVERSATIONS[0]&&CONVERSATIONS[0].id;
+  if(activeChat>0)await loadMessages(activeChat);
+  renderChat();
+  startChatPolling();
+}
+function startChatPolling(){
+  if(chatPollTimer)clearInterval(chatPollTimer);
+  chatPollTimer=setInterval(async()=>{
+    if(activeView()!=='chat'){clearInterval(chatPollTimer);chatPollTimer=null;return;}
+    const before=chatSignature();
+    await loadConversations();
+    if(activeChat>0)await loadMessages(activeChat);
+    if(chatSignature()!==before)renderChat();
+  },6000);
+}
+async function openChat(caregiverId,name,init,role,email){
+  if(!auth.loggedIn){toast('Pro poslání zprávy se prosím přihlaste.');go('login');return;}
+  const body={};
+  if(caregiverId)body.caregiverId=caregiverId;
+  else if(email)body.email=email;
+  else if(name){body.name=name;body.role=role||'caregiver';}
+  else return;
+  let conv;
+  try{const r=await api('/conversations',{method:'POST',body});conv=r.conversation;}
+  catch(e){toast(e.message||'Nepodařilo se otevřít konverzaci.','declined');return;}
+  upsertConversation(conv);
+  activeChat=conv.id;
+  await go('chat');
+  if(activeChat>0)await loadMessages(activeChat);
+  renderChat();
   setTimeout(()=>document.getElementById('chatInput')?.focus(),140);
 }
 /* fotka protistrany konverzace — z konverzace, jinak dohledat pečovatelku podle jména */
@@ -3857,37 +3910,34 @@ function renderChat(){
   applyChatPresenceToDom();
   startChatPresence();
 }
+/* odešli text do aktivní konverzace (optimisticky, bez fake odpovědi) */
+async function sendChatText(text){
+  text=String(text||'').trim();if(!text)return;
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);
+  if(!c||c.readonly||!(c.id>0)){toast('Vyberte konverzaci.');return;}
+  const tmp={id:0,me:true,text,t:chatNow(),pending:true};
+  c.msgs.push(tmp);c.last=text;renderChat();
+  try{
+    const r=await api('/conversations/'+c.id+'/messages',{method:'POST',body:{text,t:tmp.t}});
+    const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs[i]=r.message;else c.msgs.push(r.message);
+    c.last=text;c.lastAt=r.message.createdAt;renderChat();
+  }catch(err){
+    const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs.splice(i,1);renderChat();
+    toast(err.message||'Zprávu se nepodařilo odeslat.','declined');
+  }
+}
 function sendTerm(){
-  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c){toast('Vyberte konverzaci.');return;}
   const d=new Date(Date.now()+2*86400000);
-  const navrh=`📅 Návrh termínu: ${d.toLocaleDateString('cs-CZ',{day:'numeric',month:'long'})} v 10:00 (4 h). Vyhovuje?`;
-  const sent={me:true,text:navrh,t:chatNow()};
-  c.msgs.push(sent);renderChat();
-  if(auth.loggedIn&&c.id>0)apiSync(api('/conversations/'+c.id+'/messages',{method:'POST',body:sent}));
-  setTimeout(()=>{
-    const reply={me:false,text:'Termín mi vyhovuje, potvrzuji. 🙂',t:chatNow()};
-    c.msgs.push(reply);renderChat();
-    if(auth.loggedIn&&c.id>0)apiSync(api('/conversations/'+c.id+'/messages',{method:'POST',body:reply}));
-  },1300);
+  sendChatText(`📅 Návrh termínu: ${d.toLocaleDateString('cs-CZ',{day:'numeric',month:'long'})} v 10:00 (4 h). Vyhovuje?`);
 }
 function videoCall(){toast('Videohovory spouštíme již brzy.');}
 function scrollChat(){const b=document.getElementById('chatBody');if(b)b.scrollTop=b.scrollHeight;}
-function selectChat(id){activeChat=id;renderChat();document.getElementById('chatInput')?.focus();}
+async function selectChat(id){activeChat=id;renderChat();if(id>0)await loadMessages(id);renderChat();document.getElementById('chatInput')?.focus();}
 function sendChat(e){
   e.preventDefault();
   const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return false;
-  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return false;
-  const sent={me:true,text,t:chatNow()};
-  c.msgs.push(sent);inp.value='';renderChat();
-  if(auth.loggedIn&&c.id>0)apiSync(api('/conversations/'+c.id+'/messages',{method:'POST',body:sent}));
-  const body=document.getElementById('chatBody');
-  const typing=document.createElement('div');typing.className='typing';
-  typing.textContent=c.name.split(/\s+/)[0]+' píše…';body.appendChild(typing);scrollChat();
-  setTimeout(()=>{
-    const reply={me:false,text:CHAT_REPLIES[Math.floor(Math.random()*CHAT_REPLIES.length)],t:chatNow()};
-    c.msgs.push(reply);renderChat();
-    if(auth.loggedIn&&c.id>0)apiSync(api('/conversations/'+c.id+'/messages',{method:'POST',body:reply}));
-  },1300);
+  inp.value='';
+  sendChatText(text);
   return false;
 }
 
@@ -4151,5 +4201,6 @@ async function initApp(){
   initAdminPoll();
   initAuthWatch();
   initPresencePing();
+  initChatWatch();
 }
 initApp();

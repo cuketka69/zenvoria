@@ -1245,17 +1245,20 @@ function requireCsrf(req, res, next) {
   }
   next();
 }
-function requireConversationOwner(req, res, next) {
+// přístup do konverzace má jen její účastník (user_a / user_b) nebo admin
+function requireConversationParticipant(req, res, next) {
   Promise.resolve().then(async () => {
     if (!req.session) return res.status(401).json({ error: 'Nepřihlášen' });
-    if (req.session.role === 'admin') return next();
-    const access = await loadConversationAccess(req.params.id);
-    if (!access || !access.value.ownerEmail) {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID konverzace.' });
+    const rows = await restSelect(T.conversations, `id=eq.${id}&select=id,user_a,user_b,a_read_at,b_read_at&limit=1`);
+    const conv = rows && rows[0];
+    if (!conv) return res.status(404).json({ error: 'Konverzace nenalezena.' });
+    const me = String(req.session.uid || '');
+    if (req.session.role !== 'admin' && me !== String(conv.user_a || '') && me !== String(conv.user_b || '')) {
       return res.status(403).json({ error: 'Do této konverzace nemáte přístup.' });
     }
-    if (access.value.ownerEmail !== String(req.session.email || '').toLowerCase()) {
-      return res.status(403).json({ error: 'Do této konverzace nemáte přístup.' });
-    }
+    req.conversation = conv;
     next();
   }).catch(next);
 }
@@ -2259,35 +2262,108 @@ app.post('/api/reviews', requireAuth, h(async (req, res) => {
   res.json({ ok: true });
 }));
 
-/* ---------------- CHAT ---------------- */
-app.post('/api/conversations', requireAuth, h(async (req, res) => {
-  const b = req.body || {};
-  const name = trimmedString(b.name, 120);
-  const init = trimmedString(b.init, 4).toUpperCase();
-  const role = trimmedString(b.role || 'caregiver', 20);
-  if (!name || name.length < 2) return res.status(400).json({ error: 'Chybí název konverzace.' });
-  if (!['caregiver', 'family', 'admin'].includes(role)) return res.status(400).json({ error: 'Neplatný typ konverzace.' });
-  const id = await nextId(T.conversations, 'id');
-  const row = await restInsert(T.conversations, { id, name, init, role, unread: 0 });
-  await saveConversationAccess(id, {
-    ownerEmail: String(req.session.email || '').toLowerCase(),
-    role: req.session.role || 'family',
-    createdAt: new Date().toISOString(),
-  });
-  res.json({ conversation: { id: Number(row.id), name: row.name, init: row.init, role: row.role, msgs: [] } });
+/* ---------------- CHAT (reálný oboustranný) ---------------- */
+function conversationPairKey(a, b) { return [String(a), String(b)].sort().join('|'); }
+
+async function loadConversationMessages(convId, me) {
+  const rows = await restSelect(T.messages, `conversation_id=eq.${Number(convId)}&order=created_at.asc&select=id,sender_id,text,t,created_at`);
+  return (rows || []).map((m) => ({
+    id: Number(m.id), me: String(m.sender_id || '') === String(me),
+    text: m.text, t: m.t || '', createdAt: m.created_at,
+  }));
+}
+async function countConversationUnread(convId, me, readAt) {
+  let q = `conversation_id=eq.${Number(convId)}&sender_id=neq.${encodeURIComponent(me)}&select=id&limit=500`;
+  if (readAt) q += `&created_at=gt.${encodeURIComponent(readAt)}`;
+  const rows = await restSelect(T.messages, q);
+  return rows ? rows.length : 0;
+}
+// konverzace z pohledu daného uživatele — zobrazí druhou stranu
+async function mapConversationForViewer(conv, me) {
+  const otherId = String(conv.user_a) === String(me) ? conv.user_b : conv.user_a;
+  const u = (await restSelect(T.users, `id=eq.${encodeURIComponent(otherId)}&select=name,init,photo,role&limit=1`))[0] || {};
+  const myReadAt = String(conv.user_a) === String(me) ? conv.a_read_at : conv.b_read_at;
+  return {
+    id: Number(conv.id), name: u.name || 'Uživatel', init: u.init || '', photo: u.photo || null,
+    role: u.role || 'family', last: conv.last_text || '', lastAt: conv.last_at || null,
+    unread: await countConversationUnread(conv.id, me, myReadAt),
+  };
+}
+async function resolveCounterpartUserId(b) {
+  if (b.caregiverId != null) {
+    const cgs = await restSelect(T.caregivers, `id=eq.${Number(b.caregiverId)}&select=user_id&limit=1`);
+    return cgs && cgs[0] ? cgs[0].user_id : null;
+  }
+  if (b.email) { const u = await findUserByEmail(b.email); return u ? u.id : null; }
+  if (b.name) {
+    const name = trimmedString(b.name, 120);
+    const role = trimmedString(b.role, 20) || 'caregiver';
+    if (role === 'caregiver') {
+      const cgs = await restSelect(T.caregivers, `name=eq.${encodeURIComponent(name)}&select=user_id&limit=1`);
+      return cgs && cgs[0] ? cgs[0].user_id : null;
+    }
+    const u = await restSelect(T.users, `name=eq.${encodeURIComponent(name)}&role=eq.${encodeURIComponent(role)}&select=id&limit=1`);
+    return u && u[0] ? u[0].id : null;
+  }
+  return null;
+}
+
+// seznam konverzací přihlášeného uživatele
+app.get('/api/conversations', requireAuth, h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const me = String(req.session.uid || '');
+  if (!me) return res.json({ conversations: [] });
+  const rows = await restSelect(T.conversations, `or=(user_a.eq.${encodeURIComponent(me)},user_b.eq.${encodeURIComponent(me)})&order=last_at.desc.nullslast&select=*`);
+  const out = [];
+  for (const conv of rows || []) out.push(await mapConversationForViewer(conv, me));
+  res.json({ conversations: out });
 }));
 
-app.post('/api/conversations/:id/messages', requireAuth, requireConversationOwner, h(async (req, res) => {
+// založ (nebo najdi) konverzaci s protistranou
+app.post('/api/conversations', requireAuth, h(async (req, res) => {
   const b = req.body || {};
-  const conversationId = Number(req.params.id);
-  if (!Number.isInteger(conversationId) || conversationId <= 0) return res.status(400).json({ error: 'Neplatné ID konverzace.' });
+  const me = String(req.session.uid || '');
+  if (!me) return res.status(401).json({ error: 'Nepřihlášeno.' });
+  const other = await resolveCounterpartUserId(b);
+  if (!other) return res.status(404).json({ error: 'Protistrana nebyla nalezena.' });
+  if (String(other) === me) return res.status(400).json({ error: 'Nelze psát sám sobě.' });
+  const key = conversationPairKey(me, other);
+  let rows = await restSelect(T.conversations, `pair_key=eq.${encodeURIComponent(key)}&select=*&limit=1`);
+  let conv = rows && rows[0];
+  if (!conv) {
+    const id = await nextId(T.conversations, 'id');
+    conv = await restInsert(T.conversations, { id, user_a: me, user_b: String(other), pair_key: key, created_at: new Date().toISOString() });
+  }
+  const mapped = await mapConversationForViewer(conv, me);
+  mapped.msgs = await loadConversationMessages(conv.id, me);
+  res.json({ conversation: mapped });
+}));
+
+// zprávy konverzace + označení jako přečtené
+app.get('/api/conversations/:id/messages', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const me = String(req.session.uid || '');
+  const conv = req.conversation;
+  const msgs = await loadConversationMessages(conv.id, me);
+  const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
+  await restUpdate(T.conversations, `id=eq.${conv.id}`, { [col]: new Date().toISOString() }, { prefer: 'return=minimal' }).catch(() => {});
+  res.json({ messages: msgs });
+}));
+
+// odeslání zprávy
+app.post('/api/conversations/:id/messages', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const b = req.body || {};
+  const me = String(req.session.uid || '');
+  const conv = req.conversation;
   const text = String(b.text || '').trim();
   if (!text) return res.status(400).json({ error: 'Chybí text zprávy.' });
   if (text.length > 2000) return res.status(400).json({ error: 'Zpráva je příliš dlouhá.' });
-  const sentAt = trimmedString(b.t, 20);
-  if (b.me !== undefined && typeof b.me !== 'boolean') return res.status(400).json({ error: 'Neplatná hodnota odesílatele zprávy.' });
-  const row = await restInsert(T.messages, { conversation_id: conversationId, mine: b.me !== false, text, t: sentAt || '' });
-  res.json({ message: { me: row.mine, text: row.text, t: row.t } });
+  const t = trimmedString(b.t, 20);
+  const now = new Date().toISOString();
+  const row = await restInsert(T.messages, { conversation_id: conv.id, sender_id: me, mine: true, text, t: t || '', created_at: now });
+  const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
+  await restUpdate(T.conversations, `id=eq.${conv.id}`, { last_text: text, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
+  res.json({ message: { id: Number(row.id), me: true, text, t: t || '', createdAt: now } });
 }));
 
 /* ---------------- BROADCAST (admin) ---------------- */
