@@ -508,6 +508,41 @@
   </div>
 </div>
 
+<!-- ============ ADMIN: SPRÁVA PEČOVATELKY ============ -->
+<div class="modal" id="cgAdminModal" role="dialog" aria-modal="true" aria-labelledby="cgAdminTitle">
+  <div class="modal-scrim" onclick="closeCgAdmin()"></div>
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeCgAdmin()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <h3 id="cgAdminTitle">Pečovatelka</h3>
+    <p class="msub" id="cgAdminSub"></p>
+
+    <div class="cga-info" id="cgAdminInfo"></div>
+
+    <div class="pdiv" style="margin:18px 0 16px"></div>
+    <h4 style="font-size:15px;color:var(--navy-900);margin-bottom:12px">Předplatné</h4>
+    <div class="grid2">
+      <div><label class="lbl" for="cgAdminPlan">Tarif</label>
+        <select class="inp" id="cgAdminPlan" onchange="cgAdminToggleUntil()">
+          <option value="start">START (zdarma)</option>
+          <option value="premium">PREMIUM</option>
+        </select>
+      </div>
+      <div id="cgAdminUntilWrap"><label class="lbl" for="cgAdminUntil">Platí do (prázdné = neomezeně)</label><input class="inp" type="date" id="cgAdminUntil"></div>
+    </div>
+    <button class="btn btn-gold btn-block" style="margin-top:14px" type="button" onclick="cgAdminSavePlan()">Uložit předplatné</button>
+
+    <div class="pdiv" style="margin:18px 0 16px"></div>
+    <h4 style="font-size:15px;color:var(--navy-900);margin-bottom:12px">Akce</h4>
+    <div class="adm-actions" style="flex-wrap:wrap;gap:10px">
+      <button class="btn" id="cgAdminSuspendBtn" type="button" onclick="cgAdminSuspend()">Pozastavit</button>
+      <button class="btn btn-ghost" id="cgAdminUnverifyBtn" type="button" onclick="cgAdminUnverify()">Odebrat ověření</button>
+      <button class="btn btn-decline" type="button" onclick="cgAdminRemove()">Odebrat pečovatelku</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ PLATBA PŘEDPLATNÉHO ============ -->
 <div class="modal" id="payModal" role="dialog" aria-modal="true" aria-labelledby="payTitle">
   <div class="modal-scrim" onclick="closePay()"></div>

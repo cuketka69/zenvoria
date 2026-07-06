@@ -2893,11 +2893,9 @@ function renderAdminCaregivers(){
     return `<tr>
       <td><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(c.name)}</b><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
       <td>${esc(c.loc)}</td><td>${c.rate} Kč</td><td>${badge}</td>
-      <td>${planBadge}</td>
-      <td><div class="adm-actions">
-        <button class="btn btn-sm ${isPrem?'btn-decline':'btn-gold'}" onclick="setCgPlan(${c.id},'${isPrem?'start':'premium'}')">${isPrem?'Zrušit PREMIUM':'Nastavit PREMIUM'}</button>
-        <button class="btn btn-sm ${c.suspended?'btn-accept':'btn-decline'}" onclick="toggleSuspendCg(${c.id})">${c.suspended?'Obnovit':'Pozastavit'}</button>
-        <button class="btn btn-sm btn-decline" onclick="removeCaregiver(${c.id})">Odebrat</button>
+      <td>${planBadge}${(isPrem&&c.trialUntil)?`<div style="font-size:11.5px;color:var(--muted);margin-top:3px">do ${fmtDate(c.trialUntil)}</div>`:''}</td>
+      <td><div class="adm-actions" style="justify-content:flex-end">
+        <button class="btn btn-sm btn-gold" onclick="openCgAdmin(${c.id})">Zobrazit</button>
       </div></td>
     </tr>`;}).join('');
 }
@@ -2919,6 +2917,65 @@ function setCgPlan(id,plan){
       :`${esc(c.name)} se vrátí do bezplatného tarifu START. Případné aktivní předplatné přes Stripe tím nezrušíte — spravujte ho ve Stripe.`,
     confirmLabel:toPrem?'Nastavit PREMIUM':'Zrušit PREMIUM',
     danger:!toPrem,onConfirm:doIt});
+}
+/* ---- ADMIN: správcovský modal pečovatelky ---- */
+let cgAdminId=null;
+function openCgAdmin(id){
+  const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
+  cgAdminId=id;
+  document.getElementById('cgAdminTitle').textContent=c.name;
+  document.getElementById('cgAdminSub').textContent=`${c.loc||''} · ${c.exp} let praxe · ${c.rate} Kč/hod`;
+  const statusTxt=c.suspended?'Pozastavená':(c.verified?'Ověřená':'Neověřená');
+  const planTxt=c.plan==='premium'?'PREMIUM':'START';
+  const untilTxt=(c.plan==='premium')?(c.trialUntil?('do '+fmtDate(c.trialUntil)):'neomezeně'):'—';
+  document.getElementById('cgAdminInfo').innerHTML=
+    `<div class="cga-row"><span>Stav</span><b>${esc(statusTxt)}</b></div>`+
+    `<div class="cga-row"><span>Předplatné</span><b>${planTxt}</b></div>`+
+    `<div class="cga-row"><span>Platnost předplatného</span><b>${esc(untilTxt)}</b></div>`;
+  const planEl=document.getElementById('cgAdminPlan');
+  if(planEl){planEl.value=c.plan==='premium'?'premium':'start';if(planEl._ddRefresh)planEl._ddRefresh();}
+  const untilEl=document.getElementById('cgAdminUntil');
+  if(untilEl)untilEl.value=c.trialUntil?String(c.trialUntil).slice(0,10):'';
+  cgAdminToggleUntil();
+  const susBtn=document.getElementById('cgAdminSuspendBtn');
+  if(susBtn){susBtn.textContent=c.suspended?'Obnovit pečovatelku':'Pozastavit';susBtn.className='btn '+(c.suspended?'btn-accept':'btn-decline');}
+  const unvBtn=document.getElementById('cgAdminUnverifyBtn');
+  if(unvBtn)unvBtn.style.display=c.verified?'':'none';
+  const m=document.getElementById('cgAdminModal');if(m){m.classList.add('open');document.body.style.overflow='hidden';}
+}
+function closeCgAdmin(){const m=document.getElementById('cgAdminModal');if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}}
+function cgAdminToggleUntil(){const p=(document.getElementById('cgAdminPlan')||{}).value;const w=document.getElementById('cgAdminUntilWrap');if(w)w.style.display=p==='premium'?'':'none';}
+function cgAdminSavePlan(){
+  const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
+  const plan=(document.getElementById('cgAdminPlan')||{}).value==='premium'?'premium':'start';
+  const until=(document.getElementById('cgAdminUntil')||{}).value||'';
+  const body={plan};
+  body.trialUntil=(plan==='premium'&&until)?new Date(until+'T23:59:59').toISOString():null;
+  c.plan=plan;c.trialUntil=body.trialUntil;
+  apiSync(api('/caregivers/'+c.id,{method:'PATCH',body}));
+  renderAdminCaregivers();renderCare();openCgAdmin(c.id);
+  toast('Předplatné uloženo.','success');
+}
+function cgAdminSuspend(){
+  const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
+  c.suspended=!c.suspended;
+  const u=USERS.find(x=>String(x.email||'').toLowerCase()===String(c.email||'').toLowerCase());
+  if(u)u.status=c.suspended?'suspended':'active';
+  apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{suspended:c.suspended}}));
+  renderAdminCaregivers();renderAdminUsers();renderCare();openCgAdmin(c.id);
+  toast(c.suspended?`${esc(c.name)} pozastavena.`:`${esc(c.name)} obnovena.`);
+}
+function cgAdminUnverify(){
+  const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
+  c.verified=false;
+  apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{verified:false}}));
+  renderAdminCaregivers();renderCare();openCgAdmin(c.id);
+  toast(`Ověření u ${esc(c.name)} odebráno.`);
+}
+function cgAdminRemove(){
+  const id=cgAdminId;const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
+  closeCgAdmin();
+  removeCaregiver(id);
 }
 function toggleSuspendCg(id){
   const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;

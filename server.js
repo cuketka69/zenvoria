@@ -1285,7 +1285,8 @@ function mapCaregiver(c) {
     id: Number(c.id), publicId: c.public_id || null, name: c.name, init: c.init, loc: c.loc, rate: c.rate,
     rating: Number(c.rating), reviews: c.reviews, exp: c.exp, services: c.services || [],
     verified: c.verified, cert: c.cert, bio: c.bio, status: c.status, suspended: c.suspended,
-    idVerified: c.id_verified, plan: c.plan, langs: c.langs || ['Čeština'],
+    idVerified: c.id_verified, plan: c.plan, planStatus: c.plan_status || null, trialUntil: c.trial_until || null,
+    langs: c.langs || ['Čeština'],
     priceType: c.price_type, dayRate: c.day_rate, radius: c.radius, kmPrice: c.km_price,
     photo: c.photo || null, email: c.email || null, avail: c.avail || null,
   };
@@ -1296,6 +1297,8 @@ function mapCaregiverForViewer(c, opts = {}) {
   delete row.email;
   delete row.avail;
   delete row.idVerified;
+  delete row.planStatus;
+  delete row.trialUntil;
   return row;
 }
 function mapOrder(o) {
@@ -2550,15 +2553,23 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   // jen povolená pole
   const map = { name: 'name', loc: 'loc', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
     plan: 'plan', priceType: 'price_type', dayRate: 'day_rate', radius: 'radius', kmPrice: 'km_price',
-    photo: 'photo', avail: 'avail', suspended: 'suspended', status: 'status' };
+    photo: 'photo', avail: 'avail', suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until' };
   for (const k in map) if (b[k] !== undefined) patch[map[k]] = b[k];
-  // pozastavení / mazání smí jen admin
-  if ((b.suspended !== undefined || b.status !== undefined) && !isAdmin) {
-    return res.status(403).json({ error: 'Pozastavení smí jen správce.' });
+  // pozastavení / stav / ověření / trvání předplatného smí měnit jen správce
+  if ((b.suspended !== undefined || b.status !== undefined || b.verified !== undefined || b.trialUntil !== undefined) && !isAdmin) {
+    return res.status(403).json({ error: 'Tuto změnu smí provést jen správce.' });
   }
   // PREMIUM smí nastavit jen správce (jinak přes platbu); pečovatelka smí max. downgrade na START
   if (b.plan !== undefined && !isAdmin && String(b.plan) !== 'start') {
     return res.status(403).json({ error: 'PREMIUM lze aktivovat jen přes platbu.' });
+  }
+  if (patch.verified !== undefined && typeof patch.verified !== 'boolean') {
+    return res.status(400).json({ error: 'Neplatná hodnota ověření.' });
+  }
+  if (patch.trial_until !== undefined && patch.trial_until !== null) {
+    const t = Date.parse(patch.trial_until);
+    if (!Number.isFinite(t)) return res.status(400).json({ error: 'Neplatné datum platnosti předplatného.' });
+    patch.trial_until = new Date(t).toISOString();
   }
   if (patch.name !== undefined) patch.name = trimmedString(patch.name, 120);
   if (patch.loc !== undefined) patch.loc = trimmedString(patch.loc, 120);
@@ -2570,8 +2581,11 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   if (patch.plan !== undefined && !ADMIN_UPDATABLE_CAREGIVER_PLANS.has(String(patch.plan))) {
     return res.status(400).json({ error: 'Neplatný tarif pečovatelky.' });
   }
-  // změna tarifu → odpovídající stav předplatného
-  if (patch.plan !== undefined) patch.plan_status = patch.plan === 'premium' ? 'active' : 'canceled';
+  // změna tarifu → odpovídající stav předplatného (a downgrade ruší zkušební dobu)
+  if (patch.plan !== undefined) {
+    patch.plan_status = patch.plan === 'premium' ? 'active' : 'canceled';
+    if (patch.plan === 'start') patch.trial_until = null;
+  }
   if (patch.status !== undefined && !ADMIN_UPDATABLE_CAREGIVER_STATUSES.has(String(patch.status))) {
     return res.status(400).json({ error: 'Neplatný stav pečovatelky.' });
   }
@@ -2624,8 +2638,8 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     const nextUserStatus = patch.suspended ? 'suspended' : 'active';
     await restUpdate(T.users, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, { status: nextUserStatus }, { prefer: 'return=minimal' });
   }
-  if (isAdmin && (b.suspended !== undefined || b.status !== undefined || b.plan !== undefined)) {
-    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { suspended: b.suspended, status: b.status, plan: b.plan } });
+  if (isAdmin && (b.suspended !== undefined || b.status !== undefined || b.plan !== undefined || b.verified !== undefined || b.trialUntil !== undefined)) {
+    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { suspended: b.suspended, status: b.status, plan: b.plan, verified: b.verified, trialUntil: b.trialUntil } });
   }
   res.json({ caregiver: rows && rows[0] ? mapCaregiver(rows[0]) : null });
 }));

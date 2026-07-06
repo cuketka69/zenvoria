@@ -1267,6 +1267,13 @@
   .star.on{color:var(--gold)}
   .star:hover{transform:scale(1.14)}
   .modal-card textarea.inp{min-height:92px;margin-bottom:18px}
+  /* admin: správcovský modal pečovatelky */
+  #cgAdminModal .modal-card{max-height:90vh;overflow-y:auto}
+  .cga-info{display:flex;flex-direction:column;margin-top:6px}
+  .cga-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;font-size:14px;border-bottom:1px solid var(--line)}
+  .cga-row:last-child{border-bottom:none}
+  .cga-row span{color:var(--muted)}
+  .cga-row b{color:var(--navy-900)}
   .filter-modal{width:min(720px,94vw)}
   .filter-modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
   .filter-service-grid{display:flex;flex-wrap:wrap;gap:10px}
