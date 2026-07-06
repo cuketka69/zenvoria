@@ -2944,7 +2944,15 @@ function openCgAdmin(id){
   const m=document.getElementById('cgAdminModal');if(m){m.classList.add('open');document.body.style.overflow='hidden';}
 }
 function closeCgAdmin(){const m=document.getElementById('cgAdminModal');if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}}
-function cgAdminToggleUntil(){const p=(document.getElementById('cgAdminPlan')||{}).value;const w=document.getElementById('cgAdminUntilWrap');if(w)w.style.display=p==='premium'?'':'none';}
+function cgAdminToggleUntil(){
+  const prem=(document.getElementById('cgAdminPlan')||{}).value==='premium';
+  const w=document.getElementById('cgAdminUntilWrap');
+  const inp=document.getElementById('cgAdminUntil');
+  const hint=w?w.querySelector('.cga-hint'):null;
+  if(inp)inp.disabled=!prem;
+  if(w)w.classList.toggle('is-disabled',!prem);
+  if(hint)hint.textContent=prem?'Prázdné = neomezeně':'Nastavíte po přepnutí na PREMIUM';
+}
 function cgAdminSavePlan(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
   const plan=(document.getElementById('cgAdminPlan')||{}).value==='premium'?'premium':'start';
