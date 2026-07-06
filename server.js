@@ -2367,7 +2367,7 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   await restUpdate(T.conversations, `id=eq.${conv.id}`, { last_text: text, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
   // realtime: pushni zprávu protistraně (pro ni me:false)
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
-  sseSend(other, { type: 'message', conversationId: Number(conv.id), message: { id: Number(row.id), me: false, text, t: t || '', createdAt: now } });
+  emitToUser(other, { type: 'message', conversationId: Number(conv.id), message: { id: Number(row.id), me: false, text, t: t || '', createdAt: now } });
   res.json({ message: { id: Number(row.id), me: true, text, t: t || '', createdAt: now } });
 }));
 
@@ -2384,6 +2384,39 @@ function sseSend(userId, payload) {
 function bumpLastSeen(userId) {
   restUpdate(T.users, `id=eq.${encodeURIComponent(userId)}`, { last_seen: new Date().toISOString() }, { prefer: 'return=minimal' }).catch(() => {});
 }
+
+// --- cross-replika fan-out přes Supabase Realtime Broadcast ---
+// Na jedné replice doručuje jen lokálně; při víc replikách si přes sdílený
+// kanál řeknou navzájem, ať doručí i spojení připojená na jiné replice.
+const INSTANCE_ID = crypto.randomBytes(8).toString('hex');
+let rtChannel = null, rtReady = false;
+(function initRealtimeBus() {
+  let createClient = null;
+  try { ({ createClient } = require('@supabase/supabase-js')); }
+  catch (e) { console.warn('[realtime] @supabase/supabase-js není nainstalováno — fan-out jede jen v rámci jedné instance.'); return; }
+  if (!REST_ENABLED) return;
+  try {
+    const rt = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    rtChannel = rt.channel('zv-fanout', { config: { broadcast: { self: false, ack: false } } });
+    rtChannel.on('broadcast', { event: 'fanout' }, (msg) => {
+      const p = msg && msg.payload;
+      if (!p || p.instance === INSTANCE_ID) return; // vlastní ozvěnu ignoruj
+      sseSend(p.userId, p.data); // doruč spojením na TÉTO replice
+    });
+    rtChannel.subscribe((status) => {
+      rtReady = status === 'SUBSCRIBED';
+      if (rtReady) console.log('[realtime] fan-out kanál připojen (instance ' + INSTANCE_ID + ')');
+    });
+  } catch (e) { console.error('[realtime] init selhal:', e.message); rtChannel = null; rtReady = false; }
+})();
+// doruč událost uživateli: lokálně + (je-li víc replik) ostatním replikám
+function emitToUser(userId, payload) {
+  sseSend(userId, payload);
+  if (rtChannel && rtReady) {
+    try { rtChannel.send({ type: 'broadcast', event: 'fanout', payload: { instance: INSTANCE_ID, userId: String(userId), data: payload } }); } catch (e) {}
+  }
+}
+
 // oznam protistranám konverzací, že userId je online/offline
 async function broadcastPresence(userId, online) {
   let rows;
@@ -2391,8 +2424,7 @@ async function broadcastPresence(userId, online) {
   const now = new Date().toISOString();
   for (const conv of rows || []) {
     const other = String(conv.user_a) === String(userId) ? conv.user_b : conv.user_a;
-    if (!userOnline(other)) continue;
-    sseSend(other, { type: 'presence', conversationId: Number(conv.id), online, lastSeen: online ? null : now, secondsAgo: 0 });
+    emitToUser(other, { type: 'presence', conversationId: Number(conv.id), online, lastSeen: online ? null : now, secondsAgo: 0 });
   }
 }
 // stream událostí pro přihlášeného uživatele
@@ -2426,7 +2458,7 @@ app.post('/api/conversations/:id/typing', requireAuth, requireConversationPartic
   const me = String(req.session.uid || '');
   const conv = req.conversation;
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
-  sseSend(other, { type: 'typing', conversationId: Number(conv.id), on: !!(req.body && req.body.on) });
+  emitToUser(other, { type: 'typing', conversationId: Number(conv.id), on: !!(req.body && req.body.on) });
   res.json({ ok: true });
 }));
 // označ konverzaci jako přečtenou
