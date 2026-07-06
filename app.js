@@ -3817,14 +3817,22 @@ function chatNow(){return new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',
 let chatPollTimer=null;
 function convClient(cv){
   return {id:cv.id,name:cv.name,init:cv.init||initials(cv.name||''),photo:cv.photo||null,
-    role:cv.role||'caregiver',msgs:cv.msgs||[],last:cv.last||'',unread:cv.unread||0,lastAt:cv.lastAt||null};
+    role:cv.role||'caregiver',profileToken:cv.profileToken||null,msgs:cv.msgs||[],last:cv.last||'',unread:cv.unread||0,lastAt:cv.lastAt||null};
 }
 function upsertConversation(cv){
   let c=CONVERSATIONS.find(x=>x.id===cv.id);
   if(c){c.name=cv.name;c.init=cv.init||c.init;c.photo=cv.photo||c.photo;c.role=cv.role||c.role;
+    if(cv.profileToken)c.profileToken=cv.profileToken;
     c.last=cv.last!=null?cv.last:c.last;c.unread=cv.unread||0;c.lastAt=cv.lastAt||c.lastAt;if(cv.msgs)c.msgs=cv.msgs;}
   else{CONVERSATIONS.unshift(convClient(cv));}
   return CONVERSATIONS.find(x=>x.id===cv.id);
+}
+/* klik na avatar v seznamu → veřejný profil protistrany */
+function openConvProfile(c){
+  if(!c||c.id<=0)return;
+  if(c.profileToken){openProfileByToken(c.profileToken);return;}
+  if(c.role==='caregiver'){const cg=CAREGIVERS.find(x=>x.name===c.name);if(cg){openProfile(cg.id);return;}}
+  toast('Profil není k dispozici.','declined');
 }
 async function loadConversations(){
   if(!auth.loggedIn)return;
@@ -3921,6 +3929,9 @@ function renderChat(){
       btn.dataset.cid=c.id;
       const dot=document.createElement('span');dot.className='pres-dot chat-li-dot';dot.hidden=true;
       avaWrap.appendChild(dot);
+      avaWrap.classList.add('clickable');
+      avaWrap.title='Zobrazit profil';
+      avaWrap.addEventListener('click',ev=>{ev.stopPropagation();openConvProfile(c);});
     }
     btn.appendChild(avaWrap);
     const ci=document.createElement('div');

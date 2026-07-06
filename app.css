@@ -585,6 +585,8 @@
   .chat-head-state{display:inline-flex;align-items:center;gap:7px}
   /* stav tečka v pravém dolním rohu profilovky v seznamu konverzací */
   .chat-li-ava{position:relative;flex:0 0 auto;line-height:0}
+  .chat-li-ava.clickable{cursor:pointer;border-radius:50%;transition:box-shadow .15s}
+  .chat-li-ava.clickable:hover{box-shadow:0 0 0 2px var(--gold)}
   .chat-li-dot{position:absolute;right:0;bottom:0;width:12px;height:12px;border:2px solid var(--cream);border-radius:50%;box-shadow:none}
   /* ≤640px: obsah dlaždic pchips vycentrovaný */
   @media(max-width:640px){.pchip{justify-content:center}}

@@ -2291,11 +2291,17 @@ async function countConversationUnread(convId, me, readAt) {
 // konverzace z pohledu daného uživatele — zobrazí druhou stranu
 async function mapConversationForViewer(conv, me) {
   const otherId = String(conv.user_a) === String(me) ? conv.user_b : conv.user_a;
-  const u = (await restSelect(T.users, `id=eq.${encodeURIComponent(otherId)}&select=name,init,photo,role&limit=1`))[0] || {};
+  const u = (await restSelect(T.users, `id=eq.${encodeURIComponent(otherId)}&select=name,init,photo,role,public_id&limit=1`))[0] || {};
+  // token pro veřejný profil: u pečovatelky ten z její karty (→ plný profil), jinak účtový
+  let profileToken = u.public_id || null;
+  if ((u.role || '') === 'caregiver') {
+    const cg = (await restSelect(T.caregivers, `user_id=eq.${encodeURIComponent(otherId)}&select=public_id&limit=1`))[0];
+    if (cg && cg.public_id) profileToken = cg.public_id;
+  }
   const myReadAt = String(conv.user_a) === String(me) ? conv.a_read_at : conv.b_read_at;
   return {
     id: Number(conv.id), name: u.name || 'Uživatel', init: u.init || '', photo: u.photo || null,
-    role: u.role || 'family', last: conv.last_text || '', lastAt: conv.last_at || null,
+    role: u.role || 'family', profileToken, last: conv.last_text || '', lastAt: conv.last_at || null,
     unread: await countConversationUnread(conv.id, me, myReadAt),
   };
 }
