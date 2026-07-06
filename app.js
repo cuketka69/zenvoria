@@ -574,7 +574,7 @@ function renderSearchLocations(){
   if(!sel)return;
   const current=sel.value||'';
   const locations=getSearchLocations();
-  sel.innerHTML=['<option value="">Celá Praha</option>']
+  sel.innerHTML=['<option value="">Všechny lokality</option>']
     .concat(locations.map(loc=>`<option value="${esc(loc)}">${esc(loc)}</option>`))
     .join('');
   sel.value=locations.includes(current)?current:'';
