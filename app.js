@@ -1989,13 +1989,14 @@ function renderPricing(){
         ? '<div class="plan-current">'+checkSVG()+' Váš aktuální tarif</div><button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openBillingPortal(this)">Spravovat předplatné</button>'
         : '<div class="plan-current">'+checkSVG()+' Váš aktuální tarif</div>')
       :(key==='premium'
-        ? `<button class="btn btn-gold btn-block" onclick="startPremiumCheckout(this)">Zaplatit a aktivovat PREMIUM</button>`
-        : `<button class="btn btn-ghost btn-block" onclick="setPlan('start')">Přejít na START</button>`);}
-    else{action=`<button class="btn ${featured?'btn-gold':'btn-ghost'} btn-block" onclick="go('register');pickRole('caregiver')">Začít s ${p.name}</button>`;}
+        ? `<button class="btn btn-gold btn-block" onclick="startPremiumCheckout(this)">Vyzkoušet PREMIUM zdarma na 3 měsíce</button>`
+        : `<button class="btn btn-ghost btn-block" onclick="setPlan('start')">Přejít na START zdarma na 3 měsíce</button>`);}
+    else{action=`<button class="btn ${featured?'btn-gold':'btn-ghost'} btn-block" onclick="go('register');pickRole('caregiver')">Vyzkoušet ${p.name} zdarma</button>`;}
     return `<div class="plan-card ${featured?'featured':''}">
       ${featured?'<span class="pl-tag">NEJOBLÍBENĚJŠÍ</span>':''}
       <h3>${planIcon(key,22)} ${p.name}</h3>
       <div class="pl-price">${planPrice(key)>0?planPrice(key).toLocaleString('cs-CZ')+' Kč <span>/ měsíc</span>':'Zdarma'}</div>
+      ${planPrice(key)>0?'<div class="pl-trial">'+checkSVG()+' Prvních 3 měsíce zdarma</div>':''}
       <div class="pl-sub">${featured?'Pro pečovatelky, které chtějí být více vidět.':(planPrice('start')>0?'Pro pečovatelky, které začínají.':'Základní tarif zdarma — automaticky po ověření.')}</div>
       <ul>${p.feats.map(f=>`<li>${f}</li>`).join('')}</ul>
       ${action}

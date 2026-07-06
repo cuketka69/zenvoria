@@ -2784,7 +2784,7 @@ app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) =
     success_url: `${APP_URL}/#pricing?paid=1`,
     cancel_url: `${APP_URL}/#pricing?canceled=1`,
     metadata: { caregiver_id: String(cg.id), email },
-    subscription_data: { metadata: { caregiver_id: String(cg.id), email } },
+    subscription_data: { trial_period_days: 90, metadata: { caregiver_id: String(cg.id), email } },
   });
   res.json({ url: session.url });
 }));
