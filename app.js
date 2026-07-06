@@ -3256,11 +3256,9 @@ function renderAdminPlans(){
 function spToggleDays(){
   const prem=(document.getElementById('spPlan')||{}).value==='premium';
   const w=document.getElementById('spDaysWrap');
-  const inp=document.getElementById('spDays');
   const hint=w?w.querySelector('.cga-hint'):null;
-  if(inp)inp.disabled=!prem;
-  if(w)w.classList.toggle('is-disabled',!prem);
-  if(hint)hint.textContent=prem?'0 = neomezeně':'Platí jen pro PREMIUM';
+  if(w)w.classList.toggle('is-disabled',false);
+  if(hint)hint.textContent=prem?'0 = neomezeně':'Počet dní se uloží i pro START';
 }
 function saveSignupPlan(e){
   e.preventDefault();
