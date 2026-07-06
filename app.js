@@ -2926,14 +2926,23 @@ function openCgAdmin(id){
   document.getElementById('cgAdminTitle').textContent=c.name;
   document.getElementById('cgAdminSub').textContent=`${c.loc||''} · ${c.exp} let praxe · ${c.rate} Kč/hod`;
   setAva(document.getElementById('cgAdminAva'),c.photo||userPhotoByEmail(c.email),c.init);
-  const isPrem=c.plan==='premium';
+  const planKey=c.plan==='premium'?'premium':(c.plan==='start'?'start':'none');
+  const isPrem=planKey==='premium';
   const statusBadge=c.suspended?'<span class="badge off">Pozastavená</span>':(c.verified?`<span class="badge gold">${checkSVG(11)} Ověřená</span>`:'<span class="badge wait">Neověřená</span>');
-  const planBadge=isPrem?`<span class="badge gold">${diamondSVG(11)} PREMIUM</span>`:'<span class="badge">START</span>';
+  const planBadge=planKey==='premium'
+    ? `<span class="badge gold">${diamondSVG(11)} PREMIUM</span>`
+    : (planKey==='start'
+      ? '<span class="badge">START</span>'
+      : '<span class="badge off">Bez plánu</span>');
   document.getElementById('cgAdminBadges').innerHTML=statusBadge+planBadge;
-  const validTxt=isPrem?(c.trialUntil?('platí do '+fmtDate(c.trialUntil)):'platí neomezeně'):'bezplatný tarif';
-  document.getElementById('cgAdminCurrent').innerHTML=`${planIcon(isPrem?'premium':'start',15)}<span>Aktuálně <b>${isPrem?'PREMIUM':'START'}</b> · ${esc(validTxt)}</span>`;
+  const validTxt=planKey==='premium'
+    ? (c.trialUntil?('platí do '+fmtDate(c.trialUntil)):'platí neomezeně')
+    : (planKey==='start'?'placený tarif':'bez aktivního předplatného');
+  const currentIcon=planKey==='premium'?planIcon('premium',15):(planKey==='start'?planIcon('start',15):'');
+  const currentLabel=planKey==='premium'?'PREMIUM':(planKey==='start'?'START':'Bez plánu');
+  document.getElementById('cgAdminCurrent').innerHTML=`${currentIcon}<span>Aktuálně <b>${currentLabel}</b> · ${esc(validTxt)}</span>`;
   const planEl=document.getElementById('cgAdminPlan');
-  if(planEl){planEl.value=c.plan==='premium'?'premium':'start';if(planEl._ddRefresh)planEl._ddRefresh();}
+  if(planEl){planEl.value=planKey;if(planEl._ddRefresh)planEl._ddRefresh();}
   const untilEl=document.getElementById('cgAdminUntil');
   if(untilEl)untilEl.value=c.trialUntil?String(c.trialUntil).slice(0,10):'';
   cgAdminToggleUntil();
@@ -2949,7 +2958,7 @@ function openCgAdmin(id){
 function cgAdminEditPlan(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
   const planEl=document.getElementById('cgAdminPlan');
-  if(planEl){planEl.value=c.plan==='premium'?'premium':'start';if(planEl._ddRefresh)planEl._ddRefresh();}
+  if(planEl){planEl.value=c.plan==='premium'?'premium':(c.plan==='start'?'start':'none');if(planEl._ddRefresh)planEl._ddRefresh();}
   const untilEl=document.getElementById('cgAdminUntil');
   if(untilEl)untilEl.value=c.trialUntil?String(c.trialUntil).slice(0,10):'';
   cgAdminToggleUntil();
@@ -2972,7 +2981,8 @@ function cgAdminToggleUntil(){
 }
 function cgAdminSavePlan(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
-  const plan=(document.getElementById('cgAdminPlan')||{}).value==='premium'?'premium':'start';
+  const rawPlan=(document.getElementById('cgAdminPlan')||{}).value||'none';
+  const plan=rawPlan==='premium'?'premium':(rawPlan==='start'?'start':null);
   const until=(document.getElementById('cgAdminUntil')||{}).value||'';
   const body={plan};
   body.trialUntil=(plan==='premium'&&until)?new Date(until+'T23:59:59').toISOString():null;
