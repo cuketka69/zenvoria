@@ -1213,7 +1213,15 @@
   .img-lightbox{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
   .img-lightbox.open{display:flex}
   .img-lightbox img{max-width:92vw;max-height:92vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-  .chat-input{display:flex;gap:10px;padding:14px 16px;border-top:1px solid var(--line);background:var(--white);flex:0 0 auto}
+  .chat-input{position:relative;display:flex;gap:10px;padding:14px 16px;border-top:1px solid var(--line);background:var(--white);flex:0 0 auto}
+  .chat-emoji{flex:0 0 auto;width:44px;height:46px;border:1px solid var(--line);background:var(--cream);border-radius:12px;cursor:pointer;font-size:21px;line-height:1;transition:.16s;padding:0}
+  .chat-emoji:hover{border-color:var(--gold);background:var(--white)}
+  .emoji-picker{position:absolute;bottom:calc(100% + 8px);left:16px;width:min(320px,calc(100% - 32px));max-height:224px;overflow-y:auto;
+    background:var(--white);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;
+    grid-template-columns:repeat(8,1fr);gap:2px;z-index:80;display:none}
+  .emoji-picker.open{display:grid}
+  .emoji-picker button{border:none;background:none;font-size:20px;line-height:1;padding:6px 0;cursor:pointer;border-radius:8px}
+  .emoji-picker button:hover{background:var(--cream-2)}
   .chat-input input{flex:1;border:1px solid var(--line);background:var(--cream);border-radius:12px;padding:12px 15px;font-family:inherit;font-size:14px;outline:none;color:var(--ink)}
   .chat-input input:focus{border-color:var(--gold);background:var(--white)}
   .chat-send{width:46px;height:46px;border-radius:12px;border:none;background:var(--gold);color:var(--navy-900);cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transition:.16s}

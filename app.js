@@ -4049,6 +4049,34 @@ async function sendChatImage(image){
     toast(err.message||'Obrázek se nepodařilo odeslat.','declined');
   }
 }
+/* --- emoji ve zprávách --- */
+const CHAT_EMOJIS=['😀','😃','😄','😁','😊','🙂','😉','😍','🥰','😘','😎','🤗','🤔','😅','😂','🤣','🙃','😌','😴','😇','🥳','😢','😭','😟','😳','🤒','🤕','😷','👍','👎','👌','🙏','👏','💪','🙌','👋','🤝','✌️','❤️','🧡','💛','💚','💙','💜','🤍','💖','✨','🔥','🎉','🎂','🌸','🌷','🌻','☀️','🌙','⭐','✅','❌','❗','❓','⏰','📅','📞','📍','🏠','🚗','💊','🩺','👵','👴','👶','🍲','☕'];
+function buildEmojiPicker(){
+  const wrap=document.getElementById('emojiPicker');if(!wrap||wrap.dataset.built)return;wrap.dataset.built='1';
+  wrap.innerHTML='';
+  CHAT_EMOJIS.forEach(e=>{
+    const b=document.createElement('button');b.type='button';b.textContent=e;b.setAttribute('aria-label',e);
+    b.addEventListener('click',ev=>{ev.stopPropagation();insertEmoji(e);});
+    wrap.appendChild(b);
+  });
+}
+function toggleEmojiPicker(ev){
+  if(ev)ev.stopPropagation();
+  const wrap=document.getElementById('emojiPicker');if(!wrap)return;
+  buildEmojiPicker();
+  wrap.classList.toggle('open');
+}
+function closeEmojiPicker(){const w=document.getElementById('emojiPicker');if(w)w.classList.remove('open');}
+function insertEmoji(e){
+  const inp=document.getElementById('chatInput');if(!inp)return;
+  const s=(inp.selectionStart!=null?inp.selectionStart:inp.value.length);
+  const en=(inp.selectionEnd!=null?inp.selectionEnd:inp.value.length);
+  inp.value=inp.value.slice(0,s)+e+inp.value.slice(en);
+  const pos=s+e.length;try{inp.setSelectionRange(pos,pos);}catch(_){ }
+  inp.focus();
+  try{onChatTypingInput();}catch(_){ }
+}
+document.addEventListener('click',e=>{if(!e.target.closest('#emojiPicker')&&!e.target.closest('#chatEmojiBtn'))closeEmojiPicker();});
 function openImgLightbox(src){
   let ov=document.getElementById('imgLightbox');
   if(!ov){ov=document.createElement('div');ov.id='imgLightbox';ov.className='img-lightbox';ov.addEventListener('click',()=>ov.classList.remove('open'));document.body.appendChild(ov);}

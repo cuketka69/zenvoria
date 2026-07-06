@@ -380,6 +380,8 @@
           <input type="file" id="chatImgInput" accept="image/*" style="display:none" onchange="onChatImage(this)">
         </div>
         <form class="chat-input" id="chatForm" onsubmit="return sendChat(event)">
+          <div class="emoji-picker" id="emojiPicker" role="listbox" aria-label="Emoji"></div>
+          <button type="button" class="chat-emoji" id="chatEmojiBtn" onclick="toggleEmojiPicker(event)" aria-label="Emoji">😊</button>
           <input id="chatInput" placeholder="Napište zprávu…" autocomplete="off" aria-label="Napsat zprávu">
           <button class="chat-send" type="submit" aria-label="Odeslat">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 20 4l-6 16-3-7-7-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
