@@ -827,7 +827,7 @@
   .mobile-menu.open .scrim{opacity:1}
   .mobile-menu.open .panel{transform:none}
   .mobile-menu .panel a{font-size:16px;font-weight:600;color:var(--navy-900);padding:14px 12px;
-    border-radius:10px;text-decoration:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;text-align:center}
+    border-radius:10px;text-decoration:none;cursor:pointer;display:flex;align-items:center;gap:10px}
   .mobile-menu .panel a:hover,.mobile-menu .panel a.active{background:rgba(201,162,51,.16)}
   .mobile-menu .mm-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
   .mobile-menu .mm-close{background:none;border:none;cursor:pointer;color:var(--navy-900);padding:6px}
