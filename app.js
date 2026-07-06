@@ -341,7 +341,7 @@ function enhanceDateInput(inp){
   const menu=document.createElement('div'); menu.className='dd-menu dp-menu'; menu.setAttribute('role','dialog');
   let viewY,viewM;
   const fmtLbl=()=>{
-    if(!inp.value){lbl.textContent=inp.placeholder||'dd.mm.rrrr';lbl.classList.add('dp-ph');return;}
+    if(!inp.value){lbl.textContent='';lbl.classList.add('dp-ph');return;}
     lbl.classList.remove('dp-ph');
     const[y,m,d]=inp.value.split('-');
     lbl.textContent=`${d}.${m}.${y}`;
