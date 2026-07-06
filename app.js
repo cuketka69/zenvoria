@@ -46,7 +46,7 @@ function openSocial(net){
 }
 /* ceny tarifů (Kč/měsíc). Cenu obou tarifů nastavuje admin v sekci Tarify. */
 let planPrices={start:190,premium:390};
-let signupPlan={plan:'start',days:0};
+let signupPlan={plan:'none',days:0};
 const planPrice=k=>planPrices[k]||0;
 const planPriceLabel=k=>planPrice(k)>0?planPrice(k).toLocaleString('cs-CZ')+' Kč / měsíc':'Zdarma';
 /* SVG diamant se zeleným obrysem (ostrý, škálovatelný) */
@@ -2889,7 +2889,7 @@ function renderAdminCaregivers(){
   document.getElementById('admCgBody').innerHTML=CAREGIVERS.map(c=>{
     const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge gold">'+checkSVG(12)+' Ověřená</span>':'<span class="badge wait">Neověřená</span>');
     const isPrem=c.plan==='premium';
-    const planBadge=isPrem?`<span class="badge gold">${diamondSVG(11)} PREMIUM</span>`:'<span class="badge">START</span>';
+    const planBadge=isPrem?`<span class="badge gold">${diamondSVG(11)} PREMIUM</span>`:(c.plan==='start'?'<span class="badge">START</span>':'<span class="badge off">Bez plánu</span>');
     return `<tr>
       <td><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(c.name)}</b><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
       <td>${esc(c.loc)}</td><td>${c.rate} Kč</td><td>${badge}</td>
@@ -3259,25 +3259,30 @@ function renderAdminPlans(){
   // tarif po registraci
   const spPlanEl=document.getElementById('spPlan'),spDaysEl=document.getElementById('spDays'),spErr=document.getElementById('spErr');
   if(spErr)spErr.textContent='';
-  if(spPlanEl){spPlanEl.value=signupPlan.plan==='premium'?'premium':'start';if(spPlanEl._ddRefresh)spPlanEl._ddRefresh();}
+  if(spPlanEl){spPlanEl.value=signupPlan.plan==='premium'?'premium':(signupPlan.plan==='start'?'start':'none');if(spPlanEl._ddRefresh)spPlanEl._ddRefresh();}
   if(spDaysEl)spDaysEl.value=Number(signupPlan.days)||0;
   spToggleDays();
 }
 function spToggleDays(){
-  const prem=(document.getElementById('spPlan')||{}).value==='premium';
+  const val=(document.getElementById('spPlan')||{}).value;
+  const prem=val==='premium';
+  const hasPlan=val!=='none';
   const w=document.getElementById('spDaysWrap');
+  const inp=document.getElementById('spDays');
   const hint=w?w.querySelector('.cga-hint'):null;
-  if(w)w.classList.toggle('is-disabled',false);
-  if(hint)hint.textContent=prem?'0 = neomezeně':'Počet dní se uloží i pro START';
+  if(inp)inp.disabled=!hasPlan;
+  if(w)w.classList.toggle('is-disabled',!hasPlan);
+  if(hint)hint.textContent=!hasPlan?'Netýká se, pokud pečovatelky nedostávají žádný tarif':(prem?'0 = neomezeně':'Počet dní se uloží i pro START');
 }
 function saveSignupPlan(e){
   e.preventDefault();
-  const plan=(document.getElementById('spPlan')||{}).value==='premium'?'premium':'start';
+  const rawPlan=(document.getElementById('spPlan')||{}).value||'none';
+  const plan=rawPlan==='premium'?'premium':(rawPlan==='start'?'start':'none');
   let days=parseInt((document.getElementById('spDays')||{}).value,10);
   if(!Number.isFinite(days)||days<0)days=0;days=Math.min(365,days);
   signupPlan={plan,days};
   apiSync(api('/settings/signupPlan',{method:'PUT',body:{value:signupPlan}}));
-  toast(plan==='premium'?(days>0?`Nové pečovatelky dostanou PREMIUM na ${days} dní.`:'Nové pečovatelky dostanou PREMIUM (neomezeně).'):'Nové pečovatelky dostanou tarif START.','success');
+  toast(plan==='premium'?(days>0?`Nové pečovatelky dostanou PREMIUM na ${days} dní.`:'Nové pečovatelky dostanou PREMIUM (neomezeně).'):(plan==='start'?'Nové pečovatelky dostanou tarif START.':'Nové pečovatelky nedostanou žádný tarif automaticky.'),'success');
   return false;
 }
 function saveAdminPlans(e){
@@ -4354,7 +4359,7 @@ async function bootstrap(){
   // bootstrap je NESMÍ přepsat na prázdno, jinak by zmizely načtené konverzace
   BROADCASTS=d.broadcasts||[];
   if(d.planPrices)Object.assign(planPrices,d.planPrices);
-  if(d.signupPlan)signupPlan={plan:d.signupPlan.plan==='premium'?'premium':'start',days:Number(d.signupPlan.days)||0};
+  if(d.signupPlan)signupPlan={plan:d.signupPlan.plan==='premium'?'premium':(d.signupPlan.plan==='start'?'start':'none'),days:Number(d.signupPlan.days)||0};
   if(d.socialLinks)Object.assign(socialLinks,d.socialLinks);
   // seq čítače z maxim (kdyby něco generovalo id lokálně)
   orderSeq=ORDERS.reduce((m,o)=>Math.max(m,o.oid||0),0);

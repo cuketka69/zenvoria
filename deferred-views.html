@@ -915,10 +915,11 @@
     </div>
     <form class="pcard" style="margin-top:24px" onsubmit="return saveSignupPlan(event)">
       <h3>Tarif po registraci</h3>
-      <p style="color:var(--muted);font-size:13.5px;margin:4px 0 14px">Jaký tarif dostane pečovatelka hned po schválení ověření. Můžete jí dát <b>PREMIUM na zkoušku</b> na určený počet dní — po vypršení se automaticky vrátí na START.</p>
+      <p style="color:var(--muted);font-size:13.5px;margin:4px 0 14px">Jaký tarif dostane pečovatelka hned po schválení ověření. Výchozí je <b>Bez plánu</b> — pečovatelka si musí tarif sama zakoupit. Můžete jí ale dát i <b>PREMIUM na zkoušku</b> na určený počet dní — po vypršení se automaticky vrátí na Bez plánu.</p>
       <div class="grid2">
         <div><label class="lbl" for="spPlan">Výchozí tarif</label>
           <select class="inp" id="spPlan" onchange="spToggleDays()">
+            <option value="none">Bez plánu</option>
             <option value="start">START</option>
             <option value="premium">PREMIUM</option>
           </select>
