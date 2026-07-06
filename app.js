@@ -293,7 +293,9 @@ document.addEventListener('keydown',e=>{
 /* ---------- VLASTNÍ ROZBALOVAČKA ---------- */
 function closeAllDD(){document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));}
 function enhanceSelect(sel){
-  if(!sel||sel.dataset.enh)return; sel.dataset.enh='1';
+  if(!sel||sel.dataset.enh)return;
+  if(sel.classList.contains('phone-prefix'))return; // předvolba zůstává nativní, sedí do pole
+  sel.dataset.enh='1';
   const wrap=document.createElement('div');
   wrap.className='dd'+(sel.closest('.sort-row')?' dd-bordered':(sel.classList.contains('inp')?' dd-inp':''));
   const btn=document.createElement('button'); btn.type='button'; btn.className='dd-btn'; btn.setAttribute('aria-haspopup','listbox');
@@ -1279,7 +1281,9 @@ async function submitRegister(e){
   const name=document.getElementById('regName'),email=document.getElementById('regEmail'),
     phone=document.getElementById('regPhone'),pw=document.getElementById('regPw'),terms=document.getElementById('regTerms');
   const nBad=name.value.trim().split(/\s+/).filter(Boolean).length<2;
-  const eBad=!isEmail(email.value),phBad=!isPhone(phone.value),pBad=!isStrongPassword(pw.value),tBad=!terms.checked;
+  const prefix=(document.getElementById('regPhonePrefix')?.value||'+420').trim();
+  const phFull=phone.value.trim()?`${prefix} ${phone.value.trim()}`:'';
+  const eBad=!isEmail(email.value),phBad=!isPhone(phFull),pBad=!isStrongPassword(pw.value),tBad=!terms.checked;
   setFieldError('rf-name',nBad);setFieldError('rf-email',eBad);setFieldError('rf-phone',phBad);
   setFieldError('rf-pw',pBad);setFieldError('rf-terms',tBad);
   const firstBad=[[nBad,name],[eBad,email],[phBad,phone],[pBad,pw]].find(x=>x[0]);
