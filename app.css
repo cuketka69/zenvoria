@@ -1035,6 +1035,8 @@
   .verify-banner .vb-t{flex:1;min-width:0}
   .verify-banner .vb-t b{display:block;color:var(--navy-900);font-size:15.5px}
   .verify-banner .vb-t span{font-size:13.5px;color:var(--muted)}
+  /* profil pečovatelky bez aktivního tarifu — needitovatelný */
+  #cgProfileEditCard.cg-locked{opacity:.5;pointer-events:none;user-select:none}
   /* přehled odeslané žádosti o ověření (pečovatelka) */
   .vsum-head{display:flex;align-items:center;gap:14px;margin-bottom:18px}
   .vsum-head h3{font-size:18px}

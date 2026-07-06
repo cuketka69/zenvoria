@@ -3772,6 +3772,12 @@ function renderCgProfile(){
   updateCgAvatar();
   syncCgPreview();
   ddRefresh();
+  const canEdit=!!(cgProfile.perms&&cgProfile.perms.manageProfile);
+  const card=document.getElementById('cgProfileEditCard');
+  if(card)card.classList.toggle('cg-locked',!canEdit);
+  if(card)card.querySelectorAll('input,textarea,select,button').forEach(el=>{el.disabled=!canEdit;});
+  const lock=document.getElementById('cgProfileLock');
+  if(lock)lock.innerHTML=canEdit?'':`<div class="verify-banner wait"><span class="vb-ic">${warnSVG(20)}</span><div class="vb-t"><b>Profil je uzamčen</b><span>Dokud nemáte aktivní tarif, nejde profil upravovat.</span></div><button class="btn btn-sm btn-gold" onclick="go('pricing')">Zobrazit tarify</button></div>`;
 }
 function updateCgAvatar(){
   const el=document.getElementById('cpAvatar');
