@@ -2320,7 +2320,9 @@ function renderCgVerify(){
   // prefill
   const setv=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
   setv('vfName',auth.name||cgProfile.name);
-  setv('vfLoc',cgProfile.loc||'Praha 6');
+  setv('vfLoc',cgProfile.loc||'');
+  setv('vfRate',cgProfile.rate||'');
+  setv('vfExp',cgProfile.exp||'');
   setv('vfValid','');
   setv('vfCert','');
   setv('vfIssuer','');
@@ -2593,8 +2595,10 @@ async function submitVerify(e){
   const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum');
   const certifications=getVerifyCertifications();
   const services=verifyServices.filter((id,idx,arr)=>arr.indexOf(id)===idx&&SERVICES.some(s=>s.id===id));
+  const rate=+g('vfRate');
   if(name.split(/\s+/).filter(Boolean).length<2){verifyError(err,'Zadejte celé jméno a příjmení.');return false;}
   if(!g('vfLoc')){verifyError(err,'Zadejte lokalitu (město nebo okres).');return false;}
+  if(!rate||rate<150){verifyError(err,'Zadejte platnou hodinovou sazbu (min. 150 Kč).');return false;}
   if(!isPhone(phone)){verifyError(err,'Zadejte platné telefonní číslo.');return false;}
   if(!docNum){verifyError(err,'Zadejte číslo dokladu totožnosti.');return false;}
   if(!verifyIdFrontName){verifyError(err,'Nahrajte prosím přední stranu dokladu totožnosti.');return false;}
@@ -2609,7 +2613,7 @@ async function submitVerify(e){
   if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){verifyError(err,'Už máte žádost čekající na schválení.');return false;}
   const rec={
     name,email:auth.email,init:initials(name),loc:g('vfLoc'),
-    rate:+g('vfRate')||240,exp:+g('vfExp')||0,phone,
+    rate,exp:+g('vfExp')||0,phone,
     docType:document.getElementById('vfDocType').value==='pas'?'Cestovni pas':'Obcansky prukaz',docNum,
     idFront:verifyIdFrontName,idBack:verifyIdBackName,selfie:verifySelfieName,
     services,cert:summarizeVerifyCertifications(certifications),issuer:(certifications[0]&&certifications[0].issuer)||'',validUntil:(certifications[0]&&certifications[0].validUntil)||'',certifications,
