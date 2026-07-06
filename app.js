@@ -1381,8 +1381,8 @@ function updateAuthUI(){
   const msgBtn=document.getElementById('msgBtn');
   if(msgBtn){
     const hasChat=inn&&auth.role!=='admin';
-    msgBtn.hidden=!hasChat;
     const u=chatUnread();
+    msgBtn.hidden=!(hasChat&&u>0);
     const badge=document.getElementById('msgBadge');
     msgBtn.classList.toggle('has-unread',hasChat&&u>0);
     if(badge){badge.hidden=!(hasChat&&u>0);badge.textContent=u>9?'9+':u;}
