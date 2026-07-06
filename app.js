@@ -3909,7 +3909,7 @@ function syncCgPreview(){
           <div class="care-meta"><span class="stars">${starFillSVG()}</span><b style="color:var(--navy-900)">${cgProfile.rating}</b><span>(${cgProfile.reviews}) · ${exp} let praxe</span></div>
         </div>
       </div>
-      <div class="care-tags"><span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>${servs}</div>
+      <div class="care-tags">${cgStatus()==='verified'?'<span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>':''}${servs}</div>
       <div class="care-foot"><div class="price">${priceHTML}</div><button class="btn btn-gold" style="padding:9px 16px">Zobrazit profil</button></div>
     </div>`;
 }
