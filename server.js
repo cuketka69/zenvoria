@@ -3336,6 +3336,78 @@ app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// admin: přehled všech konverzací (moderace/řešení sporů) — čistě ke čtení, nemění stav přečtení
+app.get('/api/admin/conversations', requireRole('admin'), h(async (req, res) => {
+  const rows = await restSelect(T.conversations, `order=last_at.desc.nullslast&select=id,user_a,user_b,last_text,last_at,created_at&limit=300`);
+  const list = rows || [];
+  const userIds = [...new Set(list.flatMap((c) => [c.user_a, c.user_b]))].filter(Boolean);
+  const users = userIds.length ? await restSelect(T.users, `id=in.(${userIds.map((id) => encodeURIComponent(id)).join(',')})&select=id,name,email,role`) : [];
+  const byId = {};
+  (users || []).forEach((u) => { byId[u.id] = u; });
+  const brief = (u) => (u ? { name: u.name, email: u.email, role: u.role } : null);
+  res.json({
+    conversations: list.map((c) => ({
+      id: Number(c.id), a: brief(byId[c.user_a]), b: brief(byId[c.user_b]),
+      last: c.last_text || '', lastAt: c.last_at || null, createdAt: c.created_at,
+    })),
+  });
+}));
+// admin: obsah jedné konverzace, čistě ke čtení (netýká se a_read_at/b_read_at ani realtime)
+app.get('/api/admin/conversations/:id/messages', requireRole('admin'), h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID konverzace.' });
+  const convRows = await restSelect(T.conversations, `id=eq.${id}&select=id,user_a,user_b&limit=1`);
+  const conv = convRows && convRows[0];
+  if (!conv) return res.status(404).json({ error: 'Konverzace nenalezena.' });
+  const rows = await restSelect(T.messages, `conversation_id=eq.${id}&order=created_at.asc&select=id,sender_id,text,image,t,created_at,edited_at,deleted_at,forwarded`);
+  res.json({
+    messages: (rows || []).map((m) => ({
+      id: Number(m.id), fromA: String(m.sender_id) === String(conv.user_a),
+      text: m.deleted_at ? '' : m.text, image: m.deleted_at ? null : (m.image || null), t: m.t || '', createdAt: m.created_at,
+      editedAt: m.edited_at || null, deletedAt: m.deleted_at || null, forwarded: !!m.forwarded,
+    })),
+  });
+}));
+
+// admin: statistiky provozu za posledních 6 měsíců
+app.get('/api/admin/stats', requireRole('admin'), h(async (req, res) => {
+  const since = new Date(); since.setMonth(since.getMonth() - 6); since.setDate(1);
+  const sinceIso = since.toISOString().slice(0, 10);
+  const list = (await restSelect(T.orders, `date=gte.${sinceIso}&select=oid,cid,status,date,hours,service`)) || [];
+  const byMonth = {};
+  list.forEach((o) => {
+    const k = String(o.date).slice(0, 7);
+    if (!byMonth[k]) byMonth[k] = { month: k, total: 0, confirmedOrDone: 0 };
+    byMonth[k].total += 1;
+    if (o.status === 'confirmed' || o.status === 'done') byMonth[k].confirmedOrDone += 1;
+  });
+  const monthly = Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month));
+  const totalCount = list.length;
+  const confirmedCount = list.filter((o) => o.status === 'confirmed' || o.status === 'done').length;
+  const conversionRate = totalCount ? Math.round((confirmedCount / totalCount) * 100) : 0;
+  const cgIds = [...new Set(list.map((o) => o.cid).filter((x) => x != null))];
+  const cgs = cgIds.length ? await restSelect(T.caregivers, `id=in.(${cgIds.join(',')})&select=id,name,rating,rate`) : [];
+  const cgById = {};
+  (cgs || []).forEach((c) => { cgById[c.id] = c; });
+  let revenue = 0;
+  const perCaregiver = {};
+  list.forEach((o) => {
+    if (o.status !== 'confirmed' && o.status !== 'done') return;
+    const cg = cgById[o.cid];
+    if (cg) revenue += Number(o.hours || 0) * Number(cg.rate || 0);
+    perCaregiver[o.cid] = (perCaregiver[o.cid] || 0) + 1;
+  });
+  const topCaregivers = Object.entries(perCaregiver)
+    .map(([cid, count]) => ({ cid: Number(cid), count, name: (cgById[cid] && cgById[cid].name) || '—', rating: cgById[cid] ? Number(cgById[cid].rating) : null }))
+    .sort((a, b) => b.count - a.count).slice(0, 8);
+  const activeCaregivers = (await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&select=id`)) || [];
+  res.json({
+    totalOrders: totalCount, confirmedOrders: confirmedCount, conversionRate, revenueEstimate: Math.round(revenue),
+    activeCaregiverCount: activeCaregivers.length,
+    monthly, topCaregivers,
+  });
+}));
+
 app.get('/api/admin/audit-logs', requireRole('admin'), h(async (req, res) => {
   const limit = Math.min(200, Math.max(1, Number(req.query.limit || 80)));
   const rows = await restSelect(

@@ -192,6 +192,8 @@ async function go(v,fromPop){
   if(v==='admin-users')renderAdminUsers();
   if(v==='admin-orders')renderAdminOrders();
   if(v==='admin-audit')renderAdminAudit();
+  if(v==='admin-chats')renderAdminChats();
+  if(v==='admin-stats')renderAdminStats();
   if(v==='admin-plans')renderAdminPlans();
   if(v==='admin-social')renderAdminSocial();
   if(v==='admin-broadcast')renderAdminBroadcast();
@@ -1224,7 +1226,7 @@ const DEFERRED_VIEW_IDS=new Set([
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
   'chat',
   'order-detail','login','forgot','reset-password','change-email','register',
-  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social',
+  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats',
   'pricing','settings'
 ]);
 let deferredViewsLoaded=false;
@@ -1633,6 +1635,8 @@ function updateAuthUI(){
         +mi("go('admin-caregivers')",'Pečovatelky','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-users')",'Uživatelé','<circle cx="9" cy="8" r="3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M16 7a3 3 0 0 1 0 6m5 6c0-2.4-1.6-4.2-4-4.8" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-audit')",'Audit logy','<path d="M8 4h8l3 3v13H5V4h3Z" stroke="#7A736A" stroke-width="1.6"/><path d="M8 9h8M8 13h8M8 17h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
+        +mi("go('admin-chats')",'Konverzace',chatIcon)
+        +mi("go('admin-stats')",'Statistiky','<path d="M4 20V10M11 20V4M18 20v-7" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-social')",'Sociální sítě','<circle cx="6" cy="12" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="6.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="17.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><path d="m8 11 7-3.4M8 13l7 3.4" stroke="#7A736A" stroke-width="1.6"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
@@ -3361,6 +3365,102 @@ async function renderAdminAudit(){
     count.textContent='0';
     body.innerHTML=`<tr><td colspan="4" class="empty">Audit logy se nepodařilo načíst: ${esc(e.message||'neznámá chyba')}.</td></tr>`;
   }
+}
+
+/* ---- ADMIN: konverzace (moderace, jen ke čtení) ---- */
+let ADMIN_CHATS=[];
+let adminActiveChatId=null;
+async function renderAdminChats(){
+  const listEl=document.getElementById('admChatList');
+  const headEl=document.getElementById('admChatHead');
+  const bodyEl=document.getElementById('admChatBody');
+  if(!listEl)return;
+  listEl.innerHTML='<div class="chat-list-h">Načítám…</div>';
+  try{
+    const r=await api('/admin/conversations');
+    ADMIN_CHATS=r.conversations||[];
+  }catch(e){
+    toast('Konverzace se nepodařilo načíst: '+(e.message||''),'declined');
+    ADMIN_CHATS=[];
+  }
+  listEl.innerHTML='';
+  const head=document.createElement('div');head.className='chat-list-h';head.textContent='Konverzace ('+ADMIN_CHATS.length+')';
+  listEl.appendChild(head);
+  if(!ADMIN_CHATS.length){
+    const empty=document.createElement('div');empty.className='empty';empty.style.padding='16px';empty.textContent='Žádné konverzace.';
+    listEl.appendChild(empty);
+  }
+  ADMIN_CHATS.forEach(c=>{
+    const nameA=(c.a&&c.a.name)||'Smazaný účet',nameB=(c.b&&c.b.name)||'Smazaný účet';
+    const btn=document.createElement('button');
+    btn.className='chat-li'+(c.id===adminActiveChatId?' on':'');
+    btn.onclick=()=>selectAdminChat(c.id);
+    const ci=document.createElement('div');ci.className='ci';
+    const name=document.createElement('b');name.textContent=`${nameA} ↔ ${nameB}`;
+    const preview=document.createElement('span');preview.textContent=c.last||'Bez zpráv';
+    ci.appendChild(name);ci.appendChild(preview);
+    btn.appendChild(ci);
+    listEl.appendChild(btn);
+  });
+  if(adminActiveChatId==null&&ADMIN_CHATS.length)adminActiveChatId=ADMIN_CHATS[0].id;
+  if(adminActiveChatId!=null&&ADMIN_CHATS.some(c=>c.id===adminActiveChatId)){await selectAdminChat(adminActiveChatId);}
+  else{headEl.textContent='';bodyEl.innerHTML='<div class="empty">Vyberte konverzaci.</div>';}
+}
+async function selectAdminChat(id){
+  adminActiveChatId=id;
+  document.querySelectorAll('#admChatList .chat-li').forEach((el,i)=>el.classList.toggle('on',ADMIN_CHATS[i]&&ADMIN_CHATS[i].id===id));
+  const c=ADMIN_CHATS.find(x=>x.id===id);if(!c)return;
+  const head=document.getElementById('admChatHead');
+  head.innerHTML=`<div><b>${esc((c.a&&c.a.name)||'Smazaný účet')} ↔ ${esc((c.b&&c.b.name)||'Smazaný účet')}</b>
+    <span style="display:block;font-size:12px;color:var(--muted)">${esc((c.a&&c.a.email)||'—')} · ${esc((c.b&&c.b.email)||'—')}</span></div>`;
+  const body=document.getElementById('admChatBody');
+  body.innerHTML='<div class="empty">Načítám…</div>';
+  try{
+    const r=await api('/admin/conversations/'+id+'/messages');
+    const msgs=r.messages||[];
+    body.innerHTML=msgs.length?msgs.map(m=>adminMsgHTML(m,c)).join(''):'<div class="empty">Žádné zprávy.</div>';
+    body.scrollTop=body.scrollHeight;
+  }catch(e){body.innerHTML='<div class="empty">Zprávy se nepodařilo načíst.</div>';}
+}
+function adminMsgHTML(m,c){
+  const senderName=m.fromA?((c.a&&c.a.name)||'Smazaný účet'):((c.b&&c.b.name)||'Smazaný účet');
+  if(m.deletedAt){
+    return `<div class="msg ${m.fromA?'them':'me'}"><b style="display:block;font-size:11px;opacity:.7;margin-bottom:2px">${esc(senderName)}</b><div class="msg-content"><i>Zpráva byla smazána</i></div><span class="mt">${esc(m.t)}</span></div>`;
+  }
+  return `<div class="msg ${m.fromA?'them':'me'}">
+    <b style="display:block;font-size:11px;opacity:.7;margin-bottom:2px">${esc(senderName)}</b>
+    ${m.forwarded?'<div class="msg-forwarded">↪ Přeposláno</div>':''}
+    ${m.image?`<img class="msg-img" src="${esc(m.image)}" loading="lazy" alt="obrázek" onclick="openImgLightbox('${esc(m.image)}')" onerror="msgImgError(this)">`:''}
+    ${m.text?`<div class="msg-content">${esc(m.text)}</div>`:''}
+    <span class="mt">${esc(m.t)}${m.editedAt?' · upraveno':''}</span>
+  </div>`;
+}
+
+/* ---- ADMIN: statistiky ---- */
+async function renderAdminStats(){
+  const cardsEl=document.getElementById('admStatsCards');
+  const monthlyEl=document.getElementById('admStatsMonthly');
+  const topEl=document.getElementById('admStatsTopCaregivers');
+  if(cardsEl)cardsEl.innerHTML='<div class="empty">Načítám…</div>';
+  let s;
+  try{s=await api('/admin/stats');}
+  catch(e){toast('Statistiky se nepodařilo načíst: '+(e.message||''),'declined');if(cardsEl)cardsEl.innerHTML='';return;}
+  const cards=[
+    {l:'Objednávky (6 měsíců)',v:s.totalOrders},
+    {l:'Potvrzeno/dokončeno',v:s.confirmedOrders},
+    {l:'Konverze poptávka→potvrzeno',v:s.conversionRate+' %'},
+    {l:'Odhad tržeb pečovatelek',v:Number(s.revenueEstimate||0).toLocaleString('cs-CZ')+' Kč'},
+    {l:'Aktivních pečovatelek',v:s.activeCaregiverCount},
+  ];
+  if(cardsEl)cardsEl.innerHTML=cards.map(c=>`<div class="stat"><div class="stat-top"><span class="sl">${esc(c.l)}</span></div><div class="sv">${esc(String(c.v))}</div></div>`).join('');
+  if(monthlyEl)monthlyEl.innerHTML=(s.monthly||[]).length?s.monthly.map(m=>`
+    <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px">
+      <span>${esc(m.month)}</span><span>${m.total} objednávek · ${m.confirmedOrDone} potvrzeno/dokončeno</span>
+    </div>`).join(''):'<div class="empty">Zatím žádná data.</div>';
+  if(topEl)topEl.innerHTML=(s.topCaregivers||[]).length?s.topCaregivers.map(c=>`
+    <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px">
+      <span>${esc(c.name)}</span><span>${c.count} objednávek${c.rating?' · '+c.rating+'★':''}</span>
+    </div>`).join(''):'<div class="empty">Zatím žádná data.</div>';
 }
 
 /* ---- audit log: čitelné české popisky ---- */
