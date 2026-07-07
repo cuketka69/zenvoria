@@ -3473,14 +3473,21 @@ function renderAdminServices(){
   if(nameEl)nameEl.value='';if(descEl)descEl.value='';
   const listEl=document.getElementById('svcList'),countEl=document.getElementById('svcCount');
   if(countEl)countEl.textContent=SERVICES.length;
-  if(listEl)listEl.innerHTML=SERVICES.length?SERVICES.map(s=>`
-    <div class="row" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
+  if(listEl)listEl.innerHTML=SERVICES.length?SERVICES.map(s=>{
+    const n=caregiversForService(s.id).length;
+    return `<div class="row" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
       <div style="flex:1;min-width:0">
         <b style="display:block;font-size:14px">${esc(s.name)}</b>
         ${s.desc?`<span style="display:block;font-size:12px;color:var(--muted)">${esc(s.desc)}</span>`:''}
       </div>
-      <button type="button" class="btn btn-sm btn-ghost" onclick="deleteService('${s.id}')">Smazat</button>
-    </div>`).join(''):'<div class="empty">Zatím žádné služby.</div>';
+      <span style="flex:0 0 auto;font-size:12px;color:var(--muted)">${n} pečovatelek</span>
+      <button type="button" class="svc-detail-btn" title="Zobrazit detail" aria-label="Zobrazit detail služby ${esc(s.name)}" onclick="openSvcDetail('${s.id}')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+      </button>
+    </div>`;}).join(''):'<div class="empty">Zatím žádné služby.</div>';
+}
+function caregiversForService(id){
+  return CAREGIVERS.filter(c=>Array.isArray(c.services)&&c.services.includes(id));
 }
 /* stejná logika jako slugifyServiceId na serveru — ať se lokální id shoduje s tím, co se skutečně uloží */
 function slugifyServiceId(name){
@@ -3502,11 +3509,50 @@ function addService(e){
 }
 function deleteService(id){
   const s=SERVICES.find(x=>x.id===id);if(!s)return;
+  const n=caregiversForService(id).length;
   askConfirm({title:'Smazat službu?',icon:trashSVG(),
-    message:`Služba „${esc(s.name)}" zmizí z nabídky. Pečovatelky, které ji mají v profilu vybranou, o ni tiše přijdou.`,
+    message:n
+      ?`Službu „${esc(s.name)}" aktuálně nabízí ${n} pečovatelek — po smazání jim zmizí z profilu a rodiny podle ní přestanou moct filtrovat.`
+      :`Služba „${esc(s.name)}" zmizí z nabídky. Aktuálně ji nemá vybranou žádná pečovatelka.`,
     confirmLabel:'Smazat',danger:true,onConfirm:()=>{
       saveServices(SERVICES.filter(x=>x.id!==id),'Služba byla smazána.');
     }});
+}
+/* ---- ADMIN: detail služby — kdo ji nabízí, počty, smazání ---- */
+let svcDetailId=null;
+function openSvcDetail(id){
+  const s=SERVICES.find(x=>x.id===id);if(!s)return;
+  svcDetailId=id;
+  const list=caregiversForService(id);
+  const verifiedCount=list.filter(c=>c.verified&&!c.suspended).length;
+  const orderCount=ORDERS.filter(o=>o.service===id).length;
+  document.getElementById('svcDetailTitle').textContent=s.name;
+  document.getElementById('svcDetailDesc').textContent=s.desc||'Bez popisu.';
+  document.getElementById('svcDetailStats').innerHTML=`
+    <div class="svc-stat"><b>${list.length}</b><span>pečovatelek nabízí</span></div>
+    <div class="svc-stat"><b>${verifiedCount}</b><span>z toho ověřených</span></div>
+    <div class="svc-stat"><b>${orderCount}</b><span>objednávek celkem</span></div>`;
+  const listEl=document.getElementById('svcDetailList');
+  listEl.innerHTML=list.length?list.map(c=>{
+    const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge gold">'+checkSVG(11)+' Ověřená</span>':'<span class="badge wait">Neověřená</span>');
+    return `<button type="button" class="svc-cg-row" onclick="closeSvcDetail();openCgAdmin(${c.id})">
+      ${avaHtml(c.init,c.photo)}
+      <div class="svc-cg-info"><b>${esc(c.name)}</b><span>${esc(c.loc||'')}</span></div>
+      ${badge}
+    </button>`;
+  }).join(''):'<div class="empty">Tuto službu zatím nikdo nenabízí.</div>';
+  const m=document.getElementById('svcDetailModal');
+  m.classList.add('open');document.body.style.overflow='hidden';
+}
+function closeSvcDetail(){
+  const m=document.getElementById('svcDetailModal');
+  if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
+  svcDetailId=null;
+}
+function deleteServiceFromDetail(){
+  const id=svcDetailId;if(!id)return;
+  closeSvcDetail();
+  deleteService(id);
 }
 function saveServices(next,successMsg){
   const prev=SERVICES;
