@@ -2639,12 +2639,6 @@ function clearVerifyValidDate(){
   if(document.getElementById('vfValidYear'))document.getElementById('vfValidYear').value='';
   closeVerifyValidModal();
 }
-function setVerifyValidToday(){
-  const now=new Date();
-  document.getElementById('vfValidDay').value=String(now.getDate());
-  document.getElementById('vfValidMonth').value=String(now.getMonth()+1);
-  document.getElementById('vfValidYear').value=String(now.getFullYear());
-}
 /* zviditelní chybu ověřovacího formuláře — text u tlačítka + toast + odscrolluje k ní */
 function verifyError(el,msg){
   if(el){el.textContent=msg;el.scrollIntoView({behavior:'smooth',block:'center'});}
