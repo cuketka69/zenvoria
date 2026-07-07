@@ -485,8 +485,11 @@
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
     </button>
     <h3 id="termTitle">Navrhnout termín</h3>
-    <p class="msub">Vyberte datum, čas a délku péče.</p>
-    <div class="date-modal-grid" style="grid-template-columns:1fr 1fr">
+    <p class="msub">Vyberte službu, datum, čas a délku péče. Po odsouhlasení druhou stranou se rovnou založí objednávka.</p>
+    <div style="margin-top:6px"><label class="lbl" for="termService">Služba</label>
+      <select class="inp" id="termService"></select>
+    </div>
+    <div class="date-modal-grid" style="grid-template-columns:1fr 1fr;margin-top:14px">
       <div><label class="lbl" for="termDate">Datum</label><input class="inp" type="date" id="termDate"></div>
       <div><label class="lbl" for="termTime">Čas</label><input class="inp" type="time" id="termTime"></div>
     </div>
@@ -500,6 +503,8 @@
         <option value="8">8 hodin</option>
       </select>
     </div>
+    <div style="margin-top:14px"><label class="lbl" for="termAddr">Adresa péče</label><input class="inp" id="termAddr" placeholder="Ulice, město"></div>
+    <div class="set-err" id="termErr" style="margin-top:10px"></div>
     <div class="date-modal-actions">
       <button class="btn btn-ghost" type="button" onclick="closeTermModal()">Zrušit</button>
       <button class="btn btn-gold" type="button" onclick="confirmTerm()">Poslat návrh</button>

@@ -1047,6 +1047,13 @@ function handleRealtime(msg){
     if(activeView()==='chat')renderChat();
     return;
   }
+  if(msg.type==='term-update'){
+    const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);if(!c)return;
+    const m=c.msgs.find(x=>x.id===msg.messageId);if(m)m.term=msg.term;
+    if(activeView()==='chat')renderChat();
+    if(msg.term&&msg.term.status==='accepted'){bootstrap().then(()=>{updateAuthUI();renderCare();});}
+    return;
+  }
 }
 function initRealtime(){
   if(!auth.loggedIn){teardownRealtime();return;}
@@ -4081,6 +4088,17 @@ function cancelOrder(oid){
   toast('Objednávka byla zrušena','info');
   setTimeout(()=>go('bookings'),700);
 }
+/* rodina potvrdí, že péče proběhla → jde ohodnotit pečovatelku */
+function markOrderDone(oid){
+  askConfirm({title:'Označit jako dokončené?',icon:checkCircleSVG(),
+    message:'Potvrďte, že péče proběhla. Poté budete moct pečovatelku ohodnotit.',
+    confirmLabel:'Dokončit',onConfirm:()=>{
+      const o=ORDERS.find(x=>x.oid===oid);if(o)o.status='done';
+      apiSync(api('/orders/'+oid,{method:'PATCH',body:{status:'done'}}));
+      if(curOrder&&curOrder.oid===oid){curOrder.status='done';renderOrderDetail();}
+      toast('Služba byla označena jako dokončená.','success');
+    }});
+}
 function renderOrderDetail(){
   const o=curOrder;if(!o)return;
   document.getElementById('odBack').setAttribute('onclick',`go('${o.back}')`);
@@ -4108,6 +4126,9 @@ function renderOrderDetail(){
       :`<button class="btn btn-navy btn-block" style="margin-top:10px" onclick="openRating(${o.cid},${o.oid})">Ohodnotit péči</button>`;
   }else if(declined){
     action=`<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openProfile(${o.cid})">Objednat znovu</button>`;
+  }else if(o.status==='confirmed'){
+    action=`<button class="btn btn-navy btn-block" style="margin-top:10px" onclick="markOrderDone(${o.oid})">Označit jako dokončené</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="cancelOrder(${o.oid})">Zrušit objednávku</button>`;
   }else{
     action=`<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="cancelOrder(${o.oid})">Zrušit objednávku</button>`;
   }
@@ -4516,11 +4537,22 @@ function sendTerm(){
   openTermModal();
 }
 function openTermModal(){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);
   const d=new Date(Date.now()+2*86400000);
-  const dEl=document.getElementById('termDate'),tEl=document.getElementById('termTime'),hEl=document.getElementById('termHours');
+  const dEl=document.getElementById('termDate'),tEl=document.getElementById('termTime'),hEl=document.getElementById('termHours'),sEl=document.getElementById('termService'),aEl=document.getElementById('termAddr'),errEl=document.getElementById('termErr');
   if(dEl){dEl.min=todayISO();dEl.value=d.toISOString().slice(0,10);}
   if(tEl){tEl.value='10:00';}
   if(hEl){hEl.value='4';if(hEl._ddRefresh)hEl._ddRefresh();}
+  if(aEl)aEl.value='';
+  if(errEl)errEl.textContent='';
+  if(sEl){
+    let services=[];
+    if(auth.role==='caregiver')services=cgProfile.services||[];
+    else if(c&&c.role==='caregiver'){const cg=CAREGIVERS.find(x=>x.name===c.name);services=(cg&&cg.services)||[];}
+    if(!services.length)services=SERVICES.map(s=>s.id);
+    sEl.innerHTML=services.map(id=>`<option value="${esc(id)}">${esc(sName(id))}</option>`).join('');
+    if(sEl._ddRefresh)sEl._ddRefresh();
+  }
   const m=document.getElementById('termModal');if(m){m.classList.add('open');document.body.style.overflow='hidden';}
 }
 function closeTermModal(){
@@ -4531,14 +4563,69 @@ function hoursLabelCz(h){h=Number(h)||0;const w=h===1?'hodina':((h>=2&&h<=4)?'ho
 function confirmTerm(){
   const date=(document.getElementById('termDate')||{}).value||'';
   const time=(document.getElementById('termTime')||{}).value||'';
-  const hours=(document.getElementById('termHours')||{}).value||'';
-  if(!date){toast('Vyberte datum.','declined');return;}
-  if(date<todayISO()){toast('Datum nemůže být v minulosti.','declined');return;}
-  if(!time){toast('Vyberte čas.','declined');return;}
-  const d=new Date(date+'T00:00:00');
-  const dateLabel=isNaN(d)?date:d.toLocaleDateString('cs-CZ',{weekday:'long',day:'numeric',month:'long'});
+  const hours=+((document.getElementById('termHours')||{}).value)||0;
+  const service=(document.getElementById('termService')||{}).value||'';
+  const addr=(document.getElementById('termAddr')||{}).value.trim();
+  const err=document.getElementById('termErr');
+  const showErr=msg=>{if(err)err.textContent=msg;else toast(msg,'declined');};
+  if(err)err.textContent='';
+  if(!service){showErr('Vyberte službu.');return;}
+  if(!date){showErr('Vyberte datum.');return;}
+  if(date<todayISO()){showErr('Datum nemůže být v minulosti.');return;}
+  if(!time){showErr('Vyberte čas.');return;}
+  if(!addr||addr.length<5){showErr('Zadejte platnou adresu péče (alespoň 5 znaků).');return;}
   closeTermModal();
-  sendChatText(`📅 Návrh termínu: ${dateLabel} v ${time} (${hoursLabelCz(hours)}). Vyhovuje?`);
+  sendChatTerm({service,date,time,hours,addr});
+}
+/* pošli návrh termínu jako interaktivní zprávu (po přijetí založí/potvrdí objednávku) */
+async function sendChatTerm(term){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);
+  if(!c||c.readonly||!(c.id>0)){toast('Vyberte konverzaci.');return;}
+  const tmp={id:0,me:true,text:'',t:chatNow(),pending:true,term:Object.assign({status:'proposed',orderId:null},term)};
+  c.msgs.push(tmp);c.last='📅 Návrh termínu';renderChat();
+  try{
+    const r=await api('/conversations/'+c.id+'/messages',{method:'POST',body:{t:tmp.t,term}});
+    const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs[i]=r.message;else c.msgs.push(r.message);
+    c.last='📅 Návrh termínu';c.lastAt=r.message.createdAt;renderChat();
+  }catch(err){
+    const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs.splice(i,1);renderChat();
+    toast(err.message||'Návrh termínu se nepodařilo odeslat.','declined');
+  }
+}
+function termCardHTML(m){
+  const t=m.term;
+  const statusLine=t.status==='proposed'
+    ?(m.me?'Čeká na vyjádření druhé strany':'')
+    :(t.status==='accepted'?'✅ Termín potvrzen'+(m.me||t.orderId?', objednávka založena':''):'✕ Termín odmítnut');
+  const actions=(t.status==='proposed'&&!m.me)?`<div class="term-actions">
+      <button type="button" class="btn btn-sm btn-gold" onclick="acceptTermMessage(${m.id})">Přijmout</button>
+      <button type="button" class="btn btn-sm btn-ghost" onclick="declineTermMessage(${m.id})">Odmítnout</button>
+    </div>`:'';
+  return `<div class="term-card">
+    <div class="term-head">📅 Návrh termínu</div>
+    <div class="term-body">${esc(sName(t.service))} · ${esc(fmtDate(t.date))} v ${esc(t.time)} (${esc(hoursLabelCz(t.hours))})</div>
+    ${t.addr?`<div class="term-addr">${esc(t.addr)}</div>`:''}
+    ${statusLine?`<div class="term-status">${statusLine}</div>`:''}
+    ${actions}
+  </div>`;
+}
+async function acceptTermMessage(mid){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
+  try{
+    const r=await api('/conversations/'+c.id+'/messages/'+mid+'/term/accept',{method:'POST'});
+    const m=c.msgs.find(x=>x.id===mid);if(m)m.term=r.term;
+    renderChat();
+    toast(r.immediatelyConfirmed?'Termín potvrzen a přidán do kalendáře.':'Objednávka založena, čeká na potvrzení pečovatelky.','success');
+    await bootstrap();updateAuthUI();renderCare();
+  }catch(e){toast(e.message||'Přijetí termínu se nepodařilo.','declined');}
+}
+async function declineTermMessage(mid){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
+  try{
+    const r=await api('/conversations/'+c.id+'/messages/'+mid+'/term/decline',{method:'POST'});
+    const m=c.msgs.find(x=>x.id===mid);if(m)m.term=r.term;
+    renderChat();
+  }catch(e){toast(e.message||'Odmítnutí se nepodařilo.','declined');}
 }
 /* obrázek: zmenši a VŽDY překóduj přes canvas na čisté baseline JPEG
    (žádný fallback na rozbitý originál) → menší přenos i spolehlivé zobrazení */
@@ -4655,7 +4742,7 @@ function msgHTML(m,interactive,pinnedId){
     ${m.forwarded?`<div class="msg-forwarded">↪ Přeposláno</div>`:''}
     ${replyPreviewHTML(m.replyTo)}
     ${m.image?`<img class="msg-img" src="${esc(m.image)}" loading="lazy" alt="obrázek" onclick="openImgLightbox('${esc(m.image)}')" onerror="msgImgError(this)">`:''}
-    ${m.text?`<div class="msg-content">${esc(m.text)}</div>`:''}
+    ${m.term?termCardHTML(m):(m.text?`<div class="msg-content">${esc(m.text)}</div>`:'')}
     ${reactionsSummaryHTML(m)}
     ${tools}
     <span class="mt">${esc(m.t)}${m.editedAt?' · upraveno':''}</span>

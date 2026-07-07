@@ -2017,7 +2017,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     caregivers: caregiversForViewer,
     orders: (orders || []).map((o) => ({ ...mapOrder(o), cgPhoto: cgPhotoById[o.cid] || null, famPhoto: famPhotoByEmail[o.family_email] || null })),
     requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
-    schedule: (schedule || []).map((s) => ({ id: s.id, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null })),
+    schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null })),
     verifications: (verifications || []).map(mapVerification),
     users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null })),
     cgReviews, generalReviews,
@@ -2123,7 +2123,7 @@ app.post('/api/requests/:id/accept', requireRole('caregiver', 'admin'), h(async 
     }
   }
   if (r.oid != null) await restUpdate(T.orders, `oid=eq.${r.oid}`, { status: 'confirmed' }, { prefer: 'return=minimal' });
-  await restInsert(T.schedule, { cid: r.cid, fam: r.fam, init: r.init, service: r.service, date: r.date, time: r.time, hours: r.hours }, { prefer: 'return=minimal' });
+  await restInsert(T.schedule, { cid: r.cid, oid: r.oid != null ? r.oid : null, fam: r.fam, init: r.init, service: r.service, date: r.date, time: r.time, hours: r.hours }, { prefer: 'return=minimal' });
   await restDelete(T.requests, `id=eq.${id}`);
   await notifyOrderStatus(r, true);
   res.json({ ok: true });
@@ -2348,7 +2348,7 @@ function sanitizeChatImage(v) {
   return s;
 }
 async function loadConversationMessages(convId, me) {
-  const rows = await restSelect(T.messages, `conversation_id=eq.${Number(convId)}&order=created_at.asc&select=id,sender_id,text,image,t,created_at,edited_at,deleted_at,reactions,reply_to_id,forwarded`);
+  const rows = await restSelect(T.messages, `conversation_id=eq.${Number(convId)}&order=created_at.asc&select=id,sender_id,text,image,t,created_at,edited_at,deleted_at,reactions,reply_to_id,forwarded,term`);
   const list = rows || [];
   const replyIds = [...new Set(list.map((m) => m.reply_to_id).filter(Boolean))];
   const repliesById = {};
@@ -2362,10 +2362,23 @@ async function loadConversationMessages(convId, me) {
       id: Number(m.id), me: String(m.sender_id || '') === String(me),
       text: m.deleted_at ? '' : m.text, image: m.deleted_at ? null : (m.image || null), t: m.t || '', createdAt: m.created_at,
       editedAt: m.edited_at || null, deletedAt: m.deleted_at || null, reactions: (m.reactions && typeof m.reactions === 'object') ? m.reactions : {},
-      forwarded: !!m.forwarded,
+      forwarded: !!m.forwarded, term: (m.term && typeof m.term === 'object') ? m.term : null,
       replyTo: (reply && !reply.deleted_at) ? { id: Number(reply.id), me: String(reply.sender_id) === String(me), text: reply.text, image: reply.image || null } : null,
     };
   });
+}
+// zjistí, kdo je v konverzaci rodina a kdo pečovatelka (pro přijetí navrženého termínu)
+async function resolveConversationParties(conv) {
+  const rows = await restSelect(T.users, `id=in.(${encodeURIComponent(conv.user_a)},${encodeURIComponent(conv.user_b)})&select=id,name,email,role`);
+  const users = rows || [];
+  const family = users.find((u) => u.role === 'family') || null;
+  const caregiverUser = users.find((u) => u.role === 'caregiver') || null;
+  let caregiver = null;
+  if (caregiverUser) {
+    const cgRows = await restSelect(T.caregivers, `user_id=eq.${encodeURIComponent(caregiverUser.id)}&select=id,name,plan,suspended,verified&limit=1`);
+    caregiver = (cgRows && cgRows[0]) || null;
+  }
+  return { family, caregiver };
 }
 async function countConversationUnread(convId, me, readAt) {
   let q = `conversation_id=eq.${Number(convId)}&sender_id=neq.${encodeURIComponent(me)}&select=id&limit=500`;
@@ -2475,7 +2488,21 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   const text = String(b.text || '').trim();
   const image = sanitizeChatImage(b.image);
   if (b.image && !image) return res.status(400).json({ error: 'Neplatný nebo příliš velký obrázek.' });
-  if (!text && !image) return res.status(400).json({ error: 'Chybí text zprávy.' });
+  let term = null;
+  if (b.term && typeof b.term === 'object') {
+    const tdate = trimmedString(b.term.date, 10);
+    const ttime = trimmedString(b.term.time, 5);
+    const thours = Number(b.term.hours);
+    const tservice = trimmedString(b.term.service, 40);
+    const taddr = trimmedString(b.term.addr, 250);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tdate)) return res.status(400).json({ error: 'Neplatné datum návrhu termínu.' });
+    if (!/^\d{2}:\d{2}$/.test(ttime)) return res.status(400).json({ error: 'Neplatný čas návrhu termínu.' });
+    if (!Number.isInteger(thours) || thours < 1 || thours > 24) return res.status(400).json({ error: 'Neplatná délka péče.' });
+    if (!tservice) return res.status(400).json({ error: 'Vyberte službu.' });
+    if (!taddr) return res.status(400).json({ error: 'Zadejte adresu péče.' });
+    term = { date: tdate, time: ttime, hours: thours, service: tservice, addr: taddr, note: trimmedString(b.term.note, 500), km: Math.max(0, Number(b.term.km) || 0), status: 'proposed', orderId: null };
+  }
+  if (!text && !image && !term) return res.status(400).json({ error: 'Chybí text zprávy.' });
   if (text.length > 2000) return res.status(400).json({ error: 'Zpráva je příliš dlouhá.' });
   const t = trimmedString(b.t, 20);
   let replyToId = null;
@@ -2492,15 +2519,68 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
     }
   }
   const now = new Date().toISOString();
-  const row = await restInsert(T.messages, { conversation_id: conv.id, sender_id: me, mine: true, text, image, t: t || '', created_at: now, reply_to_id: replyToId });
-  const preview = text || (image ? '📷 Obrázek' : '');
+  const row = await restInsert(T.messages, { conversation_id: conv.id, sender_id: me, mine: true, text, image, t: t || '', created_at: now, reply_to_id: replyToId, term });
+  const preview = text || (image ? '📷 Obrázek' : (term ? '📅 Návrh termínu' : ''));
   const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
   await restUpdate(T.conversations, `id=eq.${conv.id}`, { last_text: preview, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
-  const msgOut = { id: Number(row.id), me: true, text, image: image || null, t: t || '', createdAt: now, editedAt: null, deletedAt: null, reactions: {}, forwarded: false, replyTo: replySnippet };
+  const msgOut = { id: Number(row.id), me: true, text, image: image || null, t: t || '', createdAt: now, editedAt: null, deletedAt: null, reactions: {}, forwarded: false, replyTo: replySnippet, term };
   // realtime: pushni zprávu protistraně (pro ni me:false)
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
   emitToUser(other, { type: 'message', conversationId: Number(conv.id), message: Object.assign({}, msgOut, { me: false, replyTo: replySnippet ? Object.assign({}, replySnippet, { me: !replySnippet.me }) : null }) });
   res.json({ message: msgOut });
+}));
+
+// přijetí navrženého termínu — založí (nebo rovnou potvrdí) objednávku
+app.post('/api/conversations/:id/messages/:mid/term/accept', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const conv = req.conversation;
+  const me = String(req.session.uid || '');
+  const mid = Number(req.params.mid);
+  if (!Number.isInteger(mid) || mid <= 0) return res.status(400).json({ error: 'Neplatné ID zprávy.' });
+  const rows = await restSelect(T.messages, `id=eq.${mid}&conversation_id=eq.${conv.id}&select=id,sender_id,term&limit=1`);
+  const row = rows && rows[0];
+  if (!row || !row.term) return res.status(404).json({ error: 'Návrh termínu nenalezen.' });
+  if (row.term.status !== 'proposed') return res.status(400).json({ error: 'Návrh už byl vyřízen.' });
+  if (String(row.sender_id) === me) return res.status(403).json({ error: 'Vlastní návrh nemůžete přijmout.' });
+  const { family, caregiver } = await resolveConversationParties(conv);
+  if (!family || !caregiver) return res.status(400).json({ error: 'Návrh termínu funguje jen mezi rodinou a pečovatelkou.' });
+  if (caregiver.suspended || caregiver.verified === false) return res.status(400).json({ error: 'Pečovatelka není aktuálně dostupná.' });
+  const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
+  if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
+  const iAmFamily = String(family.id) === me;
+  const t = row.term;
+  const oid = await nextId(T.orders, 'oid');
+  const status = iAmFamily ? 'pending' : 'confirmed';
+  const famInit = (String(family.name || '').trim().split(/\s+/).map((p) => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
+  await restInsert(T.orders, { oid, cid: caregiver.id, family_email: family.email, fam_name: family.name, service: t.service, hours: t.hours, date: t.date, time: t.time, addr: t.addr, note: t.note || '', km: t.km || 0, status });
+  if (iAmFamily) {
+    const reqId = await nextId(T.requests, 'id');
+    await restInsert(T.requests, { id: reqId, oid, cid: caregiver.id, fam: family.name, init: famInit, service: t.service, date: t.date, time: t.time, hours: t.hours, addr: t.addr }, { prefer: 'return=minimal' });
+  } else {
+    await restInsert(T.schedule, { cid: caregiver.id, oid, fam: family.name, init: famInit, service: t.service, date: t.date, time: t.time, hours: t.hours }, { prefer: 'return=minimal' });
+  }
+  const nextTerm = Object.assign({}, t, { status: 'accepted', orderId: oid });
+  await restUpdate(T.messages, `id=eq.${mid}`, { term: nextTerm }, { prefer: 'return=minimal' });
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  emitToUser(other, { type: 'term-update', conversationId: Number(conv.id), messageId: mid, term: nextTerm });
+  res.json({ ok: true, term: nextTerm, immediatelyConfirmed: !iAmFamily });
+}));
+
+// odmítnutí navrženého termínu
+app.post('/api/conversations/:id/messages/:mid/term/decline', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const conv = req.conversation;
+  const me = String(req.session.uid || '');
+  const mid = Number(req.params.mid);
+  if (!Number.isInteger(mid) || mid <= 0) return res.status(400).json({ error: 'Neplatné ID zprávy.' });
+  const rows = await restSelect(T.messages, `id=eq.${mid}&conversation_id=eq.${conv.id}&select=id,sender_id,term&limit=1`);
+  const row = rows && rows[0];
+  if (!row || !row.term) return res.status(404).json({ error: 'Návrh termínu nenalezen.' });
+  if (row.term.status !== 'proposed') return res.status(400).json({ error: 'Návrh už byl vyřízen.' });
+  if (String(row.sender_id) === me) return res.status(403).json({ error: 'Vlastní návrh nemůžete odmítnout.' });
+  const nextTerm = Object.assign({}, row.term, { status: 'declined' });
+  await restUpdate(T.messages, `id=eq.${mid}`, { term: nextTerm }, { prefer: 'return=minimal' });
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  emitToUser(other, { type: 'term-update', conversationId: Number(conv.id), messageId: mid, term: nextTerm });
+  res.json({ ok: true, term: nextTerm });
 }));
 
 // úprava vlastní zprávy
