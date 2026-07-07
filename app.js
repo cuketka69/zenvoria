@@ -735,8 +735,28 @@ function renderSearchLocations(){
   sel.value=locations.includes(current)?current:'';
   if(sel._ddRefresh)sel._ddRefresh();
 }
+/* rozsah cen podle reálných sazeb zveřejněných pečovatelek (ne pevná čísla) */
+function getSearchPriceRange(){
+  const rates=CAREGIVERS.filter(c=>c.verified&&!c.suspended&&hasPerm(c,'publishServices')).map(c=>Number(c.rate)).filter(r=>Number.isFinite(r)&&r>0);
+  if(!rates.length)return{min:150,max:600};
+  const min=Math.min(...rates),max=Math.max(...rates);
+  return min<max?{min,max}:{min,max:min+10};
+}
+function renderSearchPriceRange(){
+  const el=document.getElementById('priceMax');
+  if(!el)return;
+  const{min,max}=getSearchPriceRange();
+  const prevMax=+el.max||max;
+  const prevVal=+el.value||prevMax;
+  const wasAtMax=prevVal>=prevMax; // slider dosud na maximu = "bez omezení", posuň s novým maximem
+  el.min=min;el.max=max;el.step=10;
+  el.value=wasAtMax?max:Math.min(Math.max(prevVal,min),max);
+  const lbl=document.getElementById('priceMaxVal');
+  if(lbl)lbl.textContent=el.value+' Kč';
+}
 function renderFilters(){
   renderSearchLocations();
+  renderSearchPriceRange();
   const all=[{id:'',name:'Vše'},...SERVICES];
   document.getElementById('servFilters').innerHTML=all.map(s=>
     `<button class="fbtn ${activeFilter===s.id?'on':''}" onclick="setFilter('${s.id}')">${s.name}</button>`).join('');
