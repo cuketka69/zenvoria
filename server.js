@@ -2565,26 +2565,32 @@ async function countConversationUnread(convId, me, readAt) {
 // konverzace z pohledu daného uživatele — zobrazí druhou stranu
 async function mapConversationForViewer(conv, me) {
   const otherId = String(conv.user_a) === String(me) ? conv.user_b : conv.user_a;
-  const u = (await restSelect(T.users, `id=eq.${encodeURIComponent(otherId)}&select=name,init,photo,role,public_id&limit=1`))[0] || {};
-  // token pro veřejný profil: u pečovatelky ten z její karty (→ plný profil), jinak účtový
+  const myReadAt = String(conv.user_a) === String(me) ? conv.a_read_at : conv.b_read_at;
+  const otherReadAt = String(conv.user_a) === String(otherId) ? conv.a_read_at : conv.b_read_at;
+  // nezávislé dotazy pošli paralelně místo za sebou
+  const [uRows, pinRows, unread] = await Promise.all([
+    restSelect(T.users, `id=eq.${encodeURIComponent(otherId)}&select=name,init,photo,role,public_id&limit=1`),
+    conv.pinned_message_id
+      ? restSelect(T.messages, `id=eq.${Number(conv.pinned_message_id)}&select=id,sender_id,text,image,deleted_at&limit=1`)
+      : Promise.resolve(null),
+    countConversationUnread(conv.id, me, myReadAt),
+  ]);
+  const u = (uRows && uRows[0]) || {};
+  // token pro veřejný profil: u pečovatelky ten z její karty (→ plný profil), jinak účtový — závisí na roli z u, proto až teď
   let profileToken = u.public_id || null;
   if ((u.role || '') === 'caregiver') {
     const cg = (await restSelect(T.caregivers, `user_id=eq.${encodeURIComponent(otherId)}&select=public_id&limit=1`))[0];
     if (cg && cg.public_id) profileToken = cg.public_id;
   }
-  const myReadAt = String(conv.user_a) === String(me) ? conv.a_read_at : conv.b_read_at;
-  const otherReadAt = String(conv.user_a) === String(otherId) ? conv.a_read_at : conv.b_read_at;
   let pinnedMessage = null;
-  if (conv.pinned_message_id) {
-    const pinRows = await restSelect(T.messages, `id=eq.${Number(conv.pinned_message_id)}&select=id,sender_id,text,image,deleted_at&limit=1`);
-    const pin = pinRows && pinRows[0];
+  if (pinRows) {
+    const pin = pinRows[0];
     if (pin && !pin.deleted_at) pinnedMessage = { id: Number(pin.id), me: String(pin.sender_id) === String(me), text: pin.text, image: pin.image || null };
   }
   return {
     id: Number(conv.id), name: u.name || 'Smazaný účet', init: u.init || '', photo: u.photo || null,
     role: u.role || 'family', profileToken, last: conv.last_text || '', lastAt: conv.last_at || null,
-    unread: await countConversationUnread(conv.id, me, myReadAt),
-    otherReadAt: otherReadAt || null, pinnedMessage,
+    unread, otherReadAt: otherReadAt || null, pinnedMessage,
   };
 }
 async function resolveCounterpartUserId(b) {
@@ -2612,8 +2618,7 @@ app.get('/api/conversations', requireAuth, h(async (req, res) => {
   const me = String(req.session.uid || '');
   if (!me) return res.json({ conversations: [] });
   const rows = await restSelect(T.conversations, `or=(user_a.eq.${encodeURIComponent(me)},user_b.eq.${encodeURIComponent(me)})&order=last_at.desc.nullslast&select=*`);
-  const out = [];
-  for (const conv of rows || []) out.push(await mapConversationForViewer(conv, me));
+  const out = await Promise.all((rows || []).map((conv) => mapConversationForViewer(conv, me)));
   res.json({ conversations: out });
 }));
 
