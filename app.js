@@ -507,6 +507,8 @@ async function fetchLocationMatches(query){
     let data=null;try{data=await res.json();}catch(e){}
     if(seq!==locationAutocompleteSeq)return null;
     if(res.ok&&data&&Array.isArray(data.items)){
+      // bez nastaveného Geoapify klíče server vrátí prázdný seznam — použij vestavěný seznam měst/okresů místo hlášení chyby uživateli
+      if(data.source==='missing-key')return { items:getLocationMatches(q), source:'fallback' };
       return {
         items:data.items.map(item=>item&&item.label).filter(Boolean),
         source:data.source||'remote'
@@ -558,8 +560,7 @@ function bindLocationAutocomplete(inputId,onPick){
     const result=await fetchLocationMatches(value);
     if(result==null||value!==input.value.trim())return;
     let emptyText='Nenalezena zadna odpovidajici lokalita.';
-    if(result.source==='missing-key')emptyText='Geoapify API key neni nastaveny na serveru.';
-    else if(/^\d[\d\s]*$/.test(value)&&result.source==='fallback')emptyText='Vyhledani podle PSC bude fungovat po nastaveni Geoapify API klice.';
+    if(/^\d[\d\s]*$/.test(value)&&result.source==='fallback')emptyText='Vyhledani podle PSC bude fungovat po nastaveni Geoapify API klice.';
     render(result.items||[],emptyText);
   };
   input.addEventListener('focus',refresh);
