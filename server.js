@@ -907,6 +907,69 @@ function orderStatusMail({ familyName, order, caregiverName, accepted }) {
     }),
   };
 }
+// ---- e-mail: proběhla péče? (rodině, po uplynutí naplánovaného konce služby) ----
+function serviceDoneCheckMail({ familyName, order, caregiverName }) {
+  const firstName = (familyName || '').trim().split(/\s+/)[0] || 'zákazníku';
+  const when = [order.date, order.time].filter(Boolean).join(' v ');
+  return {
+    subject: `Proběhla péče ${order.date}? Potvrďte prosím dokončení`,
+    text:
+      `Dobrý den, ${familyName || firstName},\n\n` +
+      `naplánovaný čas služby (${order.service}, ${when}) u pečovatelky ${caregiverName || ''} už uplynul.\n` +
+      'Pokud vše proběhlo v pořádku, označte prosím objednávku ve svém účtu jako dokončenou — odemkne se vám tím možnost pečovatelku ohodnotit.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Potvrďte prosím, že péče proběhla.',
+      title: 'Proběhla péče v pořádku?',
+      intro: `Dobrý den, ${firstName}. Naplánovaný čas služby u pečovatelky ${caregiverName || ''} už uplynul.`,
+      bodyHtml:
+        '<p style="margin:0 0 14px 0;">Pokud vše proběhlo v pořádku, označte prosím objednávku ve svém účtu jako dokončenou.</p>' +
+        '<p style="margin:0;">Odemkne se vám tím možnost pečovatelku ohodnotit.</p>',
+      ctaLabel: 'Otevřít objednávku',
+      ctaUrl: `${APP_URL}/#bookings`,
+      ctaNote: '',
+      facts: [
+        { label: 'Služba', value: order.service || '' },
+        { label: 'Termín', value: when || '' },
+        { label: 'Pečovatelka', value: caregiverName || '' },
+      ],
+      closingTitle: 'Děkujeme za využití ZENVORIA.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail se posílá jednou, krátce po uplynutí naplánovaného konce služby.',
+    }),
+  };
+}
+// ---- e-mail: připomínka blížící se objednávky (rodině i pečovatelce) ----
+function upcomingOrderReminderMail({ name, order, counterpartName, forCaregiver }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || (forCaregiver ? 'pečovatelko' : 'zákazníku');
+  const when = [order.date, order.time].filter(Boolean).join(' v ');
+  const counterpartLabel = forCaregiver ? 'Klient' : 'Pečovatelka';
+  return {
+    subject: `Připomínka: zítra máte naplánovanou péči (${order.date})`,
+    text:
+      `Dobrý den, ${name || firstName},\n\n` +
+      `připomínáme naplánovanou službu: ${order.service}, ${when}.\n` +
+      `${counterpartLabel}: ${counterpartName || ''}\n\n` +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Zítra máte naplánovanou péči.',
+      title: 'Připomínka nadcházející služby',
+      intro: `Dobrý den, ${firstName}. Připomínáme vaši naplánovanou službu.`,
+      bodyHtml: '<p style="margin:0;">Pokud se termín z nějakého důvodu změnil, ozvěte se prosím druhé straně přes chat co nejdřív.</p>',
+      ctaLabel: forCaregiver ? 'Zobrazit kalendář' : 'Zobrazit objednávky',
+      ctaUrl: forCaregiver ? `${APP_URL}/#cg-calendar` : `${APP_URL}/#bookings`,
+      ctaNote: '',
+      facts: [
+        { label: 'Služba', value: order.service || '' },
+        { label: 'Termín', value: when || '' },
+        { label: counterpartLabel, value: counterpartName || '' },
+      ],
+      closingTitle: 'Těšíme se, ať vše proběhne v pořádku.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail se posílá jednou, přibližně 24 hodin před naplánovaným začátkem služby.',
+    }),
+  };
+}
 // ---- e-mail: výsledek ověření (pečovatelce) ----
 function verificationResultMail({ name, approved, reason }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
@@ -3266,6 +3329,61 @@ async function expireTrials() {
   } catch (e) { console.warn('[trial] expire sweep failed:', e.message); }
 }
 setInterval(expireTrials, 30 * 60 * 1000).unref();
+
+/* potvrzené objednávky, jejichž naplánovaný konec už uplynul → jednorázová výzva rodině k potvrzení dokončení */
+async function checkFinishedServices() {
+  if (!REST_ENABLED) return;
+  try {
+    const nowIso = new Date().toISOString();
+    const todayDate = nowIso.slice(0, 10);
+    const rows = await restSelect(T.orders, `status=eq.confirmed&done_prompt_sent_at=is.null&date=lte.${todayDate}&select=oid,cid,family_email,fam_name,service,date,time,hours`);
+    for (const o of rows || []) {
+      const endMs = new Date(`${o.date}T${o.time}:00`).getTime() + Number(o.hours || 0) * 3600000;
+      if (!Number.isFinite(endMs) || endMs > Date.now()) continue;
+      let caregiverName = '';
+      if (o.cid != null) {
+        const cgs = await restSelect(T.caregivers, `id=eq.${o.cid}&select=name&limit=1`);
+        caregiverName = (cgs && cgs[0] && cgs[0].name) || '';
+      }
+      if (o.family_email) {
+        await sendMailSafe({ to: o.family_email, ...serviceDoneCheckMail({ familyName: o.fam_name, order: o, caregiverName }) });
+      }
+      await restUpdate(T.orders, `oid=eq.${o.oid}`, { done_prompt_sent_at: nowIso }, { prefer: 'return=minimal' });
+    }
+  } catch (e) { console.warn('[jobs] checkFinishedServices failed:', e.message); }
+}
+setInterval(checkFinishedServices, 30 * 60 * 1000).unref();
+
+/* potvrzené objednávky ~24h před začátkem → připomínka rodině i pečovatelce (jednorázově) */
+async function sendUpcomingReminders() {
+  if (!REST_ENABLED) return;
+  try {
+    const nowIso = new Date().toISOString();
+    const windowDate = new Date(Date.now() + 24 * 3600000).toISOString().slice(0, 10);
+    const rows = await restSelect(T.orders, `status=eq.confirmed&reminder_sent_at=is.null&date=eq.${windowDate}&select=oid,cid,family_email,fam_name,service,date,time,hours`);
+    for (const o of rows || []) {
+      const startMs = new Date(`${o.date}T${o.time}:00`).getTime();
+      if (!Number.isFinite(startMs)) continue;
+      const hoursUntil = (startMs - Date.now()) / 3600000;
+      if (hoursUntil > 25 || hoursUntil < 0) continue;
+      let caregiverName = '', caregiverEmail = '';
+      if (o.cid != null) {
+        const cgs = await restSelect(T.caregivers, `id=eq.${o.cid}&select=name,email&limit=1`);
+        const cg = cgs && cgs[0];
+        caregiverName = (cg && cg.name) || '';
+        caregiverEmail = (cg && cg.email) || '';
+      }
+      if (o.family_email) {
+        await sendMailSafe({ to: o.family_email, ...upcomingOrderReminderMail({ name: o.fam_name, order: o, counterpartName: caregiverName, forCaregiver: false }) });
+      }
+      if (caregiverEmail) {
+        await sendMailSafe({ to: caregiverEmail, ...upcomingOrderReminderMail({ name: caregiverName, order: o, counterpartName: o.fam_name, forCaregiver: true }) });
+      }
+      await restUpdate(T.orders, `oid=eq.${o.oid}`, { reminder_sent_at: nowIso }, { prefer: 'return=minimal' });
+    }
+  } catch (e) { console.warn('[jobs] sendUpcomingReminders failed:', e.message); }
+}
+setInterval(sendUpcomingReminders, 30 * 60 * 1000).unref();
 
 app.listen(PORT, () => {
   console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`);
