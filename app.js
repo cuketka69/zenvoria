@@ -2404,6 +2404,7 @@ function renderCgVerify(){
   document.getElementById('vfSelfieText').innerHTML='<b>Nahrát selfie</b> — potvrzení, že s registrací souhlasíte';
   document.getElementById('vfIdFrontText').innerHTML='<b>Přední strana</b> — foto nebo sken';
   document.getElementById('vfIdBackText').innerHTML='<b>Zadní strana</b> — foto nebo sken';
+  ['vfDocLabel','vfSelfieLabel','vfIdFrontLabel','vfIdBackLabel'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('has-img');});
   verifyDocName='';verifySelfieName='';verifyDocData='';verifySelfieData='';
   verifyIdFrontName='';verifyIdFrontData='';verifyIdBackName='';verifyIdBackData='';
   verifyServices=(cgProfile.services||[]).slice();
@@ -2415,29 +2416,40 @@ function renderCgVerify(){
   document.getElementById('vfErr').textContent='';
   ddRefresh();
 }
+/* po nahrání souboru zobrazí náhled obrázku přímo v poli (u PDF/Wordu necháme ikonu + název) */
+function setDocDropPreview(labelId,spanId,dataUrl,name,fallbackIcon,fallbackSuffix){
+  const label=document.getElementById(labelId);
+  const span=document.getElementById(spanId);
+  const isImg=!!dataUrl&&dataUrl.indexOf('data:image')===0;
+  if(label)label.classList.toggle('has-img',isImg);
+  if(!span)return;
+  span.innerHTML=isImg
+    ? `<span class="doc-drop-preview"><img src="${dataUrl}" alt=""><span class="ddp-overlay">${checkSVG(12)} ${esc(name)} — změnit</span></span>`
+    : `${fallbackIcon} <b>${esc(name)}</b>${fallbackSuffix?' — '+fallbackSuffix:''}`;
+}
 function onVerifyDoc(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyDocName=f.name;verifyDocData='';
   document.getElementById('vfDocText').innerHTML=`${paperclipSVG(15)} <b>${esc(f.name)}</b> — připraveno k odeslání`;
-  readVerifyFile(f,res=>{verifyDocName=res.name;verifyDocData=res.data;document.getElementById('vfDocText').innerHTML=`${paperclipSVG(15)} <b>${esc(res.name)}</b> — připraveno k odeslání`;});
+  readVerifyFile(f,res=>{verifyDocName=res.name;verifyDocData=res.data;setDocDropPreview('vfDocLabel','vfDocText',res.data,res.name,paperclipSVG(15),'připraveno k odeslání');});
 }
 function onVerifySelfie(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifySelfieName=f.name;verifySelfieData='';
   document.getElementById('vfSelfieText').innerHTML=`${selfieSVG(15)} <b>${esc(f.name)}</b> — selfie připraveno`;
-  readVerifyFile(f,res=>{verifySelfieName=res.name;verifySelfieData=res.data;document.getElementById('vfSelfieText').innerHTML=`${selfieSVG(15)} <b>${esc(res.name)}</b> — selfie připraveno`;});
+  readVerifyFile(f,res=>{verifySelfieName=res.name;verifySelfieData=res.data;setDocDropPreview('vfSelfieLabel','vfSelfieText',res.data,res.name,selfieSVG(15),'selfie připraveno');});
 }
 function onVerifyIdFront(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyIdFrontName=f.name;verifyIdFrontData='';
   document.getElementById('vfIdFrontText').innerHTML=`${idCardSVG(15)} <b>${esc(f.name)}</b>`;
-  readVerifyFile(f,res=>{verifyIdFrontName=res.name;verifyIdFrontData=res.data;document.getElementById('vfIdFrontText').innerHTML=`${idCardSVG(15)} <b>${esc(res.name)}</b>`;});
+  readVerifyFile(f,res=>{verifyIdFrontName=res.name;verifyIdFrontData=res.data;setDocDropPreview('vfIdFrontLabel','vfIdFrontText',res.data,res.name,idCardSVG(15));});
 }
 function onVerifyIdBack(e){
   const f=e.target.files&&e.target.files[0];if(!f)return;
   verifyIdBackName=f.name;verifyIdBackData='';
   document.getElementById('vfIdBackText').innerHTML=`${idCardSVG(15)} <b>${esc(f.name)}</b>`;
-  readVerifyFile(f,res=>{verifyIdBackName=res.name;verifyIdBackData=res.data;document.getElementById('vfIdBackText').innerHTML=`${idCardSVG(15)} <b>${esc(res.name)}</b>`;});
+  readVerifyFile(f,res=>{verifyIdBackName=res.name;verifyIdBackData=res.data;setDocDropPreview('vfIdBackLabel','vfIdBackText',res.data,res.name,idCardSVG(15));});
 }
 function getVerifyPhoneValue(){
   const prefix=(document.getElementById('vfPhonePrefix')?.value||'+420').trim();
