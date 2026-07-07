@@ -326,7 +326,13 @@
         <button type="button" class="btn btn-ghost" style="margin-top:14px" onclick="addVerifyExtraCertification()">Přidat další osvědčení</button>
         <div class="pdiv" style="margin:18px 0"></div>
         <h3 style="margin-bottom:6px">Nabízené služby</h3>
-        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Vyberte alespoň jednu službu, kterou chcete nabízet. Později je upravíte ve svém profilu.</p>
+        <div class="cg-serv-head">
+          <p style="color:var(--muted);font-size:13px">Vyberte alespoň jednu službu, kterou chcete nabízet (<span id="vfServCount">0</span> vybráno). Později je upravíte ve svém profilu.</p>
+          <div class="cg-serv-quick">
+            <button type="button" class="lnk" onclick="setAllVerifyServices(true)">Vybrat vše</button>
+            <button type="button" class="lnk" onclick="setAllVerifyServices(false)">Zrušit výběr</button>
+          </div>
+        </div>
         <div class="cg-services" id="vfServices"></div>
         <div style="margin-top:14px"><label class="lbl">Reference / doporučení (volitelné)</label><textarea class="inp" id="vfRefs" placeholder="Kontakt na referenci nebo odkaz na doporučení…"></textarea></div>
         <div style="margin-top:14px"><label class="lbl">Poznámka pro správce (volitelné)</label><textarea class="inp" id="vfNote" placeholder="Cokoli, co bychom měli vědět…"></textarea></div>

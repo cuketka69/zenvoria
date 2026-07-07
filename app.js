@@ -2194,11 +2194,17 @@ function renderVerifyServiceChips(){
   const wrap=document.getElementById('vfServices');if(!wrap)return;
   const locked=(cgStatus()==='verified'||cgStatus()==='submitted');
   wrap.innerHTML=SERVICES.map(s=>
-    `<button type="button" class="cg-serv ${verifyServices.includes(s.id)?'on':''}" ${locked?'disabled':''} onclick="toggleVerifyService('${s.id}')">${s.name}</button>`).join('');
+    `<button type="button" class="cg-serv ${verifyServices.includes(s.id)?'on':''}" ${locked?'disabled':''} onclick="toggleVerifyService('${s.id}')"><span class="cg-serv-check">${checkSVG(13)}</span>${s.name}</button>`).join('');
+  const cnt=document.getElementById('vfServCount');if(cnt)cnt.textContent=verifyServices.length;
 }
 function toggleVerifyService(id){
   const i=verifyServices.indexOf(id);
   if(i<0)verifyServices.push(id);else verifyServices.splice(i,1);
+  renderVerifyServiceChips();
+}
+function setAllVerifyServices(all){
+  if(cgStatus()==='verified'||cgStatus()==='submitted')return;
+  verifyServices=all?SERVICES.map(s=>s.id):[];
   renderVerifyServiceChips();
 }
 /* obsah nahraných souborů (data URL) — v paměti, klíč `${verId}:doc` / `:selfie` */
@@ -4107,7 +4113,7 @@ function renderCgServiceChips(){
   if(picker)picker.hidden=!cgServPickerOpen;
   if(toggle){toggle.textContent=cgServPickerOpen?'Zavřít výběr':'Změnit služby';toggle.setAttribute('aria-expanded',cgServPickerOpen?'true':'false');}
   wrap.innerHTML=SERVICES.map(s=>
-    `<button type="button" class="cg-serv ${cgProfile.services.includes(s.id)?'on':''}" onclick="toggleCgService('${s.id}')">${s.name}</button>`).join('');
+    `<button type="button" class="cg-serv ${cgProfile.services.includes(s.id)?'on':''}" onclick="toggleCgService('${s.id}')"><span class="cg-serv-check">${checkSVG(13)}</span>${s.name}</button>`).join('');
 }
 function toggleCgServPicker(){
   cgServPickerOpen=!cgServPickerOpen;
