@@ -1016,6 +1016,24 @@ function handleRealtime(msg){
     if(activeView()==='chat')applyChatPresenceToDom();
     return;
   }
+  if(msg.type==='message-edit'){
+    const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);if(!c)return;
+    const m=c.msgs.find(x=>x.id===msg.messageId);if(m){m.text=msg.text;m.editedAt=msg.editedAt;}
+    if(activeView()==='chat')renderChat();
+    return;
+  }
+  if(msg.type==='message-delete'){
+    const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);if(!c)return;
+    const m=c.msgs.find(x=>x.id===msg.messageId);if(m){m.deletedAt=new Date().toISOString();m.text='';m.image=null;m.reactions={};}
+    if(activeView()==='chat')renderChat();
+    return;
+  }
+  if(msg.type==='message-react'){
+    const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);if(!c)return;
+    const m=c.msgs.find(x=>x.id===msg.messageId);if(m)m.reactions=msg.reactions;
+    if(activeView()==='chat')renderChat();
+    return;
+  }
 }
 function initRealtime(){
   if(!auth.loggedIn){teardownRealtime();return;}
@@ -4372,23 +4390,7 @@ function renderChat(){
   headMeta.appendChild(headName);
   headMeta.appendChild(headState);
   head.appendChild(headMeta);
-  body.textContent='';
-  c.msgs.forEach(m=>{
-    const row=document.createElement('div');
-    row.className='msg '+(m.me?'me':'them')+(m.image?' has-img':'');
-    if(m.image){
-      const im=document.createElement('img');im.className='msg-img';im.src=m.image;im.loading='lazy';im.alt='obrázek';
-      im.addEventListener('click',()=>openImgLightbox(m.image));
-      im.addEventListener('error',()=>{const ph=document.createElement('span');ph.className='msg-img-broken';ph.textContent='🖼️ obrázek nelze zobrazit';im.replaceWith(ph);});
-      row.appendChild(im);
-    }
-    if(m.text)row.appendChild(document.createTextNode(m.text));
-    const time=document.createElement('span');
-    time.className='mt';
-    time.textContent=m.t;
-    row.appendChild(time);
-    body.appendChild(row);
-  });
+  body.innerHTML=c.msgs.map(m=>msgHTML(m,!c.readonly)).join('');
   // u oznámení (jen ke čtení) schovat vstup i akce
   const actions=document.getElementById('chatActions'),form=document.getElementById('chatForm');
   if(actions)actions.style.display=c.readonly?'none':'';
@@ -4525,6 +4527,90 @@ function insertEmoji(e){
   try{onChatTypingInput();}catch(_){ }
 }
 document.addEventListener('click',e=>{if(!e.target.closest('#emojiPicker')&&!e.target.closest('#chatEmojiBtn'))closeEmojiPicker();});
+
+/* ---------- REAKCE / ÚPRAVA / SMAZÁNÍ ZPRÁVY ---------- */
+const QUICK_REACT_EMOJIS=['👍','❤️','😂','😮','😢','🙏'];
+function msgImgError(img){const ph=document.createElement('span');ph.className='msg-img-broken';ph.textContent='🖼️ obrázek nelze zobrazit';img.replaceWith(ph);}
+function reactionsSummaryHTML(m){
+  const r=m.reactions||{};
+  const keys=Object.keys(r).filter(k=>Array.isArray(r[k])&&r[k].length);
+  if(!keys.length)return'';
+  return `<div class="msg-reacts">${keys.map(k=>`<span class="react-chip" role="button" tabindex="0" onclick="reactToMessage(${m.id},'${k}')">${k} ${r[k].length}</span>`).join('')}</div>`;
+}
+function msgHTML(m,interactive){
+  if(m.deletedAt){
+    return `<div class="msg ${m.me?'me':'them'} msg-deleted" data-mid="${m.id}">
+      <div class="msg-content"><i>Zpráva byla smazána</i></div>
+      <span class="mt">${esc(m.t)}</span>
+    </div>`;
+  }
+  const tools=interactive?`<div class="msg-tools">
+      <button type="button" title="Reagovat" onclick="event.stopPropagation();toggleReactPicker(${m.id})">😊</button>
+      ${(m.me&&m.text)?`<button type="button" title="Upravit" onclick="event.stopPropagation();startEditMessage(${m.id})">✏️</button>`:''}
+      ${m.me?`<button type="button" title="Smazat" onclick="event.stopPropagation();deleteMessageConfirm(${m.id})">🗑️</button>`:''}
+    </div>
+    <div class="react-picker" id="reactPicker-${m.id}" hidden>${QUICK_REACT_EMOJIS.map(e=>`<button type="button" onclick="reactToMessage(${m.id},'${e}')">${e}</button>`).join('')}</div>`:'';
+  return `<div class="msg ${m.me?'me':'them'}${m.image?' has-img':''}" data-mid="${m.id}">
+    ${m.image?`<img class="msg-img" src="${esc(m.image)}" loading="lazy" alt="obrázek" onclick="openImgLightbox('${esc(m.image)}')" onerror="msgImgError(this)">`:''}
+    ${m.text?`<div class="msg-content">${esc(m.text)}</div>`:''}
+    ${reactionsSummaryHTML(m)}
+    ${tools}
+    <span class="mt">${esc(m.t)}${m.editedAt?' · upraveno':''}</span>
+  </div>`;
+}
+function toggleReactPicker(mid){
+  document.querySelectorAll('.react-picker').forEach(el=>{if(el.id!=='reactPicker-'+mid)el.hidden=true;});
+  const el=document.getElementById('reactPicker-'+mid);
+  if(el)el.hidden=!el.hidden;
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.react-picker')&&!e.target.closest('.msg-tools'))document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);});
+async function reactToMessage(mid,emoji){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
+  document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
+  try{
+    const r=await api('/conversations/'+c.id+'/messages/'+mid+'/react',{method:'POST',body:{emoji}});
+    const m=c.msgs.find(x=>x.id===mid);if(m)m.reactions=r.reactions;
+    renderChat();
+  }catch(e){toast(e.message||'Reakci se nepodařilo uložit.','declined');}
+}
+function startEditMessage(mid){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
+  const m=c.msgs.find(x=>x.id===mid);if(!m||!m.me)return;
+  const row=document.querySelector(`.msg[data-mid="${mid}"]`);if(!row)return;
+  const content=row.querySelector('.msg-content');if(!content)return;
+  content.innerHTML=`<textarea class="msg-edit-input">${esc(m.text)}</textarea>
+    <div class="msg-edit-actions">
+      <button type="button" class="btn btn-sm btn-ghost" onclick="renderChat()">Zrušit</button>
+      <button type="button" class="btn btn-sm btn-gold" onclick="saveEditMessage(${mid})">Uložit</button>
+    </div>`;
+  const ta=content.querySelector('textarea');
+  if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);}
+}
+async function saveEditMessage(mid){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
+  const row=document.querySelector(`.msg[data-mid="${mid}"]`);if(!row)return;
+  const ta=row.querySelector('.msg-edit-input');if(!ta)return;
+  const text=ta.value.trim();
+  if(!text){toast('Zpráva nemůže být prázdná.');return;}
+  try{
+    const r=await api('/conversations/'+c.id+'/messages/'+mid,{method:'PATCH',body:{text}});
+    const m=c.msgs.find(x=>x.id===mid);if(m){m.text=text;m.editedAt=r.editedAt;}
+    renderChat();
+  }catch(e){toast(e.message||'Úpravu se nepodařilo uložit.','declined');}
+}
+function deleteMessageConfirm(mid){
+  askConfirm({title:'Smazat zprávu?',icon:trashSVG(),
+    message:'Zpráva bude nahrazena poznámkou „Zpráva byla smazána" pro obě strany. Akce je nevratná.',
+    confirmLabel:'Smazat',danger:true,onConfirm:()=>deleteMessage(mid)});
+}
+async function deleteMessage(mid){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
+  try{
+    await api('/conversations/'+c.id+'/messages/'+mid,{method:'DELETE'});
+    const m=c.msgs.find(x=>x.id===mid);if(m){m.deletedAt=new Date().toISOString();m.text='';m.image=null;m.reactions={};}
+    renderChat();
+  }catch(e){toast(e.message||'Zprávu se nepodařilo smazat.','declined');}
+}
 function openImgLightbox(src){
   let ov=document.getElementById('imgLightbox');
   if(!ov){ov=document.createElement('div');ov.id='imgLightbox';ov.className='img-lightbox';ov.addEventListener('click',()=>ov.classList.remove('open'));document.body.appendChild(ov);}

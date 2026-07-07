@@ -2348,10 +2348,11 @@ function sanitizeChatImage(v) {
   return s;
 }
 async function loadConversationMessages(convId, me) {
-  const rows = await restSelect(T.messages, `conversation_id=eq.${Number(convId)}&order=created_at.asc&select=id,sender_id,text,image,t,created_at`);
+  const rows = await restSelect(T.messages, `conversation_id=eq.${Number(convId)}&order=created_at.asc&select=id,sender_id,text,image,t,created_at,edited_at,deleted_at,reactions`);
   return (rows || []).map((m) => ({
     id: Number(m.id), me: String(m.sender_id || '') === String(me),
-    text: m.text, image: m.image || null, t: m.t || '', createdAt: m.created_at,
+    text: m.deleted_at ? '' : m.text, image: m.deleted_at ? null : (m.image || null), t: m.t || '', createdAt: m.created_at,
+    editedAt: m.edited_at || null, deletedAt: m.deleted_at || null, reactions: (m.reactions && typeof m.reactions === 'object') ? m.reactions : {},
   }));
 }
 async function countConversationUnread(convId, me, readAt) {
@@ -2459,11 +2460,74 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   const preview = text || (image ? '📷 Obrázek' : '');
   const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
   await restUpdate(T.conversations, `id=eq.${conv.id}`, { last_text: preview, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
-  const msgOut = { id: Number(row.id), me: true, text, image: image || null, t: t || '', createdAt: now };
+  const msgOut = { id: Number(row.id), me: true, text, image: image || null, t: t || '', createdAt: now, editedAt: null, deletedAt: null, reactions: {} };
   // realtime: pushni zprávu protistraně (pro ni me:false)
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
   emitToUser(other, { type: 'message', conversationId: Number(conv.id), message: Object.assign({}, msgOut, { me: false }) });
   res.json({ message: msgOut });
+}));
+
+// úprava vlastní zprávy
+app.patch('/api/conversations/:id/messages/:mid', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const conv = req.conversation;
+  const me = String(req.session.uid || '');
+  const mid = Number(req.params.mid);
+  if (!Number.isInteger(mid) || mid <= 0) return res.status(400).json({ error: 'Neplatné ID zprávy.' });
+  const text = String((req.body || {}).text || '').trim();
+  if (!text) return res.status(400).json({ error: 'Zpráva nemůže být prázdná.' });
+  if (text.length > 2000) return res.status(400).json({ error: 'Zpráva je příliš dlouhá.' });
+  const rows = await restSelect(T.messages, `id=eq.${mid}&conversation_id=eq.${conv.id}&select=id,sender_id,deleted_at&limit=1`);
+  const row = rows && rows[0];
+  if (!row) return res.status(404).json({ error: 'Zpráva nenalezena.' });
+  if (String(row.sender_id) !== me) return res.status(403).json({ error: 'Můžete upravit jen vlastní zprávy.' });
+  if (row.deleted_at) return res.status(400).json({ error: 'Smazanou zprávu nelze upravit.' });
+  const editedAt = new Date().toISOString();
+  await restUpdate(T.messages, `id=eq.${mid}`, { text, edited_at: editedAt }, { prefer: 'return=minimal' });
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  emitToUser(other, { type: 'message-edit', conversationId: Number(conv.id), messageId: mid, text, editedAt });
+  res.json({ ok: true, editedAt });
+}));
+
+// smazání vlastní zprávy (soft delete — nahradí obsah placeholderem pro obě strany)
+app.delete('/api/conversations/:id/messages/:mid', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const conv = req.conversation;
+  const me = String(req.session.uid || '');
+  const mid = Number(req.params.mid);
+  if (!Number.isInteger(mid) || mid <= 0) return res.status(400).json({ error: 'Neplatné ID zprávy.' });
+  const rows = await restSelect(T.messages, `id=eq.${mid}&conversation_id=eq.${conv.id}&select=id,sender_id&limit=1`);
+  const row = rows && rows[0];
+  if (!row) return res.status(404).json({ error: 'Zpráva nenalezena.' });
+  if (String(row.sender_id) !== me) return res.status(403).json({ error: 'Můžete smazat jen vlastní zprávy.' });
+  const deletedAt = new Date().toISOString();
+  await restUpdate(T.messages, `id=eq.${mid}`, { deleted_at: deletedAt, text: '', image: null, reactions: {} }, { prefer: 'return=minimal' });
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  emitToUser(other, { type: 'message-delete', conversationId: Number(conv.id), messageId: mid });
+  res.json({ ok: true });
+}));
+
+// emoji reakce na zprávu (jedna reakce na uživatele; kliknutí na stejné emoji ji odebere)
+app.post('/api/conversations/:id/messages/:mid/react', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const conv = req.conversation;
+  const me = String(req.session.uid || '');
+  const mid = Number(req.params.mid);
+  if (!Number.isInteger(mid) || mid <= 0) return res.status(400).json({ error: 'Neplatné ID zprávy.' });
+  const emoji = trimmedString((req.body || {}).emoji, 8);
+  if (!emoji) return res.status(400).json({ error: 'Chybí emoji.' });
+  const rows = await restSelect(T.messages, `id=eq.${mid}&conversation_id=eq.${conv.id}&select=id,reactions&limit=1`);
+  const row = rows && rows[0];
+  if (!row) return res.status(404).json({ error: 'Zpráva nenalezena.' });
+  const prev = (row.reactions && typeof row.reactions === 'object') ? row.reactions : {};
+  const hadThis = Array.isArray(prev[emoji]) && prev[emoji].some((uid) => String(uid) === me);
+  const reactions = {};
+  for (const key of Object.keys(prev)) {
+    const next = (prev[key] || []).filter((uid) => String(uid) !== me);
+    if (next.length) reactions[key] = next;
+  }
+  if (!hadThis) reactions[emoji] = [...(reactions[emoji] || []), me];
+  await restUpdate(T.messages, `id=eq.${mid}`, { reactions }, { prefer: 'return=minimal' });
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  emitToUser(other, { type: 'message-react', conversationId: Number(conv.id), messageId: mid, reactions });
+  res.json({ ok: true, reactions });
 }));
 
 /* ---------------- REALTIME (SSE) ---------------- */
