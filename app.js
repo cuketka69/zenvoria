@@ -1034,6 +1034,19 @@ function handleRealtime(msg){
     if(activeView()==='chat')renderChat();
     return;
   }
+  if(msg.type==='read'){
+    const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);if(!c)return;
+    c.otherReadAt=msg.readAt;
+    if(activeView()==='chat')renderChat();
+    return;
+  }
+  if(msg.type==='pin'){
+    const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);if(!c)return;
+    const m=msg.messageId?c.msgs.find(x=>x.id===msg.messageId):null;
+    c.pinnedMessage=m?{id:m.id,me:m.me,text:m.text,image:m.image}:null;
+    if(activeView()==='chat')renderChat();
+    return;
+  }
 }
 function initRealtime(){
   if(!auth.loggedIn){teardownRealtime();return;}
@@ -4217,6 +4230,8 @@ function submitRating(){
 let CONVERSATIONS=[];
 function chatUnread(){return CONVERSATIONS.reduce((s,c)=>s+(c.unread||0),0);}
 let activeChat=null,chatSeq=0,chatTmpSeq=-2;
+let chatReplyTarget=null; // {cid,mid,me,snippet}
+let forwardMsgId=null;
 /* ---- HROMADNÉ ZPRÁVY OD SPRÁVCE (broadcast) ---- */
 let BROADCASTS=[]; // {id,audience:'all'|'caregivers'|'families'|'specific',emails:[],text,date,t}
 let bcSeq=0;
@@ -4390,7 +4405,27 @@ function renderChat(){
   headMeta.appendChild(headName);
   headMeta.appendChild(headState);
   head.appendChild(headMeta);
-  body.innerHTML=c.msgs.map(m=>msgHTML(m,!c.readonly)).join('');
+  if(!c.readonly){
+    const searchBtn=document.createElement('button');
+    searchBtn.type='button';searchBtn.className='chat-search-btn';searchBtn.title='Hledat ve zprávách';searchBtn.setAttribute('aria-label','Hledat ve zprávách');
+    searchBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+    searchBtn.onclick=()=>toggleChatSearch();
+    head.appendChild(searchBtn);
+  }
+  const pinBanner=document.getElementById('chatPinBanner');
+  if(pinBanner)pinBanner.innerHTML=(c.pinnedMessage&&!c.readonly)?`<div class="chat-pin"><span>📌 ${c.pinnedMessage.me?'Vy: ':''}${esc(c.pinnedMessage.text||(c.pinnedMessage.image?'📷 Obrázek':''))}</span><button type="button" onclick="pinMessage(${c.pinnedMessage.id})">Odepnout</button></div>`:'';
+  const searchBar=document.getElementById('chatSearchBar'),searchInput=document.getElementById('chatSearchInput');
+  const query=(searchInput&&searchBar&&!searchBar.hidden)?searchInput.value.trim().toLowerCase():'';
+  const visibleMsgs=query?c.msgs.filter(m=>!m.deletedAt&&m.text&&m.text.toLowerCase().includes(query)):c.msgs;
+  body.innerHTML=visibleMsgs.length?visibleMsgs.map(m=>msgHTML(m,!c.readonly,c.pinnedMessage&&c.pinnedMessage.id)).join(''):(query?'<div class="empty">Žádné zprávy neodpovídají hledání.</div>':'');
+  if(!query){
+    const lastMine=c.msgs.slice().reverse().find(m=>m.me&&!m.deletedAt);
+    if(lastMine&&c.otherReadAt&&Date.parse(c.otherReadAt)>=Date.parse(lastMine.createdAt)){
+      body.insertAdjacentHTML('beforeend','<div class="msg-seen">Přečteno</div>');
+    }
+  }
+  const replyBanner=document.getElementById('chatReplyBanner');
+  if(replyBanner)replyBanner.innerHTML=(chatReplyTarget&&chatReplyTarget.cid===c.id)?`<div class="chat-reply-bar"><span>Odpovídáte na: ${chatReplyTarget.me?'Vy: ':''}${esc(chatReplyTarget.snippet)}</span><button type="button" onclick="cancelReply()">✕</button></div>`:'';
   // u oznámení (jen ke čtení) schovat vstup i akce
   const actions=document.getElementById('chatActions'),form=document.getElementById('chatForm');
   if(actions)actions.style.display=c.readonly?'none':'';
@@ -4400,16 +4435,73 @@ function renderChat(){
   applyChatPresenceToDom();
   startChatPresence();
 }
+function toggleChatSearch(){
+  const bar=document.getElementById('chatSearchBar');if(!bar)return;
+  bar.hidden=!bar.hidden;
+  if(!bar.hidden){const inp=document.getElementById('chatSearchInput');if(inp){inp.value='';inp.focus();}}
+  renderChat();
+}
+function closeChatSearch(){
+  const bar=document.getElementById('chatSearchBar');if(bar)bar.hidden=true;
+  renderChat();
+}
+function replyToMessage(mid){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
+  const m=c.msgs.find(x=>x.id===mid);if(!m||m.deletedAt)return;
+  chatReplyTarget={cid:c.id,mid,me:m.me,snippet:m.text||(m.image?'📷 Obrázek':'')};
+  document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
+  renderChat();
+  document.getElementById('chatInput')?.focus();
+}
+function cancelReply(){chatReplyTarget=null;renderChat();}
+function pinMessage(mid){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
+  api('/conversations/'+c.id+'/pin',{method:'POST',body:{messageId:mid}}).then(r=>{
+    if(r.pinnedMessageId){
+      const m=c.msgs.find(x=>x.id===r.pinnedMessageId);
+      c.pinnedMessage=m?{id:m.id,me:m.me,text:m.text,image:m.image}:null;
+    }else c.pinnedMessage=null;
+    renderChat();
+  }).catch(e=>toast(e.message||'Připnutí se nepodařilo.','declined'));
+}
+function openForwardModal(mid){
+  forwardMsgId=mid;
+  const list=document.getElementById('forwardList');
+  if(list){
+    const targets=CONVERSATIONS.filter(x=>x.id>0&&x.id!==activeChat&&!x.readonly);
+    list.innerHTML=targets.length?targets.map(c=>`<button type="button" class="forward-item" onclick="sendForwardTo(${c.id})">${avaHtml(c.init,convoPhoto(c))}<span>${esc(c.name)}</span></button>`).join(''):'<div class="empty">Žádná jiná konverzace k dispozici.</div>';
+  }
+  const m=document.getElementById('forwardModal');if(m){m.classList.add('open');document.body.style.overflow='hidden';}
+}
+function closeForwardModal(){
+  const m=document.getElementById('forwardModal');
+  if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
+  forwardMsgId=null;
+}
+async function sendForwardTo(targetId){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);
+  if(!c||!forwardMsgId)return;
+  try{
+    await api('/conversations/'+c.id+'/messages/'+forwardMsgId+'/forward',{method:'POST',body:{targetConversationId:targetId}});
+    toast('Zpráva byla přeposlána.','success');
+    closeForwardModal();
+    if(activeChat===targetId)await loadMessages(targetId);
+    renderChat();
+  }catch(e){toast(e.message||'Přeposlání se nezdařilo.','declined');}
+}
 /* odešli text do aktivní konverzace (optimisticky, bez fake odpovědi) */
 async function sendChatText(text){
   text=String(text||'').trim();if(!text)return;
   const c=CONVERSATIONS.find(x=>x.id===activeChat);
   if(!c||c.readonly||!(c.id>0)){toast('Vyberte konverzaci.');return;}
-  const tmp={id:0,me:true,text,t:chatNow(),pending:true};
+  const replyTo=(chatReplyTarget&&chatReplyTarget.cid===c.id)?chatReplyTarget.mid:null;
+  const replySnippet=replyTo?{id:replyTo,me:chatReplyTarget.me,text:chatReplyTarget.snippet}:null;
+  chatReplyTarget=null;
+  const tmp={id:0,me:true,text,t:chatNow(),pending:true,replyTo:replySnippet};
   c.msgs.push(tmp);c.last=text;renderChat();
   _typingLastSent=0;clearTimeout(_typingOffTimer);sendTyping(false);
   try{
-    const r=await api('/conversations/'+c.id+'/messages',{method:'POST',body:{text,t:tmp.t}});
+    const r=await api('/conversations/'+c.id+'/messages',{method:'POST',body:{text,t:tmp.t,replyTo}});
     const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs[i]=r.message;else c.msgs.push(r.message);
     c.last=text;c.lastAt=r.message.createdAt;renderChat();
   }catch(err){
@@ -4537,20 +4629,31 @@ function reactionsSummaryHTML(m){
   if(!keys.length)return'';
   return `<div class="msg-reacts">${keys.map(k=>`<span class="react-chip" role="button" tabindex="0" onclick="reactToMessage(${m.id},'${k}')">${k} ${r[k].length}</span>`).join('')}</div>`;
 }
-function msgHTML(m,interactive){
+function replyPreviewHTML(r){
+  if(!r)return'';
+  const snippet=r.text?esc(r.text):(r.image?'📷 Obrázek':'');
+  return `<div class="msg-reply-quote">${r.me?'Vy':'Protistrana'}: ${snippet}</div>`;
+}
+function msgHTML(m,interactive,pinnedId){
   if(m.deletedAt){
     return `<div class="msg ${m.me?'me':'them'} msg-deleted" data-mid="${m.id}">
       <div class="msg-content"><i>Zpráva byla smazána</i></div>
       <span class="mt">${esc(m.t)}</span>
     </div>`;
   }
+  const isPinned=pinnedId&&m.id===pinnedId;
   const tools=interactive?`<div class="msg-tools">
       <button type="button" title="Reagovat" onclick="event.stopPropagation();toggleReactPicker(${m.id})">😊</button>
+      <button type="button" title="Odpovědět" onclick="event.stopPropagation();replyToMessage(${m.id})">↩️</button>
+      <button type="button" title="Přeposlat" onclick="event.stopPropagation();openForwardModal(${m.id})">↪️</button>
       ${(m.me&&m.text)?`<button type="button" title="Upravit" onclick="event.stopPropagation();startEditMessage(${m.id})">✏️</button>`:''}
+      <button type="button" title="${isPinned?'Odepnout':'Připnout'}" onclick="event.stopPropagation();pinMessage(${m.id})">📌</button>
       ${m.me?`<button type="button" title="Smazat" onclick="event.stopPropagation();deleteMessageConfirm(${m.id})">🗑️</button>`:''}
     </div>
     <div class="react-picker" id="reactPicker-${m.id}" hidden>${QUICK_REACT_EMOJIS.map(e=>`<button type="button" onclick="reactToMessage(${m.id},'${e}')">${e}</button>`).join('')}</div>`:'';
   return `<div class="msg ${m.me?'me':'them'}${m.image?' has-img':''}" data-mid="${m.id}">
+    ${m.forwarded?`<div class="msg-forwarded">↪ Přeposláno</div>`:''}
+    ${replyPreviewHTML(m.replyTo)}
     ${m.image?`<img class="msg-img" src="${esc(m.image)}" loading="lazy" alt="obrázek" onclick="openImgLightbox('${esc(m.image)}')" onerror="msgImgError(this)">`:''}
     ${m.text?`<div class="msg-content">${esc(m.text)}</div>`:''}
     ${reactionsSummaryHTML(m)}

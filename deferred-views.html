@@ -375,7 +375,13 @@
       <div class="chat-list" id="chatList"></div>
       <div class="chat-main">
         <div class="chat-head" id="chatHead"></div>
+        <div class="chat-search" id="chatSearchBar" hidden>
+          <input id="chatSearchInput" placeholder="Hledat ve zprávách…" oninput="renderChat()">
+          <button type="button" onclick="closeChatSearch()" aria-label="Zavřít hledání">✕</button>
+        </div>
+        <div id="chatPinBanner"></div>
         <div class="chat-body" id="chatBody"></div>
+        <div id="chatReplyBanner"></div>
         <div style="display:flex;gap:8px;padding:10px 14px 0" id="chatActions">
           <button type="button" class="btn btn-ghost btn-sm" onclick="sendTerm()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><rect x="3.5" y="5" width="17" height="16" rx="2.3" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Poslat termín</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('chatImgInput').click()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><rect x="3.5" y="5" width="17" height="14" rx="2.3" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="10" r="1.6" stroke="currentColor" stroke-width="1.5"/><path d="m4 17 5-4.5 4 3 3-2.5 4 3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Přiložit obrázek</button>
@@ -391,6 +397,19 @@
         </form>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ============ PŘEPOSLAT ZPRÁVU ============ -->
+<div class="modal" id="forwardModal" role="dialog" aria-modal="true" aria-labelledby="forwardTitle">
+  <div class="modal-scrim" onclick="closeForwardModal()"></div>
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeForwardModal()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <h3 id="forwardTitle">Přeposlat zprávu</h3>
+    <p class="msub">Vyberte konverzaci, do které chcete zprávu přeposlat.</p>
+    <div id="forwardList" class="forward-list"></div>
   </div>
 </div>
 

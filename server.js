@@ -1297,7 +1297,7 @@ function requireConversationParticipant(req, res, next) {
     if (!req.session) return res.status(401).json({ error: 'Nepřihlášen' });
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID konverzace.' });
-    const rows = await restSelect(T.conversations, `id=eq.${id}&select=id,user_a,user_b,a_read_at,b_read_at&limit=1`);
+    const rows = await restSelect(T.conversations, `id=eq.${id}&select=id,user_a,user_b,a_read_at,b_read_at,pinned_message_id&limit=1`);
     const conv = rows && rows[0];
     if (!conv) return res.status(404).json({ error: 'Konverzace nenalezena.' });
     const me = String(req.session.uid || '');
@@ -2348,12 +2348,24 @@ function sanitizeChatImage(v) {
   return s;
 }
 async function loadConversationMessages(convId, me) {
-  const rows = await restSelect(T.messages, `conversation_id=eq.${Number(convId)}&order=created_at.asc&select=id,sender_id,text,image,t,created_at,edited_at,deleted_at,reactions`);
-  return (rows || []).map((m) => ({
-    id: Number(m.id), me: String(m.sender_id || '') === String(me),
-    text: m.deleted_at ? '' : m.text, image: m.deleted_at ? null : (m.image || null), t: m.t || '', createdAt: m.created_at,
-    editedAt: m.edited_at || null, deletedAt: m.deleted_at || null, reactions: (m.reactions && typeof m.reactions === 'object') ? m.reactions : {},
-  }));
+  const rows = await restSelect(T.messages, `conversation_id=eq.${Number(convId)}&order=created_at.asc&select=id,sender_id,text,image,t,created_at,edited_at,deleted_at,reactions,reply_to_id,forwarded`);
+  const list = rows || [];
+  const replyIds = [...new Set(list.map((m) => m.reply_to_id).filter(Boolean))];
+  const repliesById = {};
+  if (replyIds.length) {
+    const replyRows = await restSelect(T.messages, `id=in.(${replyIds.join(',')})&select=id,sender_id,text,image,deleted_at`);
+    (replyRows || []).forEach((r) => { repliesById[r.id] = r; });
+  }
+  return list.map((m) => {
+    const reply = m.reply_to_id ? repliesById[m.reply_to_id] : null;
+    return {
+      id: Number(m.id), me: String(m.sender_id || '') === String(me),
+      text: m.deleted_at ? '' : m.text, image: m.deleted_at ? null : (m.image || null), t: m.t || '', createdAt: m.created_at,
+      editedAt: m.edited_at || null, deletedAt: m.deleted_at || null, reactions: (m.reactions && typeof m.reactions === 'object') ? m.reactions : {},
+      forwarded: !!m.forwarded,
+      replyTo: (reply && !reply.deleted_at) ? { id: Number(reply.id), me: String(reply.sender_id) === String(me), text: reply.text, image: reply.image || null } : null,
+    };
+  });
 }
 async function countConversationUnread(convId, me, readAt) {
   let q = `conversation_id=eq.${Number(convId)}&sender_id=neq.${encodeURIComponent(me)}&select=id&limit=500`;
@@ -2372,10 +2384,18 @@ async function mapConversationForViewer(conv, me) {
     if (cg && cg.public_id) profileToken = cg.public_id;
   }
   const myReadAt = String(conv.user_a) === String(me) ? conv.a_read_at : conv.b_read_at;
+  const otherReadAt = String(conv.user_a) === String(otherId) ? conv.a_read_at : conv.b_read_at;
+  let pinnedMessage = null;
+  if (conv.pinned_message_id) {
+    const pinRows = await restSelect(T.messages, `id=eq.${Number(conv.pinned_message_id)}&select=id,sender_id,text,image,deleted_at&limit=1`);
+    const pin = pinRows && pinRows[0];
+    if (pin && !pin.deleted_at) pinnedMessage = { id: Number(pin.id), me: String(pin.sender_id) === String(me), text: pin.text, image: pin.image || null };
+  }
   return {
     id: Number(conv.id), name: u.name || 'Smazaný účet', init: u.init || '', photo: u.photo || null,
     role: u.role || 'family', profileToken, last: conv.last_text || '', lastAt: conv.last_at || null,
     unread: await countConversationUnread(conv.id, me, myReadAt),
+    otherReadAt: otherReadAt || null, pinnedMessage,
   };
 }
 async function resolveCounterpartUserId(b) {
@@ -2440,7 +2460,10 @@ app.get('/api/conversations/:id/messages', requireAuth, requireConversationParti
   const conv = req.conversation;
   const msgs = await loadConversationMessages(conv.id, me);
   const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
-  await restUpdate(T.conversations, `id=eq.${conv.id}`, { [col]: new Date().toISOString() }, { prefer: 'return=minimal' }).catch(() => {});
+  const readAt = new Date().toISOString();
+  await restUpdate(T.conversations, `id=eq.${conv.id}`, { [col]: readAt }, { prefer: 'return=minimal' }).catch(() => {});
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  emitToUser(other, { type: 'read', conversationId: Number(conv.id), readAt });
   res.json({ messages: msgs });
 }));
 
@@ -2455,15 +2478,28 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   if (!text && !image) return res.status(400).json({ error: 'Chybí text zprávy.' });
   if (text.length > 2000) return res.status(400).json({ error: 'Zpráva je příliš dlouhá.' });
   const t = trimmedString(b.t, 20);
+  let replyToId = null;
+  let replySnippet = null;
+  if (b.replyTo != null) {
+    const rid = Number(b.replyTo);
+    if (Number.isInteger(rid) && rid > 0) {
+      const replyRows = await restSelect(T.messages, `id=eq.${rid}&conversation_id=eq.${conv.id}&select=id,sender_id,text,image,deleted_at&limit=1`);
+      const reply = replyRows && replyRows[0];
+      if (reply && !reply.deleted_at) {
+        replyToId = rid;
+        replySnippet = { id: rid, me: String(reply.sender_id) === me, text: reply.text, image: reply.image || null };
+      }
+    }
+  }
   const now = new Date().toISOString();
-  const row = await restInsert(T.messages, { conversation_id: conv.id, sender_id: me, mine: true, text, image, t: t || '', created_at: now });
+  const row = await restInsert(T.messages, { conversation_id: conv.id, sender_id: me, mine: true, text, image, t: t || '', created_at: now, reply_to_id: replyToId });
   const preview = text || (image ? '📷 Obrázek' : '');
   const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
   await restUpdate(T.conversations, `id=eq.${conv.id}`, { last_text: preview, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
-  const msgOut = { id: Number(row.id), me: true, text, image: image || null, t: t || '', createdAt: now, editedAt: null, deletedAt: null, reactions: {} };
+  const msgOut = { id: Number(row.id), me: true, text, image: image || null, t: t || '', createdAt: now, editedAt: null, deletedAt: null, reactions: {}, forwarded: false, replyTo: replySnippet };
   // realtime: pushni zprávu protistraně (pro ni me:false)
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
-  emitToUser(other, { type: 'message', conversationId: Number(conv.id), message: Object.assign({}, msgOut, { me: false }) });
+  emitToUser(other, { type: 'message', conversationId: Number(conv.id), message: Object.assign({}, msgOut, { me: false, replyTo: replySnippet ? Object.assign({}, replySnippet, { me: !replySnippet.me }) : null }) });
   res.json({ message: msgOut });
 }));
 
@@ -2528,6 +2564,47 @@ app.post('/api/conversations/:id/messages/:mid/react', requireAuth, requireConve
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
   emitToUser(other, { type: 'message-react', conversationId: Number(conv.id), messageId: mid, reactions });
   res.json({ ok: true, reactions });
+}));
+
+// přeposlání zprávy do jiné konverzace
+app.post('/api/conversations/:id/messages/:mid/forward', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const me = String(req.session.uid || '');
+  const mid = Number(req.params.mid);
+  const targetId = Number((req.body || {}).targetConversationId);
+  if (!Number.isInteger(mid) || mid <= 0) return res.status(400).json({ error: 'Neplatné ID zprávy.' });
+  if (!Number.isInteger(targetId) || targetId <= 0) return res.status(400).json({ error: 'Vyberte konverzaci k přeposlání.' });
+  const srcRows = await restSelect(T.messages, `id=eq.${mid}&conversation_id=eq.${req.conversation.id}&select=id,text,image,deleted_at&limit=1`);
+  const src = srcRows && srcRows[0];
+  if (!src || src.deleted_at) return res.status(404).json({ error: 'Zpráva nenalezena.' });
+  const targetRows = await restSelect(T.conversations, `id=eq.${targetId}&select=id,user_a,user_b&limit=1`);
+  const target = targetRows && targetRows[0];
+  if (!target) return res.status(404).json({ error: 'Cílová konverzace nenalezena.' });
+  if (String(target.user_a) !== me && String(target.user_b) !== me) return res.status(403).json({ error: 'Do této konverzace nemáte přístup.' });
+  const now = new Date().toISOString();
+  const row = await restInsert(T.messages, { conversation_id: targetId, sender_id: me, mine: true, text: src.text || '', image: src.image || null, t: '', created_at: now, forwarded: true });
+  const preview = src.text || (src.image ? '📷 Obrázek' : '');
+  const col = String(target.user_a) === me ? 'a_read_at' : 'b_read_at';
+  await restUpdate(T.conversations, `id=eq.${targetId}`, { last_text: preview, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
+  const msgOut = { id: Number(row.id), me: true, text: src.text || '', image: src.image || null, t: '', createdAt: now, editedAt: null, deletedAt: null, reactions: {}, forwarded: true, replyTo: null };
+  const other = String(target.user_a) === me ? target.user_b : target.user_a;
+  emitToUser(other, { type: 'message', conversationId: targetId, message: Object.assign({}, msgOut, { me: false }) });
+  res.json({ message: msgOut, conversationId: targetId });
+}));
+
+// připnutí/odepnutí zprávy v konverzaci (jedna připnutá zpráva na konverzaci)
+app.post('/api/conversations/:id/pin', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const conv = req.conversation;
+  const me = String(req.session.uid || '');
+  const messageId = Number((req.body || {}).messageId);
+  if (!Number.isInteger(messageId) || messageId <= 0) return res.status(400).json({ error: 'Neplatné ID zprávy.' });
+  const rows = await restSelect(T.messages, `id=eq.${messageId}&conversation_id=eq.${conv.id}&select=id,deleted_at&limit=1`);
+  const row = rows && rows[0];
+  if (!row || row.deleted_at) return res.status(404).json({ error: 'Zpráva nenalezena.' });
+  const nextPinned = Number(conv.pinned_message_id) === messageId ? null : messageId;
+  await restUpdate(T.conversations, `id=eq.${conv.id}`, { pinned_message_id: nextPinned }, { prefer: 'return=minimal' });
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  emitToUser(other, { type: 'pin', conversationId: Number(conv.id), messageId: nextPinned });
+  res.json({ ok: true, pinnedMessageId: nextPinned });
 }));
 
 /* ---------------- REALTIME (SSE) ---------------- */
@@ -2625,7 +2702,10 @@ app.post('/api/conversations/:id/read', requireAuth, requireConversationParticip
   const me = String(req.session.uid || '');
   const conv = req.conversation;
   const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
-  await restUpdate(T.conversations, `id=eq.${conv.id}`, { [col]: new Date().toISOString() }, { prefer: 'return=minimal' }).catch(() => {});
+  const readAt = new Date().toISOString();
+  await restUpdate(T.conversations, `id=eq.${conv.id}`, { [col]: readAt }, { prefer: 'return=minimal' }).catch(() => {});
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  emitToUser(other, { type: 'read', conversationId: Number(conv.id), readAt });
   res.json({ ok: true });
 }));
 
