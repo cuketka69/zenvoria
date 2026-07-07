@@ -2033,6 +2033,37 @@ app.get('/api/bootstrap', h(async (req, res) => {
 
 /* ---------------- OBJEDNÁVKY / POPTÁVKY ---------------- */
 // rodina vytvoří objednávku + propojenou poptávku pro pečovatelku
+/* časové sloty dostupnosti (musí odpovídat TIME_SLOTS v app.js): ráno 08–12, odpoledne 12–18, večer 18–22 */
+const AVAIL_SLOTS = [{ k: 'r', start: 8, end: 12 }, { k: 'o', start: 12, end: 18 }, { k: 'v', start: 18, end: 22 }];
+function timeToHours(t) { const [h, m] = String(t || '0:0').split(':').map(Number); return (h || 0) + (m || 0) / 60; }
+// 0 = pondělí .. 6 = neděle (odpovídá pořadí polí v caregivers.avail)
+function weekdayIndexMon0(dateStr) { const d = new Date(dateStr + 'T00:00:00Z'); return (d.getUTCDay() + 6) % 7; }
+// zkontroluje, jestli požadovaný interval spadá do nastavené dostupnosti pečovatelky ten den
+function isWithinAvailability(avail, dateStr, timeStr, hours) {
+  if (!Array.isArray(avail) || !avail.length) return true; // bez nastavené dostupnosti nekontrolujeme (zpětná kompatibilita)
+  const day = avail[weekdayIndexMon0(dateStr)];
+  if (!day) return false;
+  const startH = timeToHours(timeStr);
+  const endH = startH + Number(hours);
+  const ranges = [];
+  let cur = null;
+  for (const slot of AVAIL_SLOTS) {
+    if (day[slot.k]) { if (cur && cur.end === slot.start) cur.end = slot.end; else { cur = { start: slot.start, end: slot.end }; ranges.push(cur); } }
+    else cur = null;
+  }
+  return ranges.some((r) => startH >= r.start && endH <= r.end);
+}
+function timeRangesOverlap(aStart, aHours, bStart, bHours) {
+  const aS = timeToHours(aStart), aE = aS + Number(aHours);
+  const bS = timeToHours(bStart), bE = bS + Number(bHours);
+  return aS < bE && bS < aE;
+}
+// najde jinou POTVRZENOU objednávku téhož dne, která se s daným intervalem časově překrývá
+async function findScheduleConflict(cid, date, time, hours, excludeOid) {
+  const rows = await restSelect(T.orders, `cid=eq.${cid}&date=eq.${encodeURIComponent(date)}&status=eq.confirmed&select=oid,time,hours`);
+  return (rows || []).find((o) => Number(o.oid) !== Number(excludeOid || -1) && timeRangesOverlap(time, hours, o.time, o.hours)) || null;
+}
+
 app.post('/api/orders', requireRole('family', 'admin'), h(async (req, res) => {
   const b = req.body || {};
   const cid = Number(b.cid);
@@ -2053,13 +2084,18 @@ app.post('/api/orders', requireRole('family', 'admin'), h(async (req, res) => {
   const oid = await nextId(T.orders, 'oid');
   const famName = trimmedString(req.session.name || b.famName || 'Rodina', 120) || 'Rodina';
   let caregiverName = '';
-  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended,plan&limit=1`);
+  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended,plan,avail&limit=1`);
   if (caregiverRows && caregiverRows[0]) caregiverName = caregiverRows[0].name || '';
   const caregiver = caregiverRows && caregiverRows[0];
   if (!caregiver) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
   if (caregiver.suspended || caregiver.verified === false) return res.status(400).json({ error: 'Pečovatelka není aktuálně dostupná.' });
   const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
   if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
+  if (!isWithinAvailability(caregiver.avail, date, time, hours)) {
+    return res.status(400).json({ error: 'Zvolený čas je mimo dostupnost pečovatelky. Zkontrolujte prosím její kalendář dostupnosti.' });
+  }
+  const conflict = await findScheduleConflict(cid, date, time, hours);
+  if (conflict) return res.status(409).json({ error: 'Pečovatelka má na tento termín už potvrzenou jinou objednávku.' });
   const order = await restInsert(T.orders, {
     oid, cid, family_email: req.session.email, fam_name: famName,
     service, hours, date, time, addr,
@@ -2122,6 +2158,8 @@ app.post('/api/requests/:id/accept', requireRole('caregiver', 'admin'), h(async 
       return res.status(403).json({ error: 'Tuto poptávku nemůžete přijmout.' });
     }
   }
+  const conflict = await findScheduleConflict(r.cid, r.date, r.time, r.hours, r.oid);
+  if (conflict) return res.status(409).json({ error: `Na tento termín už máte potvrzenou jinou objednávku (#${conflict.oid}). Nejdřív ji zrušte nebo tuto poptávku odmítněte.` });
   if (r.oid != null) await restUpdate(T.orders, `oid=eq.${r.oid}`, { status: 'confirmed' }, { prefer: 'return=minimal' });
   await restInsert(T.schedule, { cid: r.cid, oid: r.oid != null ? r.oid : null, fam: r.fam, init: r.init, service: r.service, date: r.date, time: r.time, hours: r.hours }, { prefer: 'return=minimal' });
   await restDelete(T.requests, `id=eq.${id}`);
@@ -2375,7 +2413,7 @@ async function resolveConversationParties(conv) {
   const caregiverUser = users.find((u) => u.role === 'caregiver') || null;
   let caregiver = null;
   if (caregiverUser) {
-    const cgRows = await restSelect(T.caregivers, `user_id=eq.${encodeURIComponent(caregiverUser.id)}&select=id,name,plan,suspended,verified&limit=1`);
+    const cgRows = await restSelect(T.caregivers, `user_id=eq.${encodeURIComponent(caregiverUser.id)}&select=id,name,plan,suspended,verified,avail&limit=1`);
     caregiver = (cgRows && cgRows[0]) || null;
   }
   return { family, caregiver };
@@ -2546,8 +2584,13 @@ app.post('/api/conversations/:id/messages/:mid/term/accept', requireAuth, requir
   if (caregiver.suspended || caregiver.verified === false) return res.status(400).json({ error: 'Pečovatelka není aktuálně dostupná.' });
   const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
   if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
-  const iAmFamily = String(family.id) === me;
   const t = row.term;
+  if (!isWithinAvailability(caregiver.avail, t.date, t.time, t.hours)) {
+    return res.status(400).json({ error: 'Navržený čas je mimo dostupnost pečovatelky.' });
+  }
+  const conflict = await findScheduleConflict(caregiver.id, t.date, t.time, t.hours);
+  if (conflict) return res.status(409).json({ error: `Na tento termín už existuje potvrzená objednávka (#${conflict.oid}).` });
+  const iAmFamily = String(family.id) === me;
   const oid = await nextId(T.orders, 'oid');
   const status = iAmFamily ? 'pending' : 'confirmed';
   const famInit = (String(family.name || '').trim().split(/\s+/).map((p) => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
