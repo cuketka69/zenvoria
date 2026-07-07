@@ -595,6 +595,12 @@
   .pdiv{height:1px;background:var(--line);margin:24px 0}
   .pcard h3{font-family:'Playfair Display',serif;font-size:20px;color:var(--navy-900);margin-bottom:12px}
   .pcard p.bio{color:var(--navy-800);font-size:15px;line-height:1.7}
+  /* admin: výběr ikony při přidávání služby */
+  .svc-icon-picker{display:flex;flex-wrap:wrap;gap:8px}
+  .svc-icon-opt{width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:var(--cream);
+    color:var(--navy-800);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .svc-icon-opt:hover{border-color:var(--gold)}
+  .svc-icon-opt.on{border-color:var(--gold);background:rgba(201,162,51,.16);color:var(--gold-deep)}
   .book-aside{position:sticky;top:96px}
   .book-aside .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;font-size:14.5px}
   .book-aside .row .l{color:var(--muted)}

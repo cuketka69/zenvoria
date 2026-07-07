@@ -130,7 +130,7 @@ function genPublicId(len = 10) {
 }
 
 const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
-const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks', 'signupPlan', 'planPermissions'];
+const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks', 'signupPlan', 'planPermissions', 'services'];
 const ADMIN_UPDATABLE_USER_STATUSES = new Set(['active', 'suspended']);
 const ADMIN_UPDATABLE_CAREGIVER_STATUSES = new Set(['pending', 'verified', 'rejected']);
 const ADMIN_UPDATABLE_CAREGIVER_PLANS = new Set(['start', 'premium']);
@@ -233,11 +233,48 @@ async function getPlanPermissions() {
   const rows = await restSelect(T.settings, `key=eq.planPermissions&limit=1`);
   return sanitizePlanPermissions(rows && rows[0] && rows[0].value);
 }
+// výchozí seznam nabízených služeb — použije se, dokud admin nic neuloží (a jako pojistka při prázdném/neplatném vstupu)
+const DEFAULT_SERVICES = [
+  { id: 'osobni', name: 'Osobní péče', icon: 'M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7', desc: 'Pomoc s běžnými denními činnostmi, mobilitou a osobní pohodou seniora.' },
+  { id: 'lekar', name: 'Doprovod k lékaři', icon: 'M9 3h6v3h3v6h-3v3H9v-3H6V6h3V3Z', desc: 'Bezpečný doprovod na vyšetření, k lékaři i na úřady — s trpělivostí.' },
+  { id: 'domaci', name: 'Domácí péče', icon: 'M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z', desc: 'Komplexní péče v pohodlí domova podle individuálních potřeb klienta.' },
+  { id: 'pomoc', name: 'Pomoc v domácnosti', icon: 'M3 13h18M5 13V7l7-4 7 4v6M9 21v-5h6v5', desc: 'Úklid, vaření a běžný chod domácnosti, ať má senior klid a pohodlí.' },
+  { id: 'nocni', name: 'Noční péče', icon: 'M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z', desc: 'Dohled a péče během noci — jistota a klid pro seniora i celou rodinu.' },
+  { id: 'nemocnice', name: 'Péče v nemocnici', icon: 'M5 8h14v12H5V8ZM9 4h6v4H9V4ZM12 11v6M9 14h6', desc: 'Doprovod a podpora během hospitalizace i po návratu z nemocnice.' },
+  { id: 'rehab', name: 'Rehabilitace a cvičení', icon: 'M4 12h2l2-5 4 10 2-5h6', desc: 'Šetrné cvičení a rehabilitace pro udržení kondice a soběstačnosti.' },
+  { id: 'spolecnost', name: 'Společnost a povídání', icon: 'M4 5h16v10H9l-5 4V5Z', desc: 'Lidský kontakt, povídání a společné chvíle proti samotě a nudě.' },
+  { id: 'hygiena', name: 'Hygiena', icon: 'M7 13h10v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6ZM6 13h12M9 13V7a3 3 0 0 1 6 0', desc: 'Citlivá pomoc s osobní hygienou a péčí o tělo s respektem a důstojností.' },
+  { id: 'nakupy', name: 'Nákupy', icon: 'M6 6h15l-1.5 9h-12L6 6ZM6 6 5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z', desc: 'Zajištění nákupů, léků a pochůzek, aby měl senior vše potřebné doma.' },
+];
+function slugifyServiceId(name) {
+  return String(name || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'sluzba';
+}
+function sanitizeServices(value) {
+  const arr = Array.isArray(value) ? value : null;
+  if (!arr) return DEFAULT_SERVICES;
+  const seen = new Set();
+  const out = [];
+  for (const item of arr) {
+    if (!item || typeof item !== 'object') continue;
+    const name = trimmedString(item.name, 60);
+    if (!name) continue;
+    let id = slugifyServiceId(trimmedString(item.id, 30) || name);
+    while (seen.has(id)) id = `${id}-2`;
+    seen.add(id);
+    const icon = trimmedString(item.icon, 400) || DEFAULT_SERVICES[0].icon;
+    const desc = trimmedString(item.desc, 240);
+    out.push({ id, name, icon, desc });
+    if (out.length >= 40) break;
+  }
+  return out.length ? out : DEFAULT_SERVICES;
+}
 function sanitizeSettingValue(key, value) {
   if (key === 'planPrices') return sanitizePlanPrices(value);
   if (key === 'socialLinks') return sanitizeSocialLinks(value);
   if (key === 'planPermissions') return sanitizePlanPermissions(value);
   if (key === 'signupPlan') return sanitizeSignupPlan(value);
+  if (key === 'services') return sanitizeServices(value);
   return null;
 }
 
@@ -2165,6 +2202,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     socialLinks: settings.socialLinks || { facebook: '', instagram: '' },
     signupPlan: sanitizeSignupPlan(settings.signupPlan) || { plan: 'none', days: 0 },
     planPermissions: planPerms,
+    services: sanitizeServices(settings.services),
     settings,
   });
 }));

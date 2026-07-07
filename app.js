@@ -1,5 +1,6 @@
 /* ---------- DATA ---------- */
-const SERVICES=[
+/* výchozí nabízené služby — admin je může upravit v sekci Nastavení > Správa služeb; při načtení se přepíšou daty ze serveru */
+let SERVICES=[
   {id:'osobni',name:'Osobní péče',icon:'M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7',desc:'Pomoc s běžnými denními činnostmi, mobilitou a osobní pohodou seniora.'},
   {id:'lekar',name:'Doprovod k lékaři',icon:'M9 3h6v3h3v6h-3v3H9v-3H6V6h3V3Z',desc:'Bezpečný doprovod na vyšetření, k lékaři i na úřady — s trpělivostí.'},
   {id:'domaci',name:'Domácí péče',icon:'M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z',desc:'Komplexní péče v pohodlí domova podle individuálních potřeb klienta.'},
@@ -194,6 +195,7 @@ async function go(v,fromPop){
   if(v==='admin-audit')renderAdminAudit();
   if(v==='admin-chats')renderAdminChats();
   if(v==='admin-stats')renderAdminStats();
+  if(v==='admin-services')renderAdminServices();
   if(v==='admin-plans')renderAdminPlans();
   if(v==='admin-social')renderAdminSocial();
   if(v==='admin-broadcast')renderAdminBroadcast();
@@ -1226,7 +1228,7 @@ const DEFERRED_VIEW_IDS=new Set([
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
   'chat',
   'order-detail','login','forgot','reset-password','change-email','register',
-  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats',
+  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services',
   'pricing','settings'
 ]);
 let deferredViewsLoaded=false;
@@ -1637,6 +1639,7 @@ function updateAuthUI(){
         +mi("go('admin-audit')",'Audit logy','<path d="M8 4h8l3 3v13H5V4h3Z" stroke="#7A736A" stroke-width="1.6"/><path d="M8 9h8M8 13h8M8 17h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-chats')",'Konverzace',chatIcon)
         +mi("go('admin-stats')",'Statistiky','<path d="M4 20V10M11 20V4M18 20v-7" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
+        +mi("go('admin-services')",'Správa služeb','<path d="M9 11l3 3L22 4" stroke="#7A736A" stroke-width="1.6"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-social')",'Sociální sítě','<circle cx="6" cy="12" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="6.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="17.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><path d="m8 11 7-3.4M8 13l7 3.4" stroke="#7A736A" stroke-width="1.6"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
@@ -3463,6 +3466,82 @@ async function renderAdminStats(){
     </div>`).join(''):'<div class="empty">Zatím žádná data.</div>';
 }
 
+/* ---- ADMIN: správa nabízených služeb ---- */
+const SERVICE_ICON_PRESETS=[
+  {l:'Srdce',v:'M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'},
+  {l:'Zdraví',v:'M9 3h6v3h3v6h-3v3H9v-3H6V6h3V3Z'},
+  {l:'Domov',v:'M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z'},
+  {l:'Úklid',v:'M3 13h18M5 13V7l7-4 7 4v6M9 21v-5h6v5'},
+  {l:'Noc',v:'M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z'},
+  {l:'Nemocnice',v:'M5 8h14v12H5V8ZM9 4h6v4H9V4ZM12 11v6M9 14h6'},
+  {l:'Aktivita',v:'M4 12h2l2-5 4 10 2-5h6'},
+  {l:'Rozhovor',v:'M4 5h16v10H9l-5 4V5Z'},
+  {l:'Hygiena',v:'M7 13h10v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6ZM6 13h12M9 13V7a3 3 0 0 1 6 0'},
+  {l:'Nákup',v:'M6 6h15l-1.5 9h-12L6 6ZM6 6 5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z'},
+];
+let svcSelectedIcon=SERVICE_ICON_PRESETS[0].v;
+function renderAdminServices(){
+  const picker=document.getElementById('svcIconPicker');
+  if(picker){
+    picker.innerHTML=SERVICE_ICON_PRESETS.map(p=>`
+      <button type="button" class="svc-icon-opt${p.v===svcSelectedIcon?' on':''}" title="${esc(p.l)}" onclick="pickServiceIcon('${p.v.replace(/'/g,"\\'")}')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="${p.v}" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>`).join('');
+  }
+  const err=document.getElementById('svcErr');if(err)err.textContent='';
+  const nameEl=document.getElementById('svcName'),descEl=document.getElementById('svcDesc');
+  if(nameEl)nameEl.value='';if(descEl)descEl.value='';
+  const listEl=document.getElementById('svcList'),countEl=document.getElementById('svcCount');
+  if(countEl)countEl.textContent=SERVICES.length;
+  if(listEl)listEl.innerHTML=SERVICES.length?SERVICES.map(s=>`
+    <div class="row" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
+      <span style="flex:0 0 auto;color:var(--gold-deep)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="${s.icon}" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div style="flex:1;min-width:0">
+        <b style="display:block;font-size:14px">${esc(s.name)}</b>
+        ${s.desc?`<span style="display:block;font-size:12px;color:var(--muted)">${esc(s.desc)}</span>`:''}
+      </div>
+      <button type="button" class="btn btn-sm btn-ghost" onclick="deleteService('${s.id}')">Smazat</button>
+    </div>`).join(''):'<div class="empty">Zatím žádné služby.</div>';
+}
+function pickServiceIcon(path){svcSelectedIcon=path;renderAdminServices();}
+/* stejná logika jako slugifyServiceId na serveru — ať se lokální id shoduje s tím, co se skutečně uloží */
+function slugifyServiceId(name){
+  return String(name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,30)||'sluzba';
+}
+function addService(e){
+  if(e)e.preventDefault();
+  const nameEl=document.getElementById('svcName'),descEl=document.getElementById('svcDesc'),err=document.getElementById('svcErr');
+  const name=(nameEl.value||'').trim();
+  if(err)err.textContent='';
+  if(!name){if(err)err.textContent='Zadejte název služby.';return false;}
+  if(SERVICES.some(s=>s.name.toLowerCase()===name.toLowerCase())){if(err)err.textContent='Tato služba už v seznamu je.';return false;}
+  let id=slugifyServiceId(name);
+  while(SERVICES.some(s=>s.id===id))id=id+'-2';
+  const next=[...SERVICES,{id,name,icon:svcSelectedIcon,desc:(descEl.value||'').trim()}];
+  saveServices(next,'Služba byla přidána.');
+  return false;
+}
+function deleteService(id){
+  const s=SERVICES.find(x=>x.id===id);if(!s)return;
+  askConfirm({title:'Smazat službu?',icon:trashSVG(),
+    message:`Služba „${esc(s.name)}" zmizí z nabídky. Pečovatelky, které ji mají v profilu vybranou, o ni tiše přijdou.`,
+    confirmLabel:'Smazat',danger:true,onConfirm:()=>{
+      saveServices(SERVICES.filter(x=>x.id!==id),'Služba byla smazána.');
+    }});
+}
+function saveServices(next,successMsg){
+  const prev=SERVICES;
+  SERVICES=next;
+  renderAdminServices();
+  apiSync(api('/settings/services',{method:'PUT',body:{value:next}}).then(()=>{
+    toast(successMsg,'success');
+  }).catch(e=>{
+    SERVICES=prev;renderAdminServices();
+    toast('Uložení se nezdařilo: '+(e.message||''),'declined');
+  }));
+}
+
 /* ---- audit log: čitelné české popisky ---- */
 const AUDIT_ACTION_LABELS={
   'auth.login':'Přihlášení',
@@ -4982,6 +5061,7 @@ async function bootstrap(){
   if(d.planPrices)Object.assign(planPrices,d.planPrices);
   if(d.signupPlan)signupPlan={plan:d.signupPlan.plan==='premium'?'premium':(d.signupPlan.plan==='start'?'start':'none'),days:Number(d.signupPlan.days)||0};
   if(d.planPermissions)planPermissions=d.planPermissions;
+  if(Array.isArray(d.services)&&d.services.length)SERVICES=d.services;
   if(d.socialLinks)Object.assign(socialLinks,d.socialLinks);
   // seq čítače z maxim (kdyby něco generovalo id lokálně)
   orderSeq=ORDERS.reduce((m,o)=>Math.max(m,o.oid||0),0);

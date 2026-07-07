@@ -787,6 +787,7 @@
             <button class="qa-item" onclick="go('admin-audit')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7V3Z" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 12h5M9.5 15.5h5" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="qa-l">Audit logy</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-chats')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H9l-5 4V5Z" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/></svg></span><span class="qa-l">Konverzace</span><span class="qa-ar">›</span></button>
             <button class="qa-item" onclick="go('admin-stats')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M11 20V4M18 20v-7" stroke="#C9A233" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="qa-l">Statistiky</span><span class="qa-ar">›</span></button>
+            <button class="qa-item" onclick="go('admin-services')"><span class="qa-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="#C9A233" stroke-width="1.7"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" stroke="#C9A233" stroke-width="1.7"/></svg></span><span class="qa-l">Správa služeb</span><span class="qa-ar">›</span></button>
           </div>
         </div>
       </div>
@@ -912,6 +913,29 @@
       <div class="panel">
         <div class="panel-h"><b>Nejaktivnější pečovatelky</b></div>
         <div id="admStatsTopCaregivers"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN · SPRÁVA SLUŽEB ============ -->
+<div class="view" id="view-admin-services">
+  <div class="wrap">
+    <div class="page-head"><h1>Správa služeb</h1><p>Nabízené služby, ze kterých pečovatelky vybírají u svého profilu a podle kterých rodiny filtrují vyhledávání.</p></div>
+    <div class="profile-grid">
+      <form class="pcard" onsubmit="return addService(event)">
+        <h3>Přidat službu</h3>
+        <div><label class="lbl" for="svcName">Název služby</label><input class="inp" id="svcName" placeholder="Např. Doprovod na procházky"></div>
+        <div style="margin-top:14px"><label class="lbl" for="svcDesc">Popis (nepovinné)</label><textarea class="inp" id="svcDesc" maxlength="240" placeholder="Krátký popis, který uvidí rodiny."></textarea></div>
+        <div style="margin-top:14px"><label class="lbl">Ikona</label>
+          <div class="svc-icon-picker" id="svcIconPicker"></div>
+        </div>
+        <div class="set-err" id="svcErr" style="margin-top:10px"></div>
+        <button class="btn btn-gold" type="submit" style="margin-top:14px">Přidat službu</button>
+      </form>
+      <div class="pcard book-aside">
+        <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="#7A736A" stroke-width="1.6"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" stroke="#7A736A" stroke-width="1.6"/></svg>Aktuální nabízené služby (<span id="svcCount">0</span>)</div>
+        <div id="svcList"></div>
       </div>
     </div>
   </div>
