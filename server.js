@@ -970,6 +970,60 @@ function upcomingOrderReminderMail({ name, order, counterpartName, forCaregiver 
     }),
   };
 }
+// ---- e-mail: nová zpráva v chatu (příjemce je offline) ----
+function newChatMessageMail({ name, senderName, preview }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || '';
+  return {
+    subject: `Nová zpráva od ${senderName || 'uživatele'} v ZENVORIA`,
+    text:
+      `Dobrý den, ${name || firstName},\n\n` +
+      `${senderName || 'Uživatel'} vám napsal(a): "${preview}"\n\n` +
+      'Odpovědět můžete ve svém účtu v sekci Zprávy.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: `${senderName || 'Uživatel'} vám napsal(a) novou zprávu.`,
+      title: 'Nová zpráva',
+      intro: `Dobrý den, ${firstName}. ${senderName || 'Uživatel'} vám napsal(a) v ZENVORIA:`,
+      bodyHtml: `<p style="margin:0;font-style:italic;">„${preview}"</p>`,
+      ctaLabel: 'Odpovědět',
+      ctaUrl: `${APP_URL}/#chat`,
+      ctaNote: '',
+      facts: [],
+      closingTitle: 'Neztraťte se v komunikaci.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail dostáváte, protože jste v době zprávy nebyli přihlášeni v appce. Posíláme ho maximálně jednou za 30 minut na konverzaci.',
+    }),
+  };
+}
+// ---- e-mail: rozhodnutí o navrženém termínu (odesílateli návrhu) ----
+function termDecisionMail({ name, accepted, term }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || '';
+  const when = [term && term.date, term && term.time].filter(Boolean).join(' v ');
+  return {
+    subject: accepted ? `Váš navržený termín byl přijat (${when})` : `Váš navržený termín byl odmítnut (${when})`,
+    text:
+      `Dobrý den, ${name || firstName},\n\n` +
+      (accepted
+        ? `váš navržený termín (${when}) byl přijat.\n`
+        : `váš navržený termín (${when}) byl bohužel odmítnut.\n`) +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: accepted ? 'Váš navržený termín byl přijat.' : 'Váš navržený termín byl odmítnut.',
+      title: accepted ? 'Termín přijat' : 'Termín odmítnut',
+      intro: `Dobrý den, ${firstName}. ${accepted ? 'Váš navržený termín byl přijat.' : 'Váš navržený termín byl bohužel odmítnut.'}`,
+      bodyHtml: accepted
+        ? '<p style="margin:0;">Detaily najdete ve svém účtu v sekci Zprávy nebo Objednávky.</p>'
+        : '<p style="margin:0;">Zkuste v chatu navrhnout jiný termín.</p>',
+      ctaLabel: 'Otevřít chat',
+      ctaUrl: `${APP_URL}/#chat`,
+      ctaNote: '',
+      facts: [{ label: 'Navržený termín', value: when || '' }],
+      closingTitle: accepted ? 'Těšíme se, ať vše proběhne v pořádku.' : 'Jsme tu pro vás.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail informuje o vyřízení vašeho návrhu termínu v chatu.',
+    }),
+  };
+}
 // ---- e-mail: výsledek ověření (pečovatelce) ----
 function verificationResultMail({ name, approved, reason }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
@@ -2628,6 +2682,7 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   // realtime: pushni zprávu protistraně (pro ni me:false)
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
   emitToUser(other, { type: 'message', conversationId: Number(conv.id), message: Object.assign({}, msgOut, { me: false, replyTo: replySnippet ? Object.assign({}, replySnippet, { me: !replySnippet.me }) : null }) });
+  notifyOfflineMessage({ conversationId: Number(conv.id), recipientId: other, senderName: req.session.name || '', preview });
   res.json({ message: msgOut });
 }));
 
@@ -2668,6 +2723,7 @@ app.post('/api/conversations/:id/messages/:mid/term/accept', requireAuth, requir
   await restUpdate(T.messages, `id=eq.${mid}`, { term: nextTerm }, { prefer: 'return=minimal' });
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
   emitToUser(other, { type: 'term-update', conversationId: Number(conv.id), messageId: mid, term: nextTerm });
+  notifyTermDecision(row.sender_id, true, nextTerm);
   res.json({ ok: true, term: nextTerm, immediatelyConfirmed: !iAmFamily });
 }));
 
@@ -2686,6 +2742,7 @@ app.post('/api/conversations/:id/messages/:mid/term/decline', requireAuth, requi
   await restUpdate(T.messages, `id=eq.${mid}`, { term: nextTerm }, { prefer: 'return=minimal' });
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
   emitToUser(other, { type: 'term-update', conversationId: Number(conv.id), messageId: mid, term: nextTerm });
+  notifyTermDecision(row.sender_id, false, nextTerm);
   res.json({ ok: true, term: nextTerm });
 }));
 
@@ -2797,6 +2854,30 @@ app.post('/api/conversations/:id/pin', requireAuth, requireConversationParticipa
 // registr živých spojení: userId -> Set<res>
 const sseClients = new Map();
 function userOnline(userId) { const s = sseClients.get(String(userId)); return !!(s && s.size); }
+// e-mail o nové zprávě jen když je příjemce offline, a ne víc než 1x za 30 min na konverzaci
+const chatMailDebounce = new Map();
+async function notifyOfflineMessage({ conversationId, recipientId, senderName, preview }) {
+  try {
+    if (userOnline(recipientId)) return;
+    const key = `${conversationId}:${recipientId}`;
+    const last = chatMailDebounce.get(key) || 0;
+    if (Date.now() - last < 30 * 60 * 1000) return;
+    const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(recipientId)}&select=name,email&limit=1`);
+    const u = rows && rows[0];
+    if (!u || !u.email) return;
+    chatMailDebounce.set(key, Date.now());
+    await sendMailSafe({ to: u.email, ...newChatMessageMail({ name: u.name, senderName, preview: preview.slice(0, 200) }) });
+  } catch (e) { console.warn('[mail] notifyOfflineMessage failed:', e.message); }
+}
+// e-mail odesílateli návrhu termínu, jakmile je přijat/odmítnut
+async function notifyTermDecision(proposerId, accepted, term) {
+  try {
+    const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(proposerId)}&select=name,email&limit=1`);
+    const u = rows && rows[0];
+    if (!u || !u.email) return;
+    await sendMailSafe({ to: u.email, ...termDecisionMail({ name: u.name, accepted, term }) });
+  } catch (e) { console.warn('[mail] notifyTermDecision failed:', e.message); }
+}
 function sseSend(userId, payload) {
   const set = sseClients.get(String(userId));
   if (!set || !set.size) return;
