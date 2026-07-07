@@ -2372,7 +2372,7 @@ async function mapConversationForViewer(conv, me) {
   }
   const myReadAt = String(conv.user_a) === String(me) ? conv.a_read_at : conv.b_read_at;
   return {
-    id: Number(conv.id), name: u.name || 'Uživatel', init: u.init || '', photo: u.photo || null,
+    id: Number(conv.id), name: u.name || 'Smazaný účet', init: u.init || '', photo: u.photo || null,
     role: u.role || 'family', profileToken, last: conv.last_text || '', lastAt: conv.last_at || null,
     unread: await countConversationUnread(conv.id, me, myReadAt),
   };
