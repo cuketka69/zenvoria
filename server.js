@@ -1024,6 +1024,27 @@ function termDecisionMail({ name, accepted, term }) {
     }),
   };
 }
+// ---- e-mail: hromadná zpráva od správce (broadcast) ----
+function broadcastMail({ name, text }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || '';
+  return {
+    subject: 'Zpráva od týmu ZENVORIA',
+    text: `Dobrý den, ${name || firstName},\n\n${text}\n\nS pozdravem,\nTým ZENVORIA`,
+    html: renderEmailLayout({
+      preheader: text.slice(0, 120),
+      title: 'Zpráva od týmu ZENVORIA',
+      intro: `Dobrý den, ${firstName}.`,
+      bodyHtml: `<p style="margin:0;white-space:pre-wrap;">${escapeHtml(text)}</p>`,
+      ctaLabel: 'Otevřít ZENVORIA',
+      ctaUrl: APP_URL,
+      ctaNote: '',
+      facts: [],
+      closingTitle: 'Děkujeme, že jste s námi.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tuto zprávu odeslal správce systému ZENVORIA vaší skupině uživatelů.',
+    }),
+  };
+}
 // ---- e-mail: výsledek ověření (pečovatelce) ----
 function verificationResultMail({ name, approved, reason }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
@@ -2998,7 +3019,23 @@ app.post('/api/broadcasts', requireRole('admin'), h(async (req, res) => {
     date: new Date().toISOString().slice(0, 10), t: sentAt || '',
   });
   fireAudit('admin.broadcast.create', { req, actor: auditActor(req), targetType: 'broadcast', targetId: row.id, status: 'success', metadata: { audience: row.audience, emailsCount: Array.isArray(row.emails) ? row.emails.length : 0 } });
-  res.json({ broadcast: { id: row.id, audience: row.audience, emails: row.emails || [], text: row.text, date: row.date, t: row.t } });
+  // zároveň pošli e-mail každému uživateli v cílové skupině (kromě "specific" jde jen o adresy bez ověřených jmen — dohledáme je)
+  let recipients = [];
+  try {
+    if (audience === 'specific') {
+      const list = emails.map((e) => `"${e}"`).join(',');
+      recipients = list ? (await restSelect(T.users, `email=in.(${list})&select=name,email`)) || [] : [];
+    } else {
+      let filter = 'select=name,email';
+      if (audience === 'caregivers') filter += '&role=eq.caregiver';
+      else if (audience === 'families') filter += '&role=eq.family';
+      recipients = (await restSelect(T.users, filter)) || [];
+    }
+    for (const u of recipients) {
+      if (u && u.email) sendMailSafe({ to: u.email, ...broadcastMail({ name: u.name, text }) });
+    }
+  } catch (e) { console.warn('[mail] broadcast send failed:', e.message); }
+  res.json({ broadcast: { id: row.id, audience: row.audience, emails: row.emails || [], text: row.text, date: row.date, t: row.t }, emailsSent: recipients.length });
 }));
 
 /* ---------------- PEČOVATELKA: profil / tarif / pozastavení ---------------- */
