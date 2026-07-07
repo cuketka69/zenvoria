@@ -4196,10 +4196,16 @@ function syncCgPreview(){
     </div>`;
 }
 function saveCgProfile(){
+  const locEl=document.getElementById('cpLoc');
+  if(!locEl.value.trim()){
+    toast('Zadejte lokalitu (město nebo okres).','declined');
+    locEl.focus();
+    return;
+  }
   // číslo z pole; prázdné → ponech starou hodnotu, ale 0 se uloží jako 0
   const numOr=(id,fallback)=>{const raw=(document.getElementById(id).value||'').trim();if(raw==='')return fallback;const n=+raw;return Number.isFinite(n)?n:fallback;};
   cgProfile.name=document.getElementById('cpName').value.trim()||cgProfile.name;
-  cgProfile.loc=document.getElementById('cpLoc').value;
+  cgProfile.loc=locEl.value.trim();
   cgProfile.exp=numOr('cpExp',cgProfile.exp);
   cgProfile.radius=numOr('cpRadius',cgProfile.radius);
   cgProfile.kmPrice=Math.max(0,numOr('cpKmPrice',0));

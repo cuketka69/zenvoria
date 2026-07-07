@@ -3123,7 +3123,10 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     patch.trial_until = new Date(t).toISOString();
   }
   if (patch.name !== undefined) patch.name = trimmedString(patch.name, 120);
-  if (patch.loc !== undefined) patch.loc = trimmedString(patch.loc, 120);
+  if (patch.loc !== undefined) {
+    patch.loc = trimmedString(patch.loc, 120);
+    if (!patch.loc) return res.status(400).json({ error: 'Zadejte lokalitu (město nebo okres).' });
+  }
   if (patch.bio !== undefined) patch.bio = trimmedString(patch.bio, 4000);
   if (patch.photo !== undefined) patch.photo = patch.photo == null ? null : trimmedString(patch.photo, 2 * 1024 * 1024);
   if (patch.price_type !== undefined && !['hod', 'den', 'indiv'].includes(String(patch.price_type))) {
