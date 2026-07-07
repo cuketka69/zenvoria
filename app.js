@@ -701,7 +701,6 @@ function renderHome(){
       <div class="svc-top">
         <div class="svc-img" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp'),linear-gradient(135deg,#1a5236,#0c2419)"></div>
       </div>
-      <div class="svc-ic">${sIcon(s.icon)}</div>
       <div class="svc-body">
         <h4>${s.name}</h4>
         <p>${s.desc||''}</p>
@@ -3467,27 +3466,8 @@ async function renderAdminStats(){
 }
 
 /* ---- ADMIN: správa nabízených služeb ---- */
-const SERVICE_ICON_PRESETS=[
-  {l:'Srdce',v:'M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'},
-  {l:'Zdraví',v:'M9 3h6v3h3v6h-3v3H9v-3H6V6h3V3Z'},
-  {l:'Domov',v:'M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z'},
-  {l:'Úklid',v:'M3 13h18M5 13V7l7-4 7 4v6M9 21v-5h6v5'},
-  {l:'Noc',v:'M20 14a8 8 0 1 1-9-10 6.5 6.5 0 0 0 9 10Z'},
-  {l:'Nemocnice',v:'M5 8h14v12H5V8ZM9 4h6v4H9V4ZM12 11v6M9 14h6'},
-  {l:'Aktivita',v:'M4 12h2l2-5 4 10 2-5h6'},
-  {l:'Rozhovor',v:'M4 5h16v10H9l-5 4V5Z'},
-  {l:'Hygiena',v:'M7 13h10v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6ZM6 13h12M9 13V7a3 3 0 0 1 6 0'},
-  {l:'Nákup',v:'M6 6h15l-1.5 9h-12L6 6ZM6 6 5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z'},
-];
-let svcSelectedIcon=SERVICE_ICON_PRESETS[0].v;
+const SERVICE_DEFAULT_ICON='M9 11l3 3L22 4M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11';
 function renderAdminServices(){
-  const picker=document.getElementById('svcIconPicker');
-  if(picker){
-    picker.innerHTML=SERVICE_ICON_PRESETS.map(p=>`
-      <button type="button" class="svc-icon-opt${p.v===svcSelectedIcon?' on':''}" title="${esc(p.l)}" onclick="pickServiceIcon('${p.v.replace(/'/g,"\\'")}')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="${p.v}" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>`).join('');
-  }
   const err=document.getElementById('svcErr');if(err)err.textContent='';
   const nameEl=document.getElementById('svcName'),descEl=document.getElementById('svcDesc');
   if(nameEl)nameEl.value='';if(descEl)descEl.value='';
@@ -3495,7 +3475,6 @@ function renderAdminServices(){
   if(countEl)countEl.textContent=SERVICES.length;
   if(listEl)listEl.innerHTML=SERVICES.length?SERVICES.map(s=>`
     <div class="row" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
-      <span style="flex:0 0 auto;color:var(--gold-deep)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="${s.icon}" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <div style="flex:1;min-width:0">
         <b style="display:block;font-size:14px">${esc(s.name)}</b>
         ${s.desc?`<span style="display:block;font-size:12px;color:var(--muted)">${esc(s.desc)}</span>`:''}
@@ -3503,7 +3482,6 @@ function renderAdminServices(){
       <button type="button" class="btn btn-sm btn-ghost" onclick="deleteService('${s.id}')">Smazat</button>
     </div>`).join(''):'<div class="empty">Zatím žádné služby.</div>';
 }
-function pickServiceIcon(path){svcSelectedIcon=path;renderAdminServices();}
 /* stejná logika jako slugifyServiceId na serveru — ať se lokální id shoduje s tím, co se skutečně uloží */
 function slugifyServiceId(name){
   return String(name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
@@ -3518,7 +3496,7 @@ function addService(e){
   if(SERVICES.some(s=>s.name.toLowerCase()===name.toLowerCase())){if(err)err.textContent='Tato služba už v seznamu je.';return false;}
   let id=slugifyServiceId(name);
   while(SERVICES.some(s=>s.id===id))id=id+'-2';
-  const next=[...SERVICES,{id,name,icon:svcSelectedIcon,desc:(descEl.value||'').trim()}];
+  const next=[...SERVICES,{id,name,icon:SERVICE_DEFAULT_ICON,desc:(descEl.value||'').trim()}];
   saveServices(next,'Služba byla přidána.');
   return false;
 }
@@ -4140,11 +4118,7 @@ function syncCgPreview(){
   const bioEl=document.getElementById('cpBio');const cnt=document.getElementById('cpBioCount');
   if(cnt&&bioEl)cnt.textContent=`${bioEl.value.length} / 500`;
   const priceHTML=priceType==='indiv'?'<b>Individuální</b>':(priceType==='den'?`<b>${(+rate).toLocaleString('cs-CZ')} Kč</b> <span>/ den</span>`:`<b>${rate} Kč</b> <span>/ hod</span>`);
-  const servs=cgProfile.services.map(s=>{
-    const svc=SERVICES.find(x=>x.id===s);
-    const ic=svc?`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px"><path d="${svc.icon}" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`:'';
-    return `<span class="chip svc-chip">${ic}${sName(s)}</span>`;
-  }).join('');
+  const servs=cgProfile.services.map(s=>`<span class="chip svc-chip">${sName(s)}</span>`).join('');
   const langs=(cgProfile.langs||[]).map(l=>`<span class="lang-abbr" title="${esc(l)}">${esc(langAbbr(l))}</span>`).join('');
   const photo=cgProfile.photo||auth.photo||null;
   if(!photo)updateCgAvatar();

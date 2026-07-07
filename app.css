@@ -315,13 +315,7 @@
   .svc-top::before{content:"";position:absolute;top:0;left:-65%;width:55%;height:100%;z-index:2;pointer-events:none;
     background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);transform:skewX(-18deg);transition:left .8s ease}
   .svc-card:hover .svc-top::before{left:135%}
-  .svc-ic{position:absolute;left:24px;top:158px;z-index:3;width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;
-    background:#10241A;border:1px solid rgba(201,162,51,.45);box-shadow:0 8px 20px -8px rgba(0,0,0,.55);
-    transition:transform .28s ease,box-shadow .28s ease,background .28s ease,border-color .28s ease}
-  .svc-ic svg *{stroke:var(--gold-soft);transition:stroke .28s ease}
-  .svc-card:hover .svc-ic{transform:translateY(-3px) scale(1.08);background:linear-gradient(145deg,var(--gold-soft),var(--gold-deep));border-color:var(--gold);box-shadow:0 0 0 4px rgba(201,162,51,.22),0 10px 22px -8px rgba(0,0,0,.6)}
-  .svc-card:hover .svc-ic svg *{stroke:#0C2419}
-  .svc-body{padding:40px 26px 28px;display:flex;flex-direction:column;flex:1}
+  .svc-body{padding:24px 26px 28px;display:flex;flex-direction:column;flex:1}
   .svc-card h4{font-family:'Playfair Display',serif;font-size:20px;color:#fff;margin-bottom:9px;transition:color .25s ease}
   .svc-card:hover h4{color:var(--gold-soft)}
   .svc-card p{font-size:13.5px;color:rgba(255,255,255,.66);line-height:1.65;margin-bottom:20px;flex:1}
@@ -595,12 +589,6 @@
   .pdiv{height:1px;background:var(--line);margin:24px 0}
   .pcard h3{font-family:'Playfair Display',serif;font-size:20px;color:var(--navy-900);margin-bottom:12px}
   .pcard p.bio{color:var(--navy-800);font-size:15px;line-height:1.7}
-  /* admin: výběr ikony při přidávání služby */
-  .svc-icon-picker{display:flex;flex-wrap:wrap;gap:8px}
-  .svc-icon-opt{width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:var(--cream);
-    color:var(--navy-800);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
-  .svc-icon-opt:hover{border-color:var(--gold)}
-  .svc-icon-opt.on{border-color:var(--gold);background:rgba(201,162,51,.16);color:var(--gold-deep)}
   .book-aside{position:sticky;top:96px}
   .book-aside .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;font-size:14.5px}
   .book-aside .row .l{color:var(--muted)}
