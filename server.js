@@ -1526,7 +1526,7 @@ function mapCaregiver(c, permsSetting) {
     langs: c.langs || ['Čeština'],
     priceType: c.price_type, dayRate: c.day_rate, radius: c.radius, kmPrice: c.km_price,
     photo: c.photo || null, email: c.email || null, avail: c.avail || null, blockedDates: c.blocked_dates || [],
-    availOverrides: c.avail_overrides || {},
+    availOverrides: c.avail_overrides || {}, hasStripeSubscription: !!c.stripe_customer_id,
     views: Number(c.views || 0), perms: permsForPlan(c.plan, permsSetting),
   };
 }
@@ -1537,6 +1537,7 @@ function mapCaregiverForViewer(c, opts = {}) {
   delete row.avail;
   delete row.blockedDates;
   delete row.availOverrides;
+  delete row.hasStripeSubscription;
   delete row.idVerified;
   delete row.planStatus;
   delete row.trialUntil;
@@ -1615,7 +1616,8 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
       case 'customer.subscription.created': {
         const plan = (o.metadata && o.metadata.plan === 'start') ? 'start' : 'premium';
         const active = ['active', 'trialing', 'past_due'].includes(o.status);
-        const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: active ? plan : null, status: o.status });
+        const trialUntil = o.trial_end ? new Date(o.trial_end * 1000).toISOString() : null;
+        const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: active ? plan : null, status: o.status, trialUntil });
         // upozornění na problém s platbou (jen při přechodu do past_due/unpaid)
         if (r && r.row.email && ['past_due', 'unpaid'].includes(o.status) && !['past_due', 'unpaid'].includes(r.prevStatus || '')) {
           await sendMailSafe({ to: r.row.email, ...planPaymentIssueMail({ name: r.row.name, plan }) });
@@ -3454,7 +3456,7 @@ async function currentCaregiverRow(req) {
   return caregiverByEmail(req.session.email);
 }
 // zapíše tarif (a Stripe id) do DB — hledá pečovatelku podle e-mailu nebo stripe_customer_id
-async function setCaregiverPlan({ email, customerId, subscriptionId, plan, status }) {
+async function setCaregiverPlan({ email, customerId, subscriptionId, plan, status, trialUntil }) {
   let row = null;
   if (email) row = await caregiverByEmail(email);
   if (!row && customerId) {
@@ -3469,6 +3471,8 @@ async function setCaregiverPlan({ email, customerId, subscriptionId, plan, statu
   if (status !== undefined) patch.plan_status = status;
   if (customerId) patch.stripe_customer_id = customerId;
   if (subscriptionId !== undefined) patch.stripe_subscription_id = subscriptionId;
+  // jakmile má pečovatelka skutečné Stripe předplatné, "platí do" ať odpovídá reálnému konci zkušební doby (ne staršímu ručně přidělenému datu)
+  if (trialUntil !== undefined) patch.trial_until = trialUntil;
   await restUpdate(T.caregivers, `id=eq.${row.id}`, patch, { prefer: 'return=minimal' });
   console.log('[stripe] tarif aktualizován', { id: row.id, plan, status });
   return { row, prevPlan, prevStatus };

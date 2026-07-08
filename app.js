@@ -2242,17 +2242,26 @@ function cgBadges(c,opts){
 function renderPricing(){
   const isCg=auth.loggedIn&&auth.role==='caregiver';
   const cur=isCg?cgPlan():null;
+  const me=isCg?CAREGIVERS.find(x=>x.email===auth.email):null;
+  const hasCard=!!(me&&me.hasStripeSubscription);
   const note=document.getElementById('planCurrentNote');
   note.innerHTML=isCg
     ?(cur
-      ? `<div class="verify-banner ok" style="margin-bottom:24px"><span class="vb-ic">${planIcon(cur,30)}</span><div class="vb-t"><b>Váš aktuální tarif: ${PLANS[cur].name}</b><span>${cur==='premium'?'Máte vyšší zobrazení a odznak Premium.':'Přejděte na PREMIUM pro vyšší zobrazení a více poptávek.'}</span></div></div>`
+      ? (()=>{
+          const validTxt=me&&me.trialUntil?('platí do '+fmtDate(me.trialUntil)):'platí neomezeně';
+          const cardNote=hasCard?'':' Zatím nemáte uloženou platební kartu — bez ní tarif po skončení zkušební doby skončí.';
+          return `<div class="verify-banner ok" style="margin-bottom:24px"><span class="vb-ic">${planIcon(cur,30)}</span><div class="vb-t"><b>Váš aktuální tarif: ${PLANS[cur].name}</b><span>${esc(validTxt)}.${cardNote}</span></div></div>`;
+        })()
       : `<div class="verify-banner wait" style="margin-bottom:24px"><span class="vb-ic" style="color:var(--gold-deep)">${warnSVG(26)}</span><div class="vb-t"><b>Nemáte aktivní tarif</b><span>Bez tarifu vás rodiny neuvidí ve vyhledávání. Vyberte si START nebo PREMIUM.</span></div></div>`)
     :`<div class="verify-banner wait" style="margin-bottom:24px"><span class="vb-ic" style="color:var(--gold-deep)">${userSVG(26)}</span><div class="vb-t"><b>Jste pečovatelka?</b><span>Zaregistrujte se a vyberte si tarif. Ceník je informativní.</span></div></div>`;
   document.getElementById('planGrid').innerHTML=['start','premium'].map(key=>{
     const p=PLANS[key];const featured=key==='premium';
     let action;
     if(isCg){action=cur===key
-      ? '<div class="plan-current">'+checkSVG()+' Váš aktuální tarif</div><button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openBillingPortal(this)">Spravovat předplatné</button>'
+      ? '<div class="plan-current">'+checkSVG()+' Váš aktuální tarif</div>'
+        +(hasCard
+          ? '<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openBillingPortal(this)">Spravovat předplatné</button>'
+          : `<button class="btn btn-gold btn-block" style="margin-top:10px" onclick="startPlanCheckout(this,'${key}')">Přidat platební kartu a prodloužit</button>`)
       :(key==='premium'
         ? `<button class="btn btn-gold btn-block" onclick="switchToPlan(this,'premium')">Vyzkoušet PREMIUM zdarma na 3 měsíce</button>`
         : `<button class="btn btn-ghost btn-block" onclick="switchToPlan(this,'start')">Přejít na START zdarma na 3 měsíce</button>`);}
