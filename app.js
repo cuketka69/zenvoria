@@ -5773,4 +5773,8 @@ async function initApp(){
   initChatWatch();
   initRealtime();
 }
-initApp();
+function hideAppLoader(){
+  const el=document.getElementById('appLoader');
+  if(el){el.classList.add('hide');el.setAttribute('aria-hidden','true');}
+}
+initApp().catch(e=>console.error('initApp',e)).finally(hideAppLoader);
