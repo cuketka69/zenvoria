@@ -3763,7 +3763,7 @@ app.get('/api/admin/openai-config', requireRole('admin'), h(async (req, res) => 
 // admin: uloží/aktualizuje OpenAI klíč — projeví se okamžitě, bez restartu serveru
 app.put('/api/admin/openai-config', requireRole('admin'), h(async (req, res) => {
   const apiKeyRaw = typeof (req.body || {}).apiKey === 'string' ? req.body.apiKey.trim() : undefined;
-  if (apiKeyRaw && !/^sk-\w+$/.test(apiKeyRaw)) {
+  if (apiKeyRaw && !/^sk-[\w-]+$/.test(apiKeyRaw)) {
     return res.status(400).json({ error: 'Neplatný formát OpenAI API Key — musí začínat sk-.' });
   }
   if (apiKeyRaw === undefined) return res.status(400).json({ error: 'Vyplňte API klíč.' });
