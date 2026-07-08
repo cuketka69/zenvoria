@@ -181,6 +181,7 @@ async function go(v,fromPop){
   toggleMenu(false);
   closeAccountMenu();
   window.scrollTo({top:0,behavior:'smooth'});
+  if(v==='booking')renderBookingForm();
   if(v==='bookings')renderCalendar();
   if(v==='cg-dashboard')renderCgDashboard();
   if(v==='cg-requests')renderCgRequests();
@@ -1328,20 +1329,29 @@ function openBooking(id){
     go('login');
     return;
   }
-  state.caregiverId=id;const c=cg(id);
-  state.bkServices=[c.services[0]];state.bkHours=4;
+  // nová objednávka pro (možná) jinou pečovatelku — vynuť čerstvý výběr místo dřívějšího zbytku
+  if(state.caregiverId!==id){state.bkServices=null;state.bkHours=null;state.bkFreshDate=true;}
+  state.caregiverId=id;
+  go('booking');
+}
+/* vykreslí formulář objednávky pro state.caregiverId — volá se jak z openBooking(), tak z routeru go(),
+   ať se stránka správně obnoví i při návratu tlačítkem zpět nebo refreshi na #booking */
+function renderBookingForm(){
+  const c=cg(state.caregiverId);
+  if(!c)return;
+  if(!state.bkServices||!state.bkServices.length)state.bkServices=[c.services[0]];
+  if(!state.bkHours)state.bkHours=4;
   renderBookingServiceOpts(c);
   document.getElementById('bkHours').innerHTML=[2,4,6,8].map(h=>
     `<div class="opt ${h===state.bkHours?'on':''}" onclick="pickHours(${h})">${h} hodin</div>`).join('');
   const dateEl=document.getElementById('bkDate');
   dateEl.min=todayISO();
-  dateEl.value=todayISO();
+  if(!dateEl.value||state.bkFreshDate){dateEl.value=todayISO();document.getElementById('bkKm').value=0;state.bkFreshDate=false;}
   if(dateEl._ddRefresh)dateEl._ddRefresh();
   // pole vzdálenosti jen když pečovatel účtuje dopravu
   const kmWrap=document.getElementById('bkKmWrap');
-  document.getElementById('bkKm').value=0;
   if(kmWrap)kmWrap.style.display=(c.kmPrice&&c.kmPrice>0)?'':'none';
-  updateSummary();go('booking');
+  updateSummary();
 }
 /* více služeb v jedné objednávce lze vybrat najednou (klik = zapnout/vypnout), aspoň jedna musí zůstat vybraná */
 function renderBookingServiceOpts(c){
