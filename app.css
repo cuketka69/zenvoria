@@ -595,6 +595,7 @@
     border-radius:13px;padding:13px 15px;font-size:14px;color:var(--navy-800)}
   .pchip svg{flex:0 0 auto}
   .pdiv{height:1px;background:var(--line);margin:24px 0}
+  code{background:var(--cream);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:.92em;color:var(--navy-800);word-break:break-all}
   .pcard h3{font-family:'Playfair Display',serif;font-size:20px;color:var(--navy-900);margin-bottom:12px}
   .pcard p.bio{color:var(--navy-800);font-size:15px;line-height:1.7}
   .book-aside{position:sticky;top:96px}

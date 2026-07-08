@@ -105,15 +105,33 @@ const APP_URL = process.env.APP_URL || 'https://www.zenvoria.cz';
 const GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY || '';
 
 // --- Stripe (předplatné PREMIUM pro pečovatelky) ---
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || ''; // whsec_...
+// klíče lze nastavit přes proměnné prostředí (Railway) NEBO za běhu přes admin panel (Nastavení > Platby) —
+// admin panel má přednost, jakmile je jednou uložen do DB, a projeví se okamžitě bez restartu serveru.
 const STRIPE_CURRENCY = (process.env.STRIPE_CURRENCY || 'czk').toLowerCase();
+let stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
+let stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || ''; // whsec_...
 let stripe = null;
-if (STRIPE_SECRET_KEY) {
-  try { stripe = require('stripe')(STRIPE_SECRET_KEY); }
+function rebuildStripeClient() {
+  stripe = null;
+  if (!stripeSecretKey) return;
+  try { stripe = require('stripe')(stripeSecretKey); }
   catch (e) { console.error('[stripe] knihovna stripe není nainstalovaná (npm i stripe):', e.message); }
 }
-const STRIPE_ENABLED = !!stripe;
+rebuildStripeClient();
+function isStripeEnabled() { return !!stripe; }
+// při startu zkus přednostně načíst klíče uložené adminem v DB (přepíší ty z proměnných prostředí)
+async function loadStripeConfigFromDb() {
+  if (!REST_ENABLED) return;
+  try {
+    const rows = await restSelect(T.settings, `key=eq.stripeConfig&limit=1`);
+    const cfg = rows && rows[0] && rows[0].value;
+    if (cfg && typeof cfg === 'object') {
+      if (cfg.secretKey) stripeSecretKey = cfg.secretKey;
+      if (cfg.webhookSecret) stripeWebhookSecret = cfg.webhookSecret;
+      rebuildStripeClient();
+    }
+  } catch (e) { console.warn('[stripe] nelze načíst konfiguraci z DB:', e.message); }
+}
 
 function isStrongPassword(value) {
   const v = String(value || '');
@@ -1586,11 +1604,11 @@ app.use((req, res, next) => {
 
 // --- Stripe webhook (MUSÍ být před express.json — potřebuje surové tělo pro ověření podpisu) ---
 app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) => {
-  if (!STRIPE_ENABLED) return res.status(503).end();
+  if (!isStripeEnabled()) return res.status(503).end();
   let event;
   try {
-    if (STRIPE_WEBHOOK_SECRET) {
-      event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], STRIPE_WEBHOOK_SECRET);
+    if (stripeWebhookSecret) {
+      event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], stripeWebhookSecret);
     } else {
       event = JSON.parse(req.body.toString('utf8')); // fallback bez ověření (jen pro lokální testy)
     }
@@ -1657,6 +1675,7 @@ app.get('/api/health', (_req, res) => res.json({
   ok: true,
   rest: REST_ENABLED,
   geoapifyConfigured: !!GEOAPIFY_API_KEY,
+  stripeConfigured: isStripeEnabled(),
 }));
 
 /* ---------------- VERZE (auto-reload klientů po deployi) ---------------- */
@@ -3492,7 +3511,7 @@ async function planPriceCZK(plan) {
 
 // 1) Vytvoří Stripe Checkout Session (předplatné START nebo PREMIUM) a vrátí URL k přesměrování
 app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) => {
-  if (!STRIPE_ENABLED) return res.status(503).json({ error: 'Platby nejsou nakonfigurované.' });
+  if (!isStripeEnabled()) return res.status(503).json({ error: 'Platby nejsou nakonfigurované.' });
   const plan = (req.body && req.body.plan) === 'start' ? 'start' : 'premium';
   const email = req.session.email;
   const cg = await caregiverByEmail(email);
@@ -3542,7 +3561,7 @@ app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) =
 
 // 2) Stripe Customer Portal — správa / zrušení předplatného
 app.post('/api/billing/portal', requireRole('caregiver'), h(async (req, res) => {
-  if (!STRIPE_ENABLED) return res.status(503).json({ error: 'Platby nejsou nakonfigurované.' });
+  if (!isStripeEnabled()) return res.status(503).json({ error: 'Platby nejsou nakonfigurované.' });
   const cg = await caregiverByEmail(req.session.email);
   if (!cg || !cg.stripe_customer_id) return res.status(400).json({ error: 'Žádné aktivní předplatné.' });
   const session = await stripe.billingPortal.sessions.create({
@@ -3654,6 +3673,51 @@ app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   if (key === 'socialLinks') emailSocialLinks = { facebook: value.facebook || '', instagram: value.instagram || '' };
   fireAudit('admin.settings.update', { req, actor: auditActor(req), targetType: 'setting', targetId: key, status: 'success' });
   res.json({ ok: true });
+}));
+
+// zamaskuje tajný klíč pro zobrazení v adminu (nikdy neposílej celý klíč zpět v GET odpovědi)
+function maskSecret(s) {
+  if (!s) return '';
+  return s.length > 10 ? `${s.slice(0, 7)}••••••${s.slice(-4)}` : '••••••';
+}
+// admin: stav Stripe konfigurace (klíče se nikdy neposílají celé zpět, jen zamaskované)
+app.get('/api/admin/stripe-config', requireRole('admin'), h(async (req, res) => {
+  res.json({
+    configured: !!stripeSecretKey,
+    webhookConfigured: !!stripeWebhookSecret,
+    secretKeyMasked: maskSecret(stripeSecretKey),
+    webhookSecretMasked: maskSecret(stripeWebhookSecret),
+    mode: stripeSecretKey.startsWith('sk_live_') ? 'live' : (stripeSecretKey.startsWith('sk_test_') ? 'test' : 'neznámý'),
+  });
+}));
+// admin: uloží/aktualizuje Stripe klíče — projeví se okamžitě, bez restartu serveru
+app.put('/api/admin/stripe-config', requireRole('admin'), h(async (req, res) => {
+  const b = req.body || {};
+  const secretKeyRaw = typeof b.secretKey === 'string' ? b.secretKey.trim() : undefined;
+  const webhookSecretRaw = typeof b.webhookSecret === 'string' ? b.webhookSecret.trim() : undefined;
+  if (secretKeyRaw && !/^sk_(test|live)_\w+$/.test(secretKeyRaw)) {
+    return res.status(400).json({ error: 'Neplatný formát Stripe Secret Key — musí začínat sk_test_ nebo sk_live_.' });
+  }
+  if (webhookSecretRaw && !/^whsec_\w+$/.test(webhookSecretRaw)) {
+    return res.status(400).json({ error: 'Neplatný formát Webhook Secret — musí začínat whsec_.' });
+  }
+  // prázdný řetězec = záměrně smazat, undefined = ponechat beze změny
+  const nextSecretKey = secretKeyRaw !== undefined ? secretKeyRaw : stripeSecretKey;
+  const nextWebhookSecret = webhookSecretRaw !== undefined ? webhookSecretRaw : stripeWebhookSecret;
+  await supabaseRestRequest('POST', T.settings, {
+    body: { key: 'stripeConfig', value: { secretKey: nextSecretKey, webhookSecret: nextWebhookSecret } },
+    prefer: 'resolution=merge-duplicates,return=minimal',
+  });
+  stripeSecretKey = nextSecretKey;
+  stripeWebhookSecret = nextWebhookSecret;
+  rebuildStripeClient();
+  fireAudit('admin.stripe.configure', { req, actor: auditActor(req), targetType: 'setting', targetId: 'stripeConfig', status: 'success', metadata: { hasSecretKey: !!stripeSecretKey, hasWebhookSecret: !!stripeWebhookSecret } });
+  res.json({
+    ok: true,
+    configured: !!stripeSecretKey,
+    webhookConfigured: !!stripeWebhookSecret,
+    mode: stripeSecretKey.startsWith('sk_live_') ? 'live' : (stripeSecretKey.startsWith('sk_test_') ? 'test' : 'neznámý'),
+  });
 }));
 
 // admin: přehled všech konverzací (moderace/řešení sporů) — čistě ke čtení, nemění stav přečtení
@@ -3902,4 +3966,5 @@ app.listen(PORT, () => {
   console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`);
   loadEmailSocialLinks();
   expireTrials();
+  loadStripeConfigFromDb();
 });

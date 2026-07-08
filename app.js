@@ -199,6 +199,7 @@ async function go(v,fromPop){
   if(v==='admin-chats')renderAdminChats();
   if(v==='admin-stats')renderAdminStats();
   if(v==='admin-services')renderAdminServices();
+  if(v==='admin-payments')renderAdminPayments();
   if(v==='admin-plans')renderAdminPlans();
   if(v==='admin-social')renderAdminSocial();
   if(v==='admin-broadcast')renderAdminBroadcast();
@@ -1430,7 +1431,7 @@ const DEFERRED_VIEW_IDS=new Set([
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
   'chat',
   'order-detail','login','forgot','reset-password','change-email','register',
-  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services',
+  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-payments',
   'pricing','settings'
 ]);
 let deferredViewsLoaded=false;
@@ -1843,6 +1844,7 @@ function updateAuthUI(){
         +mi("go('admin-chats')",'Konverzace',chatIcon)
         +mi("go('admin-stats')",'Statistiky','<path d="M4 20V10M11 20V4M18 20v-7" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-services')",'Správa služeb','<path d="M9 11l3 3L22 4" stroke="#7A736A" stroke-width="1.6"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" stroke="#7A736A" stroke-width="1.6"/>')
+        +mi("go('admin-payments')",'Platby (Stripe)','<rect x="3" y="5.5" width="18" height="13" rx="2.3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 10h18" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-social')",'Sociální sítě','<circle cx="6" cy="12" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="6.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="17.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><path d="m8 11 7-3.4M8 13l7 3.4" stroke="#7A736A" stroke-width="1.6"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
@@ -3789,6 +3791,44 @@ function saveServices(next,successMsg){
     SERVICES=prev;renderAdminServices();
     toast('Uložení se nezdařilo: '+(e.message||''),'declined');
   }));
+}
+
+/* ---- ADMIN: Stripe klíče (Secret Key + Webhook Signing Secret) ---- */
+async function renderAdminPayments(){
+  const hintEl=document.getElementById('stripeWebhookUrlHint');
+  if(hintEl)hintEl.textContent=location.origin+'/api/billing/webhook';
+  const banner=document.getElementById('stripeStatusBanner');
+  const err=document.getElementById('stripeErr');if(err)err.textContent='';
+  document.getElementById('stripeSecretKey').value='';
+  document.getElementById('stripeWebhookSecret').value='';
+  if(banner)banner.innerHTML='<div class="empty">Načítám stav…</div>';
+  let s;
+  try{s=await api('/admin/stripe-config');}
+  catch(e){if(banner)banner.innerHTML='';toast('Stav Stripe se nepodařilo načíst: '+(e.message||''),'declined');return;}
+  if(!banner)return;
+  if(!s.configured){
+    banner.innerHTML=`<div class="verify-banner wait"><span class="vb-ic" style="color:var(--gold-deep)">${warnSVG(26)}</span><div class="vb-t"><b>Stripe není nakonfigurovaný</b><span>Bez Secret Key nepůjde platit ani spravovat předplatné pečovatelek.</span></div></div>`;
+  }else{
+    const modeLabel=s.mode==='live'?'ŽIVÝ provoz — skutečné platby':(s.mode==='test'?'Testovací režim (Sandbox) — žádné skutečné peníze':'Neznámý formát klíče');
+    banner.innerHTML=`<div class="verify-banner ok"><span class="vb-ic">${checkCircleSVG(26)}</span><div class="vb-t"><b>Stripe nakonfigurován (${esc(s.secretKeyMasked)})</b><span>${esc(modeLabel)}${s.webhookConfigured?' · webhook nastaven':' · webhook NENÍ nastaven — platby se aktivují se zpožděním'}</span></div></div>`;
+  }
+}
+function saveStripeConfig(e){
+  if(e)e.preventDefault();
+  const secretKey=document.getElementById('stripeSecretKey').value.trim();
+  const webhookSecret=document.getElementById('stripeWebhookSecret').value.trim();
+  const err=document.getElementById('stripeErr');if(err)err.textContent='';
+  if(!secretKey&&!webhookSecret){if(err)err.textContent='Vyplňte alespoň jedno pole, které chcete uložit.';return false;}
+  const body={};
+  if(secretKey)body.secretKey=secretKey;
+  if(webhookSecret)body.webhookSecret=webhookSecret;
+  apiSync(api('/admin/stripe-config',{method:'PUT',body}).then(()=>{
+    toast('Stripe klíče byly uloženy.','success');
+    renderAdminPayments();
+  }).catch(e2=>{
+    if(err)err.textContent=e2.message||'Uložení se nezdařilo.';
+  }));
+  return false;
 }
 
 /* ---- audit log: čitelné české popisky ---- */
