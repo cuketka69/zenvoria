@@ -330,6 +330,7 @@ function enhanceSelect(sel){
   const build=()=>{
     menu.innerHTML='';
     Array.from(sel.options).forEach((o,i)=>{
+      if(o.hidden)return; // např. "Nejblíže" se ukáže, až jsou k dispozici vzdálenosti
       const it=document.createElement('div'); it.className='dd-opt'+(i===sel.selectedIndex?' sel':''); it.textContent=o.text; it.setAttribute('role','option');
       it.onclick=()=>{sel.selectedIndex=i;sync();menu.querySelectorAll('.dd-opt').forEach(x=>x.classList.remove('sel'));it.classList.add('sel');wrap.classList.remove('open');sel.dispatchEvent(new Event('change',{bubbles:true}));};
       menu.appendChild(it);
@@ -486,7 +487,8 @@ function locNorm(v){
 }
 function getLocationMatches(query){
   const q=locNorm(query).trim();
-  if(!q)return LOCATION_OPTIONS.slice(0,10);
+  const toItem=name=>({label:name,lat:null,lon:null});
+  if(!q)return LOCATION_OPTIONS.slice(0,10).map(toItem);
   const starts=[],word=[],contains=[];
   LOCATION_OPTIONS.forEach(name=>{
     const n=locNorm(name);
@@ -495,7 +497,7 @@ function getLocationMatches(query){
     else if(n.includes(q))contains.push(name);
   });
   const primary=starts.concat(word);
-  return (primary.length?primary:contains).slice(0,8);
+  return (primary.length?primary:contains).slice(0,8).map(toItem);
 }
 let locationAutocompleteSeq=0;
 async function fetchLocationMatches(query){
@@ -510,7 +512,7 @@ async function fetchLocationMatches(query){
       // bez nastaveného Geoapify klíče server vrátí prázdný seznam — použij vestavěný seznam měst/okresů místo hlášení chyby uživateli
       if(data.source==='missing-key')return { items:getLocationMatches(q), source:'fallback' };
       return {
-        items:data.items.map(item=>item&&item.label).filter(Boolean),
+        items:data.items.filter(item=>item&&item.label).map(item=>({label:item.label,lat:item.lat!=null?item.lat:null,lon:item.lon!=null?item.lon:null})),
         source:data.source||'remote'
       };
     }
@@ -519,6 +521,7 @@ async function fetchLocationMatches(query){
   return { items:getLocationMatches(q), source:'fallback' };
 }
 function closeLocationMenus(){document.querySelectorAll('.loc-ac.open').forEach(el=>el.classList.remove('open'));}
+/* onPick(item) dostane {label,lat,lon} — lat/lon jsou null, pokud přišly z lokálního záložního seznamu (bez Geoapify) */
 function bindLocationAutocomplete(inputId,onPick){
   const input=document.getElementById(inputId);
   if(!input||input.dataset.locAc)return;
@@ -533,6 +536,12 @@ function bindLocationAutocomplete(inputId,onPick){
   let active=-1;
   let current=[];
   let timer=null;
+  const pick=(item)=>{
+    if(!item)return;
+    input.value=item.label||input.value;
+    closeLocationMenus();
+    if(onPick)onPick(item);
+  };
   const syncActive=()=>{menu.querySelectorAll('.loc-ac-opt').forEach((el,i)=>el.classList.toggle('active',i===active));};
   const render=(items,emptyText)=>{
     current=items.slice();
@@ -542,14 +551,11 @@ function bindLocationAutocomplete(inputId,onPick){
       wrap.classList.add('open');
       return;
     }
-    menu.innerHTML=items.map((name,i)=>`<div class="loc-ac-opt" data-i="${i}">${esc(name)}</div>`).join('');
+    menu.innerHTML=items.map((it,i)=>`<div class="loc-ac-opt" data-i="${i}">${esc(it.label)}</div>`).join('');
     menu.querySelectorAll('.loc-ac-opt').forEach(el=>{
       el.addEventListener('mousedown',e=>{
         e.preventDefault();
-        const idx=Number(el.dataset.i);
-        input.value=current[idx]||input.value;
-        closeLocationMenus();
-        if(onPick)onPick();
+        pick(current[Number(el.dataset.i)]);
       });
     });
     wrap.classList.add('open');
@@ -577,7 +583,7 @@ function bindLocationAutocomplete(inputId,onPick){
     if(!wrap.classList.contains('open')||!current.length)return;
     if(e.key==='ArrowDown'){e.preventDefault();active=Math.min(active+1,current.length-1);syncActive();}
     else if(e.key==='ArrowUp'){e.preventDefault();active=Math.max(active-1,0);syncActive();}
-    else if(e.key==='Enter'&&active>=0){e.preventDefault();input.value=current[active];closeLocationMenus();if(onPick)onPick();}
+    else if(e.key==='Enter'&&active>=0){e.preventDefault();pick(current[active]);}
     else if(e.key==='Escape'){wrap.classList.remove('open');}
   });
   input.addEventListener('blur',()=>setTimeout(()=>wrap.classList.remove('open'),120));
@@ -719,24 +725,46 @@ function renderHome(){
 
 /* ---------- SEARCH RENDER ---------- */
 let activeFilter='';
-function getSearchLocations(){
-  const seen=new Set();
-  CAREGIVERS.forEach(c=>{
-    const loc=String((c&&c.loc)||'').trim();
-    if(!loc||!c.verified||c.suspended)return;
-    seen.add(loc);
-  });
-  return Array.from(seen).sort((a,b)=>a.localeCompare(b,'cs'));
+/* vzdálenost od zadané lokality — vyplní se jen když uživatel vybere návrh se souřadnicemi (Geoapify) */
+let searchLocCoords=null;
+let searchDistances={};
+function onSearchLocInput(){
+  // ruční psaní bez výběru z nabídky ruší dopočtenou vzdálenost, vrátí se textová shoda
+  searchLocCoords=null;searchDistances={};
+  updateDistanceSortAvailability();
+  renderCare();
 }
-function renderSearchLocations(){
-  const sel=document.getElementById('loc');
-  if(!sel)return;
-  const current=sel.value||'';
-  const locations=getSearchLocations();
-  sel.innerHTML=['<option value="">Všechny lokality</option>']
-    .concat(locations.map(loc=>`<option value="${esc(loc)}">${esc(loc)}</option>`))
-    .join('');
-  sel.value=locations.includes(current)?current:'';
+function bindSearchLocationAutocomplete(){
+  bindLocationAutocomplete('loc',async(item)=>{
+    if(item&&item.lat!=null&&item.lon!=null){
+      searchLocCoords={lat:item.lat,lon:item.lon};
+      await fetchSearchDistances();
+    }else{
+      searchLocCoords=null;searchDistances={};
+    }
+    updateDistanceSortAvailability();
+    renderCare();
+  });
+}
+async function fetchSearchDistances(){
+  if(!searchLocCoords)return;
+  const{lat,lon}=searchLocCoords;
+  try{
+    const res=await fetch(`/api/caregivers/distances?lat=${lat}&lng=${lon}`,{credentials:'include',cache:'no-store'});
+    const data=await res.json();
+    const next={};
+    (data.distances||[]).forEach(d=>{next[d.id]=d.km;});
+    searchDistances=next;
+  }catch(e){searchDistances={};}
+}
+function updateDistanceSortAvailability(){
+  const opt=document.getElementById('sortByDistanceOpt');
+  const sel=document.getElementById('sortBy');
+  if(!opt||!sel)return;
+  const has=!!searchLocCoords&&Object.keys(searchDistances).length>0;
+  opt.hidden=!has;
+  if(has&&sel.value==='rec')sel.value='distance';
+  if(!has&&sel.value==='distance')sel.value='rec';
   if(sel._ddRefresh)sel._ddRefresh();
 }
 /* rozsah cen podle reálných sazeb zveřejněných pečovatelek (ne pevná čísla) */
@@ -759,7 +787,6 @@ function renderSearchPriceRange(){
   if(lbl)lbl.textContent=el.value+' Kč';
 }
 function renderFilters(){
-  renderSearchLocations();
   renderSearchPriceRange();
   const all=[{id:'',name:'Vše'},...SERVICES];
   document.getElementById('servFilters').innerHTML=all.map(s=>
@@ -770,19 +797,28 @@ function filterByService(id){activeFilter=id;go('search');renderFilters();render
 
 function renderCare(){
   const q=(document.getElementById('q').value||'').toLowerCase();
-  const loc=document.getElementById('loc').value;
+  const locRaw=(document.getElementById('loc').value||'').trim();
   const priceMax=+((document.getElementById('priceMax')||{}).value||999);
   const sortBy=(document.getElementById('sortBy')||{}).value||'rec';
+  const distanceMode=!!searchLocCoords&&Object.keys(searchDistances).length>0;
   let list=CAREGIVERS.filter(c=>{
     if(!c.verified||c.suspended||!hasPerm(c,'publishServices'))return false; // rodiny vidí jen ověřené, aktivní a zveřejněné pečovatelky
     const matchF=!activeFilter||c.services.includes(activeFilter);
-    const matchL=!loc||c.loc===loc;
+    // v režimu vzdálenosti (vybraná lokalita se souřadnicemi) nefiltrujeme podle přesného textu lokality — řadíme podle skutečné vzdálenosti
+    const matchL=!locRaw||distanceMode||locNorm(c.loc).includes(locNorm(locRaw));
     const matchQ=!q||c.name.toLowerCase().includes(q)||c.loc.toLowerCase().includes(q)||
       c.services.some(s=>sName(s).toLowerCase().includes(q));
     return matchF&&matchL&&matchQ&&c.rate<=priceMax;
   });
   const sorters={'price-asc':(a,b)=>a.rate-b.rate,'price-desc':(a,b)=>b.rate-a.rate,
-    'rating':(a,b)=>b.rating-a.rating,'exp':(a,b)=>b.exp-a.exp};
+    'rating':(a,b)=>b.rating-a.rating,'exp':(a,b)=>b.exp-a.exp,
+    'distance':(a,b)=>{
+      const da=searchDistances[a.id],db=searchDistances[b.id];
+      if(da==null&&db==null)return 0;
+      if(da==null)return 1;
+      if(db==null)return -1;
+      return da-db;
+    }};
   if(sorters[sortBy])list.sort(sorters[sortBy]);
   // pečovatelky s oprávněním "přednostní zobrazení" mají vyšší zobrazení v doporučeném řazení
   if(!sorters[sortBy])list.sort((a,b)=>(hasPerm(b,'priorityRanking')?1:0)-(hasPerm(a,'priorityRanking')?1:0));
@@ -797,7 +833,7 @@ function renderCare(){
         ${avaHtml(c.init,c.photo)}
         <div style="flex:1">
           <div class="care-name">${esc(c.name)}</div>
-          <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${esc(c.loc)}</div>
+          <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${esc(c.loc)}${distanceMode&&searchDistances[c.id]!=null?` · ${searchDistances[c.id]} km`:''}</div>
           <div class="care-meta"><span class="stars">${starFillSVG()}</span><b style="color:var(--navy-900)">${c.rating}</b><span>(${c.reviews}) · ${c.exp} let praxe</span></div>
         </div>
       </div>
@@ -5350,7 +5386,7 @@ async function initApp(){
   }catch(e){console.warn('auth/me',e.message);}
   try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
   updateAuthUI();
-  renderHome();renderFilters();renderCare();renderCalendar();
+  renderHome();renderFilters();bindSearchLocationAutocomplete();renderCare();renderCalendar();
   document.querySelectorAll('select').forEach(enhanceSelect);
   document.querySelectorAll('input[type=date]').forEach(enhanceDateInput);
   initReveal();

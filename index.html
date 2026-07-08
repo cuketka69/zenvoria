@@ -267,11 +267,7 @@
       </div>
       <div class="field" style="max-width:230px">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.4" stroke="#7A736A" stroke-width="1.6"/></svg>
-        <select id="loc" onchange="renderCare()">
-          <option value="">V&#353;echny lokality</option>
-          <option>Praha 2</option><option>Praha 3</option><option>Praha 4</option>
-          <option>Praha 5</option><option>Praha 6</option><option>Praha 7</option>
-        </select>
+        <input id="loc" autocomplete="off" placeholder="Lokalita" oninput="onSearchLocInput()">
       </div>
     </div>
     <div class="filters" id="servFilters"></div>
@@ -283,6 +279,7 @@
       <label>&#344;adit:
         <select id="sortBy" onchange="renderCare()">
           <option value="rec">Doporu&#269;en&#233;</option>
+          <option value="distance" id="sortByDistanceOpt" hidden>Nejbl&#237;&#382;e</option>
           <option value="price-asc">Cena: nejlevn&#283;j&#353;&#237;</option>
           <option value="price-desc">Cena: nejdra&#382;&#353;&#237;</option>
           <option value="rating">Nejl&#233;pe hodnocen&#233;</option>

@@ -1821,9 +1821,45 @@ app.get('/api/locations/autocomplete', h(async (req, res) => {
       name,
       postcode,
       region,
+      lat: Number.isFinite(row.lat) ? row.lat : null,
+      lon: Number.isFinite(row.lon) ? row.lon : null,
     };
   }).filter(Boolean);
   res.json({ items, source: 'geoapify' });
+}));
+
+// zjisti souřadnice textového místa (nejlepší shoda) — použito pro dopočet vzdálenosti a geokódování profilů pečovatelek
+async function geocodeCzechLocation(text) {
+  if (!GEOAPIFY_API_KEY) return null;
+  const q = trimmedString(text, 120);
+  if (!q) return null;
+  const params = new URLSearchParams({ text: q, lang: 'cs', limit: '1', format: 'json', filter: 'countrycode:cz', apiKey: GEOAPIFY_API_KEY });
+  try {
+    const ext = await fetchWithTimeout(`https://api.geoapify.com/v1/geocode/search?${params.toString()}`, { headers: { Accept: 'application/json' } }, 8000);
+    if (!ext.ok) return null;
+    const payload = await ext.json();
+    const row = payload && Array.isArray(payload.results) ? payload.results[0] : null;
+    if (!row || !Number.isFinite(row.lat) || !Number.isFinite(row.lon)) return null;
+    return { lat: row.lat, lng: row.lon };
+  } catch (e) { return null; }
+}
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+// vzdálenost (km) od zadaného bodu ke každé ověřené pečovatelce, u které už máme geokódovanou lokalitu
+app.get('/api/caregivers/distances', h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Neplatné souřadnice.' });
+  const rows = await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&lat=not.is.null&lng=not.is.null&select=id,lat,lng`);
+  const distances = (rows || []).map((c) => ({ id: Number(c.id), km: Math.round(haversineKm(lat, lng, c.lat, c.lng) * 10) / 10 }));
+  distances.sort((a, b) => a.km - b.km);
+  res.json({ distances });
 }));
 
 /* ---------------- AUTH ------------------ */
@@ -2526,6 +2562,8 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
     services: v.services || [], verified: true, id_verified: true, status: 'verified', suspended: false,
     bio: v.bio, cert: !!v.cert,
     ...(userPhoto ? { photo: userPhoto } : {}),
+    // lokalita mohla přijít nová/upravená → zahoď starou geopozici, dohoní ji background job
+    ...(cg && cg.loc !== v.loc ? { lat: null, lng: null } : {}),
   };
   if (cg) {
     await restUpdate(T.caregivers, `id=eq.${cg.id}`, data, { prefer: 'return=minimal' });
@@ -3201,6 +3239,9 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   if (patch.loc !== undefined) {
     patch.loc = trimmedString(patch.loc, 120);
     if (!patch.loc) return res.status(400).json({ error: 'Zadejte lokalitu (město nebo okres).' });
+    // lokalita se změnila → zahoď starou geopozici, background job geocodeCaregiverLocations ji časem dohoní
+    patch.lat = null;
+    patch.lng = null;
   }
   if (patch.bio !== undefined) patch.bio = trimmedString(patch.bio, 4000);
   if (patch.blocked_dates !== undefined) {
@@ -3724,6 +3765,21 @@ async function sendCertExpiryReminders() {
   } catch (e) { console.warn('[jobs] sendCertExpiryReminders failed:', e.message); }
 }
 setInterval(sendCertExpiryReminders, 30 * 60 * 1000).unref();
+
+/* doplní lat/lng pečovatelkám, které je ještě nemají (nová lokalita nebo první běh) — po malých dávkách, ať nenarazíme na limit Geoapify */
+async function geocodeCaregiverLocations() {
+  if (!REST_ENABLED || !GEOAPIFY_API_KEY) return;
+  try {
+    const rows = await restSelect(T.caregivers, `lat=is.null&loc=not.is.null&select=id,loc&limit=15`);
+    for (const c of rows || []) {
+      if (!c.loc) continue;
+      const geo = await geocodeCzechLocation(c.loc);
+      if (geo) await restUpdate(T.caregivers, `id=eq.${c.id}`, { lat: geo.lat, lng: geo.lng }, { prefer: 'return=minimal' });
+    }
+  } catch (e) { console.warn('[jobs] geocodeCaregiverLocations failed:', e.message); }
+}
+setInterval(geocodeCaregiverLocations, 30 * 60 * 1000).unref();
+geocodeCaregiverLocations();
 
 app.listen(PORT, () => {
   console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`);
