@@ -2295,9 +2295,10 @@ app.get('/api/bootstrap', h(async (req, res) => {
   const famPhotoByName = {};
   (orders || []).forEach((o) => { const p = o.family_email && famPhotoByEmail[o.family_email]; if (p && o.fam_name) famPhotoByName[o.fam_name] = p; });
 
+  const reviewedOids = new Set((reviews || []).map((r) => r.order_oid).filter((x) => x != null).map(Number));
   res.json({
     caregivers: caregiversForViewer,
-    orders: (orders || []).map((o) => ({ ...mapOrder(o), cgPhoto: cgPhotoById[o.cid] || null, famPhoto: famPhotoByEmail[o.family_email] || null })),
+    orders: (orders || []).map((o) => ({ ...mapOrder(o), rated: reviewedOids.has(Number(o.oid)), cgPhoto: cgPhotoById[o.cid] || null, famPhoto: famPhotoByEmail[o.family_email] || null })),
     requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
     schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null })),
     verifications: (verifications || []).map(mapVerification),
@@ -2740,21 +2741,33 @@ app.post('/api/verifications/:id/reject', requireRole('admin'), h(async (req, re
 }));
 
 /* ---------------- RECENZE ---------------- */
-app.post('/api/reviews', requireAuth, h(async (req, res) => {
+// recenzi smí napsat jen rodina, a jen k VLASTNÍ dokončené objednávce u té pečovatelky — jinak by šlo
+// napsat libovolné množství falešných recenzí komukoli bez jakéhokoli vztahu k pečovatelce
+app.post('/api/reviews', requireRole('family'), rateLimit('reviews', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho recenzí. Zkuste to prosím později.' }), h(async (req, res) => {
   const b = req.body || {};
   const caregiverId = Number(b.caregiverId);
+  const oid = Number(b.oid);
   const stars = Number(b.stars);
   const init = trimmedString(b.init || (req.session.name || '').split(/\s+/).map((p) => p[0]).join('').slice(0, 2), 4).toUpperCase();
   const name = trimmedString(b.name || req.session.name, 120);
   const text = trimmedString(b.text, 2000);
   if (!Number.isInteger(caregiverId) || caregiverId <= 0 || !Number.isInteger(stars)) return res.status(400).json({ error: 'Neúplná recenze.' });
+  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).json({ error: 'Recenzi lze napsat jen k dokončené objednávce.' });
   if (stars < 1 || stars > 5) return res.status(400).json({ error: 'Neplatné hodnocení.' });
   if (!name || text.length < 3) return res.status(400).json({ error: 'Recenze je příliš krátká.' });
+  const orderRows = await restSelect(T.orders, `oid=eq.${oid}&select=oid,cid,family_email,status&limit=1`);
+  const order = orderRows && orderRows[0];
+  if (!order || String(order.family_email || '').toLowerCase() !== String(req.session.email || '').toLowerCase() || Number(order.cid) !== caregiverId) {
+    return res.status(403).json({ error: 'K této objednávce nemáte oprávnění napsat recenzi.' });
+  }
+  if (order.status !== 'done') return res.status(400).json({ error: 'Recenzi lze napsat až po dokončení péče.' });
+  const existing = await restSelect(T.reviews, `order_oid=eq.${oid}&limit=1`);
+  if (existing && existing[0]) return res.status(400).json({ error: 'Tuto objednávku jste už ohodnotili.' });
   const caregiverRows = await restSelect(T.caregivers, `id=eq.${caregiverId}&select=id,plan&limit=1`);
   if (!caregiverRows || !caregiverRows[0]) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
   const reviewPerms = permsForPlan(caregiverRows[0].plan, await getPlanPermissions());
   if (!reviewPerms.reviews) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá hodnocení.' });
-  await restInsert(T.reviews, { caregiver_id: caregiverId, init, name, stars, text }, { prefer: 'return=minimal' });
+  await restInsert(T.reviews, { caregiver_id: caregiverId, order_oid: oid, family_email: req.session.email, init, name, stars, text }, { prefer: 'return=minimal' });
   res.json({ ok: true });
 }));
 

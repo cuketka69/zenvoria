@@ -4956,7 +4956,11 @@ function submitRating(){
   (cgReviews[cid]=cgReviews[cid]||[]).unshift({init:initials(name),name,stars,text,scores:{...scores}});
   const o=ORDERS.find(x=>x.oid===oid);if(o)o.rated=true;
   if(curOrder&&curOrder.oid===oid)curOrder.rated=true;
-  apiSync(api('/reviews',{method:'POST',body:{caregiverId:cid,init:initials(name),name,stars,text}}));
+  apiSync(api('/reviews',{method:'POST',body:{caregiverId:cid,oid,init:initials(name),name,stars,text}}).catch(e=>{
+    if(o)o.rated=false;if(curOrder&&curOrder.oid===oid)curOrder.rated=false;
+    (cgReviews[cid]||[]).shift();
+    toast(e.message||'Recenzi se nepodařilo odeslat.','declined');
+  }));
   closeRating();
   toast('Děkujeme za vaše hodnocení!','success');
   if(document.getElementById('view-order-detail')&&document.getElementById('view-order-detail').classList.contains('active'))renderOrderDetail();
