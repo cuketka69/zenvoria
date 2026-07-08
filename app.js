@@ -5818,22 +5818,33 @@ let helpChatConfigured=false;
 let helpChatOpen=false;
 let helpChatMessages=[];
 let helpChatBusy=false;
+let helpChatHistoryLoadedFor=undefined; // e-mail, pro který je historie natažená (undefined = ještě nikdy)
+const HELP_CHAT_GREETING={role:'assistant',content:'Ahoj! Jsem asistent ZENVORIA. Zeptejte se mě na cokoli o tom, jak appka funguje — registrace, ověření, tarify, objednávání péče, nebo třeba na konkrétní pečovatelky a jejich ceny…'};
 function renderHelpChatButton(){
   const wrap=document.getElementById('helpChatWidget');
   if(wrap)wrap.hidden=!helpChatConfigured;
 }
-function toggleHelpChat(force){
+async function toggleHelpChat(force){
   const panel=document.getElementById('helpChatPanel');
   if(!panel)return;
   helpChatOpen=force!=null?force:!helpChatOpen;
   panel.hidden=!helpChatOpen;
-  if(helpChatOpen){
-    if(!helpChatMessages.length){
-      helpChatMessages.push({role:'assistant',content:'Ahoj! Jsem asistent ZENVORIA. Zeptejte se mě na cokoli o tom, jak appka funguje — registrace, ověření, tarify, objednávání péče…'});
-      renderHelpChatMessages();
+  if(!helpChatOpen)return;
+  // přihlášenému natáhni jeho dřívější historii ze serveru (jednou za přihlášení); host má historii jen v prohlížeči
+  const forEmail=auth.loggedIn?auth.email:null;
+  if(helpChatHistoryLoadedFor!==forEmail){
+    helpChatHistoryLoadedFor=forEmail;
+    helpChatMessages=[];
+    if(forEmail){
+      try{
+        const r=await api('/help-chat/history');
+        if(((r&&r.messages)||[]).length)helpChatMessages=r.messages;
+      }catch(e){/* nevadí, začne se nanovo */}
     }
-    setTimeout(()=>{const inp=document.getElementById('helpChatInput');if(inp)inp.focus();},60);
   }
+  if(!helpChatMessages.length)helpChatMessages.push(HELP_CHAT_GREETING);
+  renderHelpChatMessages();
+  setTimeout(()=>{const inp=document.getElementById('helpChatInput');if(inp)inp.focus();},60);
 }
 function renderHelpChatMessages(){
   const body=document.getElementById('helpChatBody');

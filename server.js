@@ -435,6 +435,7 @@ const T = {
   broadcasts:    process.env.TBL_BROADCASTS    || 'zenvoria_broadcasts',
   settings:      process.env.TBL_SETTINGS      || 'zenvoria_settings',
   auditLogs:     process.env.TBL_AUDIT_LOGS    || 'zenvoria_audit_logs',
+  helpChats:     process.env.TBL_HELP_CHATS    || 'zenvoria_help_chats',
 };
 
 if (!REST_ENABLED) {
@@ -3786,11 +3787,53 @@ Fakta o platformě, která smíš používat:
 - V appce funguje chat mezi rodinou a pečovatelkou, navrhování termínů, kalendář dostupnosti pečovatelky (týdenní rozvrh + jednotlivé výjimky/dovolená), hodnocení po dokončené péči.
 - Podpora: podpora@zenvoria.cz.
 
+V dalších systémových zprávách ti mohou přijít AKTUÁLNÍ DATA (seznam ověřených pečovatelek s cenami, případně objednávky nebo profil přihlášeného uživatele) — pokud tam jsou, ber je jako pravdivá a aktuální a směle z nich odpovídej na konkrétní dotazy (např. "kolik stojí péče v Praze", "jaký je stav mé objednávky"). Pokud pro dotaz data nemáš (ať už nejsou v kontextu, nebo návštěvník není přihlášený), řekni to na rovinu a nasměruj ho do appky nebo na podporu — nikdy si nic nevymýšlej.
+
 Pravidla:
 - Odpovídej vždy česky, stručně a věcně, přátelským tónem.
 - Pokud se tě někdo zeptá na něco mimo tuto platformu (obecné dotazy, jiná témata), zdvořile to odmítni a nasměruj zpět k tomu, jak můžeš pomoct s appkou ZENVORIA.
-- Nevymýšlej si konkrétní údaje o konkrétních pečovatelkách, cenách jednotlivých profilů ani stavu konkrétních objednávek — to nemáš k dispozici. U takových dotazů nasměruj uživatele do appky nebo na podporu.
-- Nikdy nevymýšlej funkce, které appka nemá.`;
+- Nikdy nevymýšlej funkce, které appka nemá, ani konkrétní údaje, které ti nepřišly v datech.`;
+
+// sestaví systémovou zprávu s aktuálními daty — veřejný seznam pečovatelek vždy, osobní údaje jen přihlášenému
+async function buildHelpChatContext(req) {
+  const parts = [];
+  try {
+    const cgs = await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&select=name,loc,rate,rating,services,langs&order=rating.desc&limit=60`);
+    if (cgs && cgs.length) {
+      const lines = cgs.map((c) => `- ${c.name} | ${c.loc || '—'} | ${c.rate || '?'} Kč/hod | hodnocení ${c.rating || '—'} | služby: ${(c.services || []).join(', ') || '—'}`);
+      parts.push(`Aktuální seznam ověřených pečovatelek (${cgs.length}, řazeno podle hodnocení):\n${lines.join('\n')}`);
+    } else {
+      parts.push('Aktuálně nejsou v systému žádné ověřené pečovatelky.');
+    }
+  } catch (e) { console.warn('[help-chat] nelze načíst pečovatelky:', e.message); }
+
+  if (req.session) {
+    try {
+      if (req.session.role === 'family') {
+        const orders = await restSelect(T.orders, `family_email=eq.${encodeURIComponent(req.session.email)}&order=oid.desc&limit=10&select=oid,service,date,time,status,cid`);
+        if (orders && orders.length) {
+          const cids = [...new Set(orders.map((o) => o.cid).filter((x) => x != null))];
+          const cgRows = cids.length ? await restSelect(T.caregivers, `id=in.(${cids.join(',')})&select=id,name`) : [];
+          const nameById = {};
+          (cgRows || []).forEach((c) => { nameById[c.id] = c.name; });
+          const lines = orders.map((o) => `- #${o.oid} ${o.service} u ${nameById[o.cid] || 'pečovatelky'} — ${o.date} ${o.time}, stav: ${o.status}`);
+          parts.push(`Objednávky přihlášené rodiny (${req.session.name || req.session.email}):\n${lines.join('\n')}`);
+        } else {
+          parts.push(`Přihlášená rodina (${req.session.name || req.session.email}) zatím nemá žádné objednávky.`);
+        }
+      } else if (req.session.role === 'caregiver') {
+        const cg = await caregiverByEmail(req.session.email);
+        if (cg) {
+          parts.push(`Profil přihlášené pečovatelky ${cg.name}: tarif ${cg.plan || 'žádný'} (${cg.plan_status || '—'}), ověření: ${cg.verified ? 'ověřená' : 'zatím neověřená'}, sazba ${cg.rate || '?'} Kč/hod, hodnocení ${cg.rating || '—'} (${cg.reviews || 0} recenzí).`);
+        }
+      }
+    } catch (e) { console.warn('[help-chat] nelze načíst osobní data:', e.message); }
+  } else {
+    parts.push('Návštěvník není přihlášený — nemáš přístup k žádným osobním objednávkám ani profilu, jen k veřejnému seznamu pečovatelek výše.');
+  }
+  return parts.join('\n\n');
+}
+
 app.post('/api/help-chat', rateLimit('help-chat', RATE_LIMITS.helpChat), h(async (req, res) => {
   if (!isOpenAiEnabled()) return res.status(503).json({ error: 'Nápovědný chat není nakonfigurovaný.' });
   const history = Array.isArray((req.body || {}).messages) ? req.body.messages : [];
@@ -3801,13 +3844,20 @@ app.post('/api/help-chat', rateLimit('help-chat', RATE_LIMITS.helpChat), h(async
   if (!cleaned.length || cleaned[cleaned.length - 1].role !== 'user') {
     return res.status(400).json({ error: 'Chybí zpráva.' });
   }
+  const userEmail = req.session ? req.session.email : null;
+  const userMessage = cleaned[cleaned.length - 1].content;
   try {
+    const contextBlock = await buildHelpChatContext(req);
     const ext = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: OPENAI_MODEL,
-        messages: [{ role: 'system', content: HELP_CHAT_SYSTEM_PROMPT }, ...cleaned],
+        messages: [
+          { role: 'system', content: HELP_CHAT_SYSTEM_PROMPT },
+          { role: 'system', content: contextBlock },
+          ...cleaned,
+        ],
         max_tokens: 500,
         temperature: 0.4,
       }),
@@ -3820,11 +3870,22 @@ app.post('/api/help-chat', rateLimit('help-chat', RATE_LIMITS.helpChat), h(async
     const payload = await ext.json();
     const reply = payload && payload.choices && payload.choices[0] && payload.choices[0].message && payload.choices[0].message.content;
     if (!reply) return res.status(502).json({ error: 'Nápovědný chat momentálně neodpovídá. Zkuste to prosím znovu.' });
-    res.json({ reply: reply.trim() });
+    const replyText = reply.trim();
+    // historie se ukládá jen přihlášeným, ať se s nimi drží mezi zařízeními/relacemi; hostům žije jen v prohlížeči
+    if (userEmail) {
+      restInsert(T.helpChats, { user_email: userEmail, role: 'user', content: userMessage }, { prefer: 'return=minimal' }).catch(() => {});
+      restInsert(T.helpChats, { user_email: userEmail, role: 'assistant', content: replyText }, { prefer: 'return=minimal' }).catch(() => {});
+    }
+    res.json({ reply: replyText });
   } catch (e) {
     console.warn('[openai] chat chyba:', e.message);
     res.status(502).json({ error: 'Nápovědný chat momentálně neodpovídá. Zkuste to prosím znovu.' });
   }
+}));
+// přihlášený uživatel si při otevření chatu natáhne svou dřívější historii (host historii nemá, žije jen v prohlížeči)
+app.get('/api/help-chat/history', requireAuth, h(async (req, res) => {
+  const rows = await restSelect(T.helpChats, `user_email=eq.${encodeURIComponent(req.session.email)}&order=created_at.asc&limit=200&select=role,content,created_at`);
+  res.json({ messages: (rows || []).map((r) => ({ role: r.role, content: r.content })) });
 }));
 
 // admin: přehled všech konverzací (moderace/řešení sporů) — čistě ke čtení, nemění stav přečtení
