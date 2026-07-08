@@ -97,7 +97,7 @@ const ORDER_STATUS={
 };
 
 /* ---------- STATE ---------- */
-const state={caregiverId:1,bkService:'osobni',bkHours:4,profileToken:null,profileKind:null};
+const state={caregiverId:1,bkServices:['osobni'],bkHours:4,profileToken:null,profileKind:null};
 let legalBackView='home';
 let legalCurrentKey='terms';
 const LEGAL_COMPANY={
@@ -107,6 +107,8 @@ const LEGAL_COMPANY={
 };
 const sIcon=(d)=>`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="${d}" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const sName=(id)=>SERVICES.find(s=>s.id===id)?.name||id;
+/* objednávka může mít víc služeb naráz, uložené jako "id1,id2" v jednom poli — zobrazí jejich čitelná jména oddělená čárkou */
+const sNames=(csv)=>String(csv||'').split(',').map(id=>sName(id.trim())).filter(Boolean).join(', ');
 const cg=(id)=>CAREGIVERS.find(c=>c.id===id);
 function activeView(){
   const el=document.querySelector('.view.active');
@@ -1233,9 +1235,8 @@ function openBooking(id){
     return;
   }
   state.caregiverId=id;const c=cg(id);
-  state.bkService=c.services[0];state.bkHours=4;
-  document.getElementById('bkServices').innerHTML=c.services.map(s=>
-    `<div class="opt ${s===state.bkService?'on':''}" onclick="pickService('${s}')">${sName(s)}</div>`).join('');
+  state.bkServices=[c.services[0]];state.bkHours=4;
+  renderBookingServiceOpts(c);
   document.getElementById('bkHours').innerHTML=[2,4,6,8].map(h=>
     `<div class="opt ${h===state.bkHours?'on':''}" onclick="pickHours(${h})">${h} hodin</div>`).join('');
   const dateEl=document.getElementById('bkDate');
@@ -1248,8 +1249,20 @@ function openBooking(id){
   if(kmWrap)kmWrap.style.display=(c.kmPrice&&c.kmPrice>0)?'':'none';
   updateSummary();go('booking');
 }
-function pickService(s){state.bkService=s;
-  document.querySelectorAll('#bkServices .opt').forEach(o=>o.classList.toggle('on',o.textContent===sName(s)));updateSummary();}
+/* více služeb v jedné objednávce lze vybrat najednou (klik = zapnout/vypnout), aspoň jedna musí zůstat vybraná */
+function renderBookingServiceOpts(c){
+  document.getElementById('bkServices').innerHTML=c.services.map(s=>
+    `<div class="opt ${state.bkServices.includes(s)?'on':''}" onclick="pickService('${s}')">${sName(s)}</div>`).join('');
+}
+function pickService(s){
+  const i=state.bkServices.indexOf(s);
+  if(i>=0){
+    if(state.bkServices.length===1){toast('Vyberte alespoň jednu službu.','declined');return;}
+    state.bkServices.splice(i,1);
+  }else state.bkServices.push(s);
+  renderBookingServiceOpts(cg(state.caregiverId));
+  updateSummary();
+}
 function pickHours(h){state.bkHours=h;
   document.querySelectorAll('#bkHours .opt').forEach(o=>o.classList.toggle('on',o.textContent===h+' hodin'));updateSummary();}
 function updateSummary(){
@@ -1266,7 +1279,7 @@ function updateSummary(){
       <div><div style="font-family:'Playfair Display',serif;font-size:16px;color:#fff">${esc(c.name)}</div>
       <div style="font-size:12.5px;color:#A2B0A6">${esc(c.loc)} · ${starFillSVG(11)} ${c.rating}</div></div>
     </div>
-    <div class="row"><span class="l">Služba</span><span class="r">${sName(state.bkService)}</span></div>
+    <div class="row"><span class="l">Služba</span><span class="r">${state.bkServices.map(sName).join(', ')}</span></div>
     <div class="row"><span class="l">Datum</span><span class="r">${dateStr}</span></div>
     <div class="row"><span class="l">Čas</span><span class="r">${t} (${state.bkHours} h)</span></div>
     <div class="row"><span class="l">Péče</span><span class="r">${sub.toLocaleString('cs-CZ')} Kč (${c.rate} Kč/hod)</span></div>
@@ -1288,9 +1301,10 @@ function confirmBooking(){
   const hours=state.bkHours;
   const km=Math.max(0,+document.getElementById('bkKm').value||0);
   if(!auth.loggedIn){toast('Pro objednávku se prosím přihlaste.');go('login');return;}
-  api('/orders',{method:'POST',body:{cid:c.id,service:state.bkService,hours,date,time,addr,note,km}})
+  const serviceCsv=state.bkServices.join(',');
+  api('/orders',{method:'POST',body:{cid:c.id,service:serviceCsv,hours,date,time,addr,note,km}})
     .then(r=>{const o=r.order;
-      ORDERS.unshift({oid:o.oid,cid:c.id,service:state.bkService,hours,date,time,addr,note,km,status:'pending'});
+      ORDERS.unshift({oid:o.oid,cid:c.id,service:serviceCsv,hours,date,time,addr,note,km,status:'pending'});
       orderSeq=Math.max(orderSeq,o.oid);
       toast(`Objednávka u <b>${esc(c.name)}</b> odeslána — čeká na potvrzení`,'success');
       setTimeout(()=>go('bookings'),900);
@@ -2020,7 +2034,7 @@ function renderOrders(tab){
     return `<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openFamilyOrder(${o.oid})">
       ${avaHtml(c.init,c.photo)}
       <div class="od">
-        <b>${sName(o.service)}</b>
+        <b>${sNames(o.service)}</b>
         <div class="det">${esc(c.name)} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div>
       </div>
       <div class="ost">
@@ -2035,7 +2049,7 @@ function famOrderRow(o){
   const c=cg(o.cid);const st=ORDER_STATUS[o.status];
   return `<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openFamilyOrder(${o.oid})">
     ${avaHtml(c.init,c.photo)}
-    <div class="od"><b>${sName(o.service)}</b><div class="det">${esc(c.name)} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div></div>
+    <div class="od"><b>${sNames(o.service)}</b><div class="det">${esc(c.name)} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div></div>
     <div class="ost"><span class="status ${st.cls}">${st.label}</span><div class="pr">${orderPrice(o).toLocaleString('cs-CZ')} Kč</div></div>
   </div>`;
 }
@@ -3444,7 +3458,7 @@ function renderAdminOrders(){
     const cls=st.cls==='ok'?'ok':(st.cls==='done'?'ok':(st.cls==='declined'?'bad':'wait'));
     const priority=hasPerm(c,'priorityRequests');
     return `<tr>
-      <td><b>${sName(o.service)}</b>${priority?` <span class="badge gold" style="margin-left:6px">Prioritní</span>`:''}<div class="rd" style="font-size:12px;color:var(--muted)">${o.hours} h</div></td>
+      <td><b>${sNames(o.service)}</b>${priority?` <span class="badge gold" style="margin-left:6px">Prioritní</span>`:''}<div class="rd" style="font-size:12px;color:var(--muted)">${o.hours} h</div></td>
       <td>${c?esc(c.name):'—'}</td>
       <td>${fmtDate(o.date)} · ${o.time}</td>
       <td><span class="badge ${cls}">${st.label}</span></td>
@@ -4035,7 +4049,7 @@ function cgScheduleHTML(){
   return CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date)).map((j,i)=>`
     <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openCgOrder(${i})">
       ${avaHtml(j.init,j.photo)}
-      <div class="od"><b>${sName(j.service)}</b><div class="det">${esc(j.fam)} · ${fmtDate(j.date)}<br>${timeRange(j.time,j.hours)}</div></div>
+      <div class="od"><b>${sNames(j.service)}</b><div class="det">${esc(j.fam)} · ${fmtDate(j.date)}<br>${timeRange(j.time,j.hours)}</div></div>
       <div class="ost"><span class="status ok">Potvrzeno</span><div class="pr">${(j.hours*cgProfile.rate).toLocaleString('cs-CZ')} Kč</div></div>
     </div>`).join('');
 }
@@ -4044,7 +4058,7 @@ function reqCardHTML(r){
     ${avaHtml(r.init,r.photo)}
     <div class="ri">
       <b>${esc(r.fam)}</b>
-      <div class="rd">${sName(r.service)} · ${fmtDate(r.date)} · ${timeRange(r.time,r.hours)}</div>
+      <div class="rd">${sNames(r.service)} · ${fmtDate(r.date)} · ${timeRange(r.time,r.hours)}</div>
       <span class="rs">${(r.hours*cgProfile.rate).toLocaleString('cs-CZ')} Kč · ${esc(r.addr)}</span>
     </div>
     <div class="req-actions">
@@ -4120,7 +4134,7 @@ function renderCgCalendar(){
   const jobs=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date));
   document.getElementById('cgCalJobs').innerHTML=jobs.length?jobs.map(j=>`
     <div class="order" style="padding:13px 15px"><div class="ava" style="width:42px;height:42px;font-size:14px">${j.init}</div>
-      <div class="od"><b style="font-size:15px">${sName(j.service)}</b><div class="det">${fmtDate(j.date)} · ${timeRange(j.time,j.hours)}</div></div></div>`).join(''):'<div class="empty">Žádné naplánované služby v tomto období.</div>';
+      <div class="od"><b style="font-size:15px">${sNames(j.service)}</b><div class="det">${fmtDate(j.date)} · ${timeRange(j.time,j.hours)}</div></div></div>`).join(''):'<div class="empty">Žádné naplánované služby v tomto období.</div>';
 }
 function cgCalMove(dir){cgCalMonth+=dir;if(cgCalMonth<0){cgCalMonth=11;cgCalYear--}if(cgCalMonth>11){cgCalMonth=0;cgCalYear++}renderCgCalendar();}
 function saveCgAvail(){
@@ -4391,7 +4405,7 @@ function renderEarnings(){
 let curOrder=null;
 function openFamilyOrder(oid){
   const o=ORDERS.find(x=>x.oid===oid);if(!o)return;const c=cg(o.cid);
-  curOrder={oid:o.oid,cid:o.cid,viewer:'family',title:sName(o.service),status:o.status,rated:!!o.rated,
+  curOrder={oid:o.oid,cid:o.cid,viewer:'family',title:sNames(o.service),status:o.status,rated:!!o.rated,
     cpName:c.name,cpInit:c.init,cpPhoto:c.photo||o.cgPhoto||null,cpRole:'Pečovatelka',cpChatRole:'caregiver',
     dateLabel:fmtDate(o.date),timeLabel:timeRange(o.time,o.hours),hours:o.hours,price:orderPrice(o),
     rate:c.rate,km:o.km||0,transport:(c.kmPrice&&o.km)?c.kmPrice*o.km:0,addr:o.addr,note:o.note,
@@ -4400,7 +4414,7 @@ function openFamilyOrder(oid){
 }
 function openCgOrder(i){
   const j=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date))[i];if(!j)return;
-  curOrder={viewer:'caregiver',title:sName(j.service),status:'confirmed',
+  curOrder={viewer:'caregiver',title:sNames(j.service),status:'confirmed',
     cpName:j.fam,cpInit:j.init,cpPhoto:j.photo||null,cpRole:'Klient',cpChatRole:'family',
     dateLabel:fmtDate(j.date),timeLabel:timeRange(j.time,j.hours),hours:j.hours,price:j.hours*cgProfile.rate,
     rate:cgProfile.rate,transport:0,addr:'Adresa bude sdílena před službou',note:'',

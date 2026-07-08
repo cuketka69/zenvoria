@@ -2310,7 +2310,9 @@ async function findScheduleConflict(cid, date, time, hours, excludeOid) {
 app.post('/api/orders', requireRole('family', 'admin'), h(async (req, res) => {
   const b = req.body || {};
   const cid = Number(b.cid);
-  const service = trimmedString(b.service, 40);
+  // jedna objednávka může zahrnovat víc služeb naráz — uloženo jako "id1,id2" v jednom textovém poli
+  const serviceIds = trimmedString(b.service, 240).split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
+  const service = serviceIds.join(',');
   const date = trimmedString(b.date, 10);
   const time = trimmedString(b.time, 5);
   const addr = trimmedString(b.addr, 250);
@@ -2383,7 +2385,7 @@ app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
   }
   const serviceRows = await restSelect(T.settings, `key=eq.services&limit=1`);
   const serviceList = sanitizeServices(serviceRows && serviceRows[0] && serviceRows[0].value);
-  const serviceName = (serviceList.find((s) => s.id === o.service) || {}).name || o.service;
+  const serviceName = String(o.service || '').split(',').map((id) => (serviceList.find((s) => s.id === id.trim()) || {}).name || id.trim()).filter(Boolean).join(', ');
   const transport = kmPrice && o.km ? kmPrice * Number(o.km) : 0;
   const total = rate * Number(o.hours) + transport;
   const statusLabels = { pending: 'Čeká na potvrzení', confirmed: 'Potvrzeno', done: 'Dokončeno', declined: 'Zamítnuto', cancelled: 'Zrušeno' };
