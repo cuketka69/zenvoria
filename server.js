@@ -89,12 +89,12 @@ const RATE_LIMITS = {
   changeEmailRequest: {
     windowMs: parseInt(process.env.RATE_LIMIT_CHANGE_EMAIL_REQUEST_WINDOW_MS || String(1000 * 60 * 30), 10),
     max: parseInt(process.env.RATE_LIMIT_CHANGE_EMAIL_REQUEST_MAX || '5', 10),
-    message: 'Prilis mnoho zadosti o zmenu e-mailu. Zkuste to prosim pozdeji.',
+    message: 'Příliš mnoho žádostí o změnu e-mailu. Zkuste to prosím později.',
   },
   changeEmailCode: {
     windowMs: parseInt(process.env.RATE_LIMIT_CHANGE_EMAIL_CODE_WINDOW_MS || String(1000 * 60 * 15), 10),
     max: parseInt(process.env.RATE_LIMIT_CHANGE_EMAIL_CODE_MAX || '10', 10),
-    message: 'Prilis mnoho pokusu o overeni noveho e-mailu. Zkuste to prosim pozdeji.',
+    message: 'Příliš mnoho pokusů o ověření nového e-mailu. Zkuste to prosím později.',
   },
 };
 
@@ -2010,9 +2010,9 @@ app.post('/api/auth/change-email/validate', rateLimit('change-email-code', RATE_
   const state = await getEmailChangeState(token);
   if (!state.ok) return res.status(400).json({
     error:
-      state.reason === 'expired' ? 'Odkaz pro zmenu e-mailu vyprsel.' :
-      state.reason === 'used' ? 'Odkaz pro zmenu e-mailu uz byl pouzity.' :
-      'Odkaz pro zmenu e-mailu je neplatny.',
+      state.reason === 'expired' ? 'Odkaz pro změnu e-mailu vypršel.' :
+      state.reason === 'used' ? 'Odkaz pro změnu e-mailu už byl použitý.' :
+      'Odkaz pro změnu e-mailu je neplatný.',
     reason: state.reason,
   });
   res.json({
@@ -2027,24 +2027,24 @@ app.post('/api/auth/change-email/send-code', rateLimit('change-email-code', RATE
   const token = trimmedString(req.body && req.body.token, 512);
   const newEmail = trimmedString(req.body && req.body.newEmail, 320).toLowerCase();
   if (!token) return res.status(400).json({ error: 'Chybí token změny e-mailu.' });
-  if (!newEmail) return res.status(400).json({ error: 'Zadejte novy e-mail.' });
-  if (!isEmail(newEmail)) return res.status(400).json({ error: 'Zadejte platny e-mail.' });
+  if (!newEmail) return res.status(400).json({ error: 'Zadejte nový e-mail.' });
+  if (!isEmail(newEmail)) return res.status(400).json({ error: 'Zadejte platný e-mail.' });
   const state = await getEmailChangeState(token);
   if (!state.ok) return res.status(400).json({
     error:
-      state.reason === 'expired' ? 'Odkaz pro zmenu e-mailu vyprsel.' :
-      state.reason === 'used' ? 'Odkaz pro zmenu e-mailu uz byl pouzity.' :
-      'Odkaz pro zmenu e-mailu je neplatny.',
+      state.reason === 'expired' ? 'Odkaz pro změnu e-mailu vypršel.' :
+      state.reason === 'used' ? 'Odkaz pro změnu e-mailu už byl použitý.' :
+      'Odkaz pro změnu e-mailu je neplatný.',
     reason: state.reason,
   });
-  if (newEmail === state.payload.currentEmail) return res.status(400).json({ error: 'Novy e-mail se musi lisit od puvodniho.' });
+  if (newEmail === state.payload.currentEmail) return res.status(400).json({ error: 'Nový e-mail se musí lišit od původního.' });
   const existingUser = await findUserByEmail(newEmail);
   if (existingUser && String(existingUser.id) !== String(state.payload.userId)) {
-    return res.status(409).json({ error: 'Tento e-mail uz je registrovany.' });
+    return res.status(409).json({ error: 'Tento e-mail už je registrovaný.' });
   }
   const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(state.payload.userId)}&limit=1`);
   const user = rows && rows[0];
-  if (!user) return res.status(404).json({ error: 'Ucet nebyl nalezen.' });
+  if (!user) return res.status(404).json({ error: 'Účet nebyl nalezen.' });
   const code = createEmailVerificationCode();
   await updateEmailChangeRecord(state.record, {
     newEmail,
@@ -2075,18 +2075,18 @@ app.post('/api/auth/change-email/confirm', rateLimit('change-email-code', RATE_L
     fireAudit('auth.change_email.confirm', { req, actor: { email: null }, targetType: 'email-change', targetId: 'email-change', status: 'failed', metadata: { reason: state.reason } });
     return res.status(400).json({
       error:
-        state.reason === 'expired' ? 'Odkaz pro zmenu e-mailu vyprsel.' :
-        state.reason === 'used' ? 'Odkaz pro zmenu e-mailu uz byl pouzity.' :
-        'Odkaz pro zmenu e-mailu je neplatny.',
+        state.reason === 'expired' ? 'Odkaz pro změnu e-mailu vypršel.' :
+        state.reason === 'used' ? 'Odkaz pro změnu e-mailu už byl použitý.' :
+        'Odkaz pro změnu e-mailu je neplatný.',
       reason: state.reason,
     });
   }
   const payload = state.payload;
   if (!payload.newEmail || !payload.verifyCodeHash || !payload.verifyCodeExp) {
-    return res.status(400).json({ error: 'Nejdrive zadejte novy e-mail a vyzadejte si overovaci kod.' });
+    return res.status(400).json({ error: 'Nejdříve zadejte nový e-mail a vyžádejte si ověřovací kód.' });
   }
   if (Date.now() > payload.verifyCodeExp) {
-    return res.status(400).json({ error: 'Overovaci kod vyprsel. Zadejte si prosim novy.', reason: 'code_expired' });
+    return res.status(400).json({ error: 'Ověřovací kód vypršel. Zadejte si prosím nový.', reason: 'code_expired' });
   }
   if (!code || hashVerificationCode(code) !== payload.verifyCodeHash) {
     fireAudit('auth.change_email.confirm', {
@@ -2097,7 +2097,7 @@ app.post('/api/auth/change-email/confirm', rateLimit('change-email-code', RATE_L
       status: 'failed',
       metadata: { reason: 'invalid_code', newEmail: payload.newEmail },
     });
-    return res.status(400).json({ error: 'Overovaci kod neni spravny.', reason: 'invalid_code' });
+    return res.status(400).json({ error: 'Ověřovací kód není správný.', reason: 'invalid_code' });
   }
   const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(payload.userId)}&limit=1`);
   const user = rows && rows[0];

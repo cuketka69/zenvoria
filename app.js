@@ -164,7 +164,7 @@ async function go(v,fromPop){
       await ensureDeferredViewsLoaded();
       target=document.getElementById('view-'+v);
     }catch(e){
-      toast('Nepodarilo se nacist dalsi cast aplikace.','declined');
+      toast('Nepodařilo se načíst další část aplikace.','declined');
       return;
     }
   }
@@ -547,7 +547,7 @@ function bindLocationAutocomplete(inputId,onPick){
     current=items.slice();
     active=-1;
     if(!items.length){
-      menu.innerHTML=`<div class="loc-ac-empty">${esc(emptyText||'Nenalezena zadna odpovidajici lokalita.')}</div>`;
+      menu.innerHTML=`<div class="loc-ac-empty">${esc(emptyText||'Nenalezena žádná odpovídající lokalita.')}</div>`;
       wrap.classList.add('open');
       return;
     }
@@ -565,8 +565,8 @@ function bindLocationAutocomplete(inputId,onPick){
     if(!value){wrap.classList.remove('open');return;}
     const result=await fetchLocationMatches(value);
     if(result==null||value!==input.value.trim())return;
-    let emptyText='Nenalezena zadna odpovidajici lokalita.';
-    if(/^\d[\d\s]*$/.test(value)&&result.source==='fallback')emptyText='Vyhledani podle PSC bude fungovat po nastaveni Geoapify API klice.';
+    let emptyText='Nenalezena žádná odpovídající lokalita.';
+    if(/^\d[\d\s]*$/.test(value)&&result.source==='fallback')emptyText='Vyhledání podle PSČ bude fungovat po nastavení Geoapify API klíče.';
     render(result.items||[],emptyText);
   };
   input.addEventListener('focus',refresh);
@@ -1336,7 +1336,7 @@ async function ensureDeferredViewsLoaded(){
   if(!host)return false;
   deferredViewsPromise=fetch('/deferred-views.html',{credentials:'same-origin'})
     .then(async(res)=>{
-      if(!res.ok)throw new Error('Nepodarilo se nacist dalsi cast aplikace.');
+      if(!res.ok)throw new Error('Nepodařilo se načíst další část aplikace.');
       const html=await res.text();
       host.innerHTML=html;
       deferredViewsLoaded=true;
@@ -1507,9 +1507,9 @@ async function requestEmailChange(){
   if(err)err.textContent='';
   try{
     await api('/auth/change-email/request',{method:'POST'});
-    toast('Poslali jsme potvrzovaci odkaz na puvodni e-mail.');
+    toast('Poslali jsme potvrzovací odkaz na původní e-mail.');
   }catch(e){
-    if(err)err.textContent=e.message||'Nepodarilo se odeslat potvrzovaci e-mail.';
+    if(err)err.textContent=e.message||'Nepodařilo se odeslat potvrzovací e-mail.';
   }
 }
 function resetChangeEmail(keepToken){
@@ -1539,13 +1539,13 @@ async function submitChangeEmailNew(e,resend){
   err.textContent='';
   document.getElementById('changeEmailCodeErr').textContent='';
   if(!changeEmailToken||!changeEmailTokenValid){
-    err.textContent='Odkaz pro zmenu e-mailu uz neni platny.';
+    err.textContent='Odkaz pro změnu e-mailu už není platný.';
     return false;
   }
   const input=document.getElementById('changeEmailNew');
   const newEmail=((input.value)||changeEmailPending||'').trim().toLowerCase();
   if(!isEmail(newEmail)){
-    err.textContent='Zadejte platny e-mail.';
+    err.textContent='Zadejte platný e-mail.';
     input.focus();
     return false;
   }
@@ -1555,15 +1555,15 @@ async function submitChangeEmailNew(e,resend){
     document.getElementById('changeEmailTarget').textContent=newEmail;
     document.getElementById('changeEmailStepNew').style.display='none';
     document.getElementById('changeEmailStepCode').style.display='';
-    toast(resend?'Poslali jsme novy overovaci kod.':'Poslali jsme overovaci kod na novy e-mail.',null,envelopeSVG());
+    toast(resend?'Poslali jsme nový ověřovací kód.':'Poslali jsme ověřovací kód na nový e-mail.',null,envelopeSVG());
   }catch(e2){
-    err.textContent=e2.message||'Kod se nepodarilo odeslat.';
+    err.textContent=e2.message||'Kód se nepodařilo odeslat.';
     if(e2&&['invalid','expired','used'].includes(e2.reason||'')){
       changeEmailTokenValid=false;
       document.getElementById('changeEmailStepNew').style.display='none';
       document.getElementById('changeEmailStepCode').style.display='none';
       document.getElementById('changeEmailInvalid').style.display='block';
-      document.getElementById('changeEmailInvalidText').textContent=e2.message||'Pozadejte prosim o novy odkaz pro zmenu e-mailu.';
+      document.getElementById('changeEmailInvalidText').textContent=e2.message||'Požádejte prosím o nový odkaz pro změnu e-mailu.';
     }
   }
   return false;
@@ -1573,7 +1573,7 @@ async function submitChangeEmailCode(){
   err.textContent='';
   const code=document.getElementById('changeEmailCode').value.trim();
   if(!/^\d{6}$/.test(code)){
-    err.textContent='Zadejte 6mistny overovaci kod.';
+    err.textContent='Zadejte 6místný ověřovací kód.';
     document.getElementById('changeEmailCode').focus();
     return false;
   }
@@ -1587,16 +1587,16 @@ async function submitChangeEmailCode(){
     changeEmailToken='';
     updateAuthUI();
     renderSettings();
-    toast('E-mail byl zmenen.');
+    toast('E-mail byl změněn.');
   }catch(e){
-    err.textContent=e.message||'Overeni noveho e-mailu se nezdarilo.';
+    err.textContent=e.message||'Ověření nového e-mailu se nezdařilo.';
     if(e&&['invalid','expired','used'].includes(e.reason||'')){
       changeEmailTokenValid=false;
       document.getElementById('changeEmailStepNew').style.display='none';
       document.getElementById('changeEmailStepCode').style.display='none';
       document.getElementById('changeEmailDone').style.display='none';
       document.getElementById('changeEmailInvalid').style.display='block';
-      document.getElementById('changeEmailInvalidText').textContent=e.message||'Pozadejte prosim o novy odkaz pro zmenu e-mailu.';
+      document.getElementById('changeEmailInvalidText').textContent=e.message||'Požádejte prosím o nový odkaz pro změnu e-mailu.';
     }
   }
   return false;
@@ -2781,7 +2781,7 @@ async function submitVerify(e){
     files:{idfront:verifyIdFrontData||'',idback:verifyIdBackData||'',selfie:verifySelfieData||'',doc:verifyDocData||'',certs:verifyExtraCerts.map(it=>it.docData||'').filter(Boolean)},
     status:'submitted',date:new Date().toISOString().slice(0,10)
   };
-  if(btn){btn.disabled=true;btn.dataset.label=btn.textContent;btn.textContent='Odesilam...';}
+  if(btn){btn.disabled=true;btn.dataset.label=btn.textContent;btn.textContent='Odesílám...';}
   try{
     const r=await api('/verifications',{method:'POST',body:rec});
     const saved=(r&&r.verification)||Object.assign({id:++verSeq},rec);
@@ -2854,31 +2854,31 @@ function renderAdminVerify(){
       ${avaHtml(v.init,userPhotoByEmail(v.email))}
       <div class="ri">
         <div class="vreq-top">
-          <div><b>${esc(v.name)}</b><div class="rd">${esc(v.loc)} - sazba ${v.rate} Kc/hod - ${v.exp} let praxe</div></div>
+          <div><b>${esc(v.name)}</b><div class="rd">${esc(v.loc)} - sazba ${v.rate} Kč/hod - ${v.exp} let praxe</div></div>
           <div class="req-actions">
-            <button class="btn btn-sm btn-ghost" onclick="downloadWithFx(this,()=>downloadDossier(${v.id}))">${downloadSVG(15)}Stahnout .zip</button>
-            <button class="btn btn-sm btn-gold" onclick="approveVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 5 5 9-11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Schvalit</button>
-            <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Zamitnout</button>
+            <button class="btn btn-sm btn-ghost" onclick="downloadWithFx(this,()=>downloadDossier(${v.id}))">${downloadSVG(15)}Stáhnout .zip</button>
+            <button class="btn btn-sm btn-gold" onclick="approveVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 5 5 9-11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Schválit</button>
+            <button class="btn btn-sm btn-decline" onclick="rejectVerification(${v.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Zamítnout</button>
           </div>
         </div>
         <div class="vreq-fields">
-          <div class="vreq-field"><div class="vreq-k">${shieldSVG(14)} Identita</div><div class="vreq-v">${esc(v.docType||'-')}${v.docNum?' - c. '+esc(v.docNum):''}${v.phone?' - '+esc(v.phone):''}</div></div>
-          <div class="vreq-field"><div class="vreq-k">${capSVG(14)} Osvedceni</div><div class="vreq-v">${verifyCertDetails(v)}</div></div>
-          <div class="vreq-field"><div class="vreq-k">Nabizene sluzby</div><div class="vreq-chips">${v.services.map(s=>`<span class="chip">${esc(sName2(s))}</span>`).join('')}</div></div>
+          <div class="vreq-field"><div class="vreq-k">${shieldSVG(14)} Identita</div><div class="vreq-v">${esc(v.docType||'-')}${v.docNum?' - č. '+esc(v.docNum):''}${v.phone?' - '+esc(v.phone):''}</div></div>
+          <div class="vreq-field"><div class="vreq-k">${capSVG(14)} Osvědčení</div><div class="vreq-v">${verifyCertDetails(v)}</div></div>
+          <div class="vreq-field"><div class="vreq-k">Nabízené služby</div><div class="vreq-chips">${v.services.map(s=>`<span class="chip">${esc(sName2(s))}</span>`).join('')}</div></div>
           ${v.refs?`<div class="vreq-field"><div class="vreq-k">Reference</div><div class="vreq-v">${esc(v.refs)}</div></div>`:''}
-          ${v.note?`<div class="vreq-field"><div class="vreq-k">Poznamka</div><div class="vreq-v" style="font-style:italic">"${esc(v.note)}"</div></div>`:''}
+          ${v.note?`<div class="vreq-field"><div class="vreq-k">Poznámka</div><div class="vreq-v" style="font-style:italic">"${esc(v.note)}"</div></div>`:''}
         </div>
         <div class="vreq-docs">
-          ${v.idFront?docPill(v.id,'idfront',idCardSVG(14),'Doklad - predni'):''}
-          ${v.idBack?docPill(v.id,'idback',idCardSVG(14),'Doklad - zadni'):''}
+          ${v.idFront?docPill(v.id,'idfront',idCardSVG(14),'Doklad - přední'):''}
+          ${v.idBack?docPill(v.id,'idback',idCardSVG(14),'Doklad - zadní'):''}
           ${v.selfie?docPill(v.id,'selfie',selfieSVG(14),'Selfie'):''}
-          ${v.fileName?docPill(v.id,'doc',docIcon(v.fileName),'Osvedceni'):''}
+          ${v.fileName?docPill(v.id,'doc',docIcon(v.fileName),'Osvědčení'):''}
         </div>
-        <span class="rs">Podano ${fmtDate(v.date)}</span>
+        <span class="rs">Podáno ${fmtDate(v.date)}</span>
       </div>
-    </div>`).join(''):'<div class="empty">'+clockSVG(15)+' Zadne cekajici zadosti.</div>';
+    </div>`).join(''):'<div class="empty">'+clockSVG(15)+' Žádné čekající žádosti.</div>';
   document.getElementById('admVerDone').innerHTML=done.length?`
-    <table class="adm-table"><thead><tr><th>Pecovatelka</th><th>Osvedceni</th><th>Datum</th><th style="text-align:right">Vysledek</th></tr></thead><tbody>
+    <table class="adm-table"><thead><tr><th>Pečovatelka</th><th>Osvědčení</th><th>Datum</th><th style="text-align:right">Výsledek</th></tr></thead><tbody>
     ${done.slice().reverse().map(v=>{
       const open=!!ADM_VER_DONE_OPEN[v.id];
       return `<tr class="adm-ver-row ${open?'open':''}">
@@ -2894,7 +2894,7 @@ function renderAdminVerify(){
       ${open?`<tr class="adm-ver-detail-row"><td colspan="4"><div class="adm-ver-detail">${renderAdminDoneVerifyDetail(v)}</div></td></tr>`:''}`;
     }).join('')}</tbody></table>`:'<div class="empty">Zatím žádné zpracované žádosti.</div>';
 }
-/* ====== ZIP + XLSX generĂˇtor (bez knihoven, offline) ====== */
+/* ====== ZIP + XLSX generátor (bez knihoven, offline) ====== */
 const CRC_TABLE=(()=>{let c,t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;})();
 function crc32(buf){let c=0xFFFFFFFF;for(let i=0;i<buf.length;i++)c=CRC_TABLE[(c^buf[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
 function concatBytes(arrs){let len=arrs.reduce((s,a)=>s+a.length,0),out=new Uint8Array(len),o=0;arrs.forEach(a=>{out.set(a,o);o+=a.length;});return out;}
@@ -3122,12 +3122,12 @@ async function fetchVerFiles(id){
 /* otevře přílohu žádosti v náhledu na stránce (obrázek / PDF) místo stahování */
 async function viewVer(id,which){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
-  const labels={idfront:'Doklad - predni strana',idback:'Doklad - zadni strana',selfie:'Selfie',doc:'Osvedceni'};
+  const labels={idfront:'Doklad - přední strana',idback:'Doklad - zadní strana',selfie:'Selfie',doc:'Osvědčení'};
   const name=which==='selfie'?v.selfie:(which==='idfront'?v.idFront:(which==='idback'?v.idBack:v.fileName));
   const sf=await fetchVerFiles(id);
   const data=sf[which]||DOC_BLOBS[id+':'+which];
-  if(!data){toast('Soubor neni k dispozici (zadost byla podana pred ulozenim priloh).','declined');return;}
-  openFileViewer(data,labels[which]||name||'Nahled',name,()=>downloadVerData(data,name||which));
+  if(!data){toast('Soubor není k dispozici (žádost byla podána před uložením příloh).','declined');return;}
+  openFileViewer(data,labels[which]||name||'Náhled',name,()=>downloadVerData(data,name||which));
 }
 async function viewVerCert(id,idx){
   const v=VERIFICATIONS.find(x=>x.id===id);if(!v)return;
@@ -3135,9 +3135,9 @@ async function viewVerCert(id,idx){
   const item=certs[idx];if(!item)return;
   const sf=await fetchVerFiles(id);
   const data=idx===0?(sf.doc||DOC_BLOBS[id+':doc']):((sf.certs&&sf.certs[idx-1])||DOC_BLOBS[id+':doc:'+(idx-1)]);
-  if(!data){toast('Soubor neni k dispozici (zadost byla podana pred ulozenim priloh).','declined');return;}
+  if(!data){toast('Soubor není k dispozici (žádost byla podána před uložením příloh).','declined');return;}
   const name=item.fileName||('osvedceni-'+(idx+1));
-  openFileViewer(data,item.name||'Osvedceni',name,()=>downloadVerData(data,name));
+  openFileViewer(data,item.name||'Osvědčení',name,()=>downloadVerData(data,name));
 }
 function downloadVerData(data,fname){
   const a=document.createElement('a');a.href=data;a.download=fname||'soubor';
@@ -3419,20 +3419,20 @@ function toggleSuspendUser(id){
     toast(u.status==='suspended'?`${esc(u.name)} pozastaven.`:`${esc(u.name)} obnoven.`);
   };
   if(!suspended){
-    askConfirm({title:'Pozastavit uzivatele?',icon:pauseSVG(),
-      message:`Ucet ${esc(u.name)} bude pozastaven, dokud ho znovu neobnovite.`,
+    askConfirm({title:'Pozastavit uživatele?',icon:pauseSVG(),
+      message:`Účet ${esc(u.name)} bude pozastaven, dokud ho znovu neobnovíte.`,
       confirmLabel:'Pozastavit',danger:true,onConfirm:doIt});
   }else doIt();
 }
 function removeUser(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
-  askConfirm({title:'Odebrat uzivatele?',icon:trashSVG(),
-    message:`Opravdu chcete odebrat uzivatele ${esc(u.name)}? Tato akce je nevratna.`,
+  askConfirm({title:'Odebrat uživatele?',icon:trashSVG(),
+    message:`Opravdu chcete odebrat uživatele ${esc(u.name)}? Tato akce je nevratná.`,
     confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
       USERS=USERS.filter(x=>x.id!==id);
       apiSync(api('/users/'+id,{method:'DELETE'}));
       renderAdminUsers();
-      toast(`${esc(u.name)} odebran.`);
+      toast(`${esc(u.name)} odebrán.`);
     }});
 }
 function renderAdminOrders(){
@@ -5378,7 +5378,7 @@ async function initApp(){
     }catch(e){
       changeEmailTokenValid=false;
       document.getElementById('changeEmailInvalid').style.display='block';
-      document.getElementById('changeEmailInvalidText').textContent=(e&&e.message)||'Pozadejte prosim o novy odkaz pro zmenu e-mailu.';
+      document.getElementById('changeEmailInvalidText').textContent=(e&&e.message)||'Požádejte prosím o nový odkaz pro změnu e-mailu.';
     }
   }
   try{const m=await api('/auth/me');
