@@ -2956,13 +2956,15 @@ function renderAdminDash(){
     ?`Čeká na vás ${pend} ${pend===1?'žádost':(pend<5?'žádosti':'žádostí')} o ověření.`
     :'Žádné čekající žádosti o ověření.';
   const stats=[
-    {ic:'M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z',v:pend,l:'Čeká na ověření'},
-    {ic:'M20 6 9 17l-5-5',v:verified,l:'Ověřené pečovatelky'},
-    {ic:'M9 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20c0-3.5 3-6 6-6s6 2.5 6 6',v:USERS.filter(u=>u.role==='family').length,l:'Registrované rodiny'},
-    {ic:'M4 5h16v15H4zM8 2v4M16 2v4M4 9h16',v:ORDERS.length,l:'Objednávek celkem'}
+    {ic:'M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z',v:pend,l:'Čeká na ověření',view:'admin-verify'},
+    {ic:'M20 6 9 17l-5-5',v:verified,l:'Ověřené pečovatelky',view:'admin-caregivers'},
+    {ic:'M9 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20c0-3.5 3-6 6-6s6 2.5 6 6',v:USERS.filter(u=>u.role==='family').length,l:'Registrované rodiny',view:'admin-users'},
+    {ic:'M4 5h16v15H4zM8 2v4M16 2v4M4 9h16',v:ORDERS.length,l:'Objednávek celkem',view:'admin-orders'}
   ];
   document.getElementById('admStats').innerHTML=stats.map(s=>`
-    <div class="stat"><div class="stat-top"><span class="sl">${s.l}</span><div class="si">${sIcon(s.ic)}</div></div><div class="sv">${s.v}</div></div>`).join('');
+    <div class="stat"><div class="stat-top"><span class="sl">${s.l}</span><div class="si">${sIcon(s.ic)}</div></div><div class="sv">${s.v}</div>
+      <button type="button" class="lnk" style="margin-top:12px" onclick="go('${s.view}')">Zobrazit</button>
+    </div>`).join('');
   document.getElementById('admPendBadge').textContent=pend;
   const q=VERIFICATIONS.filter(v=>v.status==='submitted');
   document.getElementById('admPendPreview').innerHTML=q.length
