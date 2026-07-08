@@ -477,6 +477,14 @@
   .dp-foot{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
   .dp-link{background:none;border:none;color:var(--gold-deep);font-size:13.5px;font-weight:600;cursor:pointer;padding:4px 6px}
   .dp-link:hover{text-decoration:underline}
+  /* ---------- VLASTNÍ VÝBĚR ČASU (custom time picker) ---------- */
+  .dp-time-menu{width:190px}
+  .dp-time-body{display:flex;gap:8px}
+  .dp-time-col{flex:1;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;scroll-behavior:smooth}
+  .dp-time-opt{border:none;border-radius:8px;background:none;font-size:14px;color:var(--navy-800);padding:8px 0;
+    cursor:pointer;transition:.12s;text-align:center}
+  .dp-time-opt:hover{background:var(--cream)}
+  .dp-time-opt.dp-sel{background:var(--gold);color:var(--navy-900);font-weight:700}
   .is-disabled .dp .dd-btn{pointer-events:none;cursor:not-allowed}
   .loc-ac{position:relative;flex:1;min-width:0}
   .loc-ac-menu{position:absolute;top:calc(100% + 8px);left:0;right:0;background:var(--white);border:1px solid var(--line);

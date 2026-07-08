@@ -474,6 +474,100 @@ function enhanceDateInput(inp){
   inp.addEventListener('change',fmtLbl);
   inp.focus=()=>btn.focus();
 }
+/* vlastní výběr času (nahrazuje nativní <input type=time>), stejný vizuál jako enhanceDateInput */
+function enhanceTimeInput(inp){
+  if(!inp||inp.dataset.enh)return;
+  inp.dataset.enh='1';
+  const wrap=document.createElement('div'); wrap.className='dd dp'+(inp.classList.contains('inp')?' dd-inp':'');
+  const btn=document.createElement('button'); btn.type='button'; btn.className='dd-btn'; btn.setAttribute('aria-haspopup','dialog');
+  const lbl=document.createElement('span'); lbl.className='dd-lbl dp-lbl';
+  const car=document.createElement('span'); car.className='dd-car';
+  car.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  btn.appendChild(lbl); btn.appendChild(car);
+  const menu=document.createElement('div'); menu.className='dd-menu dp-menu dp-time-menu'; menu.setAttribute('role','dialog');
+  const fmtLbl=()=>{
+    if(!inp.value){lbl.textContent='';lbl.classList.add('dp-ph');return;}
+    lbl.classList.remove('dp-ph');
+    lbl.textContent=inp.value;
+  };
+  const scrollToSel=()=>{menu.querySelectorAll('.dp-time-col').forEach(col=>{const sel=col.querySelector('.dp-sel');if(sel)sel.scrollIntoView({block:'center'});});};
+  const build=()=>{
+    menu.innerHTML='';
+    const[selH,selM]=(inp.value||'').split(':');
+    const setTime=(h,m)=>{
+      inp.value=(h!=null?h:(selH||'00'))+':'+(m!=null?m:(selM||'00'));
+      fmtLbl();
+      inp.dispatchEvent(new Event('change',{bubbles:true}));
+      build();scrollToSel();
+    };
+    const mkCol=(count,sel,onPick)=>{
+      const col=document.createElement('div'); col.className='dp-time-col';
+      for(let i=0;i<count;i++){
+        const v=String(i).padStart(2,'0');
+        const cell=document.createElement('button'); cell.type='button'; cell.className='dp-time-opt'+(v===sel?' dp-sel':'');
+        cell.textContent=v;
+        cell.onclick=e=>{e.stopPropagation();onPick(v);};
+        col.appendChild(cell);
+      }
+      return col;
+    };
+    const body=document.createElement('div'); body.className='dp-time-body';
+    body.appendChild(mkCol(24,selH,(v)=>setTime(v,null)));
+    body.appendChild(mkCol(60,selM,(v)=>setTime(null,v)));
+    menu.appendChild(body);
+    const foot=document.createElement('div'); foot.className='dp-foot';
+    const clearBtn=document.createElement('button'); clearBtn.type='button'; clearBtn.className='dp-link'; clearBtn.textContent='Vymazat';
+    clearBtn.onclick=e=>{e.stopPropagation();inp.value='';fmtLbl();inp.dispatchEvent(new Event('change',{bubbles:true}));closeMenu();};
+    const nowBtn=document.createElement('button'); nowBtn.type='button'; nowBtn.className='dp-link'; nowBtn.textContent='Nyní';
+    nowBtn.onclick=e=>{
+      e.stopPropagation();
+      const t=new Date();
+      inp.value=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+      fmtLbl();inp.dispatchEvent(new Event('change',{bubbles:true}));
+      closeMenu();
+    };
+    foot.appendChild(clearBtn);foot.appendChild(nowBtn);
+    menu.appendChild(foot);
+  };
+  const reposition=()=>{
+    const r=btn.getBoundingClientRect();
+    const vw=document.documentElement.clientWidth,vh=document.documentElement.clientHeight;
+    const mw=menu.offsetWidth,mh=menu.offsetHeight;
+    let left=Math.min(Math.max(8,r.left),vw-mw-8);
+    let top=r.bottom+8;
+    if(top+mh>vh-8){const above=r.top-8-mh;top=above>8?above:Math.max(8,vh-8-mh);}
+    menu.style.left=left+'px';menu.style.top=top+'px';
+  };
+  const closeMenu=()=>{
+    wrap.classList.remove('open');menu.classList.remove('open');
+    if(menu.parentNode)menu.parentNode.removeChild(menu);
+    window.removeEventListener('scroll',reposition,true);window.removeEventListener('resize',reposition);
+    if(dpActiveClose===closeMenu)dpActiveClose=null;
+  };
+  const openMenu=()=>{
+    build();
+    document.body.appendChild(menu);
+    menu.style.left='-9999px';menu.style.top='-9999px';
+    reposition();
+    menu.classList.add('open');wrap.classList.add('open');
+    scrollToSel();
+    window.addEventListener('scroll',reposition,true);window.addEventListener('resize',reposition);
+    dpActiveClose=closeMenu;
+  };
+  btn.onclick=e=>{
+    e.stopPropagation();
+    if(btn.disabled)return;
+    const op=wrap.classList.contains('open');
+    closeAllDD();
+    if(!op)openMenu();
+  };
+  wrap.appendChild(btn);
+  inp.style.display='none'; inp.parentNode.insertBefore(wrap,inp.nextSibling);
+  fmtLbl();
+  inp._ddRefresh=fmtLbl;
+  inp.addEventListener('change',fmtLbl);
+  inp.focus=()=>btn.focus();
+}
 function dpSetDisabled(inp,disabled){
   if(!inp)return;
   inp.disabled=disabled;
@@ -1356,6 +1450,7 @@ async function ensureDeferredViewsLoaded(){
       deferredViewsLoaded=true;
       document.querySelectorAll('#deferredViews select').forEach(enhanceSelect);
       document.querySelectorAll('#deferredViews input[type=date]').forEach(enhanceDateInput);
+      document.querySelectorAll('#deferredViews input[type=time]').forEach(enhanceTimeInput);
       initLocationAutocomplete();
       initReveal();
       return true;
@@ -5404,6 +5499,7 @@ async function initApp(){
   renderHome();renderFilters();bindSearchLocationAutocomplete();renderCare();renderCalendar();
   document.querySelectorAll('select').forEach(enhanceSelect);
   document.querySelectorAll('input[type=date]').forEach(enhanceDateInput);
+  document.querySelectorAll('input[type=time]').forEach(enhanceTimeInput);
   initReveal();
   // deep-link: lze otevřít přímo konkrétní stránku přes #hash (bez případného ?query)
   let deep='';
