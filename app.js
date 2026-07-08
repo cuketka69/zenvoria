@@ -3536,7 +3536,7 @@ function renderAdminUsers(){
   document.getElementById('admUsrCount').textContent=families.length;
   document.getElementById('admUsrBody').innerHTML=families.map(u=>{
     const suspended=isUserEffectivelySuspended(u);
-    const badge=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivni</span>';
+    const badge=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
     return `<tr>
       <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${badge}</td>
