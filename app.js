@@ -3999,18 +3999,28 @@ function refreshCg(){
 
 /* caregiver availability calendar */
 let cgCalMonth=TODAY.getMonth(),cgCalYear=TODAY.getFullYear();
+let cgBlockedDates=[];
+function isoDateYMD(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
 function renderCgCalendar(){
   document.getElementById('cgCalTitle').textContent=MONTHS[cgCalMonth]+' '+cgCalYear;
   const first=new Date(cgCalYear,cgCalMonth,1).getDay();
   const offset=(first+6)%7;
   const dim=new Date(cgCalYear,cgCalMonth+1,0).getDate();
   const booked=CG_SCHEDULE.filter(j=>{const d=new Date(j.date);return d.getMonth()===cgCalMonth&&d.getFullYear()===cgCalYear;}).map(j=>new Date(j.date).getDate());
+  const todayMid=new Date(TODAY.getFullYear(),TODAY.getMonth(),TODAY.getDate());
   let html='';
   for(let i=0;i<offset;i++)html+='<div class="day muted" aria-hidden="true"></div>';
   for(let d=1;d<=dim;d++){
     const has=booked.includes(d);
     const today=(d===TODAY.getDate()&&cgCalMonth===TODAY.getMonth()&&cgCalYear===TODAY.getFullYear());
-    html+=`<div class="day ${has?'has':''} ${today?'today':''}" ${has?'role="button" tabindex="0"':''} onclick="${has?`toast('Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:''}">${d}</div>`;
+    const iso=isoDateYMD(cgCalYear,cgCalMonth,d);
+    const isPast=new Date(cgCalYear,cgCalMonth,d)<todayMid;
+    const blocked=cgBlockedDates.includes(iso);
+    const clickable=!has&&!isPast;
+    const cls=`day ${has?'has':''} ${today?'today':''} ${blocked?'blocked':''}`;
+    const action=has?`toast('Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:(clickable?`toggleBlockedDate('${iso}')`:'');
+    const title=blocked?'Blokováno (dovolená) — klikněte pro zrušení':(clickable?'Klikněte pro zablokování dne (dovolená)':'');
+    html+=`<div class="${cls}" ${has||clickable?'role="button" tabindex="0"':''} title="${title}" onclick="${action}">${d}</div>`;
   }
   document.getElementById('cgCalDays').innerHTML=html;
   document.getElementById('cgAvail').innerHTML=DAYS_CZ.map((d,i)=>`
@@ -4041,6 +4051,20 @@ function toggleAvail(i,val){
   toast(val?`${DAYS_CZ[i]} — nyní dostupná`:`${DAYS_CZ[i]} — označeno jako nedostupné`,val?'success':undefined);
 }
 function toggleSlot(i,k){cgSlots[i][k]=!cgSlots[i][k];saveCgAvail();renderCgCalendar();}
+/* jednotlivé blokované dny (dovolená) — nezávisle na týdenním vzorci dostupnosti */
+function toggleBlockedDate(iso){
+  const i=cgBlockedDates.indexOf(iso);
+  const wasBlocked=i>=0;
+  if(wasBlocked)cgBlockedDates.splice(i,1);else cgBlockedDates.push(iso);
+  saveCgBlockedDates();
+  renderCgCalendar();
+  toast(wasBlocked?`${fmtDate(iso)} — den opět dostupný`:`${fmtDate(iso)} — den zablokován (dovolená)`,wasBlocked?'success':undefined);
+}
+function saveCgBlockedDates(){
+  const c=CAREGIVERS.find(x=>x.email===auth.email);if(!c)return;
+  c.blockedDates=cgBlockedDates.slice();
+  apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{blockedDates:cgBlockedDates}}));
+}
 
 /* caregiver profile editing */
 let cgLangPickerOpen=false;
@@ -5116,7 +5140,8 @@ async function bootstrap(){
       exp:me.exp!=null?me.exp:cgProfile.exp,radius:me.radius!=null?me.radius:cgProfile.radius,
       priceType:me.priceType||cgProfile.priceType,dayRate:me.dayRate!=null?me.dayRate:cgProfile.dayRate,kmPrice:me.kmPrice!=null?me.kmPrice:cgProfile.kmPrice,
       views:me.views!=null?me.views:cgProfile.views,perms:me.perms||cgProfile.perms});
-      if(Array.isArray(me.avail)){cgSlots=me.avail;cgAvail=me.avail.map(s=>!!(s.r||s.o||s.v));}}
+      if(Array.isArray(me.avail)){cgSlots=me.avail;cgAvail=me.avail.map(s=>!!(s.r||s.o||s.v));}
+      cgBlockedDates=Array.isArray(me.blockedDates)?me.blockedDates.slice():[];}
   }
   deriveCgMaps();
   if(auth.loggedIn){try{loadConversations();}catch(e){}}

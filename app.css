@@ -666,6 +666,9 @@
   .day.has::after{content:"";position:absolute;bottom:6px;width:5px;height:5px;border-radius:50%;background:var(--gold)}
   .day.sel{background:var(--gold);color:var(--navy-900);font-weight:600}
   .day.today{box-shadow:inset 0 0 0 1.5px var(--navy-900)}
+  .day.blocked{background:repeating-linear-gradient(135deg,rgba(192,71,59,.16),rgba(192,71,59,.16) 4px,transparent 4px,transparent 9px);
+    color:#C0473B;text-decoration:line-through;font-weight:600}
+  .day.blocked:hover{background:repeating-linear-gradient(135deg,rgba(192,71,59,.26),rgba(192,71,59,.26) 4px,transparent 4px,transparent 9px)}
 
   .tabs{display:flex;gap:6px;background:var(--cream-2);padding:5px;border-radius:13px;margin-bottom:18px;width:fit-content}
   .tab{padding:9px 20px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);transition:.16s}

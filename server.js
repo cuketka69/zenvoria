@@ -1083,6 +1083,32 @@ function broadcastMail({ name, text }) {
   };
 }
 // ---- e-mail: výsledek ověření (pečovatelce) ----
+// ---- e-mail: brzy vyprší platnost osvědčení ----
+function certExpiryReminderMail({ name, certs }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  const list = certs.map((c) => `${c.name || 'Osvědčení'} (platnost do ${c.validUntil})`);
+  return {
+    subject: certs.length > 1 ? 'Brzy vyprší platnost vašich osvědčení' : 'Brzy vyprší platnost vašeho osvědčení',
+    text:
+      `Dobrý den, ${name || firstName},\n\n` +
+      `blíží se konec platnosti:\n${list.map((l) => '- ' + l).join('\n')}\n\n` +
+      'Nahrajte prosím aktuální osvědčení přes formulář ověření, ať vám profil zůstane důvěryhodný.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Blíží se konec platnosti vašeho osvědčení.',
+      title: 'Platnost osvědčení brzy vyprší',
+      intro: `Dobrý den, ${firstName}. Blíží se konec platnosti u těchto osvědčení:`,
+      bodyHtml: `<ul style="margin:0;padding-left:18px;">${list.map((l) => `<li style="margin-bottom:6px;">${escapeHtml(l)}</li>`).join('')}</ul>`,
+      ctaLabel: 'Nahrát nové osvědčení',
+      ctaUrl: `${APP_URL}/#cg-verify`,
+      ctaNote: '',
+      facts: [],
+      closingTitle: 'Díky, že si udržujete profil aktuální.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail se posílá jednou, přibližně 30 dní před vypršením platnosti osvědčení.',
+    }),
+  };
+}
 function verificationResultMail({ name, approved, reason }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
   return {
@@ -1499,7 +1525,7 @@ function mapCaregiver(c, permsSetting) {
     idVerified: c.id_verified, plan: c.plan, planStatus: c.plan_status || null, trialUntil: c.trial_until || null,
     langs: c.langs || ['Čeština'],
     priceType: c.price_type, dayRate: c.day_rate, radius: c.radius, kmPrice: c.km_price,
-    photo: c.photo || null, email: c.email || null, avail: c.avail || null,
+    photo: c.photo || null, email: c.email || null, avail: c.avail || null, blockedDates: c.blocked_dates || [],
     views: Number(c.views || 0), perms: permsForPlan(c.plan, permsSetting),
   };
 }
@@ -1508,6 +1534,7 @@ function mapCaregiverForViewer(c, opts = {}) {
   if (opts.viewer === 'admin' || opts.includePrivate) return row;
   delete row.email;
   delete row.avail;
+  delete row.blockedDates;
   delete row.idVerified;
   delete row.planStatus;
   delete row.trialUntil;
@@ -2229,6 +2256,10 @@ function isWithinAvailability(avail, dateStr, timeStr, hours) {
   }
   return ranges.some((r) => startH >= r.start && endH <= r.end);
 }
+// pečovatelka si datum ručně zablokovala (dovolená) bez ohledu na týdenní vzorec dostupnosti
+function isDateBlocked(blockedDates, dateStr) {
+  return Array.isArray(blockedDates) && blockedDates.includes(dateStr);
+}
 function timeRangesOverlap(aStart, aHours, bStart, bHours) {
   const aS = timeToHours(aStart), aE = aS + Number(aHours);
   const bS = timeToHours(bStart), bE = bS + Number(bHours);
@@ -2260,13 +2291,16 @@ app.post('/api/orders', requireRole('family', 'admin'), h(async (req, res) => {
   const oid = await nextId(T.orders, 'oid');
   const famName = trimmedString(req.session.name || b.famName || 'Rodina', 120) || 'Rodina';
   let caregiverName = '';
-  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended,plan,avail&limit=1`);
+  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended,plan,avail,blocked_dates&limit=1`);
   if (caregiverRows && caregiverRows[0]) caregiverName = caregiverRows[0].name || '';
   const caregiver = caregiverRows && caregiverRows[0];
   if (!caregiver) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
   if (caregiver.suspended || caregiver.verified === false) return res.status(400).json({ error: 'Pečovatelka není aktuálně dostupná.' });
   const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
   if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
+  if (isDateBlocked(caregiver.blocked_dates, date)) {
+    return res.status(400).json({ error: 'Pečovatelka má tento den blokovaný (dovolená).' });
+  }
   if (!isWithinAvailability(caregiver.avail, date, time, hours)) {
     return res.status(400).json({ error: 'Zvolený čas je mimo dostupnost pečovatelky. Zkontrolujte prosím její kalendář dostupnosti.' });
   }
@@ -2589,7 +2623,7 @@ async function resolveConversationParties(conv) {
   const caregiverUser = users.find((u) => u.role === 'caregiver') || null;
   let caregiver = null;
   if (caregiverUser) {
-    const cgRows = await restSelect(T.caregivers, `user_id=eq.${encodeURIComponent(caregiverUser.id)}&select=id,name,plan,suspended,verified,avail&limit=1`);
+    const cgRows = await restSelect(T.caregivers, `user_id=eq.${encodeURIComponent(caregiverUser.id)}&select=id,name,plan,suspended,verified,avail,blocked_dates&limit=1`);
     caregiver = (cgRows && cgRows[0]) || null;
   }
   return { family, caregiver };
@@ -2767,6 +2801,9 @@ app.post('/api/conversations/:id/messages/:mid/term/accept', requireAuth, requir
   const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
   if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
   const t = row.term;
+  if (isDateBlocked(caregiver.blocked_dates, t.date)) {
+    return res.status(400).json({ error: 'Pečovatelka má tento den blokovaný (dovolená).' });
+  }
   if (!isWithinAvailability(caregiver.avail, t.date, t.time, t.hours)) {
     return res.status(400).json({ error: 'Navržený čas je mimo dostupnost pečovatelky.' });
   }
@@ -3098,10 +3135,10 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   // jen povolená pole
   const map = { name: 'name', loc: 'loc', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
     plan: 'plan', priceType: 'price_type', dayRate: 'day_rate', radius: 'radius', kmPrice: 'km_price',
-    photo: 'photo', avail: 'avail', suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until' };
+    photo: 'photo', avail: 'avail', blockedDates: 'blocked_dates', suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until' };
   for (const k in map) if (b[k] !== undefined) patch[map[k]] = b[k];
   // úprava vlastního profilu vyžaduje oprávnění „Správa profilu" u aktuálního tarifu
-  const PROFILE_FIELD_KEYS = new Set(['name', 'loc', 'rate', 'exp', 'bio', 'services', 'langs', 'priceType', 'dayRate', 'radius', 'kmPrice', 'photo', 'avail']);
+  const PROFILE_FIELD_KEYS = new Set(['name', 'loc', 'rate', 'exp', 'bio', 'services', 'langs', 'priceType', 'dayRate', 'radius', 'kmPrice', 'photo', 'avail', 'blockedDates']);
   if (!isAdmin && Object.keys(b).some((k) => PROFILE_FIELD_KEYS.has(k))) {
     const perms = permsForPlan(ownCaregiver.plan, await getPlanPermissions());
     if (!perms.manageProfile) return res.status(403).json({ error: 'Úprava profilu není ve vašem aktuálním tarifu dostupná.' });
@@ -3128,6 +3165,10 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     if (!patch.loc) return res.status(400).json({ error: 'Zadejte lokalitu (město nebo okres).' });
   }
   if (patch.bio !== undefined) patch.bio = trimmedString(patch.bio, 4000);
+  if (patch.blocked_dates !== undefined) {
+    const arr = Array.isArray(patch.blocked_dates) ? patch.blocked_dates : [];
+    patch.blocked_dates = [...new Set(arr.map((d) => trimmedString(d, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))].slice(0, 200);
+  }
   if (patch.photo !== undefined) patch.photo = patch.photo == null ? null : trimmedString(patch.photo, 2 * 1024 * 1024);
   if (patch.price_type !== undefined && !['hod', 'den', 'indiv'].includes(String(patch.price_type))) {
     return res.status(400).json({ error: 'Neplatný typ ceny.' });
@@ -3620,6 +3661,31 @@ async function sendUpcomingReminders() {
   } catch (e) { console.warn('[jobs] sendUpcomingReminders failed:', e.message); }
 }
 setInterval(sendUpcomingReminders, 30 * 60 * 1000).unref();
+
+/* osvědčení s blížícím se koncem platnosti (do 30 dní) → jednorázová e-mailová připomínka pečovatelce */
+async function sendCertExpiryReminders() {
+  if (!REST_ENABLED) return;
+  try {
+    const rows = await restSelect(T.verifications, `status=eq.approved&cert_reminder_sent_at=is.null&select=id,name,email,valid_until,note`);
+    const nowIso = new Date().toISOString();
+    const todayMs = Date.now();
+    const windowMs = 30 * 86400000;
+    for (const v of rows || []) {
+      if (!v.email) continue;
+      const parsed = decodeVerificationNote(v.note);
+      const certs = (parsed.certifications && parsed.certifications.length ? parsed.certifications : (v.valid_until ? [{ name: '', validUntil: v.valid_until }] : []));
+      const expiring = certs.filter((c) => {
+        if (!c.validUntil || !/^\d{4}-\d{2}-\d{2}$/.test(c.validUntil)) return false;
+        const t = new Date(c.validUntil + 'T00:00:00Z').getTime();
+        return Number.isFinite(t) && t - todayMs <= windowMs;
+      });
+      if (!expiring.length) continue;
+      await sendMailSafe({ to: v.email, ...certExpiryReminderMail({ name: v.name, certs: expiring }) });
+      await restUpdate(T.verifications, `id=eq.${v.id}`, { cert_reminder_sent_at: nowIso }, { prefer: 'return=minimal' });
+    }
+  } catch (e) { console.warn('[jobs] sendCertExpiryReminders failed:', e.message); }
+}
+setInterval(sendCertExpiryReminders, 30 * 60 * 1000).unref();
 
 app.listen(PORT, () => {
   console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`);
