@@ -2273,24 +2273,32 @@ app.get('/api/bootstrap', h(async (req, res) => {
 /* ---------------- OBJEDNÁVKY / POPTÁVKY ---------------- */
 // rodina vytvoří objednávku + propojenou poptávku pro pečovatelku
 /* časové sloty dostupnosti (musí odpovídat TIME_SLOTS v app.js): ráno 08–12, odpoledne 12–18, večer 18–22 */
-const AVAIL_SLOTS = [{ k: 'r', start: 8, end: 12 }, { k: 'o', start: 12, end: 18 }, { k: 'v', start: 18, end: 22 }];
 function timeToHours(t) { const [h, m] = String(t || '0:0').split(':').map(Number); return (h || 0) + (m || 0) / 60; }
 // 0 = pondělí .. 6 = neděle (odpovídá pořadí polí v caregivers.avail)
 function weekdayIndexMon0(dateStr) { const d = new Date(dateStr + 'T00:00:00Z'); return (d.getUTCDay() + 6) % 7; }
+// jeden den dostupnosti: nový formát {on,from,to} (vlastní rozmezí), nebo starší {r,o,v} (3 pevné bloky) — sloučí je do jednoho rozmezí
+function normalizeAvailDay(day) {
+  if (!day) return null;
+  if (day.on != null || day.from != null || day.to != null) {
+    return { on: !!day.on, from: day.from || '00:00', to: day.to || '00:00' };
+  }
+  const blocks = [];
+  if (day.r) blocks.push([8, 12]);
+  if (day.o) blocks.push([12, 18]);
+  if (day.v) blocks.push([18, 22]);
+  if (!blocks.length) return { on: false, from: '00:00', to: '00:00' };
+  const from = Math.min(...blocks.map((b) => b[0]));
+  const to = Math.max(...blocks.map((b) => b[1]));
+  return { on: true, from: `${String(from).padStart(2, '0')}:00`, to: `${String(to).padStart(2, '0')}:00` };
+}
 // zkontroluje, jestli požadovaný interval spadá do nastavené dostupnosti pečovatelky ten den
 function isWithinAvailability(avail, dateStr, timeStr, hours) {
   if (!Array.isArray(avail) || !avail.length) return true; // bez nastavené dostupnosti nekontrolujeme (zpětná kompatibilita)
-  const day = avail[weekdayIndexMon0(dateStr)];
-  if (!day) return false;
+  const day = normalizeAvailDay(avail[weekdayIndexMon0(dateStr)]);
+  if (!day || !day.on) return false;
   const startH = timeToHours(timeStr);
   const endH = startH + Number(hours);
-  const ranges = [];
-  let cur = null;
-  for (const slot of AVAIL_SLOTS) {
-    if (day[slot.k]) { if (cur && cur.end === slot.start) cur.end = slot.end; else { cur = { start: slot.start, end: slot.end }; ranges.push(cur); } }
-    else cur = null;
-  }
-  return ranges.some((r) => startH >= r.start && endH <= r.end);
+  return startH >= timeToHours(day.from) && endH <= timeToHours(day.to);
 }
 // pečovatelka si datum ručně zablokovala (dovolená) bez ohledu na týdenní vzorec dostupnosti
 function isDateBlocked(blockedDates, dateStr) {
@@ -3313,6 +3321,16 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     const arr = Array.isArray(patch.blocked_dates) ? patch.blocked_dates : [];
     patch.blocked_dates = [...new Set(arr.map((d) => trimmedString(d, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))].slice(0, 200);
   }
+  if (patch.avail !== undefined) {
+    const isHHMM = (v) => /^\d{2}:\d{2}$/.test(v || '');
+    const arr = Array.isArray(patch.avail) ? patch.avail : [];
+    patch.avail = Array.from({ length: 7 }, (_, i) => {
+      const d = arr[i] || {};
+      const from = isHHMM(d.from) ? d.from : '08:00';
+      const to = isHHMM(d.to) ? d.to : '18:00';
+      return { on: !!d.on && timeToHours(from) < timeToHours(to), from, to };
+    });
+  }
   if (patch.photo !== undefined) patch.photo = patch.photo == null ? null : trimmedString(patch.photo, 2 * 1024 * 1024);
   if (patch.price_type !== undefined && !['hod', 'den', 'indiv'].includes(String(patch.price_type))) {
     return res.status(400).json({ error: 'Neplatný typ ceny.' });
@@ -3362,12 +3380,6 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
       return res.status(400).json({ error: 'Neplatný seznam jazyků.' });
     }
     patch.langs = patch.langs.map((item) => trimmedString(item, 40));
-  }
-  if (patch.avail !== undefined) {
-    if (!Array.isArray(patch.avail) || patch.avail.length > 7 || patch.avail.some((item) => !trimmedString(item, 40))) {
-      return res.status(400).json({ error: 'Neplatná dostupnost.' });
-    }
-    patch.avail = patch.avail.map((item) => trimmedString(item, 40));
   }
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   const currentRows = await restSelect(T.caregivers, `id=eq.${id}&select=id,email&limit=1`);

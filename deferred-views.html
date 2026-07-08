@@ -162,10 +162,26 @@
           <div style="display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;border-radius:50%;background:var(--gold);display:inline-block"></span> Naplánovaná služba</div>
           <div style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(192,71,59,.22);display:inline-block"></span> Blokováno (dovolená) — klikněte na volný den v kalendáři a zablokujte ho</div>
         </div>
+        <div class="pdiv"></div>
+        <div class="avail-range-add-label">Přidat volno na víc dní najednou</div>
+        <div class="avail-range-add">
+          <input type="date" class="inp" id="blockFromDate">
+          <span class="avail-range-sep">–</span>
+          <input type="date" class="inp" id="blockToDate">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addBlockedRange()">Přidat</button>
+        </div>
       </div>
       <div>
         <div class="panel">
-          <div class="panel-h"><b>Týdenní dostupnost</b></div>
+          <div class="panel-h">
+            <b>Týdenní dostupnost</b>
+            <span class="avail-summary" id="cgAvailSummary"></span>
+          </div>
+          <div class="avail-quick">
+            <button type="button" class="lnk" onclick="availCopyMondayToWeek()">Kopírovat pondělí na celý týden</button>
+            <button type="button" class="lnk" onclick="availPresetWorkdays()">Pracovní dny 8–16</button>
+            <button type="button" class="lnk" onclick="availClearAll()">Vymazat vše</button>
+          </div>
           <div id="cgAvail"></div>
         </div>
         <div class="panel">

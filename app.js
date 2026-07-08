@@ -4093,10 +4093,20 @@ let AUDIT_LOGS=[];
 let FILTERED_AUDIT_LOGS=[];
 let CG_SCHEDULE=[];
 const DAYS_CZ=['Pondělí','Úterý','Středa','Čtvrtek','Pátek','Sobota','Neděle'];
-let cgAvail=[true,true,true,true,true,false,false];
-/* časové sloty dostupnosti pro každý den: ranní 08–12, odpolední 12–18, večerní 18–22 */
-const TIME_SLOTS=[{k:'r',l:'08–12'},{k:'o',l:'12–18'},{k:'v',l:'18–22'}];
-let cgSlots=[0,1,2,3,4,5,6].map(i=>({r:cgAvail[i],o:cgAvail[i],v:i<5}));
+/* dostupnost po dnech: vlastní rozmezí od–do místo 3 pevných bloků */
+let cgAvailDays=[0,1,2,3,4,5,6].map(i=>({on:i<5,from:'08:00',to:'22:00'}));
+/* přijme starší formát {r,o,v} (3 pevné bloky) i nový {on,from,to} a sloučí na jedno rozmezí */
+function normalizeAvailDay(day){
+  if(!day)return{on:false,from:'08:00',to:'18:00'};
+  if(day.on!=null||day.from!=null||day.to!=null)return{on:!!day.on,from:day.from||'08:00',to:day.to||'18:00'};
+  const blocks=[];
+  if(day.r)blocks.push([8,12]);
+  if(day.o)blocks.push([12,18]);
+  if(day.v)blocks.push([18,22]);
+  if(!blocks.length)return{on:false,from:'08:00',to:'18:00'};
+  const from=Math.min(...blocks.map(b=>b[0])),to=Math.max(...blocks.map(b=>b[1]));
+  return{on:true,from:String(from).padStart(2,'0')+':00',to:String(to).padStart(2,'0')+':00'};
+}
 
 function cgFirstName(){return (auth.role==='caregiver'&&auth.name)?auth.name:cgProfile.name;}
 function fmtDate(iso){return new Date(iso).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'});}
@@ -4226,34 +4236,77 @@ function renderCgCalendar(){
     html+=`<div class="${cls}" ${has||clickable?'role="button" tabindex="0"':''} title="${title}" onclick="${action}">${d}</div>`;
   }
   document.getElementById('cgCalDays').innerHTML=html;
-  document.getElementById('cgAvail').innerHTML=DAYS_CZ.map((d,i)=>`
-    <div class="avail-day" style="flex-direction:column;align-items:stretch">
-      <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
-        <span class="ad-name">${d}</span>
-        <label class="switch"><input type="checkbox" ${cgAvail[i]?'checked':''} onchange="toggleAvail(${i},this.checked)" aria-label="Dostupnost ${d}"><span class="track"></span><span class="thumb"></span></label>
-      </div>
-      ${cgAvail[i]?`<div style="display:flex;gap:6px;width:100%;margin-top:8px">
-        ${TIME_SLOTS.map(s=>`<button type="button" class="cg-serv ${cgSlots[i][s.k]?'on':''}" style="flex:1;padding:6px 8px;font-size:12px" onclick="toggleSlot(${i},'${s.k}')">${s.l}</button>`).join('')}
-      </div>`:''}
-    </div>`).join('');
+  renderAvailEditor();
   const jobs=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date));
   document.getElementById('cgCalJobs').innerHTML=jobs.length?jobs.map(j=>`
     <div class="order" style="padding:13px 15px"><div class="ava" style="width:42px;height:42px;font-size:14px">${j.init}</div>
       <div class="od"><b style="font-size:15px">${sNames(j.service)}</b><div class="det">${fmtDate(j.date)} · ${timeRange(j.time,j.hours)}</div></div></div>`).join(''):'<div class="empty">Žádné naplánované služby v tomto období.</div>';
 }
 function cgCalMove(dir){cgCalMonth+=dir;if(cgCalMonth<0){cgCalMonth=11;cgCalYear--}if(cgCalMonth>11){cgCalMonth=0;cgCalYear++}renderCgCalendar();}
+/* ---- týdenní dostupnost: vlastní rozmezí od–do na den, plus rychlé akce ---- */
+function renderAvailEditor(){
+  const summary=document.getElementById('cgAvailSummary');
+  if(summary){
+    const n=cgAvailDays.filter(d=>d.on).length;
+    summary.textContent=n?`${n} ${n===1?'den aktivní':(n>=2&&n<=4?'dny aktivní':'dní aktivních')}`:'Žádný den není aktivní';
+  }
+  document.getElementById('cgAvail').innerHTML=cgAvailDays.map((day,i)=>`
+    <div class="avail-day" style="flex-direction:column;align-items:stretch">
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+        <span class="ad-name">${DAYS_CZ[i]}${day.on?`<span class="ad-range">${day.from}–${day.to}</span>`:''}</span>
+        <label class="switch"><input type="checkbox" ${day.on?'checked':''} onchange="toggleAvailDay(${i},this.checked)" aria-label="Dostupnost ${DAYS_CZ[i]}"><span class="track"></span><span class="thumb"></span></label>
+      </div>
+      ${day.on?`<div class="avail-range-row">
+        <input type="time" class="inp" id="avFrom${i}" value="${day.from}" onchange="setAvailTime(${i},'from',this.value)">
+        <span class="avail-range-sep">–</span>
+        <input type="time" class="inp" id="avTo${i}" value="${day.to}" onchange="setAvailTime(${i},'to',this.value)">
+      </div>`:''}
+    </div>`).join('');
+  cgAvailDays.forEach((day,i)=>{
+    if(!day.on)return;
+    const f=document.getElementById('avFrom'+i),t=document.getElementById('avTo'+i);
+    if(f)enhanceTimeInput(f);
+    if(t)enhanceTimeInput(t);
+  });
+}
 function saveCgAvail(){
   const c=CAREGIVERS.find(x=>x.email===auth.email);if(!c)return;
-  const avail=cgSlots.map((s,i)=>cgAvail[i]?{r:!!s.r,o:!!s.o,v:!!s.v}:{r:false,o:false,v:false});
+  const avail=cgAvailDays.map(d=>({on:!!d.on,from:d.from,to:d.to}));
   apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{avail}}));
 }
-function toggleAvail(i,val){
-  cgAvail[i]=val;
-  if(val&&!(cgSlots[i].r||cgSlots[i].o||cgSlots[i].v)){cgSlots[i]={r:true,o:true,v:true};}
-  saveCgAvail();renderCgCalendar();
+function toggleAvailDay(i,val){
+  cgAvailDays[i].on=val;
+  saveCgAvail();renderAvailEditor();
   toast(val?`${DAYS_CZ[i]} — nyní dostupná`:`${DAYS_CZ[i]} — označeno jako nedostupné`,val?'success':undefined);
 }
-function toggleSlot(i,k){cgSlots[i][k]=!cgSlots[i][k];saveCgAvail();renderCgCalendar();}
+function setAvailTime(i,which,val){
+  if(!val)return;
+  const day=cgAvailDays[i];
+  day[which]=val;
+  if(day.from>=day.to){
+    // srovnej druhý konec, ať rozmezí zůstane platné (konec musí být později než začátek)
+    if(which==='from')day.to=String(Math.min(23,Number(val.slice(0,2))+1)).padStart(2,'0')+':'+val.slice(3);
+    else day.from=String(Math.max(0,Number(val.slice(0,2))-1)).padStart(2,'0')+':'+val.slice(3);
+    toast('Rozmezí bylo upraveno, ať konec navazuje na začátek.');
+  }
+  saveCgAvail();renderAvailEditor();
+}
+function availCopyMondayToWeek(){
+  const mon=cgAvailDays[0];
+  cgAvailDays=cgAvailDays.map((d,i)=>i===0?d:{on:mon.on,from:mon.from,to:mon.to});
+  saveCgAvail();renderAvailEditor();
+  toast('Rozvrh pondělí zkopírován na celý týden.','success');
+}
+function availPresetWorkdays(){
+  cgAvailDays=[0,1,2,3,4,5,6].map(i=>({on:i<5,from:'08:00',to:'16:00'}));
+  saveCgAvail();renderAvailEditor();
+  toast('Nastaveno: pracovní dny (Po–Pá) 8–16.','success');
+}
+function availClearAll(){
+  cgAvailDays=cgAvailDays.map(d=>({...d,on:false}));
+  saveCgAvail();renderAvailEditor();
+  toast('Dostupnost vymazána — nastavte ji, až budete znovu k dispozici.');
+}
 /* jednotlivé blokované dny (dovolená) — nezávisle na týdenním vzorci dostupnosti */
 function toggleBlockedDate(iso){
   const i=cgBlockedDates.indexOf(iso);
@@ -4267,6 +4320,27 @@ function saveCgBlockedDates(){
   const c=CAREGIVERS.find(x=>x.email===auth.email);if(!c)return;
   c.blockedDates=cgBlockedDates.slice();
   apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{blockedDates:cgBlockedDates}}));
+}
+/* dovolená na víc dní najednou — vybere se rozsah od–do a přidá se do cgBlockedDates */
+function addBlockedRange(){
+  const fromEl=document.getElementById('blockFromDate'),toEl=document.getElementById('blockToDate');
+  const from=fromEl.value,to=toEl.value||from;
+  if(!from){toast('Vyberte první den volna.','declined');return;}
+  if(to<from){toast('Poslední den musí být stejný nebo pozdější než první.','declined');return;}
+  const start=new Date(from+'T00:00:00'),end=new Date(to+'T00:00:00');
+  const added=[];
+  for(let d=start;d<=end;d.setDate(d.getDate()+1)){
+    const iso=isoDateYMD(d.getFullYear(),d.getMonth(),d.getDate());
+    if(!cgBlockedDates.includes(iso))added.push(iso);
+  }
+  if(!added.length){toast('Toto období už máte celé blokované.');return;}
+  cgBlockedDates.push(...added);
+  saveCgBlockedDates();
+  renderCgCalendar();
+  fromEl.value='';toEl.value='';
+  if(fromEl._ddRefresh)fromEl._ddRefresh();
+  if(toEl._ddRefresh)toEl._ddRefresh();
+  toast(`Přidáno ${added.length} ${added.length===1?'den':(added.length<5?'dny':'dní')} volna.`,'success');
 }
 
 /* caregiver profile editing */
@@ -5344,7 +5418,7 @@ async function bootstrap(){
       exp:me.exp!=null?me.exp:cgProfile.exp,radius:me.radius!=null?me.radius:cgProfile.radius,
       priceType:me.priceType||cgProfile.priceType,dayRate:me.dayRate!=null?me.dayRate:cgProfile.dayRate,kmPrice:me.kmPrice!=null?me.kmPrice:cgProfile.kmPrice,
       views:me.views!=null?me.views:cgProfile.views,perms:me.perms||cgProfile.perms});
-      if(Array.isArray(me.avail)){cgSlots=me.avail;cgAvail=me.avail.map(s=>!!(s.r||s.o||s.v));}
+      if(Array.isArray(me.avail)&&me.avail.length){cgAvailDays=[0,1,2,3,4,5,6].map(i=>normalizeAvailDay(me.avail[i]));}
       cgBlockedDates=Array.isArray(me.blockedDates)?me.blockedDates.slice():[];}
   }
   deriveCgMaps();
