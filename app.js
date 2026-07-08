@@ -4123,6 +4123,17 @@ function renderCgDashboard(){
     else{const b=VER_BANNER[st]||VER_BANNER.pending;
       notice.innerHTML=`<div class="verify-banner ${b.cls}"><span class="vb-ic">${b.ic}</span><div class="vb-t"><b>${b.t}</b><span>${b.s}</span></div><button class="btn btn-sm btn-gold" onclick="go('cg-verify')">${st==='submitted'?'Zobrazit stav':'Ověřit se'}</button></div>`;}
   }
+  const planNotice=document.getElementById('cgPlanNotice');
+  if(planNotice){
+    const me=CAREGIVERS.find(x=>x.email===auth.email);
+    const planKey=me&&me.plan==='premium'?'premium':(me&&me.plan==='start'?'start':'none');
+    if(planKey==='none'){
+      planNotice.innerHTML=`<div class="verify-banner wait" style="margin-bottom:24px"><span class="vb-ic" style="color:var(--gold-deep)">${warnSVG(26)}</span><div class="vb-t"><b>Nemáte aktivní tarif</b><span>Bez tarifu vás rodiny neuvidí ve vyhledávání.</span></div><button class="btn btn-sm btn-gold" onclick="go('pricing')">Vybrat tarif</button></div>`;
+    }else{
+      const validTxt=me.trialUntil?('platí do '+fmtDate(me.trialUntil)):'platí neomezeně';
+      planNotice.innerHTML=`<div class="verify-banner ok" style="margin-bottom:24px"><span class="vb-ic">${planIcon(planKey,26)}</span><div class="vb-t"><b>Tarif ${planKey==='premium'?'PREMIUM':'START'}</b><span>${esc(validTxt)}</span></div><button class="btn btn-sm btn-ghost" onclick="go('pricing')">Spravovat</button></div>`;
+    }
+  }
   setAva(document.getElementById('cgDashAva'),cgProfile.photo||auth.photo,initials(cgProfile.name));
   document.getElementById('cgFirst').textContent=cgFirstName().split(/\s+/)[0];
   document.getElementById('cgIntro').textContent=CG_REQUESTS.length
