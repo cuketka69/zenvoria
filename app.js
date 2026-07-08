@@ -1769,7 +1769,7 @@ const NAV_ADMIN=[
   {v:'admin-dash',label:'Přehled',fn:"go('admin-dash')"},
   {v:'admin-verify',label:'Žádosti o ověření',fn:"go('admin-verify')"},
   {v:'admin-caregivers',label:'Pečovatelky',fn:"go('admin-caregivers')"},
-  {v:'admin-users',label:'Uživatelé',fn:"go('admin-users')"},
+  {v:'admin-users',label:'Rodiny',fn:"go('admin-users')"},
   {v:'admin-broadcast',label:'Zprávy',fn:"go('admin-broadcast')"},
   {v:'admin-plans',label:'Tarify',fn:"go('admin-plans')"},
   {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"},
@@ -1847,7 +1847,7 @@ function updateAuthUI(){
       ? mi("go('admin-dash')",'Přehled',gridIcon)
         +mi("go('admin-verify')",zad,shieldIcon)
         +mi("go('admin-caregivers')",'Pečovatelky','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
-        +mi("go('admin-users')",'Uživatelé','<circle cx="9" cy="8" r="3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M16 7a3 3 0 0 1 0 6m5 6c0-2.4-1.6-4.2-4-4.8" stroke="#7A736A" stroke-width="1.6"/>')
+        +mi("go('admin-users')",'Rodiny','<circle cx="9" cy="8" r="3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M16 7a3 3 0 0 1 0 6m5 6c0-2.4-1.6-4.2-4-4.8" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-audit')",'Audit logy','<path d="M8 4h8l3 3v13H5V4h3Z" stroke="#7A736A" stroke-width="1.6"/><path d="M8 9h8M8 13h8M8 17h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-chats')",'Konverzace',chatIcon)
         +mi("go('admin-stats')",'Statistiky','<path d="M4 20V10M11 20V4M18 20v-7" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
@@ -2958,7 +2958,7 @@ function renderAdminDash(){
   const stats=[
     {ic:'M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z',v:pend,l:'Čeká na ověření'},
     {ic:'M20 6 9 17l-5-5',v:verified,l:'Ověřené pečovatelky'},
-    {ic:'M9 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20c0-3.5 3-6 6-6s6 2.5 6 6',v:USERS.length,l:'Registrované rodiny'},
+    {ic:'M9 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20c0-3.5 3-6 6-6s6 2.5 6 6',v:USERS.filter(u=>u.role==='family').length,l:'Registrované rodiny'},
     {ic:'M4 5h16v15H4zM8 2v4M16 2v4M4 9h16',v:ORDERS.length,l:'Objednávek celkem'}
   ];
   document.getElementById('admStats').innerHTML=stats.map(s=>`
@@ -3531,8 +3531,10 @@ function isUserEffectivelySuspended(u){
   return !!((u&&u.status==='suspended')||(cg&&cg.suspended));
 }
 function renderAdminUsers(){
-  document.getElementById('admUsrCount').textContent=USERS.length;
-  document.getElementById('admUsrBody').innerHTML=USERS.map(u=>{
+  // stránka je popsaná jako "Rodiny" — pečovatelky mají vlastní stránku (Pečovatelky), ať se tu neduplikují
+  const families=USERS.filter(u=>u.role==='family');
+  document.getElementById('admUsrCount').textContent=families.length;
+  document.getElementById('admUsrBody').innerHTML=families.map(u=>{
     const suspended=isUserEffectivelySuspended(u);
     const badge=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivni</span>';
     return `<tr>
@@ -4084,7 +4086,7 @@ function renderBcRecipients(){
   const aud=document.getElementById('bcAudience').value;
   if(aud!=='specific'){wrap.innerHTML='';return;}
   const cgs=CAREGIVERS.filter(c=>c.email).map(c=>({email:c.email,name:c.name,role:'Pečovatelka'}));
-  const fams=USERS.filter(u=>u.email).map(u=>({email:u.email,name:u.name,role:'Rodina'}));
+  const fams=USERS.filter(u=>u.email&&u.role==='family').map(u=>({email:u.email,name:u.name,role:'Rodina'}));
   const all=[...cgs,...fams];
   wrap.innerHTML=`<div style="max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:10px">
     ${all.map(p=>`<label class="set-row" style="padding:8px 4px;cursor:pointer">
