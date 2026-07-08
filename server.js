@@ -47,8 +47,13 @@ const SUPABASE_REST_TIMEOUT_MS = parseInt(process.env.SUPABASE_REST_TIMEOUT_MS |
 // REST je aktivní jen když máme URL i klíč (jinak server běží, ale data se nezapíšou)
 const REST_ENABLED = !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 
-// session secret pro podpis cookie (na produkci nastav vlastní; jinak náhodný za běhu)
+// session secret pro podpis cookie (na produkci nastav vlastní; jinak náhodný za běhu —
+// funguje to, ale při každém restartu/redeploy se odhlásí úplně všichni, protože starý podpis přestane sedět)
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.SESSION_SECRET) {
+  console.warn('[zenvoria] ⚠️  SESSION_SECRET není nastavený — používám náhodný klíč vygenerovaný při startu. ' +
+    'Nastav SESSION_SECRET v proměnných prostředí, jinak se všichni uživatelé odhlásí při každém restartu serveru.');
+}
 const SESSION_COOKIE = 'zv_session';
 const CSRF_COOKIE = 'zv_csrf';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 dní
@@ -100,6 +105,21 @@ const RATE_LIMITS = {
     windowMs: parseInt(process.env.RATE_LIMIT_HELP_CHAT_WINDOW_MS || String(1000 * 60 * 15), 10),
     max: parseInt(process.env.RATE_LIMIT_HELP_CHAT_MAX || '20', 10),
     message: 'Příliš mnoho zpráv v nápovědě. Zkuste to prosím za chvíli.',
+  },
+  orders: {
+    windowMs: parseInt(process.env.RATE_LIMIT_ORDERS_WINDOW_MS || String(1000 * 60 * 60), 10),
+    max: parseInt(process.env.RATE_LIMIT_ORDERS_MAX || '30', 10),
+    message: 'Příliš mnoho objednávek najednou. Zkuste to prosím později.',
+  },
+  verifications: {
+    windowMs: parseInt(process.env.RATE_LIMIT_VERIFICATIONS_WINDOW_MS || String(1000 * 60 * 60), 10),
+    max: parseInt(process.env.RATE_LIMIT_VERIFICATIONS_MAX || '10', 10),
+    message: 'Příliš mnoho žádostí o ověření. Zkuste to prosím později.',
+  },
+  conversations: {
+    windowMs: parseInt(process.env.RATE_LIMIT_CONVERSATIONS_WINDOW_MS || String(1000 * 60 * 60), 10),
+    max: parseInt(process.env.RATE_LIMIT_CONVERSATIONS_MAX || '30', 10),
+    message: 'Příliš mnoho nových konverzací. Zkuste to prosím později.',
   },
 };
 
@@ -1247,6 +1267,10 @@ function verifySession(token) {
     return payload;
   } catch { return null; }
 }
+// cookie "Secure" flag se odvozuje od APP_URL (jestli appka běží na https), ne od NODE_ENV —
+// NODE_ENV se na Railway nemusí spolehlivě nastavovat a v produkci na http:// je appka stejně nedostupná,
+// takže tohle je přesnější signál, kdy je bezpečné (a nutné) cookie omezit jen na https
+const COOKIE_SECURE = APP_URL.toLowerCase().startsWith('https://');
 function setSession(res, user) {
   const csrf = user.csrf || createCsrfToken();
   const token = signSession({
@@ -1260,14 +1284,14 @@ function setSession(res, user) {
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: COOKIE_SECURE,
     maxAge: SESSION_TTL_MS,
     path: '/',
   });
   res.cookie(CSRF_COOKIE, csrf, {
     httpOnly: false,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: COOKIE_SECURE,
     maxAge: SESSION_TTL_MS,
     path: '/',
   });
@@ -1525,7 +1549,13 @@ function requireCsrf(req, res, next) {
   if (!trustedRequestOrigin(req)) return res.status(403).json({ error: 'Neplatný původ požadavku.' });
   const headerToken = String(req.headers['x-csrf-token'] || '').trim();
   const cookieToken = String((req.cookies && req.cookies[CSRF_COOKIE]) || '').trim();
-  if (!headerToken || !cookieToken || headerToken !== cookieToken || headerToken !== String(req.session.csrf || '')) {
+  const sessionToken = String(req.session.csrf || '');
+  const tokensMatch = (a, b) => {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    return bufA.length === bufB.length && bufA.length > 0 && crypto.timingSafeEqual(bufA, bufB);
+  };
+  if (!headerToken || !cookieToken || !tokensMatch(headerToken, cookieToken) || !tokensMatch(headerToken, sessionToken)) {
     return res.status(403).json({ error: 'Bezpečnostní token požadavku chybí nebo je neplatný.' });
   }
   next();
@@ -2376,7 +2406,7 @@ async function findScheduleConflict(cid, date, time, hours, excludeOid) {
   return (rows || []).find((o) => Number(o.oid) !== Number(excludeOid || -1) && timeRangesOverlap(time, hours, o.time, o.hours)) || null;
 }
 
-app.post('/api/orders', requireRole('family', 'admin'), h(async (req, res) => {
+app.post('/api/orders', requireRole('family', 'admin'), rateLimit('orders', RATE_LIMITS.orders), h(async (req, res) => {
   const b = req.body || {};
   const cid = Number(b.cid);
   // jedna objednávka může zahrnovat víc služeb naráz — uloženo jako "id1,id2" v jednom textovém poli
@@ -2497,6 +2527,9 @@ app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
   res.type('html').send(html);
 }));
 
+// rodina smí objednávku jen zrušit (z pending/confirmed) nebo označit jako dokončenou (jen z confirmed) —
+// nesmí si sama „přeskočit" přijetí pečovatelkou tím, že si status nastaví přímo na confirmed/pending/declined
+const FAMILY_ALLOWED_ORDER_TRANSITIONS = { cancelled: ['pending', 'confirmed'], done: ['confirmed'] };
 app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
   const status = (req.body || {}).status;
   const allowed = ['pending', 'confirmed', 'done', 'declined', 'cancelled'];
@@ -2507,6 +2540,12 @@ app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
   const isAdmin = req.session && req.session.role === 'admin';
   if (!isAdmin && String(order.family_email || '').toLowerCase() !== String(req.session.email || '').toLowerCase()) {
     return res.status(403).json({ error: 'Tuto objednávku nemůžete upravit.' });
+  }
+  if (!isAdmin) {
+    const fromAllowed = FAMILY_ALLOWED_ORDER_TRANSITIONS[status];
+    if (!fromAllowed || !fromAllowed.includes(order.status)) {
+      return res.status(400).json({ error: 'Tuto změnu stavu nelze provést.' });
+    }
   }
   const rows = await restUpdate(T.orders, `oid=eq.${Number(req.params.oid)}`, { status });
   res.json({ order: rows && rows[0] ? mapOrder(rows[0]) : null });
@@ -2570,7 +2609,7 @@ app.post('/api/requests/:id/decline', requireRole('caregiver', 'admin'), h(async
 
 /* ---------------- OVĚŘENÍ ---------------- */
 // pečovatelka podá žádost o ověření
-app.post('/api/verifications', requireRole('caregiver', 'admin'), h(async (req, res) => {
+app.post('/api/verifications', requireRole('caregiver', 'admin'), rateLimit('verifications', RATE_LIMITS.verifications), h(async (req, res) => {
   const b = req.body || {};
   const name = trimmedString(b.name, 120);
   const email = trimmedString(req.session.role === 'admin' ? (b.email || req.session.email) : req.session.email, 320).toLowerCase();
@@ -2920,7 +2959,7 @@ app.get('/api/conversations', requireAuth, h(async (req, res) => {
 }));
 
 // založ (nebo najdi) konverzaci s protistranou
-app.post('/api/conversations', requireAuth, h(async (req, res) => {
+app.post('/api/conversations', requireAuth, rateLimit('conversations', RATE_LIMITS.conversations), h(async (req, res) => {
   const b = req.body || {};
   const me = String(req.session.uid || '');
   if (!me) return res.status(401).json({ error: 'Nepřihlášeno.' });
@@ -3423,7 +3462,15 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     }
     patch.avail_overrides = out;
   }
-  if (patch.photo !== undefined) patch.photo = patch.photo == null ? null : trimmedString(patch.photo, 2 * 1024 * 1024);
+  if (patch.photo !== undefined) {
+    if (patch.photo == null) {
+      patch.photo = null;
+    } else {
+      const photo = /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(String(patch.photo)) ? sanitizeFileDataUrl(patch.photo, 2 * 1024 * 1024) : null;
+      if (!photo) return res.status(400).json({ error: 'Neplatný formát fotky.' });
+      patch.photo = photo;
+    }
+  }
   if (patch.price_type !== undefined && !['hod', 'den', 'indiv'].includes(String(patch.price_type))) {
     return res.status(400).json({ error: 'Neplatný typ ceny.' });
   }
