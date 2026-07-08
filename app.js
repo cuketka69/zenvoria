@@ -865,7 +865,7 @@ async function openProfile(id,fromPop){
       </div>
       <div class="pdiv"></div>
       <h3>Hodnocení (${revCount})</h3>
-      ${revs.map(r=>`<div class="rev"><div class="ava">${esc(r.init)}</div><div><div class="rb">${esc(r.name)} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join('')}
+      ${revs.map(r=>reviewRowHTML(r,c)).join('')}
     </div>
     <div class="pcard book-aside">
       <h3 style="margin-bottom:4px">Objednat péči</h3>
@@ -1058,6 +1058,54 @@ function handleRealtime(msg){
     if(msg.term&&msg.term.status==='accepted'){bootstrap().then(()=>{updateAuthUI();renderCare();});}
     return;
   }
+}
+/* ---------- recenze: řádek + odpověď pečovatelky ---------- */
+function reviewRowHTML(r,c){
+  const isMine=!!(auth.role==='caregiver'&&auth.email&&c.email&&auth.email.toLowerCase()===c.email.toLowerCase());
+  let extra='';
+  if(r.reply){
+    extra=`<div class="rev-reply"><b>Odpověď pečovatelky</b><p>${esc(r.reply)}</p>${isMine?`<button type="button" class="lnk" onclick="deleteReviewReply(${r.id})">Smazat odpověď</button>`:''}</div>`;
+  }else if(isMine&&r.id){
+    extra=`<button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openReviewReplyBox(${r.id})">Odpovědět</button>
+      <div class="rev-reply-form" id="revReplyForm${r.id}" hidden>
+        <textarea class="inp" id="revReplyInput${r.id}" maxlength="1000" placeholder="Napište odpověď na tuto recenzi…"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button type="button" class="btn btn-gold btn-sm" onclick="submitReviewReply(${r.id})">Odeslat odpověď</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('revReplyForm${r.id}').hidden=true">Zrušit</button>
+        </div>
+      </div>`;
+  }
+  return `<div class="rev"><div class="ava">${esc(r.init)}</div><div><div class="rb">${esc(r.name)} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div>${extra}</div></div>`;
+}
+function openReviewReplyBox(id){
+  const box=document.getElementById('revReplyForm'+id);if(!box)return;
+  box.hidden=!box.hidden;
+  if(!box.hidden){const inp=document.getElementById('revReplyInput'+id);if(inp)setTimeout(()=>inp.focus(),30);}
+}
+function submitReviewReply(id){
+  const inp=document.getElementById('revReplyInput'+id);
+  const text=(inp&&inp.value||'').trim();
+  if(!text){toast('Napište prosím text odpovědi.','declined');return;}
+  apiSync(api('/reviews/'+id+'/reply',{method:'POST',body:{reply:text}}).then(r=>{
+    const cid=state.caregiverId;
+    const list=cgReviews[cid]||[];
+    const rev=list.find(x=>x.id===id);
+    if(rev){rev.reply=r.reply;rev.replyAt=r.replyAt;}
+    toast('Odpověď byla zveřejněna.','success');
+    if(state.profileKind==='caregiver')openProfile(cid);
+  }).catch(e=>{toast('Odpověď se nepodařilo uložit: '+(e.message||''),'declined');}));
+}
+function deleteReviewReply(id){
+  askConfirm({title:'Smazat odpověď?',icon:trashSVG(),message:'Vaše odpověď na tuto recenzi bude odstraněna.',confirmLabel:'Smazat',danger:true,onConfirm:()=>{
+    apiSync(api('/reviews/'+id+'/reply',{method:'DELETE'}).then(()=>{
+      const cid=state.caregiverId;
+      const list=cgReviews[cid]||[];
+      const rev=list.find(x=>x.id===id);
+      if(rev){rev.reply=null;rev.replyAt=null;}
+      toast('Odpověď byla smazána.');
+      if(state.profileKind==='caregiver')openProfile(cid);
+    }).catch(e=>{toast('Smazání se nepodařilo: '+(e.message||''),'declined');}));
+  }});
 }
 function initRealtime(){
   if(!auth.loggedIn){teardownRealtime();return;}

@@ -600,6 +600,12 @@
   .rev .ava{width:42px;height:42px;font-size:15px}
   .rev .rb{font-weight:600;font-size:14px;color:var(--navy-900)}
   .rev .rt{font-size:13.5px;color:var(--muted);margin-top:3px}
+  .rev-reply{margin-top:10px;padding:12px 14px;background:var(--cream);border:1px solid var(--line);border-left:2.5px solid var(--gold);border-radius:0 12px 12px 0}
+  .rev-reply b{display:block;font-size:12px;color:var(--gold-deep);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+  .rev-reply p{font-size:13.5px;color:var(--navy-800);margin:0}
+  .rev-reply .lnk{margin-top:8px;display:inline-block}
+  .rev-reply-form{margin-top:10px}
+  .rev-reply-form textarea{min-height:70px;resize:vertical}
   /* ---------- PRESENCE (online / naposledy aktivní) ---------- */
   .pres-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--muted)}
   .pres-dot.is-online{background:#2Fb463;box-shadow:0 0 0 3px rgba(47,180,99,.18)}

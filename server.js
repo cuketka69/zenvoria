@@ -2168,7 +2168,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
   const cgReviews = {};
   const generalReviews = [];
   (reviews || []).forEach((r) => {
-    const row = { init: r.init, name: r.name, stars: r.stars, text: r.text };
+    const row = { id: Number(r.id), init: r.init, name: r.name, stars: r.stars, text: r.text, reply: r.reply || null, replyAt: r.reply_at || null };
     if (r.caregiver_id == null) generalReviews.push(row);
     else (cgReviews[r.caregiver_id] = cgReviews[r.caregiver_id] || []).push(row);
   });
@@ -2581,6 +2581,44 @@ app.post('/api/reviews', requireAuth, h(async (req, res) => {
   const reviewPerms = permsForPlan(caregiverRows[0].plan, await getPlanPermissions());
   if (!reviewPerms.reviews) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá hodnocení.' });
   await restInsert(T.reviews, { caregiver_id: caregiverId, init, name, stars, text }, { prefer: 'return=minimal' });
+  res.json({ ok: true });
+}));
+
+// pečovatelka odpoví na recenzi u svého profilu (jedna odpověď na recenzi, veřejně viditelná)
+app.post('/api/reviews/:id/reply', requireRole('caregiver', 'admin'), h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID recenze.' });
+  const reply = trimmedString((req.body || {}).reply, 1000);
+  if (!reply) return res.status(400).json({ error: 'Napište prosím text odpovědi.' });
+  const rows = await restSelect(T.reviews, `id=eq.${id}&select=id,caregiver_id&limit=1`);
+  const review = rows && rows[0];
+  if (!review) return res.status(404).json({ error: 'Recenze nenalezena.' });
+  if (req.session.role !== 'admin') {
+    const ownCaregiver = await currentCaregiverRow(req);
+    if (!ownCaregiver || Number(review.caregiver_id) !== Number(ownCaregiver.id)) {
+      return res.status(403).json({ error: 'Na tuto recenzi nemůžete odpovědět.' });
+    }
+  }
+  const replyAt = new Date().toISOString();
+  await restUpdate(T.reviews, `id=eq.${id}`, { reply, reply_at: replyAt }, { prefer: 'return=minimal' });
+  fireAudit('review.reply', { req, actor: auditActor(req), targetType: 'review', targetId: id, status: 'success' });
+  res.json({ ok: true, reply, replyAt });
+}));
+
+// pečovatelka smaže svou odpověď (např. překlep, chce napsat znovu)
+app.delete('/api/reviews/:id/reply', requireRole('caregiver', 'admin'), h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID recenze.' });
+  const rows = await restSelect(T.reviews, `id=eq.${id}&select=id,caregiver_id&limit=1`);
+  const review = rows && rows[0];
+  if (!review) return res.status(404).json({ error: 'Recenze nenalezena.' });
+  if (req.session.role !== 'admin') {
+    const ownCaregiver = await currentCaregiverRow(req);
+    if (!ownCaregiver || Number(review.caregiver_id) !== Number(ownCaregiver.id)) {
+      return res.status(403).json({ error: 'Tuto odpověď nemůžete smazat.' });
+    }
+  }
+  await restUpdate(T.reviews, `id=eq.${id}`, { reply: null, reply_at: null }, { prefer: 'return=minimal' });
   res.json({ ok: true });
 }));
 
