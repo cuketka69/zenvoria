@@ -556,6 +556,33 @@
   </div>
 </div>
 
+<!-- ============ ADMIN · DETAIL RODINY ============ -->
+<div class="modal" id="famAdminModal" role="dialog" aria-modal="true" aria-labelledby="famAdminTitle">
+  <div class="modal-scrim" onclick="closeFamilyAdmin()"></div>
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeFamilyAdmin()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <div class="cga-head">
+      <div class="ava" id="famAdminAva" style="width:58px;height:58px;font-size:21px"></div>
+      <div class="cga-head-tx">
+        <h3 id="famAdminTitle">Rodina</h3>
+        <p class="cga-meta" id="famAdminSub"></p>
+        <div class="cga-badges" id="famAdminBadges"></div>
+      </div>
+    </div>
+
+    <div class="cga-sec-title" style="margin-top:24px">Objednávky (<span id="famAdminOrdCount">0</span>)</div>
+    <div id="famAdminOrders"></div>
+
+    <div class="cga-sec-title" style="margin-top:24px">Akce</div>
+    <div class="cga-actions">
+      <button class="btn btn-block" id="famAdminSuspendBtn" type="button" onclick="famAdminSuspend()">Pozastavit</button>
+      <button class="btn btn-decline btn-block" type="button" onclick="famAdminRemove()">Odebrat rodinu</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ PLATBA PŘEDPLATNÉHO ============ -->
 <div class="modal" id="payModal" role="dialog" aria-modal="true" aria-labelledby="payTitle">
   <div class="modal-scrim" onclick="closePay()"></div>

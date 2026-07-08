@@ -3542,11 +3542,47 @@ function renderAdminUsers(){
     return `<tr>
       <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${badge}</td>
-      <td><div class="adm-actions">
-        <button class="btn btn-sm ${suspended?'btn-accept':'btn-gold'}" onclick="toggleSuspendUser(${u.id})">${suspended?'Obnovit':'Pozastavit'}</button>
-        <button class="btn btn-sm btn-decline" onclick="removeUser(${u.id})">Odebrat</button>
+      <td><div class="adm-actions" style="justify-content:flex-end">
+        <button class="btn btn-sm btn-gold" onclick="openFamilyAdmin(${u.id})">Zobrazit</button>
       </div></td>
     </tr>`;}).join('');
+}
+/* ---- ADMIN: detail rodiny ---- */
+let famAdminId=null;
+function openFamilyAdmin(id){
+  const u=USERS.find(x=>x.id===id);if(!u)return;
+  famAdminId=id;
+  document.getElementById('famAdminTitle').textContent=u.name;
+  document.getElementById('famAdminSub').textContent=`${u.email} · registrace ${fmtDate(u.joined)}`;
+  setAva(document.getElementById('famAdminAva'),u.photo,u.init);
+  const suspended=isUserEffectivelySuspended(u);
+  document.getElementById('famAdminBadges').innerHTML=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
+  const susBtn=document.getElementById('famAdminSuspendBtn');
+  if(susBtn){susBtn.textContent=suspended?'Obnovit rodinu':'Pozastavit';susBtn.className='btn btn-block '+(suspended?'btn-accept':'btn-decline');}
+  const orders=ORDERS.filter(o=>String(o.familyEmail||'').toLowerCase()===String(u.email||'').toLowerCase()).sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('famAdminOrdCount').textContent=orders.length;
+  document.getElementById('famAdminOrders').innerHTML=orders.length?orders.slice(0,8).map(o=>`
+    <div class="row" style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px">
+      <span>${esc(sNames(o.service))} · ${fmtDate(o.date)}</span>
+      <span class="status ${ORDER_STATUS[o.status].cls}">${ORDER_STATUS[o.status].label}</span>
+    </div>`).join(''):'<div class="empty">Zatím žádné objednávky.</div>';
+  const m=document.getElementById('famAdminModal');
+  m.classList.add('open');document.body.style.overflow='hidden';
+}
+function closeFamilyAdmin(){
+  const m=document.getElementById('famAdminModal');
+  if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
+  famAdminId=null;
+}
+function famAdminSuspend(){
+  const id=famAdminId;if(id==null)return;
+  closeFamilyAdmin();
+  toggleSuspendUser(id);
+}
+function famAdminRemove(){
+  const id=famAdminId;if(id==null)return;
+  closeFamilyAdmin();
+  removeUser(id);
 }
 function toggleSuspendUser(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
