@@ -2360,6 +2360,69 @@ app.post('/api/orders', requireRole('family', 'admin'), h(async (req, res) => {
 }));
 
 // změna stavu objednávky (rodina ruší / obecná aktualizace stavu)
+// doklad o objednané péči — tisknutelná stránka (rodina si ji uloží jako PDF přes tisk prohlížeče)
+app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
+  const oid = Number(req.params.oid);
+  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).send('Neplatné ID objednávky.');
+  const rows = await restSelect(T.orders, `oid=eq.${oid}&limit=1`);
+  const o = rows && rows[0];
+  if (!o) return res.status(404).send('Objednávka nenalezena.');
+  const isAdmin = req.session.role === 'admin';
+  const isFamily = req.session.email && o.family_email && req.session.email.toLowerCase() === o.family_email.toLowerCase();
+  let isCaregiver = false;
+  if (!isAdmin && !isFamily && req.session.role === 'caregiver' && o.cid != null) {
+    const own = await currentCaregiverRow(req);
+    isCaregiver = !!(own && Number(own.id) === Number(o.cid));
+  }
+  if (!isAdmin && !isFamily && !isCaregiver) return res.status(403).send('K tomuto dokladu nemáte přístup.');
+  let caregiverName = '', rate = 0, kmPrice = 0;
+  if (o.cid != null) {
+    const cgs = await restSelect(T.caregivers, `id=eq.${o.cid}&select=name,rate,km_price&limit=1`);
+    const cg = cgs && cgs[0];
+    if (cg) { caregiverName = cg.name || ''; rate = Number(cg.rate) || 0; kmPrice = Number(cg.km_price) || 0; }
+  }
+  const serviceRows = await restSelect(T.settings, `key=eq.services&limit=1`);
+  const serviceList = sanitizeServices(serviceRows && serviceRows[0] && serviceRows[0].value);
+  const serviceName = (serviceList.find((s) => s.id === o.service) || {}).name || o.service;
+  const transport = kmPrice && o.km ? kmPrice * Number(o.km) : 0;
+  const total = rate * Number(o.hours) + transport;
+  const statusLabels = { pending: 'Čeká na potvrzení', confirmed: 'Potvrzeno', done: 'Dokončeno', declined: 'Zamítnuto', cancelled: 'Zrušeno' };
+  const html = `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Doklad #${oid} — ZENVORIA</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#1E2A22;max-width:640px;margin:40px auto;padding:0 20px;line-height:1.55}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #C9A233;padding-bottom:18px;margin-bottom:24px}
+  .brand{font-size:22px;font-weight:700;letter-spacing:.06em;color:#0A5A34}
+  .doc-title{font-size:14px;color:#6C786C;margin-top:4px}
+  table{width:100%;border-collapse:collapse;margin:18px 0}
+  td{padding:9px 0;border-bottom:1px solid #E4EDE2;font-size:14.5px}
+  td.l{color:#6C786C;width:45%}
+  td.v{font-weight:600;text-align:right}
+  .total{font-size:19px;font-weight:700;color:#0A5A34}
+  .status{display:inline-block;padding:4px 12px;border-radius:20px;background:#EEF3EC;font-size:13px;font-weight:600}
+  .footer{margin-top:36px;font-size:12px;color:#6C786C}
+  .print-btn{margin-top:24px;padding:10px 20px;background:#C9A233;color:#1A1005;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px}
+  @media print{.print-btn{display:none}}
+</style></head><body>
+  <div class="head"><div><div class="brand">ZENVORIA</div><div class="doc-title">Doklad o objednané péči č. ${oid}</div></div><span class="status">${statusLabels[o.status] || o.status}</span></div>
+  <table>
+    <tr><td class="l">Rodina</td><td class="v">${escapeHtml(o.fam_name || '')}</td></tr>
+    <tr><td class="l">Pečovatelka</td><td class="v">${escapeHtml(caregiverName)}</td></tr>
+    <tr><td class="l">Služba</td><td class="v">${escapeHtml(serviceName)}</td></tr>
+    <tr><td class="l">Datum a čas</td><td class="v">${escapeHtml(o.date)} v ${escapeHtml(o.time)}</td></tr>
+    <tr><td class="l">Délka péče</td><td class="v">${Number(o.hours)} h</td></tr>
+    <tr><td class="l">Adresa</td><td class="v">${escapeHtml(o.addr || '')}</td></tr>
+    <tr><td class="l">Sazba</td><td class="v">${rate} Kč/hod</td></tr>
+    ${transport ? `<tr><td class="l">Doprava (${Number(o.km)} km)</td><td class="v">${transport.toLocaleString('cs-CZ')} Kč</td></tr>` : ''}
+    <tr><td class="l total">Celkem</td><td class="v total">${total.toLocaleString('cs-CZ')} Kč</td></tr>
+  </table>
+  <div class="footer">Vygenerováno ${new Date().toLocaleDateString('cs-CZ')} na ZENVORIA (${APP_URL}). Nejde o daňový doklad — ZENVORIA pouze zprostředkovává kontakt mezi rodinou a pečovatelkou, platba probíhá přímo mezi nimi.</div>
+  <button class="print-btn" onclick="window.print()">Vytisknout / uložit jako PDF</button>
+</body></html>`;
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('html').send(html);
+}));
+
 app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
   const status = (req.body || {}).status;
   const allowed = ['pending', 'confirmed', 'done', 'declined', 'cancelled'];

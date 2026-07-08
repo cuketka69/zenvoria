@@ -4488,6 +4488,7 @@ function renderOrderDetail(){
       ${o.transport>0?`<div class="row" style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span style="color:var(--muted)">Doprava</span><span style="font-weight:600;color:var(--navy-900)">${o.transport.toLocaleString('cs-CZ')} Kč (${o.km} km)</span></div>`:''}
       <div class="total-row"><span class="l" style="color:var(--muted)">Celkem</span><span class="big">${o.price.toLocaleString('cs-CZ')} Kč</span></div>
       <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openChat(${o.viewer==='family'?o.cid:'null'},${jsq(o.cpName)},${jsq(o.cpInit)},${jsq(o.cpChatRole)})">Napsat zprávu</button>
+      ${o.oid?`<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="window.open('/api/orders/${o.oid}/receipt','_blank')">Stáhnout doklad</button>`:''}
       ${action}
     </div>`;
 }
