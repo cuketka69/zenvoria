@@ -692,6 +692,28 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<!-- ============ NÁPOVĚDNÝ CHAT (OpenAI) ============ -->
+<div id="helpChatWidget" hidden>
+  <div id="helpChatPanel" hidden role="dialog" aria-modal="false" aria-labelledby="helpChatTitle">
+    <div class="hc-head">
+      <div class="hc-head-tx"><b id="helpChatTitle">Nápověda ZENVORIA</b><span>Zeptejte se, jak appka funguje</span></div>
+      <button type="button" class="hc-close" aria-label="Zavřít nápovědu" onclick="toggleHelpChat(false)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="hc-body" id="helpChatBody"></div>
+    <form class="hc-foot" onsubmit="return sendHelpChatMessage(event)">
+      <input type="text" id="helpChatInput" placeholder="Napište zprávu…" autocomplete="off" maxlength="500">
+      <button type="submit" class="hc-send" aria-label="Odeslat zprávu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20 20.5 12 4 4l2.5 7L4 20Zm2.5-7h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </form>
+  </div>
+  <button type="button" id="helpChatToggle" onclick="toggleHelpChat()" aria-label="Otevřít nápovědu">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
 <script src="app.js" defer></script>
 </body>
 </html>

@@ -96,6 +96,11 @@ const RATE_LIMITS = {
     max: parseInt(process.env.RATE_LIMIT_CHANGE_EMAIL_CODE_MAX || '10', 10),
     message: 'Příliš mnoho pokusů o ověření nového e-mailu. Zkuste to prosím později.',
   },
+  helpChat: {
+    windowMs: parseInt(process.env.RATE_LIMIT_HELP_CHAT_WINDOW_MS || String(1000 * 60 * 15), 10),
+    max: parseInt(process.env.RATE_LIMIT_HELP_CHAT_MAX || '20', 10),
+    message: 'Příliš mnoho zpráv v nápovědě. Zkuste to prosím za chvíli.',
+  },
 };
 
 const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !== 'false';
@@ -131,6 +136,20 @@ async function loadStripeConfigFromDb() {
       rebuildStripeClient();
     }
   } catch (e) { console.warn('[stripe] nelze načíst konfiguraci z DB:', e.message); }
+}
+
+// --- OpenAI (nápovědný chat na webu) ---
+// stejný princip jako u Stripe klíčů výše: proměnná prostředí NEBO admin panel (Nastavení > Nápověda AI), DB má přednost.
+let openaiApiKey = process.env.OPENAI_API_KEY || '';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+function isOpenAiEnabled() { return !!openaiApiKey; }
+async function loadOpenAiConfigFromDb() {
+  if (!REST_ENABLED) return;
+  try {
+    const rows = await restSelect(T.settings, `key=eq.openAiConfig&limit=1`);
+    const cfg = rows && rows[0] && rows[0].value;
+    if (cfg && typeof cfg === 'object' && cfg.apiKey) openaiApiKey = cfg.apiKey;
+  } catch (e) { console.warn('[openai] nelze načíst konfiguraci z DB:', e.message); }
 }
 
 function isStrongPassword(value) {
@@ -1676,6 +1695,7 @@ app.get('/api/health', (_req, res) => res.json({
   rest: REST_ENABLED,
   geoapifyConfigured: !!GEOAPIFY_API_KEY,
   stripeConfigured: isStripeEnabled(),
+  openaiConfigured: isOpenAiEnabled(),
 }));
 
 /* ---------------- VERZE (auto-reload klientů po deployi) ---------------- */
@@ -2289,6 +2309,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     signupPlan: sanitizeSignupPlan(settings.signupPlan) || { plan: 'none', days: 0 },
     planPermissions: planPerms,
     services: sanitizeServices(settings.services),
+    helpChatEnabled: isOpenAiEnabled(),
     settings,
   });
 }));
@@ -3735,6 +3756,77 @@ app.put('/api/admin/stripe-config', requireRole('admin'), h(async (req, res) => 
   });
 }));
 
+// admin: stav OpenAI konfigurace (klíč se nikdy neposílá celý zpět, jen zamaskovaný)
+app.get('/api/admin/openai-config', requireRole('admin'), h(async (req, res) => {
+  res.json({ configured: !!openaiApiKey, apiKeyMasked: maskSecret(openaiApiKey), model: OPENAI_MODEL });
+}));
+// admin: uloží/aktualizuje OpenAI klíč — projeví se okamžitě, bez restartu serveru
+app.put('/api/admin/openai-config', requireRole('admin'), h(async (req, res) => {
+  const apiKeyRaw = typeof (req.body || {}).apiKey === 'string' ? req.body.apiKey.trim() : undefined;
+  if (apiKeyRaw && !/^sk-\w+$/.test(apiKeyRaw)) {
+    return res.status(400).json({ error: 'Neplatný formát OpenAI API Key — musí začínat sk-.' });
+  }
+  if (apiKeyRaw === undefined) return res.status(400).json({ error: 'Vyplňte API klíč.' });
+  openaiApiKey = apiKeyRaw;
+  await supabaseRestRequest('POST', T.settings, {
+    body: { key: 'openAiConfig', value: { apiKey: openaiApiKey } },
+    prefer: 'resolution=merge-duplicates,return=minimal',
+  });
+  fireAudit('admin.openai.configure', { req, actor: auditActor(req), targetType: 'setting', targetId: 'openAiConfig', status: 'success', metadata: { hasApiKey: !!openaiApiKey } });
+  res.json({ ok: true, configured: !!openaiApiKey });
+}));
+
+// nápovědný chat na webu (OpenAI) — dostupný i pro nepřihlášené návštěvníky, přísně rate-limitovaný (stojí peníze za dotaz)
+const HELP_CHAT_SYSTEM_PROMPT = `Jsi přátelský asistent nápovědy pro ZENVORIA (www.zenvoria.cz) — český online tržiště, které propojuje rodiny s ověřenými pečovatelkami o seniory.
+
+Fakta o platformě, která smíš používat:
+- Rodiny si zdarma vyhledají pečovatelku podle lokality, ceny a nabízených služeb, objednají termín a platí přímo pečovatelce (ZENVORIA platbu nezprostředkovává).
+- Pečovatelky se registrují, projdou ověřením totožnosti a dokladů (nahrají doklad, selfie, osvědčení) a čekají na schválení administrátorem.
+- Pečovatelky mají tarify START (základní, placené měsíčně) a PREMIUM (vyšší zobrazení ve vyhledávání, odznak, více funkcí), obvykle s prvními měsíci zdarma. Platby řeší Stripe.
+- V appce funguje chat mezi rodinou a pečovatelkou, navrhování termínů, kalendář dostupnosti pečovatelky (týdenní rozvrh + jednotlivé výjimky/dovolená), hodnocení po dokončené péči.
+- Podpora: podpora@zenvoria.cz.
+
+Pravidla:
+- Odpovídej vždy česky, stručně a věcně, přátelským tónem.
+- Pokud se tě někdo zeptá na něco mimo tuto platformu (obecné dotazy, jiná témata), zdvořile to odmítni a nasměruj zpět k tomu, jak můžeš pomoct s appkou ZENVORIA.
+- Nevymýšlej si konkrétní údaje o konkrétních pečovatelkách, cenách jednotlivých profilů ani stavu konkrétních objednávek — to nemáš k dispozici. U takových dotazů nasměruj uživatele do appky nebo na podporu.
+- Nikdy nevymýšlej funkce, které appka nemá.`;
+app.post('/api/help-chat', rateLimit('help-chat', RATE_LIMITS.helpChat), h(async (req, res) => {
+  if (!isOpenAiEnabled()) return res.status(503).json({ error: 'Nápovědný chat není nakonfigurovaný.' });
+  const history = Array.isArray((req.body || {}).messages) ? req.body.messages : [];
+  const cleaned = history
+    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+    .slice(-12)
+    .map((m) => ({ role: m.role, content: trimmedString(m.content, 2000) }));
+  if (!cleaned.length || cleaned[cleaned.length - 1].role !== 'user') {
+    return res.status(400).json({ error: 'Chybí zpráva.' });
+  }
+  try {
+    const ext = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [{ role: 'system', content: HELP_CHAT_SYSTEM_PROMPT }, ...cleaned],
+        max_tokens: 500,
+        temperature: 0.4,
+      }),
+    }, 20000);
+    if (!ext.ok) {
+      const body = await ext.text().catch(() => '');
+      console.warn('[openai] chat selhal:', ext.status, body);
+      return res.status(502).json({ error: 'Nápovědný chat momentálně neodpovídá. Zkuste to prosím znovu.' });
+    }
+    const payload = await ext.json();
+    const reply = payload && payload.choices && payload.choices[0] && payload.choices[0].message && payload.choices[0].message.content;
+    if (!reply) return res.status(502).json({ error: 'Nápovědný chat momentálně neodpovídá. Zkuste to prosím znovu.' });
+    res.json({ reply: reply.trim() });
+  } catch (e) {
+    console.warn('[openai] chat chyba:', e.message);
+    res.status(502).json({ error: 'Nápovědný chat momentálně neodpovídá. Zkuste to prosím znovu.' });
+  }
+}));
+
 // admin: přehled všech konverzací (moderace/řešení sporů) — čistě ke čtení, nemění stav přečtení
 app.get('/api/admin/conversations', requireRole('admin'), h(async (req, res) => {
   const rows = await restSelect(T.conversations, `order=last_at.desc.nullslast&select=id,user_a,user_b,last_text,last_at,created_at&limit=300`);
@@ -3982,4 +4074,5 @@ app.listen(PORT, () => {
   loadEmailSocialLinks();
   expireTrials();
   loadStripeConfigFromDb();
+  loadOpenAiConfigFromDb();
 });

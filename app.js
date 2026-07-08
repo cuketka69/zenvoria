@@ -202,6 +202,7 @@ async function go(v,fromPop){
   if(v==='admin-stats')renderAdminStats();
   if(v==='admin-services')renderAdminServices();
   if(v==='admin-payments')renderAdminPayments();
+  if(v==='admin-helpchat')renderAdminOpenAi();
   if(v==='admin-plans')renderAdminPlans();
   if(v==='admin-social')renderAdminSocial();
   if(v==='admin-broadcast')renderAdminBroadcast();
@@ -1433,7 +1434,7 @@ const DEFERRED_VIEW_IDS=new Set([
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
   'chat',
   'order-detail','login','forgot','reset-password','change-email','register',
-  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-payments',
+  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-payments','admin-helpchat',
   'pricing','settings'
 ]);
 let deferredViewsLoaded=false;
@@ -1778,7 +1779,8 @@ const NAV_ADMIN=[
   {v:'admin-stats',label:'Statistiky',fn:"go('admin-stats')"},
   {v:'admin-audit',label:'Audit logy',fn:"go('admin-audit')"},
   {v:'admin-social',label:'Sociální sítě',fn:"go('admin-social')"},
-  {v:'admin-payments',label:'Platby (Stripe)',fn:"go('admin-payments')"}
+  {v:'admin-payments',label:'Platby (Stripe)',fn:"go('admin-payments')"},
+  {v:'admin-helpchat',label:'Nápovědný chat (AI)',fn:"go('admin-helpchat')"}
 ];
 const NAV_FAMILY=[
   {v:'fam-dash',label:'Přehled',fn:"go('fam-dash')"},
@@ -1853,6 +1855,7 @@ function updateAuthUI(){
         +mi("go('admin-stats')",'Statistiky','<path d="M4 20V10M11 20V4M18 20v-7" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-services')",'Správa služeb','<path d="M9 11l3 3L22 4" stroke="#7A736A" stroke-width="1.6"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-payments')",'Platby (Stripe)','<rect x="3" y="5.5" width="18" height="13" rx="2.3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 10h18" stroke="#7A736A" stroke-width="1.6"/>')
+        +mi("go('admin-helpchat')",'Nápovědný chat (AI)','<path d="M4 5h16v11H9l-5 4V5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-social')",'Sociální sítě','<circle cx="6" cy="12" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="6.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="17.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><path d="m8 11 7-3.4M8 13l7 3.4" stroke="#7A736A" stroke-width="1.6"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
@@ -3884,6 +3887,36 @@ function saveStripeConfig(e){
   return false;
 }
 
+/* ---- ADMIN: OpenAI klíč (nápovědný chat) ---- */
+async function renderAdminOpenAi(){
+  const banner=document.getElementById('openaiStatusBanner');
+  const err=document.getElementById('openaiErr');if(err)err.textContent='';
+  document.getElementById('openaiApiKey').value='';
+  if(banner)banner.innerHTML='<div class="empty">Načítám stav…</div>';
+  let s;
+  try{s=await api('/admin/openai-config');}
+  catch(e){if(banner)banner.innerHTML='';toast('Stav se nepodařilo načíst: '+(e.message||''),'declined');return;}
+  if(!banner)return;
+  banner.innerHTML=s.configured
+    ?`<div class="verify-banner ok"><span class="vb-ic">${checkCircleSVG(26)}</span><div class="vb-t"><b>Nápovědný chat je aktivní (${esc(s.apiKeyMasked)})</b><span>Model: ${esc(s.model)}</span></div></div>`
+    :`<div class="verify-banner wait"><span class="vb-ic" style="color:var(--gold-deep)">${warnSVG(26)}</span><div class="vb-t"><b>Nápovědný chat není nakonfigurovaný</b><span>Bez API klíče se plovoucí chat na webu nezobrazí.</span></div></div>`;
+}
+function saveOpenAiConfig(e){
+  if(e)e.preventDefault();
+  const apiKey=document.getElementById('openaiApiKey').value.trim();
+  const err=document.getElementById('openaiErr');if(err)err.textContent='';
+  if(!apiKey){if(err)err.textContent='Vyplňte API klíč.';return false;}
+  apiSync(api('/admin/openai-config',{method:'PUT',body:{apiKey}}).then(()=>{
+    toast('OpenAI klíč byl uložen.','success');
+    renderAdminOpenAi();
+    helpChatConfigured=true;
+    renderHelpChatButton();
+  }).catch(e2=>{
+    if(err)err.textContent=e2.message||'Uložení se nezdařilo.';
+  }));
+  return false;
+}
+
 /* ---- audit log: čitelné české popisky ---- */
 const AUDIT_ACTION_LABELS={
   'auth.login':'Přihlášení',
@@ -5565,6 +5598,8 @@ async function bootstrap(){
   if(d.signupPlan)signupPlan={plan:d.signupPlan.plan==='premium'?'premium':(d.signupPlan.plan==='start'?'start':'none'),days:Number(d.signupPlan.days)||0};
   if(d.planPermissions)planPermissions=d.planPermissions;
   if(Array.isArray(d.services)&&d.services.length)SERVICES=d.services;
+  helpChatConfigured=!!d.helpChatEnabled;
+  renderHelpChatButton();
   if(d.socialLinks)Object.assign(socialLinks,d.socialLinks);
   // seq čítače z maxim (kdyby něco generovalo id lokálně)
   orderSeq=ORDERS.reduce((m,o)=>Math.max(m,o.oid||0),0);
@@ -5777,4 +5812,56 @@ function hideAppLoader(){
   const el=document.getElementById('appLoader');
   if(el){el.classList.add('hide');el.setAttribute('aria-hidden','true');}
 }
+
+/* ---------- NÁPOVĚDNÝ CHAT (OpenAI) — plovoucí bublina, funguje i nepřihlášeným ---------- */
+let helpChatConfigured=false;
+let helpChatOpen=false;
+let helpChatMessages=[];
+let helpChatBusy=false;
+function renderHelpChatButton(){
+  const wrap=document.getElementById('helpChatWidget');
+  if(wrap)wrap.hidden=!helpChatConfigured;
+}
+function toggleHelpChat(force){
+  const panel=document.getElementById('helpChatPanel');
+  if(!panel)return;
+  helpChatOpen=force!=null?force:!helpChatOpen;
+  panel.hidden=!helpChatOpen;
+  if(helpChatOpen){
+    if(!helpChatMessages.length){
+      helpChatMessages.push({role:'assistant',content:'Ahoj! Jsem asistent ZENVORIA. Zeptejte se mě na cokoli o tom, jak appka funguje — registrace, ověření, tarify, objednávání péče…'});
+      renderHelpChatMessages();
+    }
+    setTimeout(()=>{const inp=document.getElementById('helpChatInput');if(inp)inp.focus();},60);
+  }
+}
+function renderHelpChatMessages(){
+  const body=document.getElementById('helpChatBody');
+  if(!body)return;
+  body.innerHTML=helpChatMessages.map(m=>`<div class="hc-msg ${m.role==='user'?'me':'bot'}">${esc(m.content)}</div>`).join('')
+    +(helpChatBusy?'<div class="hc-msg bot hc-typing"><span></span><span></span><span></span></div>':'');
+  body.scrollTop=body.scrollHeight;
+}
+function sendHelpChatMessage(e){
+  if(e)e.preventDefault();
+  if(helpChatBusy)return false;
+  const inp=document.getElementById('helpChatInput');
+  const text=(inp.value||'').trim();
+  if(!text)return false;
+  inp.value='';
+  helpChatMessages.push({role:'user',content:text});
+  helpChatBusy=true;
+  renderHelpChatMessages();
+  api('/help-chat',{method:'POST',body:{messages:helpChatMessages}}).then(r=>{
+    helpChatBusy=false;
+    helpChatMessages.push({role:'assistant',content:(r&&r.reply)||'Omlouvám se, teď nemůžu odpovědět. Zkuste to prosím znovu.'});
+    renderHelpChatMessages();
+  }).catch(e2=>{
+    helpChatBusy=false;
+    helpChatMessages.push({role:'assistant',content:'Omlouvám se, něco se pokazilo ('+(e2.message||'zkuste to prosím znovu')+').'});
+    renderHelpChatMessages();
+  });
+  return false;
+}
+
 initApp().catch(e=>console.error('initApp',e)).finally(hideAppLoader);
