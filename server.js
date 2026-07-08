@@ -2970,6 +2970,13 @@ app.post('/api/conversations', requireAuth, rateLimit('conversations', RATE_LIMI
   let rows = await restSelect(T.conversations, `pair_key=eq.${encodeURIComponent(key)}&select=*&limit=1`);
   let conv = rows && rows[0];
   if (!conv) {
+    // chat je určený jen pro dvojici rodina <-> pečovatelka; admin smí založit konverzaci s kýmkoli (moderace/podpora)
+    if (req.session.role !== 'admin') {
+      const otherRows = await restSelect(T.users, `id=eq.${Number(other)}&select=role&limit=1`);
+      const otherRole = otherRows && otherRows[0] && otherRows[0].role;
+      const isValidPair = (req.session.role === 'family' && otherRole === 'caregiver') || (req.session.role === 'caregiver' && otherRole === 'family');
+      if (!isValidPair) return res.status(403).json({ error: 'Konverzaci lze založit jen mezi rodinou a pečovatelkou.' });
+    }
     if (req.session.role === 'caregiver') {
       const ownCg = await currentCaregiverRow(req);
       const chatPerms = permsForPlan(ownCg && ownCg.plan, await getPlanPermissions());
