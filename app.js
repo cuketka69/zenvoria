@@ -160,6 +160,8 @@ async function copyLegalLink(){
 const GUEST_ALLOWED_VIEWS=new Set(['home','search','howto','profile','pricing','legal','login','register','forgot','reset-password','change-email']);
 async function go(v,fromPop){
   if(!auth.loggedIn&&!GUEST_ALLOWED_VIEWS.has(v))v='home';
+  // admin-* stránky smí zobrazit jen přihlášený správce systému — chrání to i nové stránky, ne jen ty se svým vlastním hlídáním v render funkci
+  if(v.indexOf('admin-')===0&&!(auth.loggedIn&&auth.role==='admin'))v=auth.loggedIn?landingView():'home';
   let target=document.getElementById('view-'+v);
   if(!target&&isDeferredView(v)){
     try{
@@ -1770,7 +1772,13 @@ const NAV_ADMIN=[
   {v:'admin-users',label:'Uživatelé',fn:"go('admin-users')"},
   {v:'admin-broadcast',label:'Zprávy',fn:"go('admin-broadcast')"},
   {v:'admin-plans',label:'Tarify',fn:"go('admin-plans')"},
-  {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"}
+  {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"},
+  {v:'admin-services',label:'Správa služeb',fn:"go('admin-services')"},
+  {v:'admin-chats',label:'Konverzace',fn:"go('admin-chats')"},
+  {v:'admin-stats',label:'Statistiky',fn:"go('admin-stats')"},
+  {v:'admin-audit',label:'Audit logy',fn:"go('admin-audit')"},
+  {v:'admin-social',label:'Sociální sítě',fn:"go('admin-social')"},
+  {v:'admin-payments',label:'Platby (Stripe)',fn:"go('admin-payments')"}
 ];
 const NAV_FAMILY=[
   {v:'fam-dash',label:'Přehled',fn:"go('fam-dash')"},
