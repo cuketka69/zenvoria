@@ -3704,6 +3704,20 @@ app.put('/api/admin/stripe-config', requireRole('admin'), h(async (req, res) => 
   // prázdný řetězec = záměrně smazat, undefined = ponechat beze změny
   const nextSecretKey = secretKeyRaw !== undefined ? secretKeyRaw : stripeSecretKey;
   const nextWebhookSecret = webhookSecretRaw !== undefined ? webhookSecretRaw : stripeWebhookSecret;
+  const modeOf = (k) => (k.startsWith('sk_live_') ? 'live' : (k.startsWith('sk_test_') ? 'test' : null));
+  const prevMode = modeOf(stripeSecretKey);
+  const nextMode = modeOf(nextSecretKey);
+  // test a live jsou v samostatných Stripe účtech — zákaznická/předplatná ID z jednoho módu v druhém neexistují.
+  // Při přepnutí módu (typicky test → live při spuštění ostrého provozu) je proto potřeba je smazat, jinak
+  // by první další platba selhala ("No such customer") u každého, kdo si dřív prošel testovacím checkoutem.
+  let clearedStaleIds = 0;
+  if (secretKeyRaw !== undefined && prevMode && nextMode && prevMode !== nextMode) {
+    const stale = await restSelect(T.caregivers, `stripe_customer_id=not.is.null&select=id`);
+    clearedStaleIds = (stale || []).length;
+    if (clearedStaleIds) {
+      await restUpdate(T.caregivers, `stripe_customer_id=not.is.null`, { stripe_customer_id: null, stripe_subscription_id: null }, { prefer: 'return=minimal' });
+    }
+  }
   await supabaseRestRequest('POST', T.settings, {
     body: { key: 'stripeConfig', value: { secretKey: nextSecretKey, webhookSecret: nextWebhookSecret } },
     prefer: 'resolution=merge-duplicates,return=minimal',
@@ -3711,12 +3725,13 @@ app.put('/api/admin/stripe-config', requireRole('admin'), h(async (req, res) => 
   stripeSecretKey = nextSecretKey;
   stripeWebhookSecret = nextWebhookSecret;
   rebuildStripeClient();
-  fireAudit('admin.stripe.configure', { req, actor: auditActor(req), targetType: 'setting', targetId: 'stripeConfig', status: 'success', metadata: { hasSecretKey: !!stripeSecretKey, hasWebhookSecret: !!stripeWebhookSecret } });
+  fireAudit('admin.stripe.configure', { req, actor: auditActor(req), targetType: 'setting', targetId: 'stripeConfig', status: 'success', metadata: { hasSecretKey: !!stripeSecretKey, hasWebhookSecret: !!stripeWebhookSecret, modeChanged: prevMode !== nextMode, clearedStaleIds } });
   res.json({
     ok: true,
     configured: !!stripeSecretKey,
     webhookConfigured: !!stripeWebhookSecret,
-    mode: stripeSecretKey.startsWith('sk_live_') ? 'live' : (stripeSecretKey.startsWith('sk_test_') ? 'test' : 'neznámý'),
+    mode: nextMode || 'neznámý',
+    clearedStaleIds,
   });
 }));
 

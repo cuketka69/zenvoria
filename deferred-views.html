@@ -1029,7 +1029,15 @@
           <li><b>Webhook Signing Secret</b>: Developers → Webhooks → přidejte endpoint <code id="stripeWebhookUrlHint">…</code> a zkopírujte jeho signing secret.</li>
         </ol>
         <div class="pdiv"></div>
-        <p style="font-size:13px;color:var(--muted)">Testovací klíče (<code>sk_test_…</code>) neúčtují žádné skutečné peníze — pro ostrý provoz je potřeba přepnout na <code>sk_live_…</code>.</p>
+        <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m5 12 5 5 9-11" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Postup pro spuštění ostrého provozu</div>
+        <ol style="margin:0;padding-left:20px;color:var(--navy-800);font-size:13.5px;line-height:1.9">
+          <li>Ve Stripe přepněte vlevo nahoře přepínač ze <b>Sandbox/Test</b> na <b>Live</b>.</li>
+          <li>V živém režimu zkopírujte <b>Secret Key</b> (<code>sk_live_…</code>) z Developers → API keys.</li>
+          <li>Tamtéž v Developers → Webhooks znovu přidejte endpoint <code id="stripeWebhookUrlHint2">…</code> — <b>živý</b> webhook je jiný záznam než testovací, i URL bude stejná.</li>
+          <li>Oba klíče vložte sem a uložte — appka automaticky pozná přepnutí režimu a smaže stará testovací zákaznická ID, ať nikomu nespadne platba.</li>
+        </ol>
+        <div class="pdiv"></div>
+        <p style="font-size:13px;color:var(--muted)">Testovací klíče (<code>sk_test_…</code>) neúčtují žádné skutečné peníze. Test a Live jsou ve Stripe oddělené účty — klíče, webhooky i zákazníci se mezi nimi nepřenášejí.</p>
       </div>
     </div>
   </div>

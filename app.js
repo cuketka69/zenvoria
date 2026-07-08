@@ -3805,8 +3805,11 @@ function saveServices(next,successMsg){
 
 /* ---- ADMIN: Stripe klíče (Secret Key + Webhook Signing Secret) ---- */
 async function renderAdminPayments(){
+  const webhookUrl=location.origin+'/api/billing/webhook';
   const hintEl=document.getElementById('stripeWebhookUrlHint');
-  if(hintEl)hintEl.textContent=location.origin+'/api/billing/webhook';
+  if(hintEl)hintEl.textContent=webhookUrl;
+  const hintEl2=document.getElementById('stripeWebhookUrlHint2');
+  if(hintEl2)hintEl2.textContent=webhookUrl;
   const banner=document.getElementById('stripeStatusBanner');
   const err=document.getElementById('stripeErr');if(err)err.textContent='';
   document.getElementById('stripeSecretKey').value='';
@@ -3832,8 +3835,10 @@ function saveStripeConfig(e){
   const body={};
   if(secretKey)body.secretKey=secretKey;
   if(webhookSecret)body.webhookSecret=webhookSecret;
-  apiSync(api('/admin/stripe-config',{method:'PUT',body}).then(()=>{
-    toast('Stripe klíče byly uloženy.','success');
+  apiSync(api('/admin/stripe-config',{method:'PUT',body}).then(r=>{
+    toast(r&&r.clearedStaleIds
+      ?`Stripe klíče uloženy. Přepnuli jste režim, takže jsem u ${r.clearedStaleIds} pečovatelek smazal stará zákaznická ID z předchozího režimu (jinak by jim příští platba selhala).`
+      :'Stripe klíče byly uloženy.','success');
     renderAdminPayments();
   }).catch(e2=>{
     if(err)err.textContent=e2.message||'Uložení se nezdařilo.';
