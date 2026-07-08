@@ -160,7 +160,9 @@
         <div class="days" id="cgCalDays"></div>
         <div style="margin-top:18px;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--muted)">
           <div style="display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;border-radius:50%;background:var(--gold);display:inline-block"></span> Naplánovaná služba</div>
-          <div style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(192,71,59,.22);display:inline-block"></span> Blokováno (dovolená) — klikněte na volný den v kalendáři a zablokujte ho</div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(192,71,59,.22);display:inline-block"></span> Blokováno (dovolená)</div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;border-radius:3px;box-shadow:inset 0 0 0 1.5px #2E7DD1;display:inline-block"></span> Výjimka (vlastní hodiny jen ten den)</div>
+          <div>Klikněte na volný den v kalendáři a upravte ho.</div>
         </div>
         <div class="pdiv"></div>
         <div class="avail-range-add-label">Přidat volno na víc dní najednou</div>
@@ -190,6 +192,35 @@
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ============ CAREGIVER · ÚPRAVA JEDNOHO DNE (výjimka / dovolená) ============ -->
+<div class="modal" id="dayOverrideModal" role="dialog" aria-modal="true" aria-labelledby="dayOverrideTitle">
+  <div class="modal-scrim" onclick="closeDayOverride()"></div>
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeDayOverride()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <h3 id="dayOverrideTitle">Upravit den</h3>
+    <p class="msub" id="dayOverrideSub"></p>
+    <div class="day-ov-opts">
+      <button type="button" class="day-ov-opt" data-mode="weekly" onclick="setDayOverrideMode('weekly')">
+        <b>Podle týdenního rozvrhu</b><span>Beze změny — platí obvyklá dostupnost.</span>
+      </button>
+      <button type="button" class="day-ov-opt" data-mode="custom" onclick="setDayOverrideMode('custom')">
+        <b>Vlastní hodiny jen pro tento den</b><span>Nastavte jiný čas, než máte obvykle.</span>
+      </button>
+      <button type="button" class="day-ov-opt" data-mode="blocked" onclick="setDayOverrideMode('blocked')">
+        <b>Celý den volno</b><span>Zablokovat den (dovolená).</span>
+      </button>
+    </div>
+    <div class="avail-range-row" id="dayOverrideTimeRow" hidden style="margin-top:6px">
+      <input type="time" class="inp" id="dayOverrideFrom">
+      <span class="avail-range-sep">–</span>
+      <input type="time" class="inp" id="dayOverrideTo">
+    </div>
+    <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="saveDayOverride()">Uložit</button>
   </div>
 </div>
 

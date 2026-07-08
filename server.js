@@ -1526,6 +1526,7 @@ function mapCaregiver(c, permsSetting) {
     langs: c.langs || ['Čeština'],
     priceType: c.price_type, dayRate: c.day_rate, radius: c.radius, kmPrice: c.km_price,
     photo: c.photo || null, email: c.email || null, avail: c.avail || null, blockedDates: c.blocked_dates || [],
+    availOverrides: c.avail_overrides || {},
     views: Number(c.views || 0), perms: permsForPlan(c.plan, permsSetting),
   };
 }
@@ -1535,6 +1536,7 @@ function mapCaregiverForViewer(c, opts = {}) {
   delete row.email;
   delete row.avail;
   delete row.blockedDates;
+  delete row.availOverrides;
   delete row.idVerified;
   delete row.planStatus;
   delete row.trialUntil;
@@ -2304,6 +2306,21 @@ function isWithinAvailability(avail, dateStr, timeStr, hours) {
 function isDateBlocked(blockedDates, dateStr) {
   return Array.isArray(blockedDates) && blockedDates.includes(dateStr);
 }
+// pro konkrétní datum může mít pečovatelka výjimku z týdenního vzorce (jiné hodiny jen ten den) — {"2026-08-15":{"from":"08:00","to":"12:00"}}
+function getDateOverride(availOverrides, dateStr) {
+  const o = availOverrides && typeof availOverrides === 'object' ? availOverrides[dateStr] : null;
+  if (!o || !o.from || !o.to) return null;
+  return { from: o.from, to: o.to };
+}
+// zkontroluje čas proti výjimce pro konkrétní datum (pokud existuje), jinak proti týdennímu vzorci; vrací {ok, reason}
+function checkAvailabilityFor(caregiver, dateStr, timeStr, hours) {
+  if (isDateBlocked(caregiver.blocked_dates, dateStr)) return { ok: false, reason: 'blocked' };
+  const startH = timeToHours(timeStr);
+  const endH = startH + Number(hours);
+  const override = getDateOverride(caregiver.avail_overrides, dateStr);
+  if (override) return { ok: startH >= timeToHours(override.from) && endH <= timeToHours(override.to), reason: 'override', override };
+  return { ok: isWithinAvailability(caregiver.avail, dateStr, timeStr, hours), reason: 'weekly' };
+}
 function timeRangesOverlap(aStart, aHours, bStart, bHours) {
   const aS = timeToHours(aStart), aE = aS + Number(aHours);
   const bS = timeToHours(bStart), bE = bS + Number(bHours);
@@ -2337,18 +2354,21 @@ app.post('/api/orders', requireRole('family', 'admin'), h(async (req, res) => {
   const oid = await nextId(T.orders, 'oid');
   const famName = trimmedString(req.session.name || b.famName || 'Rodina', 120) || 'Rodina';
   let caregiverName = '';
-  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended,plan,avail,blocked_dates&limit=1`);
+  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended,plan,avail,blocked_dates,avail_overrides&limit=1`);
   if (caregiverRows && caregiverRows[0]) caregiverName = caregiverRows[0].name || '';
   const caregiver = caregiverRows && caregiverRows[0];
   if (!caregiver) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
   if (caregiver.suspended || caregiver.verified === false) return res.status(400).json({ error: 'Pečovatelka není aktuálně dostupná.' });
   const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
   if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
-  if (isDateBlocked(caregiver.blocked_dates, date)) {
-    return res.status(400).json({ error: 'Pečovatelka má tento den blokovaný (dovolená).' });
-  }
-  if (!isWithinAvailability(caregiver.avail, date, time, hours)) {
-    return res.status(400).json({ error: 'Zvolený čas je mimo dostupnost pečovatelky. Zkontrolujte prosím její kalendář dostupnosti.' });
+  const availCheck = checkAvailabilityFor(caregiver, date, time, hours);
+  if (!availCheck.ok) {
+    const msg = availCheck.reason === 'blocked'
+      ? 'Pečovatelka má tento den blokovaný (dovolená).'
+      : availCheck.reason === 'override'
+        ? `Pečovatelka má pro tento den výjimku z rozvrhu (${availCheck.override.from}–${availCheck.override.to}).`
+        : 'Zvolený čas je mimo dostupnost pečovatelky. Zkontrolujte prosím její kalendář dostupnosti.';
+    return res.status(400).json({ error: msg });
   }
   const conflict = await findScheduleConflict(cid, date, time, hours);
   if (conflict) return res.status(409).json({ error: 'Pečovatelka má na tento termín už potvrzenou jinou objednávku.' });
@@ -2772,7 +2792,7 @@ async function resolveConversationParties(conv) {
   const caregiverUser = users.find((u) => u.role === 'caregiver') || null;
   let caregiver = null;
   if (caregiverUser) {
-    const cgRows = await restSelect(T.caregivers, `user_id=eq.${encodeURIComponent(caregiverUser.id)}&select=id,name,plan,suspended,verified,avail,blocked_dates&limit=1`);
+    const cgRows = await restSelect(T.caregivers, `user_id=eq.${encodeURIComponent(caregiverUser.id)}&select=id,name,plan,suspended,verified,avail,blocked_dates,avail_overrides&limit=1`);
     caregiver = (cgRows && cgRows[0]) || null;
   }
   return { family, caregiver };
@@ -2950,11 +2970,14 @@ app.post('/api/conversations/:id/messages/:mid/term/accept', requireAuth, requir
   const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
   if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
   const t = row.term;
-  if (isDateBlocked(caregiver.blocked_dates, t.date)) {
-    return res.status(400).json({ error: 'Pečovatelka má tento den blokovaný (dovolená).' });
-  }
-  if (!isWithinAvailability(caregiver.avail, t.date, t.time, t.hours)) {
-    return res.status(400).json({ error: 'Navržený čas je mimo dostupnost pečovatelky.' });
+  const availCheck = checkAvailabilityFor(caregiver, t.date, t.time, t.hours);
+  if (!availCheck.ok) {
+    const msg = availCheck.reason === 'blocked'
+      ? 'Pečovatelka má tento den blokovaný (dovolená).'
+      : availCheck.reason === 'override'
+        ? `Pečovatelka má pro tento den výjimku z rozvrhu (${availCheck.override.from}–${availCheck.override.to}).`
+        : 'Navržený čas je mimo dostupnost pečovatelky.';
+    return res.status(400).json({ error: msg });
   }
   const conflict = await findScheduleConflict(caregiver.id, t.date, t.time, t.hours);
   if (conflict) return res.status(409).json({ error: `Na tento termín už existuje potvrzená objednávka (#${conflict.oid}).` });
@@ -3284,10 +3307,11 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   // jen povolená pole
   const map = { name: 'name', loc: 'loc', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
     plan: 'plan', priceType: 'price_type', dayRate: 'day_rate', radius: 'radius', kmPrice: 'km_price',
-    photo: 'photo', avail: 'avail', blockedDates: 'blocked_dates', suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until' };
+    photo: 'photo', avail: 'avail', blockedDates: 'blocked_dates', availOverrides: 'avail_overrides',
+    suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until' };
   for (const k in map) if (b[k] !== undefined) patch[map[k]] = b[k];
   // úprava vlastního profilu vyžaduje oprávnění „Správa profilu" u aktuálního tarifu
-  const PROFILE_FIELD_KEYS = new Set(['name', 'loc', 'rate', 'exp', 'bio', 'services', 'langs', 'priceType', 'dayRate', 'radius', 'kmPrice', 'photo', 'avail', 'blockedDates']);
+  const PROFILE_FIELD_KEYS = new Set(['name', 'loc', 'rate', 'exp', 'bio', 'services', 'langs', 'priceType', 'dayRate', 'radius', 'kmPrice', 'photo', 'avail', 'blockedDates', 'availOverrides']);
   if (!isAdmin && Object.keys(b).some((k) => PROFILE_FIELD_KEYS.has(k))) {
     const perms = permsForPlan(ownCaregiver.plan, await getPlanPermissions());
     if (!perms.manageProfile) return res.status(403).json({ error: 'Úprava profilu není ve vašem aktuálním tarifu dostupná.' });
@@ -3330,6 +3354,18 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
       const to = isHHMM(d.to) ? d.to : '18:00';
       return { on: !!d.on && timeToHours(from) < timeToHours(to), from, to };
     });
+  }
+  if (patch.avail_overrides !== undefined) {
+    const isHHMM = (v) => /^\d{2}:\d{2}$/.test(v || '');
+    const src = patch.avail_overrides && typeof patch.avail_overrides === 'object' ? patch.avail_overrides : {};
+    const out = {};
+    for (const dateKey of Object.keys(src).slice(0, 300)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) continue;
+      const d = src[dateKey] || {};
+      if (!isHHMM(d.from) || !isHHMM(d.to) || timeToHours(d.from) >= timeToHours(d.to)) continue;
+      out[dateKey] = { from: d.from, to: d.to };
+    }
+    patch.avail_overrides = out;
   }
   if (patch.photo !== undefined) patch.photo = patch.photo == null ? null : trimmedString(patch.photo, 2 * 1024 * 1024);
   if (patch.price_type !== undefined && !['hod', 'den', 'indiv'].includes(String(patch.price_type))) {

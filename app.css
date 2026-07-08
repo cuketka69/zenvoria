@@ -683,6 +683,17 @@
   .day.blocked{background:repeating-linear-gradient(135deg,rgba(192,71,59,.16),rgba(192,71,59,.16) 4px,transparent 4px,transparent 9px);
     color:#C0473B;text-decoration:line-through;font-weight:600}
   .day.blocked:hover{background:repeating-linear-gradient(135deg,rgba(192,71,59,.26),rgba(192,71,59,.26) 4px,transparent 4px,transparent 9px)}
+  .day.override{box-shadow:inset 0 0 0 1.5px #2E7DD1;color:#2E7DD1;font-weight:700}
+  .day.override:hover{background:rgba(46,125,209,.12)}
+
+  /* ---------- ÚPRAVA JEDNOHO DNE (výjimka / dovolená) ---------- */
+  .day-ov-opts{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+  .day-ov-opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;
+    padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;background:var(--white);cursor:pointer;transition:.15s}
+  .day-ov-opt b{font-size:14px;color:var(--navy-900)}
+  .day-ov-opt span{font-size:12.5px;color:var(--muted)}
+  .day-ov-opt:hover{border-color:var(--gold)}
+  .day-ov-opt.on{border-color:var(--gold);background:rgba(201,162,51,.1)}
 
   .tabs{display:flex;gap:6px;background:var(--cream-2);padding:5px;border-radius:13px;margin-bottom:18px;width:fit-content}
   .tab{padding:9px 20px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);transition:.16s}

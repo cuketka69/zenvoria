@@ -4213,6 +4213,8 @@ function refreshCg(){
 /* caregiver availability calendar */
 let cgCalMonth=TODAY.getMonth(),cgCalYear=TODAY.getFullYear();
 let cgBlockedDates=[];
+/* výjimky z týdenního vzorce pro konkrétní budoucí datum, např. {"2026-08-15":{"from":"08:00","to":"12:00"}} */
+let cgAvailOverrides={};
 function isoDateYMD(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
 function renderCgCalendar(){
   document.getElementById('cgCalTitle').textContent=MONTHS[cgCalMonth]+' '+cgCalYear;
@@ -4229,10 +4231,11 @@ function renderCgCalendar(){
     const iso=isoDateYMD(cgCalYear,cgCalMonth,d);
     const isPast=new Date(cgCalYear,cgCalMonth,d)<todayMid;
     const blocked=cgBlockedDates.includes(iso);
+    const override=cgAvailOverrides[iso];
     const clickable=!has&&!isPast;
-    const cls=`day ${has?'has':''} ${today?'today':''} ${blocked?'blocked':''}`;
-    const action=has?`toast('Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:(clickable?`toggleBlockedDate('${iso}')`:'');
-    const title=blocked?'Blokováno (dovolená) — klikněte pro zrušení':(clickable?'Klikněte pro zablokování dne (dovolená)':'');
+    const cls=`day ${has?'has':''} ${today?'today':''} ${blocked?'blocked':''} ${override&&!blocked?'override':''}`;
+    const action=has?`toast('Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:(clickable?`openDayOverride('${iso}')`:'');
+    const title=blocked?'Blokováno (dovolená) — klikněte pro úpravu':(override?`Výjimka: ${override.from}–${override.to} — klikněte pro úpravu`:(clickable?'Klikněte pro úpravu tohoto dne':''));
     html+=`<div class="${cls}" ${has||clickable?'role="button" tabindex="0"':''} title="${title}" onclick="${action}">${d}</div>`;
   }
   document.getElementById('cgCalDays').innerHTML=html;
@@ -4307,14 +4310,60 @@ function availClearAll(){
   saveCgAvail();renderAvailEditor();
   toast('Dostupnost vymazána — nastavte ji, až budete znovu k dispozici.');
 }
-/* jednotlivé blokované dny (dovolená) — nezávisle na týdenním vzorci dostupnosti */
-function toggleBlockedDate(iso){
-  const i=cgBlockedDates.indexOf(iso);
-  const wasBlocked=i>=0;
-  if(wasBlocked)cgBlockedDates.splice(i,1);else cgBlockedDates.push(iso);
-  saveCgBlockedDates();
+/* jednotlivé dny lze buď zablokovat (dovolená), nebo jim nastavit vlastní hodiny jen pro ten den (výjimka) */
+let dayOverrideDate=null;
+let dayOverrideMode='weekly';
+function openDayOverride(iso){
+  dayOverrideDate=iso;
+  const ov=cgAvailOverrides[iso];
+  dayOverrideMode=cgBlockedDates.includes(iso)?'blocked':(ov?'custom':'weekly');
+  document.getElementById('dayOverrideSub').textContent=fmtDate(iso);
+  const fromEl=document.getElementById('dayOverrideFrom'),toEl=document.getElementById('dayOverrideTo');
+  fromEl.value=ov?ov.from:'08:00';
+  toEl.value=ov?ov.to:'18:00';
+  if(fromEl._ddRefresh)fromEl._ddRefresh();
+  if(toEl._ddRefresh)toEl._ddRefresh();
+  syncDayOverrideUI();
+  const m=document.getElementById('dayOverrideModal');
+  m.classList.add('open');document.body.style.overflow='hidden';
+}
+function setDayOverrideMode(mode){dayOverrideMode=mode;syncDayOverrideUI();}
+function syncDayOverrideUI(){
+  document.querySelectorAll('.day-ov-opt').forEach(el=>el.classList.toggle('on',el.dataset.mode===dayOverrideMode));
+  const row=document.getElementById('dayOverrideTimeRow');
+  if(row)row.hidden=dayOverrideMode!=='custom';
+}
+function closeDayOverride(){
+  const m=document.getElementById('dayOverrideModal');
+  if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
+  dayOverrideDate=null;
+}
+function saveDayOverride(){
+  const iso=dayOverrideDate;if(!iso)return;
+  const blockedIdx=cgBlockedDates.indexOf(iso);
+  if(dayOverrideMode==='blocked'){
+    if(blockedIdx<0)cgBlockedDates.push(iso);
+    delete cgAvailOverrides[iso];
+  }else if(dayOverrideMode==='custom'){
+    if(blockedIdx>=0)cgBlockedDates.splice(blockedIdx,1);
+    const from=document.getElementById('dayOverrideFrom').value||'08:00';
+    const to=document.getElementById('dayOverrideTo').value||'18:00';
+    if(from>=to){toast('Konec musí být později než začátek.','declined');return;}
+    cgAvailOverrides[iso]={from,to};
+  }else{
+    if(blockedIdx>=0)cgBlockedDates.splice(blockedIdx,1);
+    delete cgAvailOverrides[iso];
+  }
+  saveCgAvailAndOverrides();
+  closeDayOverride();
   renderCgCalendar();
-  toast(wasBlocked?`${fmtDate(iso)} — den opět dostupný`:`${fmtDate(iso)} — den zablokován (dovolená)`,wasBlocked?'success':undefined);
+  toast(`${fmtDate(iso)} — den byl upraven`,'success');
+}
+function saveCgAvailAndOverrides(){
+  const c=CAREGIVERS.find(x=>x.email===auth.email);if(!c)return;
+  c.blockedDates=cgBlockedDates.slice();
+  c.availOverrides=Object.assign({},cgAvailOverrides);
+  apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{blockedDates:cgBlockedDates,availOverrides:cgAvailOverrides}}));
 }
 function saveCgBlockedDates(){
   const c=CAREGIVERS.find(x=>x.email===auth.email);if(!c)return;
@@ -5419,7 +5468,8 @@ async function bootstrap(){
       priceType:me.priceType||cgProfile.priceType,dayRate:me.dayRate!=null?me.dayRate:cgProfile.dayRate,kmPrice:me.kmPrice!=null?me.kmPrice:cgProfile.kmPrice,
       views:me.views!=null?me.views:cgProfile.views,perms:me.perms||cgProfile.perms});
       if(Array.isArray(me.avail)&&me.avail.length){cgAvailDays=[0,1,2,3,4,5,6].map(i=>normalizeAvailDay(me.avail[i]));}
-      cgBlockedDates=Array.isArray(me.blockedDates)?me.blockedDates.slice():[];}
+      cgBlockedDates=Array.isArray(me.blockedDates)?me.blockedDates.slice():[];
+      cgAvailOverrides=(me.availOverrides&&typeof me.availOverrides==='object')?Object.assign({},me.availOverrides):{};}
   }
   deriveCgMaps();
   if(auth.loggedIn){try{loadConversations();}catch(e){}}
