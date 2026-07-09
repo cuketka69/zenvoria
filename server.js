@@ -1908,16 +1908,39 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
 
 /* index.html s otiskem verze u app.css / app.js → po deployi vznikne nová URL
    (app.css?v=HASH), takže i agresivní cache prohlížeče (iOS Safari) stáhne čerstvý
-   soubor. index.html samotný jede na no-cache, takže se otisk vždy přenačte. */
-const INDEX_HTML = (() => {
+   soubor. index.html samotný jede na no-cache, takže se otisk vždy přenačte.
+   cssRef/jsRef ukazují na minifikované soubory, jakmile je minifyAssets() při startu
+   připraví — do té doby (a při jakémkoli selhání minifikace) se bezpečně použije
+   nezmenšený zdroj, appka tedy nikdy nepočká na minifikaci ani na ní nezávisí. */
+function buildIndexHtml(cssRef, jsRef) {
   try {
     return fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8')
-      .replace(/(href=")app\.css(")/g, `$1app.css?v=${APP_VERSION}$2`)
-      .replace(/(src=")app\.js(")/g, `$1app.js?v=${APP_VERSION}$2`);
+      .replace(/(href=")app\.css(")/g, `$1${cssRef}?v=${APP_VERSION}$2`)
+      .replace(/(src=")app\.js(")/g, `$1${jsRef}?v=${APP_VERSION}$2`);
   } catch (e) {
     return null;
   }
-})();
+}
+let INDEX_HTML = buildIndexHtml('app.css', 'app.js');
+async function minifyAssets() {
+  try {
+    const { minify } = require('terser');
+    const CleanCSS = require('clean-css');
+    const jsSrc = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+    const cssSrc = fs.readFileSync(path.join(__dirname, 'app.css'), 'utf8');
+    const jsOut = await minify(jsSrc, { compress: true, mangle: true });
+    // level 2 slučuje/přeuspořádává pravidla a v testu poškodil tmavý režim (selektory [data-theme] zmizely) —
+    // level 1 dělá jen bezpečné úpravy (mezery, komentáře, zkrácení hodnot) beze změny pořadí/skládání pravidel
+    const cssOut = new CleanCSS({ level: 1 }).minify(cssSrc);
+    if (!jsOut.code || cssOut.errors.length) throw new Error('minifikace vrátila prázdný výstup nebo chybu');
+    fs.writeFileSync(path.join(__dirname, 'app.min.js'), jsOut.code);
+    fs.writeFileSync(path.join(__dirname, 'app.min.css'), cssOut.styles);
+    INDEX_HTML = buildIndexHtml('app.min.css', 'app.min.js');
+    console.log(`[zenvoria] assety minifikovány (app.js ${jsSrc.length}→${jsOut.code.length} B, app.css ${cssSrc.length}→${cssOut.styles.length} B)`);
+  } catch (e) {
+    console.warn('[zenvoria] minifikace assetů selhala, používám nezmenšený zdroj:', e.message);
+  }
+}
 function sendIndex(res) {
   res.setHeader('Cache-Control', 'no-cache');
   if (INDEX_HTML) return res.type('html').send(INDEX_HTML);
@@ -4195,7 +4218,7 @@ app.use((err, req, res, next) => {
 const IMMUTABLE_ASSET_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$/i;
 /* aplikační kód (app.js/app.css/*.html) se musí revalidovat, aby po deployi
    reload stáhl novou verzi; statická média (obrázky/fonty) zůstanou immutable. */
-const REVALIDATE_ASSET_RE = /(?:\.html?|app\.js|app\.css|deferred-views\.html)$/i;
+const REVALIDATE_ASSET_RE = /(?:\.html?|app(?:\.min)?\.js|app(?:\.min)?\.css|deferred-views\.html)$/i;
 /* index.html vždy s otiskem verze (musí být PŘED express.static) */
 app.get(['/', '/index.html'], (_req, res) => sendIndex(res));
 app.use(express.static(ROOT, {
@@ -4323,10 +4346,12 @@ async function geocodeCaregiverLocations() {
 setInterval(geocodeCaregiverLocations, 30 * 60 * 1000).unref();
 geocodeCaregiverLocations();
 
-app.listen(PORT, () => {
-  console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`);
-  loadEmailSocialLinks();
-  expireTrials();
-  loadStripeConfigFromDb();
-  loadOpenAiConfigFromDb();
+minifyAssets().finally(() => {
+  app.listen(PORT, () => {
+    console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`);
+    loadEmailSocialLinks();
+    expireTrials();
+    loadStripeConfigFromDb();
+    loadOpenAiConfigFromDb();
+  });
 });
