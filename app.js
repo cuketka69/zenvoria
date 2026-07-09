@@ -321,33 +321,71 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ---------- VLASTNÍ ROZBALOVAČKA ---------- */
-function closeAllDD(){document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(dpActiveClose){dpActiveClose();dpActiveClose=null;}}
+function closeAllDD(){document.querySelectorAll('.dd.open').forEach(d=>{d.classList.remove('open');const b=d.querySelector('.dd-btn');if(b)b.setAttribute('aria-expanded','false');});if(dpActiveClose){dpActiveClose();dpActiveClose=null;}}
+let ddIdSeq=0;
 function enhanceSelect(sel){
   if(!sel||sel.dataset.enh)return;
   sel.dataset.enh='1';
+  const ddId='dd-opt-'+(++ddIdSeq)+'-';
   const wrap=document.createElement('div');
   wrap.className='dd'+(sel.closest('.sort-row')?' dd-bordered':(sel.classList.contains('inp')?' dd-inp':(sel.classList.contains('phone-prefix')?' dd-phone':'')));
-  const btn=document.createElement('button'); btn.type='button'; btn.className='dd-btn'; btn.setAttribute('aria-haspopup','listbox');
+  const btn=document.createElement('button'); btn.type='button'; btn.className='dd-btn';
+  btn.setAttribute('aria-haspopup','listbox');btn.setAttribute('aria-expanded','false');btn.setAttribute('role','combobox');
+  btn.setAttribute('aria-controls',ddId+'menu');
   const lbl=document.createElement('span'); lbl.className='dd-lbl';
   const car=document.createElement('span'); car.className='dd-car';
   car.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   btn.appendChild(lbl); btn.appendChild(car);
-  const menu=document.createElement('div'); menu.className='dd-menu'; menu.setAttribute('role','listbox');
+  const menu=document.createElement('div'); menu.id=ddId+'menu'; menu.className='dd-menu'; menu.setAttribute('role','listbox');
   const sync=()=>{lbl.textContent=sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:'';};
+  let active=-1;
+  const items=()=>Array.from(menu.querySelectorAll('.dd-opt'));
+  const setActive=(i)=>{
+    const els=items();if(!els.length)return;
+    active=Math.max(0,Math.min(i,els.length-1));
+    els.forEach((x,idx)=>x.classList.toggle('active',idx===active));
+    btn.setAttribute('aria-activedescendant',els[active].id);
+    els[active].scrollIntoView({block:'nearest'});
+  };
   const build=()=>{
     menu.innerHTML='';
     Array.from(sel.options).forEach((o,i)=>{
       if(o.hidden)return; // např. "Nejblíže" se ukáže, až jsou k dispozici vzdálenosti
-      const it=document.createElement('div'); it.className='dd-opt'+(i===sel.selectedIndex?' sel':''); it.textContent=o.text; it.setAttribute('role','option');
-      it.onclick=()=>{sel.selectedIndex=i;sync();menu.querySelectorAll('.dd-opt').forEach(x=>x.classList.remove('sel'));it.classList.add('sel');wrap.classList.remove('open');sel.dispatchEvent(new Event('change',{bubbles:true}));};
+      const it=document.createElement('div'); it.id=ddId+i;
+      it.className='dd-opt'+(i===sel.selectedIndex?' sel':''); it.textContent=o.text;
+      it.setAttribute('role','option');it.setAttribute('aria-selected',i===sel.selectedIndex?'true':'false');
+      it.onclick=()=>{choose(i);};
       menu.appendChild(it);
     });
   };
-  btn.onclick=e=>{e.stopPropagation();const op=wrap.classList.contains('open');closeAllDD();if(!op)wrap.classList.add('open');};
+  const choose=(i)=>{
+    sel.selectedIndex=i;sync();
+    items().forEach(x=>{x.classList.remove('sel');x.setAttribute('aria-selected','false');});
+    const chosen=menu.querySelector('#'+ddId+i);
+    if(chosen){chosen.classList.add('sel');chosen.setAttribute('aria-selected','true');}
+    wrap.classList.remove('open');btn.setAttribute('aria-expanded','false');
+    sel.dispatchEvent(new Event('change',{bubbles:true}));
+  };
+  const open=()=>{
+    closeAllDD();wrap.classList.add('open');btn.setAttribute('aria-expanded','true');
+    const selectedIdx=items().findIndex(x=>x.classList.contains('sel'));
+    setActive(selectedIdx>=0?selectedIdx:0);
+  };
+  const close=()=>{wrap.classList.remove('open');btn.setAttribute('aria-expanded','false');};
+  btn.onclick=e=>{e.stopPropagation();wrap.classList.contains('open')?close():open();};
+  btn.addEventListener('keydown',e=>{
+    const opened=wrap.classList.contains('open');
+    if(e.key==='ArrowDown'){e.preventDefault();opened?setActive(active+1):open();}
+    else if(e.key==='ArrowUp'){e.preventDefault();opened?setActive(active-1):open();}
+    else if(e.key==='Home'&&opened){e.preventDefault();setActive(0);}
+    else if(e.key==='End'&&opened){e.preventDefault();setActive(items().length-1);}
+    else if((e.key==='Enter'||e.key===' ')&&opened){e.preventDefault();const els=items();if(els[active])choose(Number(els[active].id.slice(ddId.length)));}
+    else if(e.key==='Escape'&&opened){e.preventDefault();close();}
+  });
   wrap.appendChild(btn); wrap.appendChild(menu); build();
   sel.style.display='none'; sel.parentNode.insertBefore(wrap,sel.nextSibling); sync();
   // refresh popisku + zvýraznění (po programové změně hodnoty)
-  sel._ddRefresh=()=>{build();sync();const items=menu.querySelectorAll('.dd-opt');items.forEach((x,i)=>x.classList.toggle('sel',i===sel.selectedIndex));};
+  sel._ddRefresh=()=>{build();sync();const els=items();els.forEach((x,i)=>{const sIdx=i===sel.selectedIndex;x.classList.toggle('sel',sIdx);x.setAttribute('aria-selected',sIdx?'true':'false');});};
   sel.addEventListener('change',sel._ddRefresh);
 }
 function ddRefresh(){document.querySelectorAll('select[data-enh]').forEach(s=>s._ddRefresh&&s._ddRefresh());}

@@ -464,6 +464,7 @@
   .dd-opt{padding:9px 12px;border-radius:9px;font-size:14px;color:var(--navy-800);cursor:pointer;white-space:nowrap;transition:.12s}
   .dd-opt:hover{background:var(--cream)}
   .dd-opt.sel{background:rgba(201,162,51,.18);color:var(--navy-900);font-weight:600}
+  .dd-opt.active{outline:2px solid var(--gold-deep);outline-offset:-2px}
   /* ---------- VLASTNÍ VÝBĚR DATA (custom date picker) ---------- */
   .dp-lbl.dp-ph{color:var(--muted)}
   .dp-menu{position:fixed;top:0;left:0;width:266px;min-width:0;max-width:calc(100vw - 16px);max-height:none;padding:12px;z-index:200}
