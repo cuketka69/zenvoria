@@ -1417,7 +1417,7 @@ function confirmBooking(){
       toast(`Objednávka u <b>${esc(c.name)}</b> odeslána — čeká na potvrzení`,'success');
       setTimeout(()=>go('bookings'),900);
     })
-    .catch(e=>toast('Objednávku se nepodařilo odeslat: '+e.message,'declined'));
+    .catch(e=>toastApiError(e,'Objednávku se nepodařilo odeslat.'));
 }
 
 /* ---------- DATE HELPER ---------- */
@@ -1428,7 +1428,7 @@ function todayISO(){
 
 /* ---------- AUTH ---------- */
 let regRole='family';
-const auth={loggedIn:false,name:'',email:'',role:'family',photo:null,publicId:null};
+const auth={loggedIn:false,name:'',email:'',role:'family',photo:null,publicId:null,emailVerified:true};
 const DEFERRED_VIEW_IDS=new Set([
   'profile','booking','bookings',
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
@@ -1536,22 +1536,24 @@ function syncCgPhotoToList(){
 }
 
 /* ---- session ---- */
-function loginAs(name,email,role,photo,publicId){
+function loginAs(name,email,role,photo,publicId,emailVerified){
   auth.loggedIn=true;auth.name=name;auth.email=email;auth.role=role||'family';
   if(photo!==undefined)auth.photo=photo||null;
   if(publicId!==undefined)auth.publicId=publicId||null;
+  if(emailVerified!==undefined)auth.emailVerified=!!emailVerified;
   updateAuthUI();
+  renderEmailVerifyBanner();
   try{presencePing();}catch(e){}
   try{loadConversations();}catch(e){}
   try{initRealtime();}catch(e){}
 }
 async function logout(){
   try{await api('/auth/logout',{method:'POST'});}catch(e){}
-  auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.publicId=null;
+  auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.publicId=null;auth.emailVerified=true;
   teardownRealtime();CONVERSATIONS=[];
   closeAccountMenu();
   await apiSync(bootstrap());
-  updateAuthUI();renderCare();
+  updateAuthUI();renderCare();renderEmailVerifyBanner();
   toast('Byli jste odhlášeni.');
   go('home');
 }
@@ -1902,7 +1904,7 @@ async function submitLogin(e){
   const key=email.value.trim().toLowerCase();
   try{
     const r=await api('/auth/login',{method:'POST',body:{email:key,password:pw.value}});
-    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId);
+    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId,r.user.emailVerified);
     if(r.user.settings)Object.assign(appSettings,r.user.settings);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(`Vítejte zpět, <b>${esc(auth.name.split(/\s+/)[0])}</b>!`,null,userSVG());
@@ -1929,10 +1931,11 @@ async function submitRegister(e){
   if(tBad){document.getElementById('regTerms').focus();return false;}
   try{
     const r=await api('/auth/register',{method:'POST',body:{name:name.value.trim(),email:email.value.trim().toLowerCase(),password:pw.value,role:regRole}});
-    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId);
+    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId,r.user.emailVerified);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(regRole==='caregiver'?'Účet pečovatelky vytvořen. Dokončete prosím ověření.':'Účet vytvořen. Vítejte v ZENVORIA!','success');
     if(!resumePendingBooking())go(landingView());
+    if(!r.user.emailVerified)setTimeout(()=>openEmailVerify(),400);
   }catch(err){
     setFieldError('rf-email',true);
     document.getElementById('rf-email-err')&&(document.getElementById('rf-email-err').textContent=err.message);
@@ -2944,6 +2947,7 @@ async function submitVerify(e){
     setTimeout(()=>go(landingView()),1200);
   }catch(ex){
     verifyError(err,(ex&&ex.message)?ex.message:'Žádost se nepodařilo odeslat. Zkuste to prosím znovu.');
+    if(ex&&ex.reason==='email_not_verified')setTimeout(()=>openEmailVerify(),300);
   }finally{
     if(btn){btn.disabled=false;if(btn.dataset.label)btn.textContent=btn.dataset.label;}
   }
@@ -4959,7 +4963,7 @@ function submitRating(){
   apiSync(api('/reviews',{method:'POST',body:{caregiverId:cid,oid,init:initials(name),name,stars,text}}).catch(e=>{
     if(o)o.rated=false;if(curOrder&&curOrder.oid===oid)curOrder.rated=false;
     (cgReviews[cid]||[]).shift();
-    toast(e.message||'Recenzi se nepodařilo odeslat.','declined');
+    toastApiError(e,'Recenzi se nepodařilo odeslat.');
   }));
   closeRating();
   toast('Děkujeme za vaše hodnocení!','success');
@@ -5070,7 +5074,7 @@ async function openChat(caregiverId,name,init,role,email){
   else return;
   let conv;
   try{const r=await api('/conversations',{method:'POST',body});conv=r.conversation;}
-  catch(e){toast(e.message||'Nepodařilo se otevřít konverzaci.','declined');return;}
+  catch(e){toastApiError(e,'Nepodařilo se otevřít konverzaci.');return;}
   upsertConversation(conv);
   activeChat=conv.id;
   await go('chat');
@@ -5777,11 +5781,12 @@ async function initApp(){
     }
   }
   try{const m=await api('/auth/me');
-    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';auth.photo=m.user.photo||null;auth.publicId=m.user.publicId||null;
+    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';auth.photo=m.user.photo||null;auth.publicId=m.user.publicId||null;auth.emailVerified=!!m.user.emailVerified;
       if(m.user.settings)Object.assign(appSettings,m.user.settings);}
   }catch(e){console.warn('auth/me',e.message);}
   try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
   updateAuthUI();
+  renderEmailVerifyBanner();
   renderHome();renderFilters();bindSearchLocationAutocomplete();renderCare();renderCalendar();
   document.querySelectorAll('select').forEach(enhanceSelect);
   document.querySelectorAll('input[type=date]').forEach(enhanceDateInput);
@@ -5815,6 +5820,51 @@ async function initApp(){
 function hideAppLoader(){
   const el=document.getElementById('appLoader');
   if(el){el.classList.add('hide');el.setAttribute('aria-hidden','true');}
+}
+
+/* ---------- OVĚŘENÍ E-MAILU ---------- */
+/* zobrazí chybu z API; pokud je to zamítnutí kvůli neověřenému e-mailu, rovnou nabídne modal na zadání kódu */
+function toastApiError(e,fallback){
+  toast((e&&e.message)||fallback||'Něco se nepovedlo.','declined');
+  if(e&&e.reason==='email_not_verified')setTimeout(()=>openEmailVerify(),300);
+}
+function renderEmailVerifyBanner(){
+  const el=document.getElementById('emailVerifyBanner');
+  if(el)el.hidden=!(auth.loggedIn&&auth.role!=='admin'&&!auth.emailVerified);
+}
+function openEmailVerify(){
+  const modal=document.getElementById('emailVerifyModal');if(!modal)return;
+  document.getElementById('emailVerifyTarget').textContent=auth.email||'';
+  document.getElementById('emailVerifyCode').value='';
+  document.getElementById('emailVerifyErr').textContent='';
+  modal.classList.add('open');document.body.style.overflow='hidden';
+  setTimeout(()=>{const inp=document.getElementById('emailVerifyCode');if(inp)inp.focus();},60);
+}
+function closeEmailVerify(){
+  const modal=document.getElementById('emailVerifyModal');if(!modal)return;
+  modal.classList.remove('open');document.body.style.overflow='';
+}
+async function submitEmailVerifyCode(){
+  const code=(document.getElementById('emailVerifyCode').value||'').trim();
+  const err=document.getElementById('emailVerifyErr');if(err)err.textContent='';
+  if(!code){if(err)err.textContent='Zadejte ověřovací kód.';return;}
+  try{
+    await api('/auth/verify-email',{method:'POST',body:{code}});
+    auth.emailVerified=true;
+    renderEmailVerifyBanner();
+    closeEmailVerify();
+    toast('E-mail byl ověřen. Děkujeme!','success');
+  }catch(e){
+    if(err)err.textContent=e.message||'Ověření se nezdařilo.';
+  }
+}
+async function resendEmailVerifyCode(){
+  try{
+    await api('/auth/verify-email/resend',{method:'POST'});
+    toast('Poslali jsme nový kód na váš e-mail.','success');
+  }catch(e){
+    toast(e.message||'Kód se nepodařilo poslat.','declined');
+  }
 }
 
 /* ---------- NÁPOVĚDNÝ CHAT (OpenAI) — plovoucí bublina, funguje i nepřihlášeným ---------- */

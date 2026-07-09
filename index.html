@@ -692,6 +692,29 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<!-- ============ OVĚŘENÍ E-MAILU ============ -->
+<div id="emailVerifyBanner" class="ev-banner" hidden>
+  <span>Ověřte prosím svůj e-mail — bez toho nepůjde vytvářet objednávky, žádosti o ověření, recenze ani zprávy.</span>
+  <button type="button" class="btn btn-sm btn-gold" onclick="openEmailVerify()">Zadat kód</button>
+</div>
+<div class="modal" id="emailVerifyModal" role="dialog" aria-modal="true" aria-labelledby="emailVerifyTitle">
+  <div class="modal-scrim" onclick="closeEmailVerify()"></div>
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeEmailVerify()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <h3 id="emailVerifyTitle">Ověřte svůj e-mail</h3>
+    <p class="msub">Na adresu <b id="emailVerifyTarget"></b> jsme poslali 6místný kód. Opište ho sem.</p>
+    <div class="auth-field" style="margin-top:8px">
+      <label class="lbl" for="emailVerifyCode">Ověřovací kód</label>
+      <input type="text" class="inp" id="emailVerifyCode" inputmode="numeric" maxlength="6" placeholder="123456">
+    </div>
+    <div class="set-err" id="emailVerifyErr"></div>
+    <button type="button" class="btn btn-gold btn-block" style="margin-top:12px" onclick="submitEmailVerifyCode()">Ověřit</button>
+    <p class="auth-alt">Kód nedorazil? <button type="button" class="auth-link" onclick="resendEmailVerifyCode()">Poslat znovu</button></p>
+  </div>
+</div>
+
 <!-- ============ NÁPOVĚDNÝ CHAT (OpenAI) ============ -->
 <div id="helpChatWidget" hidden>
   <div id="helpChatPanel" hidden role="dialog" aria-modal="false" aria-labelledby="helpChatTitle">

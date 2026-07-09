@@ -62,6 +62,8 @@ const RESET_TOKEN_KEY_PREFIX = 'passwordReset:';
 const EMAIL_CHANGE_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minut
 const EMAIL_CHANGE_CODE_TTL_MS = 1000 * 60 * 10; // 10 minut
 const EMAIL_CHANGE_KEY_PREFIX = 'emailChange:';
+const EMAIL_VERIFY_CODE_TTL_MS = 1000 * 60 * 30; // 30 minut
+const EMAIL_VERIFY_KEY_PREFIX = 'emailVerify:';
 const CONVERSATION_ACCESS_KEY_PREFIX = 'conversationAccess:';
 const RATE_LIMIT_CLEANUP_MS = 1000 * 60 * 5;
 const AUDIT_ENABLED = String(process.env.AUDIT_ENABLED || 'true').toLowerCase() !== 'false';
@@ -120,6 +122,11 @@ const RATE_LIMITS = {
     windowMs: parseInt(process.env.RATE_LIMIT_CONVERSATIONS_WINDOW_MS || String(1000 * 60 * 60), 10),
     max: parseInt(process.env.RATE_LIMIT_CONVERSATIONS_MAX || '30', 10),
     message: 'Příliš mnoho nových konverzací. Zkuste to prosím později.',
+  },
+  verifyEmail: {
+    windowMs: parseInt(process.env.RATE_LIMIT_VERIFY_EMAIL_WINDOW_MS || String(1000 * 60 * 30), 10),
+    max: parseInt(process.env.RATE_LIMIT_VERIFY_EMAIL_MAX || '10', 10),
+    message: 'Příliš mnoho pokusů o ověření e-mailu. Zkuste to prosím později.',
   },
 };
 
@@ -872,6 +879,36 @@ function changeEmailCodeMail({ user, newEmail, code }) {
   };
 }
 
+function emailVerifyMail({ user, code }) {
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
+  return {
+    subject: 'Ověřte svůj e-mail v ZENVORIA',
+    text:
+      `Dobrý den, ${user.name || firstName},\n\n` +
+      `pro ověření své e-mailové adresy zadejte v appce tento kód: ${code}\n\n` +
+      'Kód je platný 30 minut. Pokud jste si u nás účet nezakládali, tento e-mail ignorujte.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Posíláme vám ověřovací kód k dokončení registrace.',
+      title: 'Ověření e-mailu',
+      intro: `Dobrý den, ${firstName}. Pro ověření své e-mailové adresy zadejte do aplikace tento šestimístný kód.`,
+      bodyHtml:
+        `<div style="margin:0 auto 16px auto;max-width:260px;padding:18px 22px;border-radius:18px;background:#0A2F20;color:#D9A91D;font-size:34px;letter-spacing:0.22em;font-weight:800;text-align:center;">${escapeHtml(code)}</div>` +
+        '<p style="margin:0;">Kód je platný 30 minut. Dokud e-mail neověříte, nepůjde vytvářet objednávky, žádosti o ověření, recenze ani zprávy.</p>',
+      ctaLabel: 'Otevřít ZENVORIA',
+      ctaUrl: `${APP_URL}/`,
+      ctaNote: 'Kód opište do formuláře v aplikaci. Nikdy ho nesdílejte s další osobou.',
+      facts: [
+        { label: 'Ověřovací kód', value: code || '' },
+        { label: 'Platnost kódu', value: '30 minut' },
+      ],
+      closingTitle: 'Děkujeme za registraci.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail byl odeslán automaticky po registraci v ZENVORIA.',
+    }),
+  };
+}
+
 // ---- e-mail: aktivace předplatného PREMIUM (pečovatelce) ----
 function planActiveMail({ name, email, priceCzk, plan }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
@@ -1278,6 +1315,7 @@ function setSession(res, user) {
     email: user.email,
     name: user.name,
     role: user.role,
+    emailVerified: !!user.email_verified,
     csrf,
     exp: Date.now() + SESSION_TTL_MS,
   });
@@ -1427,6 +1465,30 @@ async function updateEmailChangeRecord(record, patch) {
   record.value = value;
   return record;
 }
+function emailVerifyKey(userId) {
+  return `${EMAIL_VERIFY_KEY_PREFIX}${String(userId)}`;
+}
+async function saveEmailVerifyCode(userId, email, code) {
+  const value = {
+    userId: String(userId),
+    email: String(email || '').trim().toLowerCase(),
+    codeHash: hashVerificationCode(code),
+    exp: Date.now() + EMAIL_VERIFY_CODE_TTL_MS,
+    createdAt: new Date().toISOString(),
+  };
+  await supabaseRestRequest('POST', T.settings, {
+    body: { key: emailVerifyKey(userId), value },
+    prefer: 'resolution=merge-duplicates,return=minimal',
+  });
+  return value;
+}
+async function loadEmailVerifyRecord(userId) {
+  const key = emailVerifyKey(userId);
+  const rows = await restSelect(T.settings, `key=eq.${encodeURIComponent(key)}&limit=1`);
+  const row = rows && rows[0];
+  if (!row || !row.value || typeof row.value !== 'object') return null;
+  return { key, value: row.value };
+}
 async function saveConversationAccess(id, value) {
   await supabaseRestRequest('POST', T.settings, {
     body: { key: conversationAccessKey(id), value },
@@ -1530,6 +1592,13 @@ function requireRole(...roles) {
     next();
   };
 }
+// vyžaduje ověřený e-mail — chrání akce zneužitelné z throwaway účtů (objednávky, žádosti o ověření, recenze, chat);
+// admin je vyjmutý (adminské účty se zakládají přímo v DB, ne přes registraci)
+function requireVerifiedEmail(req, res, next) {
+  if (!req.session) return res.status(401).json({ error: 'Nepřihlášen' });
+  if (req.session.role === 'admin' || req.session.emailVerified) return next();
+  return res.status(403).json({ error: 'Nejprve prosím ověřte svůj e-mail.', reason: 'email_not_verified' });
+}
 function trustedRequestOrigin(req) {
   const raw = String(req.headers.origin || req.headers.referer || '').trim();
   if (!raw) return false;
@@ -1583,7 +1652,7 @@ function requireConversationParticipant(req, res, next) {
    -------------------------------------------------------------------- */
 function publicUser(u) {
   if (!u) return null;
-  return { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null };
+  return { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null, emailVerified: !!u.email_verified };
 }
 function mapCaregiver(c, permsSetting) {
   return {
@@ -1957,9 +2026,41 @@ app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(as
   const user = await restInsert(T.users, { email: em, password_hash, name: safeName, role: r, init, public_id: genPublicId() });
   const welcomeMail = registrationMail(user);
   await sendMailSafe({ to: user.email, ...welcomeMail });
+  const code = createEmailVerificationCode();
+  await saveEmailVerifyCode(user.id, user.email, code);
+  await sendMailSafe({ to: user.email, ...emailVerifyMail({ user, code }) });
   fireAudit('auth.register', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success' });
   setSession(res, user);
   res.json({ user: publicUser(user) });
+}));
+
+app.post('/api/auth/verify-email', requireAuth, rateLimit('verify-email', RATE_LIMITS.verifyEmail), h(async (req, res) => {
+  if (req.session.emailVerified) return res.json({ ok: true, alreadyVerified: true });
+  const code = trimmedString((req.body || {}).code, 6);
+  if (!code) return res.status(400).json({ error: 'Zadejte ověřovací kód.' });
+  const record = await loadEmailVerifyRecord(req.session.uid);
+  if (!record || !record.value || Number(record.value.exp || 0) < Date.now()) {
+    return res.status(400).json({ error: 'Kód vypršel. Nechte si prosím poslat nový.' });
+  }
+  if (hashVerificationCode(code) !== record.value.codeHash) {
+    return res.status(400).json({ error: 'Neplatný ověřovací kód.' });
+  }
+  const rows = await restUpdate(T.users, `id=eq.${req.session.uid}`, { email_verified: true }, { prefer: 'return=representation' });
+  const user = rows && rows[0];
+  if (user) setSession(res, user);
+  fireAudit('auth.verifyEmail', { req, actor: { id: req.session.uid, email: req.session.email, role: req.session.role }, targetType: 'user', targetId: req.session.uid, status: 'success' });
+  res.json({ ok: true, user: user ? publicUser(user) : null });
+}));
+
+app.post('/api/auth/verify-email/resend', requireAuth, rateLimit('verify-email', RATE_LIMITS.verifyEmail), h(async (req, res) => {
+  if (req.session.emailVerified) return res.json({ ok: true, alreadyVerified: true });
+  const rows = await restSelect(T.users, `id=eq.${req.session.uid}&limit=1`);
+  const user = rows && rows[0];
+  if (!user) return res.status(404).json({ error: 'Účet nenalezen.' });
+  const code = createEmailVerificationCode();
+  await saveEmailVerifyCode(user.id, user.email, code);
+  await sendMailSafe({ to: user.email, ...emailVerifyMail({ user, code }) });
+  res.json({ ok: true });
 }));
 
 app.post('/api/auth/login', rateLimit('login', RATE_LIMITS.login), h(async (req, res) => {
@@ -2406,7 +2507,7 @@ async function findScheduleConflict(cid, date, time, hours, excludeOid) {
   return (rows || []).find((o) => Number(o.oid) !== Number(excludeOid || -1) && timeRangesOverlap(time, hours, o.time, o.hours)) || null;
 }
 
-app.post('/api/orders', requireRole('family', 'admin'), rateLimit('orders', RATE_LIMITS.orders), h(async (req, res) => {
+app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, rateLimit('orders', RATE_LIMITS.orders), h(async (req, res) => {
   const b = req.body || {};
   const cid = Number(b.cid);
   // jedna objednávka může zahrnovat víc služeb naráz — uloženo jako "id1,id2" v jednom textovém poli
@@ -2609,7 +2710,7 @@ app.post('/api/requests/:id/decline', requireRole('caregiver', 'admin'), h(async
 
 /* ---------------- OVĚŘENÍ ---------------- */
 // pečovatelka podá žádost o ověření
-app.post('/api/verifications', requireRole('caregiver', 'admin'), rateLimit('verifications', RATE_LIMITS.verifications), h(async (req, res) => {
+app.post('/api/verifications', requireRole('caregiver', 'admin'), requireVerifiedEmail, rateLimit('verifications', RATE_LIMITS.verifications), h(async (req, res) => {
   const b = req.body || {};
   const name = trimmedString(b.name, 120);
   const email = trimmedString(req.session.role === 'admin' ? (b.email || req.session.email) : req.session.email, 320).toLowerCase();
@@ -2782,7 +2883,7 @@ app.post('/api/verifications/:id/reject', requireRole('admin'), h(async (req, re
 /* ---------------- RECENZE ---------------- */
 // recenzi smí napsat jen rodina, a jen k VLASTNÍ dokončené objednávce u té pečovatelky — jinak by šlo
 // napsat libovolné množství falešných recenzí komukoli bez jakéhokoli vztahu k pečovatelce
-app.post('/api/reviews', requireRole('family'), rateLimit('reviews', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho recenzí. Zkuste to prosím později.' }), h(async (req, res) => {
+app.post('/api/reviews', requireRole('family'), requireVerifiedEmail, rateLimit('reviews', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho recenzí. Zkuste to prosím později.' }), h(async (req, res) => {
   const b = req.body || {};
   const caregiverId = Number(b.caregiverId);
   const oid = Number(b.oid);
@@ -2959,7 +3060,7 @@ app.get('/api/conversations', requireAuth, h(async (req, res) => {
 }));
 
 // založ (nebo najdi) konverzaci s protistranou
-app.post('/api/conversations', requireAuth, rateLimit('conversations', RATE_LIMITS.conversations), h(async (req, res) => {
+app.post('/api/conversations', requireAuth, requireVerifiedEmail, rateLimit('conversations', RATE_LIMITS.conversations), h(async (req, res) => {
   const b = req.body || {};
   const me = String(req.session.uid || '');
   if (!me) return res.status(401).json({ error: 'Nepřihlášeno.' });

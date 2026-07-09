@@ -16,13 +16,14 @@
  *
  * TEST_BASE_URL defaults to https://www.zenvoria.cz.
  *
- * Verification approval and final cleanup need direct database access
- * (there's no way to log in as admin without a password), so they use the
- * Supabase service-role REST API directly — the same credentials the
- * server itself uses (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY). Without
- * them the test registers the accounts, submits the verification request,
- * and stops there (and leaves the two test accounts + the submitted
- * verification behind — nothing else has been created yet at that point).
+ * Verification approval, e-mail verification, and final cleanup all need
+ * direct database access (there's no way to log in as admin without a
+ * password, and the test has no inbox to read a real verification code
+ * from), so they use the Supabase service-role REST API directly — the
+ * same credentials the server itself uses (SUPABASE_URL /
+ * SUPABASE_SERVICE_ROLE_KEY). Without them the test registers the two
+ * accounts and stops there (new accounts can't create orders,
+ * verifications, reviews, or chats until their e-mail is verified).
  *
  * Requires Node 18.14+ (needs Response.headers.getSetCookie()).
  */
@@ -122,6 +123,18 @@ function printSummary() {
     assert.equal(r.user.role, 'family');
   });
 
+  if (!HAS_DB) {
+    console.log('\nSkipping the rest: set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to run the full flow ' +
+      '(new accounts need e-mail verification, direct DB only, before they can do anything else).');
+    printSummary();
+    return;
+  }
+
+  await step('verify e-mails (direct DB — mirrors clicking the code from the inbox)', async () => {
+    await supabaseRest('PATCH', 'zenvoria_users', { query: `email=eq.${encodeURIComponent(CG_EMAIL)}`, body: { email_verified: true }, prefer: 'return=minimal' });
+    await supabaseRest('PATCH', 'zenvoria_users', { query: `email=eq.${encodeURIComponent(FAM_EMAIL)}`, body: { email_verified: true }, prefer: 'return=minimal' });
+  });
+
   await step('submit verification', async () => {
     const r = await cg.api('/verifications', {
       method: 'POST',
@@ -137,12 +150,6 @@ function printSummary() {
     assert.equal(r.verification.status, 'submitted');
     verificationId = r.verification.id;
   });
-
-  if (!HAS_DB) {
-    console.log('\nSkipping the rest: set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to run the full flow.');
-    printSummary();
-    return;
-  }
 
   await step('approve verification (direct DB — mirrors the admin "Schválit" button)', async () => {
     const users = await supabaseRest('GET', 'zenvoria_users', { query: `email=eq.${encodeURIComponent(CG_EMAIL)}&select=id` });
@@ -228,7 +235,7 @@ function printSummary() {
     await assert.rejects(cg.api(`/orders/${orderId1}`, { method: 'PATCH', body: { status: 'done' } }));
     const r = await fam.api(`/orders/${orderId1}`, { method: 'PATCH', body: { status: 'done' } });
     assert.equal(r.order.status, 'done');
-    await fam.api('/reviews', { method: 'POST', body: { caregiverId, stars: 5, name: 'E2E Family', init: 'EF', text: 'Great e2e care.' } });
+    await fam.api('/reviews', { method: 'POST', body: { caregiverId, oid: orderId1, stars: 5, name: 'E2E Family', init: 'EF', text: 'Great e2e care.' } });
   });
 
   await step('read receipt updates after the other side reads', async () => {

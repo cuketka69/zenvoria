@@ -1424,6 +1424,11 @@
     .chat-body{height:60vh}
   }
 
+  /* ---------- OVĚŘENÍ E-MAILU ---------- */
+  .ev-banner{position:sticky;top:0;z-index:95;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;
+    padding:10px 18px;background:#3A2A0A;color:#F5E6C4;font-size:13.5px;text-align:center}
+  .ev-banner span{max-width:640px}
+
   /* ---------- MODAL / RATING ---------- */
   .modal{position:fixed;inset:0;z-index:120;display:none}
   .modal.open{display:block}
