@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
+const compression = require('compression');
 
 // --- minimální načtení .env (bez závislosti); na Railway se env injektuje samo ---
 (function loadDotEnv() {
@@ -1712,6 +1713,10 @@ function mapVerification(v) {
    -------------------------------------------------------------------- */
 const app = express();
 app.disable('x-powered-by');
+// gzip/brotli komprese všech odpovědí (JSON z /api/bootstrap i statické app.js/app.css) — velký přínos
+// pro rychlost za pár řádků kódu. Vynecháno pro SSE stream, kde by komprese bránila okamžitému
+// doručení jednotlivých událostí (bufferovala by je místo rovnou posílat).
+app.use(compression({ filter: (req, res) => (req.path === '/api/stream' ? false : compression.filter(req, res)) }));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
