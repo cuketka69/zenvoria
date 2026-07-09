@@ -145,6 +145,31 @@ function stateForView(v){
   if(v==='profile')return {view:v,caregiverId:state.caregiverId,token:state.profileToken,kind:state.profileKind};
   return {view:v};
 }
+/* pro pár veřejných stránek má appka i reálnou (SEO) URL — server pro ně umí vrátit
+   indexovatelný obsah bez JS (viz server.js). Ostatní views zůstávají čistě na hashi. */
+function pathForView(v){
+  if(v==='home')return '/';
+  if(v==='search')return '/hledat-peci';
+  if(v==='howto')return '/jak-to-funguje';
+  if(v==='pricing')return '/cenik';
+  if(v==='legal')return legalCurrentKey==='cookies'?'/zasady-cookies':'/obchodni-podminky';
+  if(v==='profile'&&state.profileKind==='caregiver'&&state.profileSlug)return '/pecovatelka/'+encodeURIComponent(state.profileSlug);
+  return null;
+}
+/* obrácený směr: podle cesty v adresním řádku při startu pozná appka, který view otevřít */
+function viewForPath(pathname){
+  if(pathname==='/hledat-peci')return 'search';
+  if(pathname==='/jak-to-funguje')return 'howto';
+  if(pathname==='/cenik')return 'pricing';
+  if(pathname==='/obchodni-podminky'){legalCurrentKey='terms';return 'legal';}
+  if(pathname==='/zasady-cookies'){legalCurrentKey='cookies';return 'legal';}
+  return null;
+}
+async function openProfileBySlug(slug,fromPop){
+  const local=CAREGIVERS.find(x=>x.slug===slug);
+  if(local)return openProfile(local.id,fromPop);
+  toast('Profil nenalezen.','declined');go('search');
+}
 async function copyLegalLink(){
   const url=legalUrl(legalCurrentKey);
   try{
@@ -234,7 +259,10 @@ async function go(v,fromPop){
       const changed=cur!==v
         ||(v==='legal'&&history.state&&history.state.legalKey!==legalCurrentKey)
         ||(v==='profile'&&history.state&&history.state.token!==state.profileToken);
-      if(changed)history.pushState(stateForView(v),'','#'+hashForView(v));
+      if(changed){
+        const p=pathForView(v);
+        history.pushState(stateForView(v),'',(p||'/')+(p?'':'#'+hashForView(v)));
+      }
     }catch(e){}
   }
   // čeká-li nová verze, navigace je přirozený okamžik k obnovení na novou verzi
@@ -1001,7 +1029,7 @@ async function openProfile(id,fromPop){
   state.caregiverId=id;const c=cg(id);
   const grid=document.getElementById('profileGrid');
   if(!c||!grid)return;
-  state.profileToken=c.publicId||null;state.profileKind='caregiver';
+  state.profileToken=c.publicId||null;state.profileSlug=c.slug||null;state.profileKind='caregiver';
   if(!(auth.role==='caregiver'&&auth.email&&c.email&&auth.email.toLowerCase()===c.email.toLowerCase())){
     api('/caregivers/'+id+'/view',{method:'POST'}).catch(()=>{});
   }
@@ -1335,7 +1363,7 @@ async function renderPublicAccount(p,token,fromPop){
   }
   const grid=document.getElementById('profileGrid');
   if(!grid)return;
-  state.caregiverId=null;state.profileToken=token;state.profileKind='account';
+  state.caregiverId=null;state.profileToken=token;state.profileSlug=null;state.profileKind='account';
   const roleLabel=p.role==='caregiver'?'Pečovatelka':'Rodina';
   const since=p.memberSince?('Člen od '+String(p.memberSince).slice(0,4)):'';
   grid.innerHTML=`
@@ -5762,6 +5790,9 @@ function initAuthWatch(){
   window.addEventListener('focus',pollAuthSession);
 }
 async function initApp(){
+  // appka přebírá vykreslování — statický obsah pro boty bez JS (viz server.js) už není potřeba
+  const ssr=document.getElementById('ssrContent');
+  if(ssr)ssr.remove();
   try{
     const url=new URL(window.location.href);
     const reset=url.searchParams.get('reset');
@@ -5830,10 +5861,17 @@ async function initApp(){
   document.querySelectorAll('input[type=date]').forEach(enhanceDateInput);
   document.querySelectorAll('input[type=time]').forEach(enhanceTimeInput);
   initReveal();
-  // deep-link: lze otevřít přímo konkrétní stránku přes #hash (bez případného ?query)
+  // deep-link: lze otevřít přímo konkrétní stránku přes reálnou SEO cestu (/pecovatelka/..., /jak-to-funguje...)
+  // nebo (starší appka/sdílené odkazy) přes #hash
   let deep='';
   try{deep=(location.hash||'').replace(/^#/,'').split('?')[0];}catch(e){}
-  if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('legal-')===0&&LEGAL[deep.slice(6)])openLegal(deep.slice(6),{direct:true});
+  let pathname='';
+  try{pathname=location.pathname||'';}catch(e){}
+  const slugMatch=/^\/pecovatelka\/([^/]+)\/?$/.exec(pathname);
+  const pathView=viewForPath(pathname);
+  if(!resetPwToken&&!changeEmailToken&&slugMatch){await openProfileBySlug(decodeURIComponent(slugMatch[1]));}
+  else if(!resetPwToken&&!changeEmailToken&&pathView){await go(pathView);}
+  else if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('legal-')===0&&LEGAL[deep.slice(6)])openLegal(deep.slice(6),{direct:true});
   else if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('u-')===0){await openProfileByToken(parseAccountToken(deep));}
   else if(!resetPwToken&&!changeEmailToken&&deep&&(document.getElementById('view-'+deep)||isDeferredView(deep)))await go(deep);
   else if(!resetPwToken&&!changeEmailToken&&auth.loggedIn)await go(landingView());
@@ -5846,7 +5884,10 @@ async function initApp(){
     const changed=!history.state||history.state.view!==v
       ||(v==='legal'&&history.state.legalKey!==legalCurrentKey)
       ||(v==='profile'&&history.state.token!==state.profileToken);
-    if(changed)history.replaceState(stateForView(v),'','#'+hashForView(v));
+    if(changed){
+      const p=pathForView(v);
+      history.replaceState(stateForView(v),'',(p||'/')+(p?'':'#'+hashForView(v)));
+    }
   }catch(e){}
   initAutoUpdate();
   initAdminPoll();

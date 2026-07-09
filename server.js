@@ -209,6 +209,24 @@ function genPublicId(len = 10) {
   return s;
 }
 
+// SEO slug pro veřejný profil pečovatelky (/pecovatelka/jana-novakova-zlin) — generuje se JEN
+// při schválení ověření, ať se odkaz později (např. při úpravě profilu) nerozbije.
+function slugifyBase(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+async function slugFor(name, loc, excludeId) {
+  const base = [slugifyBase(name), slugifyBase(loc)].filter(Boolean).join('-').slice(0, 80) || 'pecovatelka';
+  let candidate = base;
+  for (let n = 2; n < 50; n++) {
+    const rows = await restSelect(T.caregivers, `slug=eq.${encodeURIComponent(candidate)}&select=id&limit=1`);
+    const hit = rows && rows[0];
+    if (!hit || (excludeId != null && Number(hit.id) === Number(excludeId))) return candidate;
+    candidate = `${base}-${n}`;
+  }
+  return `${base}-${Date.now()}`;
+}
+
 const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
 const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks', 'signupPlan', 'planPermissions', 'services'];
 const ADMIN_UPDATABLE_USER_STATUSES = new Set(['active', 'suspended']);
@@ -1672,7 +1690,7 @@ function publicUser(u) {
 }
 function mapCaregiver(c, permsSetting) {
   return {
-    id: Number(c.id), publicId: c.public_id || null, name: c.name, init: c.init, loc: c.loc, rate: c.rate,
+    id: Number(c.id), publicId: c.public_id || null, slug: c.slug || null, name: c.name, init: c.init, loc: c.loc, rate: c.rate,
     rating: Number(c.rating), reviews: c.reviews, exp: c.exp, services: c.services || [],
     verified: c.verified, cert: c.cert, bio: c.bio, status: c.status, suspended: c.suspended,
     idVerified: c.id_verified, plan: c.plan, planStatus: c.plan_status || null, trialUntil: c.trial_until || null,
@@ -2901,7 +2919,8 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
         plan = 'start'; plan_status = 'canceled';
       }
     } catch (e) { /* ponech bez plánu */ }
-    await restInsert(T.caregivers, { id: newId, user_id: userId, public_id: genPublicId(), ...data, rating: 0, reviews: 0, plan, plan_status, trial_until, langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
+    const slug = await slugFor(v.name, v.loc);
+    await restInsert(T.caregivers, { id: newId, user_id: userId, public_id: genPublicId(), slug, ...data, rating: 0, reviews: 0, plan, plan_status, trial_until, langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
   }
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'approved' }, { prefer: 'return=minimal' });
   if (v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: true }) });
@@ -4228,6 +4247,225 @@ app.use((err, req, res, next) => {
 });
 
 /* ----------------------------------------------------------------------
+   5b) SEO/GEO — veřejné indexovatelné cesty (lehký "SSR shim")
+   Appka je jinak čistá SPA s hash routováním (#hledat, #u-token...), kterou boti
+   bez JS (typicky AI crawlery — GPTBot, ClaudeBot, PerplexityBot) vidí jako
+   prázdnou. Pro tuhle hrstku veřejných cest server vrátí index.html s cíleným
+   title/description/canonical/JSON-LD a statickým obsahem té stránky vloženým
+   do #ssrContent — appka na klientovi ho po startu skryje a převezme normální
+   SPA vykreslení (viz initApp() v app.js), takže přihlášený/interaktivní zážitek
+   se vůbec nemění.
+   -------------------------------------------------------------------- */
+const APP_ORIGIN = APP_URL.replace(/\/+$/, '');
+const ORG_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'ZENVORIA',
+  url: `${APP_ORIGIN}/`,
+  description: 'ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami o seniory v Česku.',
+  areaServed: 'CZ',
+};
+// vytáhne obsah <div class="view" id="viewId">...</div> ze statického HTML (počítáním
+// otevírajících/zavírajících <div>, ne regexem přes celý blok — kvůli vnořeným divům)
+function extractViewHtml(html, viewId) {
+  const startMarker = `<div class="view" id="${viewId}">`;
+  const start = String(html || '').indexOf(startMarker);
+  if (start < 0) return '';
+  const re = /<div\b[^>]*>|<\/div>/g;
+  re.lastIndex = start + startMarker.length;
+  let depth = 1, m;
+  while ((m = re.exec(html))) {
+    if (m[0].startsWith('</div')) depth--; else depth++;
+    if (depth === 0) return html.slice(start + startMarker.length, m.index);
+  }
+  return '';
+}
+// vloží per-route title/description/canonical/OG/JSON-LD/SSR obsah do už připraveného INDEX_HTML
+// (ten už má správné app.min.js/app.min.css odkazy z minifyAssets() — nečteme index.html znovu z disku)
+function renderSeoPage({ title, description, canonical, ogTitle, ogDescription, jsonLd, ssrHtml }) {
+  if (!INDEX_HTML) return null;
+  let html = INDEX_HTML;
+  if (title) html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
+  if (description) html = html.replace(/(<meta name="description" content=")[^"]*(")/, (_all, a, b) => a + escapeHtml(description) + b);
+  const ogT = ogTitle || title, ogD = ogDescription || description;
+  if (ogT) {
+    html = html.replace(/(<meta property="og:title" content=")[^"]*(")/, (_all, a, b) => a + escapeHtml(ogT) + b)
+      .replace(/(<meta name="twitter:title" content=")[^"]*(")/, (_all, a, b) => a + escapeHtml(ogT) + b);
+  }
+  if (ogD) {
+    html = html.replace(/(<meta property="og:description" content=")[^"]*(")/, (_all, a, b) => a + escapeHtml(ogD) + b)
+      .replace(/(<meta name="twitter:description" content=")[^"]*(")/, (_all, a, b) => a + escapeHtml(ogD) + b);
+  }
+  if (canonical) html = html.replace('<!--CANONICAL-->', `<link rel="canonical" href="${escapeHtml(canonical)}">`);
+  const jsonLdArr = Array.isArray(jsonLd) ? jsonLd : (jsonLd ? [jsonLd] : []);
+  if (jsonLdArr.length) html = html.replace('<!--JSONLD-->', jsonLdArr.map((j) => `<script type="application/ld+json">${JSON.stringify(j)}</script>`).join(''));
+  if (ssrHtml) html = html.replace('<!--SSR_CONTENT-->', ssrHtml);
+  return html;
+}
+function sendSeoPage(res, opts) {
+  res.setHeader('Cache-Control', 'no-cache');
+  const html = renderSeoPage(opts);
+  if (html) return res.type('html').send(html);
+  return sendIndex(res);
+}
+async function getPublicCaregivers() {
+  // veřejné SEO cesty (sitemap, vyhledávací stránka) musí zůstat dostupné i při výpadku DB —
+  // radši prázdný seznam než 500 chyba pro crawler/vyhledávač
+  try {
+    return (await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&select=id,slug,name,loc,rate,bio,services,rating,reviews,exp&order=rating.desc&limit=500`)) || [];
+  } catch (e) {
+    console.warn('[seo] nelze načíst veřejné pečovatelky:', e.message);
+    return [];
+  }
+}
+function caregiverCardHtml(c) {
+  const url = c.slug ? `/pecovatelka/${encodeURIComponent(c.slug)}` : '/hledat-peci';
+  return `<article style="margin:0 0 22px 0;padding-bottom:18px;border-bottom:1px solid #eee">
+    <h2 style="margin:0 0 4px 0;font-size:18px"><a href="${url}">${escapeHtml(c.name || '')}</a></h2>
+    <p style="margin:0 0 4px 0;color:#555">${escapeHtml(c.loc || '')} · ${Number(c.rate) || '?'} Kč/hod · hodnocení ${Number(c.rating) || '—'} (${Number(c.reviews) || 0} recenzí)</p>
+    <p style="margin:0">${escapeHtml((c.bio || '').slice(0, 220))}</p>
+  </article>`;
+}
+
+app.get('/hledat-peci', h(async (req, res) => {
+  const cgs = await getPublicCaregivers();
+  const shell = extractViewHtml(INDEX_HTML || '', 'view-search');
+  const list = cgs.map(caregiverCardHtml).join('');
+  const ssrHtml = shell
+    ? shell.replace('<div class="care-grid" id="careGrid"></div>', `<div class="care-grid" id="careGrid">${list}</div>`)
+    : list;
+  sendSeoPage(res, {
+    title: 'Hledat pečovatelku — ZENVORIA',
+    description: `Najděte ověřenou pečovatelku ve svém okolí. Aktuálně ${cgs.length} ověřených pečovatelek v ZENVORIA.`,
+    canonical: `${APP_ORIGIN}/hledat-peci`,
+    jsonLd: ORG_JSON_LD,
+    ssrHtml,
+  });
+}));
+
+app.get('/jak-to-funguje', h(async (req, res) => {
+  sendSeoPage(res, {
+    title: 'Jak to funguje — ZENVORIA',
+    description: 'Od vyhledání ověřené pečovatelky až po klidnou péči — ve čtyřech jednoduchých krocích.',
+    canonical: `${APP_ORIGIN}/jak-to-funguje`,
+    jsonLd: ORG_JSON_LD,
+    ssrHtml: extractViewHtml(INDEX_HTML || '', 'view-howto'),
+  });
+}));
+
+app.get('/cenik', h(async (req, res) => {
+  let devHtml = '';
+  try { devHtml = fs.readFileSync(path.join(__dirname, 'deferred-views.html'), 'utf8'); } catch (e) { /* ignore */ }
+  sendSeoPage(res, {
+    title: 'Ceník — ZENVORIA',
+    description: 'Přehled tarifů pro pečovatelky v ZENVORIA.',
+    canonical: `${APP_ORIGIN}/cenik`,
+    jsonLd: ORG_JSON_LD,
+    ssrHtml: extractViewHtml(devHtml, 'view-pricing'),
+  });
+}));
+
+app.get(['/obchodni-podminky', '/zasady-cookies'], h(async (req, res) => {
+  const isCookies = req.path === '/zasady-cookies';
+  sendSeoPage(res, {
+    title: (isCookies ? 'Zásady cookies' : 'Obchodní podmínky') + ' — ZENVORIA',
+    description: isCookies ? 'Zásady používání cookies na ZENVORIA.' : 'Obchodní podmínky používání platformy ZENVORIA.',
+    canonical: `${APP_ORIGIN}${req.path}`,
+    ssrHtml: extractViewHtml(INDEX_HTML || '', 'view-legal'),
+  });
+}));
+
+app.get('/pecovatelka/:slug', h(async (req, res) => {
+  const slug = String(req.params.slug || '').toLowerCase();
+  let c = null;
+  try {
+    const rows = await restSelect(T.caregivers, `slug=eq.${encodeURIComponent(slug)}&verified=eq.true&suspended=eq.false&select=id,slug,name,loc,rate,bio,services,rating,reviews,exp&limit=1`);
+    c = rows && rows[0];
+  } catch (e) { console.warn('[seo] nelze načíst profil pečovatelky:', e.message); }
+  if (!c) return sendIndex(res); // neexistuje/neověřená/výpadek DB → SPA dovyrenderuje "nenalezeno"
+  const servicesTxt = (c.services || []).join(', ');
+  const bioSnippet = String(c.bio || '').slice(0, 140);
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: c.name,
+    jobTitle: 'Pečovatelka',
+    ...(c.loc ? { homeLocation: { '@type': 'Place', name: c.loc } } : {}),
+    ...(c.bio ? { description: c.bio } : {}),
+    ...(Number(c.reviews) > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(c.rating) || 0, reviewCount: Number(c.reviews) } } : {}),
+  };
+  const ssrHtml = `<div class="wrap"><div class="page-head"><h1>${escapeHtml(c.name || '')}</h1>
+    <p>${escapeHtml(c.loc || '')} · ${Number(c.rate) || '?'} Kč/hod · ${Number(c.exp) || 0} let praxe${Number(c.reviews) > 0 ? ` · hodnocení ${Number(c.rating)} (${Number(c.reviews)} recenzí)` : ''}</p></div>
+    <p>${escapeHtml(c.bio || '')}</p>
+    ${servicesTxt ? `<p><b>Nabízené služby:</b> ${escapeHtml(servicesTxt)}</p>` : ''}
+    </div>`;
+  sendSeoPage(res, {
+    title: `${c.name} — pečovatelka, ${c.loc || 'Česko'} | ZENVORIA`,
+    description: `${c.name}, ${c.loc || ''}. ${bioSnippet}`.trim(),
+    canonical: `${APP_ORIGIN}/pecovatelka/${encodeURIComponent(c.slug)}`,
+    jsonLd,
+    ssrHtml,
+  });
+}));
+
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain').send(
+`User-agent: *
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+Disallow: /api/
+
+Sitemap: ${APP_ORIGIN}/sitemap.xml
+`);
+});
+
+app.get('/sitemap.xml', h(async (req, res) => {
+  const staticPaths = ['/', '/hledat-peci', '/jak-to-funguje', '/cenik', '/obchodni-podminky', '/zasady-cookies'];
+  const cgs = await getPublicCaregivers();
+  const urls = [
+    ...staticPaths.map((p) => `<url><loc>${APP_ORIGIN}${p}</loc></url>`),
+    ...cgs.filter((c) => c.slug).map((c) => `<url><loc>${APP_ORIGIN}/pecovatelka/${encodeURIComponent(c.slug)}</loc></url>`),
+  ].join('');
+  res.type('application/xml').setHeader('Cache-Control', 'public, max-age=3600')
+    .send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`);
+}));
+
+app.get('/llms.txt', (_req, res) => {
+  res.type('text/plain').send(
+`# ZENVORIA
+
+> ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami o seniory v Česku.
+
+Rodiny si zdarma vyhledají pečovatelku podle lokality, ceny a nabízených služeb, objednají termín a platí přímo pečovatelce. Pečovatelky procházejí ověřením totožnosti a dokladů před schválením administrátorem.
+
+- [Hledat pečovatelku](${APP_ORIGIN}/hledat-peci)
+- [Jak to funguje](${APP_ORIGIN}/jak-to-funguje)
+- [Ceník](${APP_ORIGIN}/cenik)
+`);
+});
+
+/* ----------------------------------------------------------------------
    6) STATIKA (frontend) — až po /api
    -------------------------------------------------------------------- */
 const IMMUTABLE_ASSET_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$/i;
@@ -4235,7 +4473,7 @@ const IMMUTABLE_ASSET_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$/i;
    reload stáhl novou verzi; statická média (obrázky/fonty) zůstanou immutable. */
 const REVALIDATE_ASSET_RE = /(?:\.html?|app(?:\.min)?\.js|app(?:\.min)?\.css|deferred-views\.html)$/i;
 /* index.html vždy s otiskem verze (musí být PŘED express.static) */
-app.get(['/', '/index.html'], (_req, res) => sendIndex(res));
+app.get(['/', '/index.html'], (_req, res) => sendSeoPage(res, { canonical: `${APP_ORIGIN}/`, jsonLd: ORG_JSON_LD }));
 app.use(express.static(ROOT, {
   extensions: ['html'],
   index: 'index.html',
