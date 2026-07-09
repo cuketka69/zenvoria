@@ -15,6 +15,21 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const compression = require('compression');
 
+// --- pojistka proti tichému pádu procesu ---
+// bez tohohle by nezachycená chyba (typicky v na pozadí běžící úloze, ne v HTTP requestu — ty
+// zachytává h()/error middleware níž) proces potichu spadla a nikdo by se to nedozvěděl, dokud by
+// si appku někdo nezkusil otevřít. Loguje se nahlas a proces se ukončí, ať ho Railway spořádaně
+// restartuje — pokračovat po nezachycené výjimce dál je podle Node dokumentace nebezpečné
+// (vnitřní stav appky může být poškozený), takže to nezkoušíme "opravit za běhu".
+process.on('uncaughtException', (err) => {
+  console.error('[zenvoria] 🔥 Nezachycená výjimka, ukončuji proces (Railway ho restartuje):', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[zenvoria] 🔥 Nezachycené odmítnutí promise, ukončuji proces (Railway ho restartuje):', reason);
+  process.exit(1);
+});
+
 // --- minimální načtení .env (bez závislosti); na Railway se env injektuje samo ---
 (function loadDotEnv() {
   try {
