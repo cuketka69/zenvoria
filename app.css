@@ -533,9 +533,8 @@
   .about-stat .as-l{color:var(--muted);font-size:13px;margin-top:8px;letter-spacing:.02em}
   @media(max-width:560px){.about-stat{flex-basis:50%;border-bottom:1px solid var(--line)}.about-stat:nth-child(2){border-right:none}}
   /* O nás — logo */
-  .about-logo{display:flex;justify-content:center;align-items:center;margin-top:40px;padding:50px;
-    border-radius:22px;background:var(--navy-800);box-shadow:var(--shadow-sm)}
-  .about-logo img{max-width:280px;width:100%;height:auto}
+  .about-logo{display:flex;justify-content:center;align-items:center;margin-top:40px}
+  .about-logo img{max-width:320px;width:100%;height:auto}
   /* ---------- ANIMACE (scroll reveal — stejné jako patrikzdercik.cz) ---------- */
   /* pre-hide reveal cílů už od prvního vykreslení (než naběhne JS) → žádné probliknutí */
   html.js :is(.hero .eyebrow,.hero h1,.hero p.lead,.hero-cta,.trust-band .trust,#view-home .sec-head,.about-lead,.about-logo,.svc-card,#view-home .aud,.val):not(.visible){opacity:0}
