@@ -532,22 +532,13 @@
   .about-stat .as-v{font-family:'Playfair Display',serif;font-size:33px;color:var(--gold-deep);line-height:1}
   .about-stat .as-l{color:var(--muted);font-size:13px;margin-top:8px;letter-spacing:.02em}
   @media(max-width:560px){.about-stat{flex-basis:50%;border-bottom:1px solid var(--line)}.about-stat:nth-child(2){border-right:none}}
-  /* O nás — 3 foto-karty (2 nahoře, 1 široká dole) */
-  .about-photos{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:40px}
-  .ap-card{position:relative;min-height:320px;border-radius:22px;overflow:hidden;display:flex;align-items:flex-end;
-    padding:30px;background:var(--navy-800) center/cover no-repeat;box-shadow:var(--shadow-sm);transition:.25s}
-  .ap-card::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(4,18,12,.94),rgba(4,18,12,.4) 55%,rgba(4,18,12,.05))}
-  .ap-card:hover{transform:translateY(-5px);box-shadow:var(--shadow)}
-  .ap-inner{position:relative;z-index:1;max-width:460px}
-  .ap-tag{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.08em;
-    text-transform:uppercase;color:var(--gold-soft);margin-bottom:11px}
-  .ap-card h4{font-family:'Playfair Display',serif;font-size:24px;color:#fff;margin-bottom:9px;line-height:1.15}
-  .ap-card p{font-size:14px;color:rgba(255,255,255,.82);line-height:1.6}
-  .ap-wide{grid-column:1 / -1;min-height:360px}
-  @media(max-width:680px){.about-photos{grid-template-columns:1fr}.ap-wide{grid-column:auto}}
+  /* O nás — logo */
+  .about-logo{display:flex;justify-content:center;align-items:center;margin-top:40px;padding:50px;
+    border-radius:22px;background:var(--navy-800);box-shadow:var(--shadow-sm)}
+  .about-logo img{max-width:280px;width:100%;height:auto}
   /* ---------- ANIMACE (scroll reveal — stejné jako patrikzdercik.cz) ---------- */
   /* pre-hide reveal cílů už od prvního vykreslení (než naběhne JS) → žádné probliknutí */
-  html.js :is(.hero .eyebrow,.hero h1,.hero p.lead,.hero-cta,.trust-band .trust,#view-home .sec-head,.about-lead,.ap-card,.svc-card,#view-home .aud,.val):not(.visible){opacity:0}
+  html.js :is(.hero .eyebrow,.hero h1,.hero p.lead,.hero-cta,.trust-band .trust,#view-home .sec-head,.about-lead,.about-logo,.svc-card,#view-home .aud,.val):not(.visible){opacity:0}
   .reveal{opacity:0;transform:translateY(36px);transition:opacity .7s ease,transform .7s ease}
   .reveal.visible{opacity:1;transform:translateY(0)}
   .reveal-left{opacity:0;transform:translateX(-48px);transition:opacity .7s ease,transform .7s ease}
@@ -557,7 +548,7 @@
   .reveal-scale{opacity:0;transform:scale(.92);transition:opacity .6s ease,transform .6s ease}
   .reveal-scale.visible{opacity:1;transform:scale(1)}
   @media (prefers-reduced-motion:reduce){.reveal,.reveal-left,.reveal-right,.reveal-scale{opacity:1!important;transform:none!important;transition:none}
-    html.js :is(.hero .eyebrow,.hero h1,.hero p.lead,.hero-cta,.trust-band .trust,#view-home .sec-head,.about-lead,.ap-card,.svc-card,#view-home .aud,.val){opacity:1!important}}
+    html.js :is(.hero .eyebrow,.hero h1,.hero p.lead,.hero-cta,.trust-band .trust,#view-home .sec-head,.about-lead,.about-logo,.svc-card,#view-home .aud,.val){opacity:1!important}}
   .nav-inner{transition:background .3s ease,box-shadow .3s ease}
   header.nav.scrolled .nav-inner{background:rgba(8,26,17,.92);box-shadow:0 18px 46px -20px rgba(0,0,0,.75)}
   .sort-row input[type=range]{accent-color:var(--gold);cursor:pointer}

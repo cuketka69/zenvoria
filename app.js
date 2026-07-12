@@ -788,13 +788,7 @@ function initReveal(){
   tag('.trust-band .trust','reveal',true);
   tag('#view-home .sec-head','reveal',false);
   tag('.about-lead','reveal',false);
-  // foto karty „O nás" — střídavě zleva/zprava, široká zespoda
-  document.querySelectorAll('.ap-card').forEach(function(el,i){
-    if(el.dataset.rev)return;
-    el.dataset.rev='1';
-    el.classList.add(el.classList.contains('ap-wide')?'reveal':(i%2?'reveal-right':'reveal-left'));
-    io.observe(el);
-  });
+  tag('.about-logo','reveal',false);
   tag('.svc-card','reveal-scale',true);
   tag('#view-home .aud','reveal',true);
   tag('.val','reveal',true);
