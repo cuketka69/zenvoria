@@ -4412,16 +4412,7 @@ app.get('/cenik', h(async (req, res) => {
   });
 }));
 
-app.get('/zasady-cookies', h(async (req, res) => {
-  sendSeoPage(res, {
-    title: 'Zásady cookies — ZENVORIA',
-    description: 'Zásady používání cookies na ZENVORIA.',
-    canonical: `${APP_ORIGIN}${req.path}`,
-    ssrHtml: extractViewHtml(INDEX_HTML || '', 'view-legal'),
-  });
-}));
-
-/* statické právní stránky (obchodni-udaje, ochrana-osobnich-udaju, obchodni-podminky) mají placeholdery
+/* statické právní stránky (obchodni-udaje, ochrana-osobnich-udaju, obchodni-podminky, zasady-cookies) mají placeholdery
    {{CONTACT_*}}, které se tu dosadí z centrálních kontaktních údajů nastavených adminem (viz sanitizeContactInfo) —
    musí být PŘED express.static, jinak by se posílal soubor s placeholdery nevyplněný */
 function fillContactPlaceholders(html, info) {
@@ -4438,6 +4429,7 @@ const STATIC_LEGAL_PAGES = {
   '/obchodni-udaje': 'obchodni-udaje.html',
   '/ochrana-osobnich-udaju': 'ochrana-osobnich-udaju.html',
   '/obchodni-podminky': 'obchodni-podminky.html',
+  '/zasady-cookies': 'zasady-cookies.html',
 };
 app.get(Object.keys(STATIC_LEGAL_PAGES), h(async (req, res) => {
   let html = '';
