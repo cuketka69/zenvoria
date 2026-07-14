@@ -4410,18 +4410,17 @@ app.get('/cenik', h(async (req, res) => {
   });
 }));
 
-app.get(['/obchodni-podminky', '/zasady-cookies'], h(async (req, res) => {
-  const isCookies = req.path === '/zasady-cookies';
+app.get('/zasady-cookies', h(async (req, res) => {
   sendSeoPage(res, {
-    title: (isCookies ? 'Zásady cookies' : 'Obchodní podmínky') + ' — ZENVORIA',
-    description: isCookies ? 'Zásady používání cookies na ZENVORIA.' : 'Obchodní podmínky používání platformy ZENVORIA.',
+    title: 'Zásady cookies — ZENVORIA',
+    description: 'Zásady používání cookies na ZENVORIA.',
     canonical: `${APP_ORIGIN}${req.path}`,
     ssrHtml: extractViewHtml(INDEX_HTML || '', 'view-legal'),
   });
 }));
 
-/* statické právní stránky (obchodni-udaje, ochrana-osobnich-udaju) mají placeholdery {{CONTACT_*}},
-   které se tu dosadí z centrálních kontaktních údajů nastavených adminem (viz sanitizeContactInfo) —
+/* statické právní stránky (obchodni-udaje, ochrana-osobnich-udaju, obchodni-podminky) mají placeholdery
+   {{CONTACT_*}}, které se tu dosadí z centrálních kontaktních údajů nastavených adminem (viz sanitizeContactInfo) —
    musí být PŘED express.static, jinak by se posílal soubor s placeholdery nevyplněný */
 function fillContactPlaceholders(html, info) {
   const phone = info.phone || '';
@@ -4432,10 +4431,14 @@ function fillContactPlaceholders(html, info) {
     .replace(/\{\{CONTACT_ICO\}\}/g, escapeHtml(info.ico || 'doplňte'))
     .replace(/\{\{CONTACT_ADDRESS\}\}/g, escapeHtml(info.address || 'doplňte finální adresu společnosti'));
 }
-app.get(['/obchodni-udaje', '/ochrana-osobnich-udaju'], h(async (req, res) => {
-  const filename = req.path === '/obchodni-udaje' ? 'obchodni-udaje.html' : 'ochrana-osobnich-udaju.html';
+const STATIC_LEGAL_PAGES = {
+  '/obchodni-udaje': 'obchodni-udaje.html',
+  '/ochrana-osobnich-udaju': 'ochrana-osobnich-udaju.html',
+  '/obchodni-podminky': 'obchodni-podminky.html',
+};
+app.get(Object.keys(STATIC_LEGAL_PAGES), h(async (req, res) => {
   let html = '';
-  try { html = fs.readFileSync(path.join(ROOT, filename), 'utf8'); } catch (e) { return sendIndex(res); }
+  try { html = fs.readFileSync(path.join(ROOT, STATIC_LEGAL_PAGES[req.path]), 'utf8'); } catch (e) { return sendIndex(res); }
   res.set('Cache-Control', 'no-cache').type('html').send(fillContactPlaceholders(html, contactInfo));
 }));
 
