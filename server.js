@@ -2381,6 +2381,21 @@ app.patch('/api/users/me/settings', requireAuth, h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+/* vlastní jméno a titul uživatele (funguje pro family/caregiver/admin) */
+app.patch('/api/users/me/profile', requireAuth, h(async (req, res) => {
+  const b = req.body || {};
+  const name = trimmedString(b.name, 120);
+  const titul = trimmedString(b.titul, 20) || null;
+  if (!name) return res.status(400).json({ error: 'Zadejte jméno a příjmení.' });
+  await restUpdate(T.users, `id=eq.${req.session.uid}`, { name, titul }, { prefer: 'return=minimal' });
+  // pečovatelce propíšeme jméno/titul i do veřejné karty (aby je viděly rodiny ve vyhledávání)
+  if (req.session.role === 'caregiver' && req.session.email) {
+    try { await restUpdate(T.caregivers, `email=eq.${encodeURIComponent(req.session.email)}`, { name, titul }, { prefer: 'return=minimal' }); } catch (e) { /* nekritické */ }
+  }
+  fireAudit('users.me.profile.update', { req, actor: auditActor(req), targetType: 'user', targetId: req.session.uid, status: 'success' });
+  res.json({ ok: true, name, titul });
+}));
+
 /* profilová fotka uživatele (data URL nebo null pro odebrání) */
 app.patch('/api/users/me/photo', requireAuth, h(async (req, res) => {
   let photo = req.body && req.body.photo;

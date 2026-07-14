@@ -1217,6 +1217,16 @@
         <button type="button" class="btn btn-ghost btn-sm" id="setPhotoRemove" style="display:none" onclick="removeUserPhoto()">Odebrat</button>
       </div>
       <div class="pdiv"></div>
+      <h4 class="set-h4">Jméno a titul</h4>
+      <div class="grid2" style="margin-top:6px">
+        <div><label class="lbl">Jméno a příjmení</label><input class="inp" id="setNameInput" placeholder="Jana Nováková"></div>
+        <div><label class="lbl">Titul (nepovinné)</label><input class="inp" id="setTitulInput" maxlength="20" placeholder="Ing., Mgr., MUDr. …"></div>
+      </div>
+      <div class="set-err" id="setNameErr"></div>
+      <div class="set-danger-row" style="justify-content:flex-start">
+        <button type="button" class="btn btn-gold" onclick="saveAccountName()">Uložit jméno</button>
+      </div>
+      <div class="pdiv"></div>
       <h4 class="set-h4">Změna e-mailu</h4>
       <p class="set-sub" style="margin-top:6px">Na původní e-mail pošleme potvrzovací odkaz a novou adresu ověříte kódem.</p>
       <div class="set-danger-row" style="justify-content:flex-start">

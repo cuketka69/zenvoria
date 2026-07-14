@@ -1645,6 +1645,8 @@ function renderSettings(){
   document.getElementById('setName').textContent=name;
   document.getElementById('setEmail').textContent=auth.loggedIn?auth.email:'—';
   document.getElementById('setRole').textContent=auth.role==='caregiver'?'Účet pečovatelky':(auth.role==='admin'?'Správce systému':'Účet rodiny');
+  const setNameInput=document.getElementById('setNameInput');if(setNameInput)setNameInput.value=auth.loggedIn?auth.name:'';
+  const setTitulInput=document.getElementById('setTitulInput');if(setTitulInput)setTitulInput.value=auth.loggedIn?(auth.titul||''):'';
   const photo=auth.photo||(auth.role==='caregiver'?cgProfile.photo:null);
   setAva(document.getElementById('setAva'),photo,initials(name));
   const rm=document.getElementById('setPhotoRemove');if(rm)rm.style.display=photo?'':'none';
@@ -1680,6 +1682,29 @@ function removeUserPhoto(){
   toast('Profilová fotka odebrána');
 }
 function toggleSetting(key,el){appSettings[key]=el.checked;if(auth.loggedIn)apiSync(api('/users/me/settings',{method:'PATCH',body:{settings:appSettings}}));toast('Nastavení uloženo');}
+/* vlastní jméno a titul (Nastavení → Účet) — funguje pro rodinu, pečovatelku i správce */
+async function saveAccountName(){
+  const nameEl=document.getElementById('setNameInput'),titulEl=document.getElementById('setTitulInput'),errEl=document.getElementById('setNameErr');
+  const name=(nameEl.value||'').trim();
+  const titul=(titulEl.value||'').trim().slice(0,20);
+  if(errEl)errEl.textContent='';
+  if(!name){if(errEl)errEl.textContent='Zadejte jméno a příjmení.';nameEl.focus();return;}
+  try{
+    await api('/users/me/profile',{method:'PATCH',body:{name,titul}});
+    loginAs(name,auth.email,auth.role,undefined,undefined,undefined,titul);
+    if(auth.role==='caregiver'){
+      cgProfile.name=name;cgProfile.titul=titul;
+      const me=CAREGIVERS.find(x=>x.email===auth.email);
+      if(me){me.name=name;me.titul=titul||null;}
+      renderCare();
+    }
+    renderSettings();
+    toast('Jméno bylo uloženo.','success');
+  }catch(err){
+    if(errEl)errEl.textContent=err.message||'Uložení se nezdařilo.';
+    toast(''+(err.message||'Uložení se nezdařilo.'),'declined');
+  }
+}
 async function changePassword(e){
   e.preventDefault();
   const cur=document.getElementById('pwCurrent'),nw=document.getElementById('pwNew'),cf=document.getElementById('pwConfirm');
