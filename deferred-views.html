@@ -1181,6 +1181,30 @@
   </div>
 </div>
 
+<!-- ============ ADMIN: KONTAKTNÍ ÚDAJE ============ -->
+<div class="view" id="view-admin-contact">
+  <div class="wrap">
+    <div class="page-head"><h1>Kontaktní údaje</h1><p>Telefon, IČO a sídlo firmy — zobrazují se centrálně v patičce webu, na obchodních podmínkách, ochraně osobních údajů a obchodních údajích.</p></div>
+    <div class="profile-grid">
+      <form class="pcard" onsubmit="return saveAdminContact(event)">
+        <h3>Provozovatel ZENVORIA s.r.o.</h3>
+        <label class="lbl" for="acPhone">Telefonní kontakt</label>
+        <input class="inp" id="acPhone" type="tel" autocomplete="off" placeholder="+420 777 625 165">
+        <label class="lbl" style="margin-top:16px" for="acIco">IČO</label>
+        <input class="inp" id="acIco" type="text" inputmode="numeric" autocomplete="off" placeholder="12345678">
+        <label class="lbl" style="margin-top:16px" for="acAddress">Adresa působení (sídlo)</label>
+        <input class="inp" id="acAddress" type="text" autocomplete="off" placeholder="Ulice 123, 100 00 Praha">
+        <div class="set-err" id="acErr" style="margin-top:10px"></div>
+        <button class="btn btn-gold" type="submit" style="margin-top:18px">Uložit kontaktní údaje</button>
+      </form>
+      <div class="pcard book-aside">
+        <div class="preview-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="#7A736A" stroke-width="1.6"/></svg>Kde se údaje zobrazí</div>
+        <p style="color:var(--muted);font-size:13px">Patička webu, stránky Obchodní podmínky, Ochrana osobních údajů a Obchodní údaje se aktualizují okamžitě po uložení.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ CENÍK / TARIFY ============ -->
 <div class="view" id="view-pricing">
   <div class="wrap">

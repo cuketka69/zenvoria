@@ -228,7 +228,7 @@ async function slugFor(name, loc, excludeId) {
 }
 
 const PASSWORD_RULE_HINT = 'Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.';
-const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks', 'signupPlan', 'planPermissions', 'services'];
+const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks', 'signupPlan', 'planPermissions', 'services', 'contactInfo'];
 const ADMIN_UPDATABLE_USER_STATUSES = new Set(['active', 'suspended']);
 const ADMIN_UPDATABLE_CAREGIVER_STATUSES = new Set(['pending', 'verified', 'rejected']);
 const ADMIN_UPDATABLE_CAREGIVER_PLANS = new Set(['start', 'premium']);
@@ -292,6 +292,16 @@ function sanitizeSocialLinks(value) {
   if (facebook === null || instagram === null) return null;
   return { facebook, instagram };
 }
+
+/* centrální kontaktní údaje provozovatele (telefon, IČO, sídlo) — nastavuje admin, zobrazují se napříč webem */
+function sanitizeContactInfo(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const phone = trimmedString(value.phone, 40);
+  const ico = trimmedString(value.ico, 20);
+  const address = trimmedString(value.address, 300);
+  return { phone, ico, address };
+}
+const DEFAULT_CONTACT_INFO = { phone: '', ico: '', address: '' };
 
 /* tarif po registraci: { plan: 'none'|'start'|'premium', days: 0..365 (0 = neomezeně) } */
 function sanitizeSignupPlan(value) {
@@ -373,6 +383,7 @@ function sanitizeSettingValue(key, value) {
   if (key === 'planPermissions') return sanitizePlanPermissions(value);
   if (key === 'signupPlan') return sanitizeSignupPlan(value);
   if (key === 'services') return sanitizeServices(value);
+  if (key === 'contactInfo') return sanitizeContactInfo(value);
   return null;
 }
 
@@ -559,6 +570,16 @@ async function sendMailSafe({ to, subject, text, html }) {
 /* odkazy na sociální sítě pro e-maily — drženo v cache, aktualizováno z DB
    (při startu a po každém admin uložení), ať šablona zůstane synchronní */
 let emailSocialLinks = { facebook: '', instagram: '' };
+/* centrální kontaktní údaje (telefon, IČO, sídlo) — v cache, aktualizováno z DB při startu a po každém admin uložení,
+   používá se v e-mailových šablonách i při SSR statických právních stránek (obchodni-udaje, ochrana-osobnich-udaju) */
+let contactInfo = { ...DEFAULT_CONTACT_INFO };
+async function loadContactInfo() {
+  try {
+    const rows = await restSelect(T.settings, `key=eq.contactInfo&limit=1`);
+    const v = rows && rows[0] && rows[0].value;
+    if (v && typeof v === 'object') contactInfo = { phone: v.phone || '', ico: v.ico || '', address: v.address || '' };
+  } catch (e) { /* ponech výchozí prázdné */ }
+}
 function socialIconSpan(glyph, url, last) {
   const mr = last ? '' : 'margin-right:10px;';
   const span = `<span style="display:inline-block;width:44px;height:44px;border:1px solid #D9A91D;border-radius:50%;color:#D9A91D;font-size:20px;line-height:44px;text-align:center;${mr}">${glyph}</span>`;
@@ -2520,6 +2541,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
     planPrices: settings.planPrices || { start: 190, premium: 390 },
     socialLinks: settings.socialLinks || { facebook: '', instagram: '' },
+    contactInfo: sanitizeContactInfo(settings.contactInfo) || DEFAULT_CONTACT_INFO,
     signupPlan: sanitizeSignupPlan(settings.signupPlan) || { plan: 'none', days: 0 },
     planPermissions: planPerms,
     services: sanitizeServices(settings.services),
@@ -3945,6 +3967,7 @@ app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   if (value == null) return res.status(400).json({ error: 'Neplatná hodnota nastavení.' });
   await supabaseRestRequest('POST', T.settings, { body: { key, value }, prefer: 'resolution=merge-duplicates,return=minimal' });
   if (key === 'socialLinks') emailSocialLinks = { facebook: value.facebook || '', instagram: value.instagram || '' };
+  if (key === 'contactInfo') contactInfo = { phone: value.phone || '', ico: value.ico || '', address: value.address || '' };
   fireAudit('admin.settings.update', { req, actor: auditActor(req), targetType: 'setting', targetId: key, status: 'success' });
   res.json({ ok: true });
 }));
@@ -4397,6 +4420,25 @@ app.get(['/obchodni-podminky', '/zasady-cookies'], h(async (req, res) => {
   });
 }));
 
+/* statické právní stránky (obchodni-udaje, ochrana-osobnich-udaju) mají placeholdery {{CONTACT_*}},
+   které se tu dosadí z centrálních kontaktních údajů nastavených adminem (viz sanitizeContactInfo) —
+   musí být PŘED express.static, jinak by se posílal soubor s placeholdery nevyplněný */
+function fillContactPlaceholders(html, info) {
+  const phone = info.phone || '';
+  const phoneTel = phone.replace(/[^\d+]/g, '');
+  return html
+    .replace(/\{\{CONTACT_PHONE\}\}/g, escapeHtml(phone || 'doplňte'))
+    .replace(/\{\{CONTACT_PHONE_TEL\}\}/g, escapeHtml(phoneTel))
+    .replace(/\{\{CONTACT_ICO\}\}/g, escapeHtml(info.ico || 'doplňte'))
+    .replace(/\{\{CONTACT_ADDRESS\}\}/g, escapeHtml(info.address || 'doplňte finální adresu společnosti'));
+}
+app.get(['/obchodni-udaje', '/ochrana-osobnich-udaju'], h(async (req, res) => {
+  const filename = req.path === '/obchodni-udaje' ? 'obchodni-udaje.html' : 'ochrana-osobnich-udaju.html';
+  let html = '';
+  try { html = fs.readFileSync(path.join(ROOT, filename), 'utf8'); } catch (e) { return sendIndex(res); }
+  res.set('Cache-Control', 'no-cache').type('html').send(fillContactPlaceholders(html, contactInfo));
+}));
+
 app.get('/pecovatelka/:slug', h(async (req, res) => {
   const slug = String(req.params.slug || '').toLowerCase();
   let c = null;
@@ -4626,6 +4668,7 @@ minifyAssets().finally(() => {
   app.listen(PORT, () => {
     console.log(`[zenvoria] 🚀 server běží na portu ${PORT}`);
     loadEmailSocialLinks();
+    loadContactInfo();
     expireTrials();
     loadStripeConfigFromDb();
     loadOpenAiConfigFromDb();

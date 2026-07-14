@@ -38,6 +38,16 @@ const PLANS={
 };
 /* odkazy na sociální sítě Zenvoria — nastavuje admin v sekci Sociální sítě */
 let socialLinks={facebook:'',instagram:''};
+/* centrální kontaktní údaje (telefon, IČO, sídlo) — nastavuje admin v sekci Kontaktní údaje, zobrazují se v patičce i na právních stránkách */
+let contactInfo={phone:'',ico:'',address:''};
+/* patička: zobrazí telefon/sídlo, pokud je admin vyplnil */
+function renderFooterContact(){
+  const el=document.getElementById('footContact');if(!el)return;
+  const parts=[];
+  if(contactInfo.phone)parts.push('Tel.: '+contactInfo.phone);
+  if(contactInfo.address)parts.push(contactInfo.address);
+  el.textContent=parts.join(' · ');
+}
 /* otevře nastavený profil sítě v nové záložce; když není nastaven, upozorní */
 function openSocial(net){
   const url=socialLinks&&socialLinks[net];
@@ -100,11 +110,18 @@ const ORDER_STATUS={
 const state={caregiverId:1,bkServices:['osobni'],bkHours:4,profileToken:null,profileKind:null};
 let legalBackView='home';
 let legalCurrentKey='terms';
-const LEGAL_COMPANY={
-  name:'ZENVORIA s.r.o.',
-  meta:'IČO doplňte před ostrým spuštěním.',
-  email:'miklasova@zenvoria.cz'
-};
+/* zobrazené údaje o provozovateli na právních stránkách — meta/phone se skládají z centrálního contactInfo (nastavuje admin) */
+function legalCompany(){
+  const metaParts=[];
+  metaParts.push(contactInfo.ico?('IČO '+contactInfo.ico):'IČO doplňte před ostrým spuštěním.');
+  if(contactInfo.address)metaParts.push(contactInfo.address);
+  return{
+    name:'ZENVORIA s.r.o.',
+    meta:metaParts.join(' · '),
+    phone:contactInfo.phone||'',
+    email:'miklasova@zenvoria.cz'
+  };
+}
 const sIcon=(d)=>`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="${d}" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const sName=(id)=>SERVICES.find(s=>s.id===id)?.name||id;
 /* objednávka může mít víc služeb naráz, uložené jako "id1,id2" v jednom poli — zobrazí jejich čitelná jména oddělená čárkou */
@@ -230,6 +247,7 @@ async function go(v,fromPop){
   if(v==='admin-helpchat')renderAdminOpenAi();
   if(v==='admin-plans')renderAdminPlans();
   if(v==='admin-social')renderAdminSocial();
+  if(v==='admin-contact')renderAdminContact();
   if(v==='admin-broadcast')renderAdminBroadcast();
   if(v==='pricing')renderPricing();
   if(v==='settings')renderSettings();
@@ -1642,7 +1660,7 @@ function renderSettings(){
     if(el)el.checked=!!appSettings[k];
   });
   const name=auth.loggedIn?auth.name:'Host';
-  document.getElementById('setName').textContent=name;
+  document.getElementById('setName').textContent=auth.loggedIn?dispName(auth):name;
   document.getElementById('setEmail').textContent=auth.loggedIn?auth.email:'—';
   document.getElementById('setRole').textContent=auth.role==='caregiver'?'Účet pečovatelky':(auth.role==='admin'?'Správce systému':'Účet rodiny');
   const setNameInput=document.getElementById('setNameInput');if(setNameInput)setNameInput.value=auth.loggedIn?auth.name:'';
@@ -1873,6 +1891,7 @@ const NAV_ADMIN=[
   {v:'admin-stats',label:'Statistiky',fn:"go('admin-stats')"},
   {v:'admin-audit',label:'Audit logy',fn:"go('admin-audit')"},
   {v:'admin-social',label:'Sociální sítě',fn:"go('admin-social')"},
+  {v:'admin-contact',label:'Kontaktní údaje',fn:"go('admin-contact')"},
   {v:'admin-payments',label:'Platby (Stripe)',fn:"go('admin-payments')"},
   {v:'admin-helpchat',label:'Nápovědný chat (AI)',fn:"go('admin-helpchat')"}
 ];
@@ -1951,6 +1970,7 @@ function updateAuthUI(){
         +mi("go('admin-payments')",'Platby (Stripe)','<rect x="3" y="5.5" width="18" height="13" rx="2.3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 10h18" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-helpchat')",'Nápovědný chat (AI)','<path d="M4 5h16v11H9l-5 4V5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-social')",'Sociální sítě','<circle cx="6" cy="12" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="6.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="17.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><path d="m8 11 7-3.4M8 13l7 3.4" stroke="#7A736A" stroke-width="1.6"/>')
+        +mi("go('admin-contact')",'Kontaktní údaje','<path d="M4 4h16v14H8l-4 4V4Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 9h8M8 12.5h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
         +mi("go('cg-requests')",'Poptávky','<path d="M3 6h18v12H3z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/>')
@@ -2193,10 +2213,12 @@ function openLegal(key,opts){
   document.getElementById('legalUpd').textContent=d.upd;
   document.getElementById('legalLead').textContent=d.lead||'Právní informace k používání platformy ZENVORIA najdete přehledně na jednom místě.';
   document.getElementById('legalUrl').textContent=legalUrl(key);
-  document.getElementById('legalCompanyName').textContent=LEGAL_COMPANY.name;
-  document.getElementById('legalCompanyMeta').textContent=LEGAL_COMPANY.meta;
-  document.getElementById('legalCompanyEmail').textContent=LEGAL_COMPANY.email;
-  document.getElementById('legalCompanyEmail').href='mailto:'+LEGAL_COMPANY.email;
+  const company=legalCompany();
+  document.getElementById('legalCompanyName').textContent=company.name;
+  document.getElementById('legalCompanyMeta').textContent=company.meta;
+  document.getElementById('legalCompanyPhone').textContent=company.phone?('Tel.: '+company.phone):'';
+  document.getElementById('legalCompanyEmail').textContent=company.email;
+  document.getElementById('legalCompanyEmail').href='mailto:'+company.email;
   document.getElementById('legalBody').innerHTML=d.body;
   document.getElementById('legalBackLabel').textContent=legalBackView==='register'?'Zpět k registraci':(legalBackView==='login'?'Zpět k přihlášení':'Zpět');
   go('legal',options.fromPop===true);
@@ -4267,6 +4289,30 @@ function saveAdminSocial(e){
   return false;
 }
 
+/* ---- ADMIN: kontaktní údaje (telefon, IČO, sídlo) ---- */
+function renderAdminContact(){
+  // stránka je jen pro správce systému
+  if(!(auth.loggedIn&&auth.role==='admin')){go(auth.loggedIn?landingView():'home');return;}
+  document.getElementById('acPhone').value=contactInfo.phone||'';
+  document.getElementById('acIco').value=contactInfo.ico||'';
+  document.getElementById('acAddress').value=contactInfo.address||'';
+  document.getElementById('acErr').textContent='';
+}
+function saveAdminContact(e){
+  e.preventDefault();
+  const err=document.getElementById('acErr');err.textContent='';
+  const phone=document.getElementById('acPhone').value.trim();
+  const ico=document.getElementById('acIco').value.trim();
+  const address=document.getElementById('acAddress').value.trim();
+  if(phone&&!/^[+\d][\d\s()-]{5,30}$/.test(phone)){err.textContent='Zadejte platné telefonní číslo.';return false;}
+  if(ico&&!/^\d{6,12}$/.test(ico)){err.textContent='IČO zadejte jako číslo (6–12 číslic).';return false;}
+  contactInfo.phone=phone;contactInfo.ico=ico;contactInfo.address=address;
+  apiSync(api('/settings/contactInfo',{method:'PUT',body:{value:contactInfo}}));
+  renderFooterContact();
+  toast('Kontaktní údaje byly uloženy.','success');
+  return false;
+}
+
 /* ---- ADMIN: hromadné zprávy ---- */
 function audienceLabel(b){
   if(b.audience==='all')return 'Všem';
@@ -5727,6 +5773,8 @@ async function bootstrap(){
   helpChatConfigured=!!d.helpChatEnabled;
   renderHelpChatButton();
   if(d.socialLinks)Object.assign(socialLinks,d.socialLinks);
+  if(d.contactInfo)Object.assign(contactInfo,d.contactInfo);
+  renderFooterContact();
   // seq čítače z maxim (kdyby něco generovalo id lokálně)
   orderSeq=ORDERS.reduce((m,o)=>Math.max(m,o.oid||0),0);
   reqSeq=CG_REQUESTS.reduce((m,r)=>Math.max(m,r.id||0),0);
