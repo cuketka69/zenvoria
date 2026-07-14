@@ -993,7 +993,7 @@ function renderCare(){
       <div class="care-top">
         ${avaHtml(c.init,c.photo)}
         <div style="flex:1">
-          <div class="care-name">${esc(c.name)}</div>
+          <div class="care-name">${esc(dispName(c))}</div>
           <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${esc(c.loc)}${distanceMode&&searchDistances[c.id]!=null?` · ${searchDistances[c.id]} km`:''}</div>
           <div class="care-meta"><span class="stars">${starFillSVG()}</span><b style="color:var(--navy-900)">${c.rating}</b><span>(${c.reviews}) · ${c.exp} let praxe</span></div>
         </div>
@@ -1034,7 +1034,7 @@ async function openProfile(id,fromPop){
       <div class="phead">
         ${avaHtml(c.init,c.photo)}
         <div>
-          <h1>${esc(c.name)}</h1>
+          <h1>${esc(dispName(c))}</h1>
           <div class="pmeta">
             <span class="stars">${starsRow(5)} <b style="color:var(--navy-900)">${c.rating}</b> <span style="color:var(--muted)">(${c.reviews} hodnocení)</span></span>
           </div>
@@ -1488,7 +1488,7 @@ function todayISO(){
 
 /* ---------- AUTH ---------- */
 let regRole='family';
-const auth={loggedIn:false,name:'',email:'',role:'family',photo:null,publicId:null,emailVerified:true};
+const auth={loggedIn:false,name:'',titul:'',email:'',role:'family',photo:null,publicId:null,emailVerified:true};
 const DEFERRED_VIEW_IDS=new Set([
   'profile','booking','bookings',
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
@@ -1566,6 +1566,12 @@ function initials(name){
   const p=name.trim().split(/\s+/);
   return ((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase()||'Z';
 }
+/* zobrazované jméno s titulem před jménem (titul se nepočítá do iniciál ani do oslovení) */
+function dispName(o){
+  if(!o)return'';
+  const t=String(o.titul||'').trim();
+  return t?`${t} ${o.name||''}`.trim():(o.name||'');
+}
 /* avatar: foto, nebo iniciály (velikost řeší kontextové CSS) */
 function avaHtml(init,photo,extra){
   extra=extra||'';
@@ -1596,8 +1602,9 @@ function syncCgPhotoToList(){
 }
 
 /* ---- session ---- */
-function loginAs(name,email,role,photo,publicId,emailVerified){
+function loginAs(name,email,role,photo,publicId,emailVerified,titul){
   auth.loggedIn=true;auth.name=name;auth.email=email;auth.role=role||'family';
+  if(titul!==undefined)auth.titul=titul||'';
   if(photo!==undefined)auth.photo=photo||null;
   if(publicId!==undefined)auth.publicId=publicId||null;
   if(emailVerified!==undefined)auth.emailVerified=!!emailVerified;
@@ -1609,7 +1616,7 @@ function loginAs(name,email,role,photo,publicId,emailVerified){
 }
 async function logout(){
   try{await api('/auth/logout',{method:'POST'});}catch(e){}
-  auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.publicId=null;auth.emailVerified=true;
+  auth.loggedIn=false;auth.name='';auth.titul='';auth.email='';auth.role='family';auth.publicId=null;auth.emailVerified=true;
   teardownRealtime();CONVERSATIONS=[];
   closeAccountMenu();
   await apiSync(bootstrap());
@@ -1620,7 +1627,7 @@ async function logout(){
 
 /* ---------- NASTAVENÍ ---------- */
 async function forceLogout(reason){
-  auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.photo=null;auth.publicId=null;
+  auth.loggedIn=false;auth.name='';auth.titul='';auth.email='';auth.role='family';auth.photo=null;auth.publicId=null;
   teardownRealtime();CONVERSATIONS=[];
   closeAccountMenu();
   await apiSync(bootstrap());
@@ -1808,7 +1815,7 @@ function deleteAccount(){
         return;
       }
       try{localStorage.removeItem(LS_KEY);localStorage.removeItem('zv_auth');}catch(e){}
-      auth.loggedIn=false;auth.name='';auth.email='';auth.role='family';auth.photo=null;auth.publicId=null;
+      auth.loggedIn=false;auth.name='';auth.titul='';auth.email='';auth.role='family';auth.photo=null;auth.publicId=null;
       teardownRealtime();CONVERSATIONS=[];
       await apiSync(bootstrap());
       updateAuthUI();renderCare();
@@ -1898,7 +1905,7 @@ function updateAuthUI(){
   if(inn){
     setAva(document.getElementById('avatarInit'), auth.photo||(auth.role==='caregiver'?cgProfile.photo:null), initials(auth.name));
     document.getElementById('avatarName').textContent=auth.name.split(/\s+/)[0];
-    document.getElementById('amName').textContent=auth.name;
+    document.getElementById('amName').textContent=dispName(auth);
     document.getElementById('amEmail').textContent=auth.email;
     document.getElementById('amBadgeText').textContent=auth.role==='caregiver'?'Účet pečovatelky':(auth.role==='admin'?'Správce systému':'Účet rodiny');
     const mi=(fn,label,path)=>`<a role="menuitem" tabindex="0" onclick="${fn}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">${path}</svg>${label}</a>`;
@@ -1935,7 +1942,7 @@ function updateAuthUI(){
   else{greet.hidden=true;}
   const homeLink=(auth.role==='caregiver'||auth.role==='admin')?`<a role="button" tabindex="0" onclick="go('${landingView()}')">Přehled</a>`:"<a role=\"button\" tabindex=\"0\" onclick=\"go('bookings')\">Moje objednávky</a>";
   mm.innerHTML=inn
-    ? `<div class="mm-user">${avaHtml(initials(auth.name),auth.role==='caregiver'?cgProfile.photo:null)}<div><b>${esc(auth.name)}</b><span>${esc(auth.email)}</span></div></div>
+    ? `<div class="mm-user">${avaHtml(initials(auth.name),auth.role==='caregiver'?cgProfile.photo:null)}<div><b>${esc(dispName(auth))}</b><span>${esc(auth.email)}</span></div></div>
        ${homeLink}
        <a role="button" tabindex="0" onclick="logout()" style="color:#B23A2E">Odhlásit se</a>`
     : `<a data-v="login" role="button" tabindex="0" onclick="go('login')">Přihlásit se</a>
@@ -1964,7 +1971,7 @@ async function submitLogin(e){
   const key=email.value.trim().toLowerCase();
   try{
     const r=await api('/auth/login',{method:'POST',body:{email:key,password:pw.value}});
-    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId,r.user.emailVerified);
+    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId,r.user.emailVerified,r.user.titul);
     if(r.user.settings)Object.assign(appSettings,r.user.settings);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(`Vítejte zpět, <b>${esc(auth.name.split(/\s+/)[0])}</b>!`,null,userSVG());
@@ -1990,8 +1997,9 @@ async function submitRegister(e){
   if(firstBad){firstBad[1].focus();return false;}
   if(tBad){document.getElementById('regTerms').focus();return false;}
   try{
-    const r=await api('/auth/register',{method:'POST',body:{name:name.value.trim(),email:email.value.trim().toLowerCase(),password:pw.value,role:regRole}});
-    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId,r.user.emailVerified);
+    const titul=(document.getElementById('regTitul')?.value||'').trim();
+    const r=await api('/auth/register',{method:'POST',body:{name:name.value.trim(),titul,email:email.value.trim().toLowerCase(),password:pw.value,role:regRole}});
+    loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId,r.user.emailVerified,r.user.titul);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(regRole==='caregiver'?'Účet pečovatelky vytvořen. Dokončete prosím ověření.':'Účet vytvořen. Vítejte v ZENVORIA!','success');
     if(!resumePendingBooking())go(landingView());
@@ -3445,7 +3453,7 @@ function renderAdminCaregivers(){
     const isPrem=c.plan==='premium';
     const planBadge=isPrem?`<span class="badge gold">${diamondSVG(11)} PREMIUM</span>`:(c.plan==='start'?'<span class="badge">START</span>':'<span class="badge off">Bez plánu</span>');
     return `<tr>
-      <td><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(c.name)}</b><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
+      <td><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(dispName(c))}</b><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
       <td>${esc(c.loc)}</td><td>${c.rate} Kč</td><td>${badge}</td>
       <td>${planBadge}${(isPrem&&c.trialUntil)?`<div style="font-size:11.5px;color:var(--muted);margin-top:3px">do ${fmtDate(c.trialUntil)}</div>`:''}</td>
       <td><div class="adm-actions" style="justify-content:flex-end">
@@ -3477,7 +3485,7 @@ let cgAdminId=null;
 function openCgAdmin(id){
   const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
   cgAdminId=id;
-  document.getElementById('cgAdminTitle').textContent=c.name;
+  document.getElementById('cgAdminTitle').textContent=dispName(c);
   document.getElementById('cgAdminSub').textContent=`${c.loc||''} · ${c.exp} let praxe · ${c.rate} Kč/hod`;
   setAva(document.getElementById('cgAdminAva'),c.photo||userPhotoByEmail(c.email),c.init);
   const planKey=c.plan==='premium'?'premium':(c.plan==='start'?'start':'none');
@@ -3607,7 +3615,7 @@ function renderAdminUsers(){
     const suspended=isUserEffectivelySuspended(u);
     const badge=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
     return `<tr>
-      <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></td>
+      <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))}</b><span>${esc(u.email)}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${badge}</td>
       <td><div class="adm-actions" style="justify-content:flex-end">
         <button class="btn btn-sm btn-gold" onclick="openFamilyAdmin(${u.id})">Zobrazit</button>
@@ -3619,7 +3627,7 @@ let famAdminId=null;
 function openFamilyAdmin(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
   famAdminId=id;
-  document.getElementById('famAdminTitle').textContent=u.name;
+  document.getElementById('famAdminTitle').textContent=dispName(u);
   document.getElementById('famAdminSub').textContent=`${u.email} · registrace ${fmtDate(u.joined)}`;
   setAva(document.getElementById('famAdminAva'),u.photo,u.init);
   const suspended=isUserEffectivelySuspended(u);
@@ -4275,7 +4283,7 @@ function sendBroadcast(e){
 
 /* ---------- CAREGIVER PORTAL ---------- */
 const cgProfile={
-  name:'',loc:'',rate:0,exp:0,rating:0,reviews:0,photo:null,
+  name:'',titul:'',loc:'',rate:0,exp:0,rating:0,reviews:0,photo:null,
   priceType:'hod',dayRate:0,radius:0,kmPrice:0,
   services:[],
   langs:['Čeština'],
@@ -4608,6 +4616,7 @@ let cgServPickerOpen=false;
 function renderCgProfile(){
   if(auth.role==='caregiver'&&auth.name)cgProfile.name=auth.name;
   document.getElementById('cpName').value=cgProfile.name;
+  const cpTitulEl=document.getElementById('cpTitul');if(cpTitulEl)cpTitulEl.value=cgProfile.titul||'';
   document.getElementById('cpLoc').value=cgProfile.loc;
   document.getElementById('cpRate').value=cgProfile.rate;
   document.getElementById('cpExp').value=cgProfile.exp;
@@ -4722,7 +4731,9 @@ function toggleCgLang(l){
   renderCgLangChips();syncCgPreview();
 }
 function syncCgPreview(){
-  const name=document.getElementById('cpName').value||'Vaše jméno';
+  const rawName=document.getElementById('cpName').value||'Vaše jméno';
+  const titulEl=document.getElementById('cpTitul');
+  const name=titulEl&&titulEl.value.trim()?`${titulEl.value.trim()} ${rawName}`:rawName;
   const loc=document.getElementById('cpLoc').value;
   const rate=document.getElementById('cpRate').value||0;
   const exp=document.getElementById('cpExp').value||0;
@@ -4766,6 +4777,8 @@ function saveCgProfile(){
   // číslo z pole; prázdné → ponech starou hodnotu, ale 0 se uloží jako 0
   const numOr=(id,fallback)=>{const raw=(document.getElementById(id).value||'').trim();if(raw==='')return fallback;const n=+raw;return Number.isFinite(n)?n:fallback;};
   cgProfile.name=document.getElementById('cpName').value.trim()||cgProfile.name;
+  const cpTitulVal=document.getElementById('cpTitul');
+  if(cpTitulVal)cgProfile.titul=cpTitulVal.value.trim().slice(0,20);
   cgProfile.loc=locEl.value.trim();
   cgProfile.exp=numOr('cpExp',cgProfile.exp);
   cgProfile.radius=numOr('cpRadius',cgProfile.radius);
@@ -4777,12 +4790,12 @@ function saveCgProfile(){
   // propsat změny do veřejné karty pečovatelky (Jana = id 1 / dle e-mailu)
   if(!Array.isArray(cgProfile.langs))cgProfile.langs=[];
   const me=CAREGIVERS.find(x=>x.email===auth.email)||CAREGIVERS[0];
-  if(me){me.name=cgProfile.name;me.photo=cgProfile.photo||null;me.loc=cgProfile.loc;me.rate=cgProfile.rate;me.exp=cgProfile.exp;me.bio=cgProfile.bio;
+  if(me){me.name=cgProfile.name;me.titul=cgProfile.titul||null;me.photo=cgProfile.photo||null;me.loc=cgProfile.loc;me.rate=cgProfile.rate;me.exp=cgProfile.exp;me.bio=cgProfile.bio;
     me.radius=cgProfile.radius;me.priceType=cgProfile.priceType;me.dayRate=cgProfile.dayRate;
     me.kmPrice=cgProfile.kmPrice;me.services=cgProfile.services.slice();me.langs=cgProfile.langs.slice();}
-  if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role,cgProfile.photo);}
+  if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role,cgProfile.photo,undefined,undefined,cgProfile.titul);}
   if(me&&me.id){apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{
-    name:cgProfile.name,loc:cgProfile.loc,rate:cgProfile.rate,exp:me.exp,bio:cgProfile.bio,
+    name:cgProfile.name,titul:cgProfile.titul||null,loc:cgProfile.loc,rate:cgProfile.rate,exp:me.exp,bio:cgProfile.bio,
     services:cgProfile.services,langs:cgProfile.langs,radius:cgProfile.radius,priceType:cgProfile.priceType,
     dayRate:cgProfile.dayRate,kmPrice:cgProfile.kmPrice,photo:cgProfile.photo||null
   }}));}
@@ -5679,7 +5692,7 @@ async function bootstrap(){
   // profil přihlášené pečovatelky z její karty
   if(auth.loggedIn&&auth.role==='caregiver'){
     const me=CAREGIVERS.find(c=>c.email===auth.email);
-    if(me){Object.assign(cgProfile,{name:me.name,bio:me.bio,loc:me.loc,rate:me.rate,services:me.services,langs:me.langs,photo:me.photo||cgProfile.photo,
+    if(me){Object.assign(cgProfile,{name:me.name,titul:me.titul||'',bio:me.bio,loc:me.loc,rate:me.rate,services:me.services,langs:me.langs,photo:me.photo||cgProfile.photo,
       exp:me.exp!=null?me.exp:cgProfile.exp,radius:me.radius!=null?me.radius:cgProfile.radius,
       priceType:me.priceType||cgProfile.priceType,dayRate:me.dayRate!=null?me.dayRate:cgProfile.dayRate,kmPrice:me.kmPrice!=null?me.kmPrice:cgProfile.kmPrice,
       views:me.views!=null?me.views:cgProfile.views,perms:me.perms||cgProfile.perms});
@@ -5844,7 +5857,7 @@ async function initApp(){
     }
   }
   try{const m=await api('/auth/me');
-    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.email=m.user.email;auth.role=m.user.role||'family';auth.photo=m.user.photo||null;auth.publicId=m.user.publicId||null;auth.emailVerified=!!m.user.emailVerified;
+    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.titul=m.user.titul||'';auth.email=m.user.email;auth.role=m.user.role||'family';auth.photo=m.user.photo||null;auth.publicId=m.user.publicId||null;auth.emailVerified=!!m.user.emailVerified;
       if(m.user.settings)Object.assign(appSettings,m.user.settings);}
   }catch(e){console.warn('auth/me',e.message);}
   try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}

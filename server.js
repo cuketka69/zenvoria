@@ -1684,13 +1684,17 @@ function requireConversationParticipant(req, res, next) {
 /* ----------------------------------------------------------------------
    4) MAPOVÁNÍ DB ŘÁDKŮ → tvar, který čeká frontend (index.html)
    -------------------------------------------------------------------- */
+function withTitul(name, titul) {
+  const t = String(titul || '').trim();
+  return t ? `${t} ${name || ''}`.trim() : (name || '');
+}
 function publicUser(u) {
   if (!u) return null;
-  return { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null, emailVerified: !!u.email_verified };
+  return { id: u.id, email: u.email, name: u.name, titul: u.titul || null, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null, emailVerified: !!u.email_verified };
 }
 function mapCaregiver(c, permsSetting) {
   return {
-    id: Number(c.id), publicId: c.public_id || null, slug: c.slug || null, name: c.name, init: c.init, loc: c.loc, rate: c.rate,
+    id: Number(c.id), publicId: c.public_id || null, slug: c.slug || null, name: c.name, titul: c.titul || null, init: c.init, loc: c.loc, rate: c.rate,
     rating: Number(c.rating), reviews: c.reviews, exp: c.exp, services: c.services || [],
     verified: c.verified, cert: c.cert, bio: c.bio, status: c.status, suspended: c.suspended,
     idVerified: c.id_verified, plan: c.plan, planStatus: c.plan_status || null, trialUntil: c.trial_until || null,
@@ -1867,11 +1871,11 @@ app.get('/api/u/:token', h(async (req, res) => {
     return res.json({ kind: 'caregiver', id: Number(c.id) });
   }
   // 2) rodina / uživatelský účet — minimální veřejná vizitka
-  const users = await restSelect(T.users, `public_id=eq.${encodeURIComponent(token)}&select=name,init,photo,role,joined,status&limit=1`);
+  const users = await restSelect(T.users, `public_id=eq.${encodeURIComponent(token)}&select=name,titul,init,photo,role,joined,status&limit=1`);
   const u = users && users[0];
   if (u && u.status !== 'suspended' && u.role !== 'admin') {
     return res.json({ kind: 'account', profile: {
-      name: u.name || '', init: u.init || '', photo: u.photo || null,
+      name: u.name || '', titul: u.titul || null, init: u.init || '', photo: u.photo || null,
       role: u.role || 'family', memberSince: u.joined || null,
     } });
   }
@@ -2073,8 +2077,9 @@ async function findUserByEmail(email) {
 }
 
 app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(async (req, res) => {
-  const { name, email, password, role } = req.body || {};
+  const { name, titul, email, password, role } = req.body || {};
   const safeName = trimmedString(name, 120);
+  const safeTitul = trimmedString(titul, 20) || null;
   const em = trimmedString(email, 320).toLowerCase();
   if (!isStrongPassword(password)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
   if (!safeName || !em || !password) return res.status(400).json({ error: 'Vyplňte jméno, e-mail i heslo.' });
@@ -2084,7 +2089,7 @@ app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(as
   if (await findUserByEmail(em)) return res.status(409).json({ error: 'Tento e-mail je už zaregistrovaný.' });
   const init = (safeName.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
   const password_hash = bcrypt.hashSync(String(password), 10);
-  const user = await restInsert(T.users, { email: em, password_hash, name: safeName, role: r, init, public_id: genPublicId() });
+  const user = await restInsert(T.users, { email: em, password_hash, name: safeName, titul: safeTitul, role: r, init, public_id: genPublicId() });
   const welcomeMail = registrationMail(user);
   await sendMailSafe({ to: user.email, ...welcomeMail });
   const code = createEmailVerificationCode();
@@ -2425,7 +2430,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
           ? restSelect(T.verifications, `email=eq.${encodeURIComponent(req.session.email)}&order=id.asc`)
           : []),
       viewer === 'admin'
-        ? restSelect(T.users, 'select=id,email,name,role,status,init,joined,orders_count,photo&order=joined.asc')
+        ? restSelect(T.users, 'select=id,email,name,titul,role,status,init,joined,orders_count,photo&order=joined.asc')
         : [],
       restSelect(T.reviews, 'select=*&order=id.asc'),
       viewer === 'admin'
@@ -2494,7 +2499,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
     schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null })),
     verifications: (verifications || []).map(mapVerification),
-    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null })),
+    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null })),
     cgReviews, generalReviews,
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
@@ -3570,13 +3575,13 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   }
   const patch = {};
   // jen povolená pole
-  const map = { name: 'name', loc: 'loc', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
+  const map = { name: 'name', titul: 'titul', loc: 'loc', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
     plan: 'plan', priceType: 'price_type', dayRate: 'day_rate', radius: 'radius', kmPrice: 'km_price',
     photo: 'photo', avail: 'avail', blockedDates: 'blocked_dates', availOverrides: 'avail_overrides',
     suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until' };
   for (const k in map) if (b[k] !== undefined) patch[map[k]] = b[k];
   // úprava vlastního profilu vyžaduje oprávnění „Správa profilu" u aktuálního tarifu
-  const PROFILE_FIELD_KEYS = new Set(['name', 'loc', 'rate', 'exp', 'bio', 'services', 'langs', 'priceType', 'dayRate', 'radius', 'kmPrice', 'photo', 'avail', 'blockedDates', 'availOverrides']);
+  const PROFILE_FIELD_KEYS = new Set(['name', 'titul', 'loc', 'rate', 'exp', 'bio', 'services', 'langs', 'priceType', 'dayRate', 'radius', 'kmPrice', 'photo', 'avail', 'blockedDates', 'availOverrides']);
   if (!isAdmin && Object.keys(b).some((k) => PROFILE_FIELD_KEYS.has(k))) {
     const perms = permsForPlan(ownCaregiver.plan, await getPlanPermissions());
     if (!perms.manageProfile) return res.status(403).json({ error: 'Úprava profilu není ve vašem aktuálním tarifu dostupná.' });
@@ -3598,6 +3603,7 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     patch.trial_until = new Date(t).toISOString();
   }
   if (patch.name !== undefined) patch.name = trimmedString(patch.name, 120);
+  if (patch.titul !== undefined) patch.titul = trimmedString(patch.titul, 20) || null;
   if (patch.loc !== undefined) {
     patch.loc = trimmedString(patch.loc, 120);
     if (!patch.loc) return res.status(400).json({ error: 'Zadejte lokalitu (město nebo okres).' });
@@ -4312,7 +4318,7 @@ async function getPublicCaregivers() {
   // veřejné SEO cesty (sitemap, vyhledávací stránka) musí zůstat dostupné i při výpadku DB —
   // radši prázdný seznam než 500 chyba pro crawler/vyhledávač
   try {
-    return (await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&select=id,slug,name,loc,rate,bio,services,rating,reviews,exp&order=rating.desc&limit=500`)) || [];
+    return (await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&select=id,slug,name,titul,loc,rate,bio,services,rating,reviews,exp&order=rating.desc&limit=500`)) || [];
   } catch (e) {
     console.warn('[seo] nelze načíst veřejné pečovatelky:', e.message);
     return [];
@@ -4321,7 +4327,7 @@ async function getPublicCaregivers() {
 function caregiverCardHtml(c) {
   const url = c.slug ? `/pecovatelka/${encodeURIComponent(c.slug)}` : '/hledat-peci';
   return `<article style="margin:0 0 22px 0;padding-bottom:18px;border-bottom:1px solid #eee">
-    <h2 style="margin:0 0 4px 0;font-size:18px"><a href="${url}">${escapeHtml(c.name || '')}</a></h2>
+    <h2 style="margin:0 0 4px 0;font-size:18px"><a href="${url}">${escapeHtml(withTitul(c.name, c.titul))}</a></h2>
     <p style="margin:0 0 4px 0;color:#555">${escapeHtml(c.loc || '')} · ${Number(c.rate) || '?'} Kč/hod · hodnocení ${Number(c.rating) || '—'} (${Number(c.reviews) || 0} recenzí)</p>
     <p style="margin:0">${escapeHtml((c.bio || '').slice(0, 220))}</p>
   </article>`;
@@ -4379,7 +4385,7 @@ app.get('/pecovatelka/:slug', h(async (req, res) => {
   const slug = String(req.params.slug || '').toLowerCase();
   let c = null;
   try {
-    const rows = await restSelect(T.caregivers, `slug=eq.${encodeURIComponent(slug)}&verified=eq.true&suspended=eq.false&select=id,slug,name,loc,rate,bio,services,rating,reviews,exp&limit=1`);
+    const rows = await restSelect(T.caregivers, `slug=eq.${encodeURIComponent(slug)}&verified=eq.true&suspended=eq.false&select=id,slug,name,titul,loc,rate,bio,services,rating,reviews,exp&limit=1`);
     c = rows && rows[0];
   } catch (e) { console.warn('[seo] nelze načíst profil pečovatelky:', e.message); }
   if (!c) return sendIndex(res); // neexistuje/neověřená/výpadek DB → SPA dovyrenderuje "nenalezeno"
@@ -4388,20 +4394,21 @@ app.get('/pecovatelka/:slug', h(async (req, res) => {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Person',
-    name: c.name,
+    name: withTitul(c.name, c.titul),
     jobTitle: 'Pečovatelka',
     ...(c.loc ? { homeLocation: { '@type': 'Place', name: c.loc } } : {}),
     ...(c.bio ? { description: c.bio } : {}),
     ...(Number(c.reviews) > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(c.rating) || 0, reviewCount: Number(c.reviews) } } : {}),
   };
-  const ssrHtml = `<div class="wrap"><div class="page-head"><h1>${escapeHtml(c.name || '')}</h1>
+  const displayName = withTitul(c.name, c.titul);
+  const ssrHtml = `<div class="wrap"><div class="page-head"><h1>${escapeHtml(displayName)}</h1>
     <p>${escapeHtml(c.loc || '')} · ${Number(c.rate) || '?'} Kč/hod · ${Number(c.exp) || 0} let praxe${Number(c.reviews) > 0 ? ` · hodnocení ${Number(c.rating)} (${Number(c.reviews)} recenzí)` : ''}</p></div>
     <p>${escapeHtml(c.bio || '')}</p>
     ${servicesTxt ? `<p><b>Nabízené služby:</b> ${escapeHtml(servicesTxt)}</p>` : ''}
     </div>`;
   sendSeoPage(res, {
-    title: `${c.name} — pečovatelka, ${c.loc || 'Česko'} | ZENVORIA`,
-    description: `${c.name}, ${c.loc || ''}. ${bioSnippet}`.trim(),
+    title: `${displayName} — pečovatelka, ${c.loc || 'Česko'} | ZENVORIA`,
+    description: `${displayName}, ${c.loc || ''}. ${bioSnippet}`.trim(),
     canonical: `${APP_ORIGIN}/pecovatelka/${encodeURIComponent(c.slug)}`,
     jsonLd,
     ssrHtml,
