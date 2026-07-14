@@ -4755,7 +4755,7 @@ function syncCgPreview(){
   document.getElementById('cgPreview').innerHTML=`
     <div class="care-card" style="cursor:default">
       <div class="care-top">
-        <div class="ava">${photo?`<img src="${esc(photo)}" alt="" decoding="async">`:initials(name)}</div>
+        <div class="ava">${photo?`<img src="${esc(photo)}" alt="" decoding="async">`:initials(rawName)}</div>
         <div style="flex:1">
           <div class="care-name">${name}</div>
           <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${loc} · dojezd do ${radius} km</div>
