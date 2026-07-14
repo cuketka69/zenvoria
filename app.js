@@ -1878,22 +1878,14 @@ const NAV_CAREGIVER=[
   {v:'cg-verify',label:'Ověření',fn:"go('cg-verify')"},
   {v:'cg-profile',label:'Můj profil',fn:"go('cg-profile')"}
 ];
+/* horní navigace admina drží jen denní provozní položky — zbytek (Pečovatelky, Rodiny, Tarify,
+   Správa služeb, Statistiky, Audit logy, Sociální sítě, Kontaktní údaje, Platby, AI chat, hromadné
+   Zprávy) je v rozbalovací nabídce u jména (viz amLinks níže), ať se nepřetéká */
 const NAV_ADMIN=[
   {v:'admin-dash',label:'Přehled',fn:"go('admin-dash')"},
   {v:'admin-verify',label:'Žádosti o ověření',fn:"go('admin-verify')"},
-  {v:'admin-caregivers',label:'Pečovatelky',fn:"go('admin-caregivers')"},
-  {v:'admin-users',label:'Rodiny',fn:"go('admin-users')"},
-  {v:'admin-broadcast',label:'Zprávy',fn:"go('admin-broadcast')"},
-  {v:'admin-plans',label:'Tarify',fn:"go('admin-plans')"},
   {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"},
-  {v:'admin-services',label:'Správa služeb',fn:"go('admin-services')"},
-  {v:'admin-chats',label:'Konverzace',fn:"go('admin-chats')"},
-  {v:'admin-stats',label:'Statistiky',fn:"go('admin-stats')"},
-  {v:'admin-audit',label:'Audit logy',fn:"go('admin-audit')"},
-  {v:'admin-social',label:'Sociální sítě',fn:"go('admin-social')"},
-  {v:'admin-contact',label:'Kontaktní údaje',fn:"go('admin-contact')"},
-  {v:'admin-payments',label:'Platby (Stripe)',fn:"go('admin-payments')"},
-  {v:'admin-helpchat',label:'Nápovědný chat (AI)',fn:"go('admin-helpchat')"}
+  {v:'admin-chats',label:'Konverzace',fn:"go('admin-chats')"}
 ];
 const NAV_FAMILY=[
   {v:'fam-dash',label:'Přehled',fn:"go('fam-dash')"},
@@ -1961,16 +1953,19 @@ function updateAuthUI(){
     document.getElementById('amLinks').innerHTML=auth.role==='admin'
       ? mi("go('admin-dash')",'Přehled',gridIcon)
         +mi("go('admin-verify')",zad,shieldIcon)
+        +mi("go('admin-orders')",'Objednávky','<rect x="4" y="5" width="16" height="16" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M4 9h16M8 3v4M16 3v4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
+        +mi("go('admin-chats')",'Konverzace',chatIcon)
         +mi("go('admin-caregivers')",'Pečovatelky','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-users')",'Rodiny','<circle cx="9" cy="8" r="3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M16 7a3 3 0 0 1 0 6m5 6c0-2.4-1.6-4.2-4-4.8" stroke="#7A736A" stroke-width="1.6"/>')
-        +mi("go('admin-audit')",'Audit logy','<path d="M8 4h8l3 3v13H5V4h3Z" stroke="#7A736A" stroke-width="1.6"/><path d="M8 9h8M8 13h8M8 17h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
-        +mi("go('admin-chats')",'Konverzace',chatIcon)
-        +mi("go('admin-stats')",'Statistiky','<path d="M4 20V10M11 20V4M18 20v-7" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
+        +mi("go('admin-broadcast')",'Zprávy (hromadné)','<path d="M4 5h16v11H9l-5 4V5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/>')
+        +mi("go('admin-plans')",'Tarify','<rect x="3" y="5.5" width="18" height="13" rx="2.3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 10h18" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-services')",'Správa služeb','<path d="M9 11l3 3L22 4" stroke="#7A736A" stroke-width="1.6"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" stroke="#7A736A" stroke-width="1.6"/>')
-        +mi("go('admin-payments')",'Platby (Stripe)','<rect x="3" y="5.5" width="18" height="13" rx="2.3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 10h18" stroke="#7A736A" stroke-width="1.6"/>')
-        +mi("go('admin-helpchat')",'Nápovědný chat (AI)','<path d="M4 5h16v11H9l-5 4V5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
+        +mi("go('admin-stats')",'Statistiky','<path d="M4 20V10M11 20V4M18 20v-7" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
+        +mi("go('admin-audit')",'Audit logy','<path d="M8 4h8l3 3v13H5V4h3Z" stroke="#7A736A" stroke-width="1.6"/><path d="M8 9h8M8 13h8M8 17h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-social')",'Sociální sítě','<circle cx="6" cy="12" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="6.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="17.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><path d="m8 11 7-3.4M8 13l7 3.4" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-contact')",'Kontaktní údaje','<path d="M4 4h16v14H8l-4 4V4Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 9h8M8 12.5h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
+        +mi("go('admin-payments')",'Platby (Stripe)','<rect x="3" y="5.5" width="18" height="13" rx="2.3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 10h18" stroke="#7A736A" stroke-width="1.6"/>')
+        +mi("go('admin-helpchat')",'Nápovědný chat (AI)','<path d="M4 5h16v11H9l-5 4V5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
         +mi("go('cg-requests')",'Poptávky','<path d="M3 6h18v12H3z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/>')
