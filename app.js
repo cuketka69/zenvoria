@@ -38,8 +38,9 @@ const PLANS={
 };
 /* odkazy na sociální sítě Zenvoria — nastavuje admin v sekci Sociální sítě */
 let socialLinks={facebook:'',instagram:''};
-/* centrální kontaktní údaje (telefon, IČO, sídlo) — nastavuje admin v sekci Kontaktní údaje, zobrazují se v patičce i na právních stránkách */
-let contactInfo={phone:'',ico:'',address:''};
+/* centrální kontaktní údaje (jméno/název provozovatele, telefon, IČO, sídlo) — nastavuje admin v sekci Kontaktní údaje, zobrazují se v patičce i na právních stránkách */
+const DEFAULT_CONTACT_NAME='PeadDr. Iveta Miklášová';
+let contactInfo={name:'',phone:'',ico:'',address:''};
 /* patička: zobrazí telefon/sídlo, pokud je admin vyplnil */
 function renderFooterContact(){
   const el=document.getElementById('footContact');if(!el)return;
@@ -116,7 +117,7 @@ function legalCompany(){
   metaParts.push(contactInfo.ico?('IČO '+contactInfo.ico):'IČO doplňte před ostrým spuštěním.');
   if(contactInfo.address)metaParts.push(contactInfo.address);
   return{
-    name:'ZENVORIA s.r.o.',
+    name:contactInfo.name||DEFAULT_CONTACT_NAME,
     meta:metaParts.join(' · '),
     phone:contactInfo.phone||'',
     email:'miklasova@zenvoria.cz'
@@ -2214,7 +2215,7 @@ function openLegal(key,opts){
   document.getElementById('legalCompanyPhone').textContent=company.phone?('Tel.: '+company.phone):'';
   document.getElementById('legalCompanyEmail').textContent=company.email;
   document.getElementById('legalCompanyEmail').href='mailto:'+company.email;
-  document.getElementById('legalBody').innerHTML=d.body;
+  document.getElementById('legalBody').innerHTML=d.body.replace(/ZENVORIA s\.r\.o\./g,company.name);
   document.getElementById('legalBackLabel').textContent=legalBackView==='register'?'Zpět k registraci':(legalBackView==='login'?'Zpět k přihlášení':'Zpět');
   go('legal',options.fromPop===true);
 }
@@ -4284,10 +4285,11 @@ function saveAdminSocial(e){
   return false;
 }
 
-/* ---- ADMIN: kontaktní údaje (telefon, IČO, sídlo) ---- */
+/* ---- ADMIN: kontaktní údaje (jméno provozovatele, telefon, IČO, sídlo) ---- */
 function renderAdminContact(){
   // stránka je jen pro správce systému
   if(!(auth.loggedIn&&auth.role==='admin')){go(auth.loggedIn?landingView():'home');return;}
+  document.getElementById('acName').value=contactInfo.name||DEFAULT_CONTACT_NAME;
   document.getElementById('acPhone').value=contactInfo.phone||'';
   document.getElementById('acIco').value=contactInfo.ico||'';
   document.getElementById('acAddress').value=contactInfo.address||'';
@@ -4296,12 +4298,14 @@ function renderAdminContact(){
 function saveAdminContact(e){
   e.preventDefault();
   const err=document.getElementById('acErr');err.textContent='';
+  const name=document.getElementById('acName').value.trim();
   const phone=document.getElementById('acPhone').value.trim();
   const ico=document.getElementById('acIco').value.trim();
   const address=document.getElementById('acAddress').value.trim();
+  if(!name){err.textContent='Zadejte jméno nebo název provozovatele.';return false;}
   if(phone&&!/^[+\d][\d\s()-]{5,30}$/.test(phone)){err.textContent='Zadejte platné telefonní číslo.';return false;}
   if(ico&&!/^\d{6,12}$/.test(ico)){err.textContent='IČO zadejte jako číslo (6–12 číslic).';return false;}
-  contactInfo.phone=phone;contactInfo.ico=ico;contactInfo.address=address;
+  contactInfo.name=name;contactInfo.phone=phone;contactInfo.ico=ico;contactInfo.address=address;
   apiSync(api('/settings/contactInfo',{method:'PUT',body:{value:contactInfo}}));
   renderFooterContact();
   toast('Kontaktní údaje byly uloženy.','success');
@@ -5768,7 +5772,7 @@ async function bootstrap(){
   helpChatConfigured=!!d.helpChatEnabled;
   renderHelpChatButton();
   if(d.socialLinks)Object.assign(socialLinks,d.socialLinks);
-  if(d.contactInfo)Object.assign(contactInfo,d.contactInfo);
+  if(d.contactInfo){Object.assign(contactInfo,d.contactInfo);if(!contactInfo.name)contactInfo.name=DEFAULT_CONTACT_NAME;}
   renderFooterContact();
   // seq čítače z maxim (kdyby něco generovalo id lokálně)
   orderSeq=ORDERS.reduce((m,o)=>Math.max(m,o.oid||0),0);

@@ -293,15 +293,17 @@ function sanitizeSocialLinks(value) {
   return { facebook, instagram };
 }
 
-/* centrální kontaktní údaje provozovatele (telefon, IČO, sídlo) — nastavuje admin, zobrazují se napříč webem */
+/* centrální kontaktní údaje provozovatele (jméno/název, telefon, IČO, sídlo) — nastavuje admin, zobrazují se napříč webem */
 function sanitizeContactInfo(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const name = trimmedString(value.name, 200);
   const phone = trimmedString(value.phone, 40);
   const ico = trimmedString(value.ico, 20);
   const address = trimmedString(value.address, 300);
-  return { phone, ico, address };
+  return { name, phone, ico, address };
 }
-const DEFAULT_CONTACT_INFO = { phone: '', ico: '', address: '' };
+/* provozovatel je fyzická osoba, ne ZENVORIA s.r.o. — proto výchozí jméno, dokud admin nezadá jinak */
+const DEFAULT_CONTACT_INFO = { name: 'PeadDr. Iveta Miklášová', phone: '', ico: '', address: '' };
 
 /* tarif po registraci: { plan: 'none'|'start'|'premium', days: 0..365 (0 = neomezeně) } */
 function sanitizeSignupPlan(value) {
@@ -577,8 +579,8 @@ async function loadContactInfo() {
   try {
     const rows = await restSelect(T.settings, `key=eq.contactInfo&limit=1`);
     const v = rows && rows[0] && rows[0].value;
-    if (v && typeof v === 'object') contactInfo = { phone: v.phone || '', ico: v.ico || '', address: v.address || '' };
-  } catch (e) { /* ponech výchozí prázdné */ }
+    if (v && typeof v === 'object') contactInfo = { name: v.name || DEFAULT_CONTACT_INFO.name, phone: v.phone || '', ico: v.ico || '', address: v.address || '' };
+  } catch (e) { /* ponech výchozí */ }
 }
 function socialIconSpan(glyph, url, last) {
   const mr = last ? '' : 'margin-right:10px;';
@@ -748,7 +750,7 @@ function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl
                   <tr>
                     <td style="padding:18px 28px 22px 28px;text-align:center;background:#07281A;border-top:1px solid rgba(217,169,29,0.25);color:#D3DDD5;font-size:13px;line-height:1.8;">
                       ${escapeHtml(footerNote)}<br>
-                      © 2026 ZENVORIA s.r.o. Všechna práva vyhrazena.
+                      © 2026 ${escapeHtml(contactInfo.name || DEFAULT_CONTACT_INFO.name)}. Všechna práva vyhrazena.
                     </td>
                   </tr>
                 </table>
@@ -2541,7 +2543,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
     planPrices: settings.planPrices || { start: 190, premium: 390 },
     socialLinks: settings.socialLinks || { facebook: '', instagram: '' },
-    contactInfo: sanitizeContactInfo(settings.contactInfo) || DEFAULT_CONTACT_INFO,
+    contactInfo: (() => { const c = sanitizeContactInfo(settings.contactInfo); return c ? { ...c, name: c.name || DEFAULT_CONTACT_INFO.name } : DEFAULT_CONTACT_INFO; })(),
     signupPlan: sanitizeSignupPlan(settings.signupPlan) || { plan: 'none', days: 0 },
     planPermissions: planPerms,
     services: sanitizeServices(settings.services),
@@ -3967,7 +3969,7 @@ app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   if (value == null) return res.status(400).json({ error: 'Neplatná hodnota nastavení.' });
   await supabaseRestRequest('POST', T.settings, { body: { key, value }, prefer: 'resolution=merge-duplicates,return=minimal' });
   if (key === 'socialLinks') emailSocialLinks = { facebook: value.facebook || '', instagram: value.instagram || '' };
-  if (key === 'contactInfo') contactInfo = { phone: value.phone || '', ico: value.ico || '', address: value.address || '' };
+  if (key === 'contactInfo') contactInfo = { name: value.name || DEFAULT_CONTACT_INFO.name, phone: value.phone || '', ico: value.ico || '', address: value.address || '' };
   fireAudit('admin.settings.update', { req, actor: auditActor(req), targetType: 'setting', targetId: key, status: 'success' });
   res.json({ ok: true });
 }));
@@ -4426,6 +4428,7 @@ function fillContactPlaceholders(html, info) {
   const phone = info.phone || '';
   const phoneTel = phone.replace(/[^\d+]/g, '');
   return html
+    .replace(/\{\{CONTACT_NAME\}\}/g, escapeHtml(info.name || DEFAULT_CONTACT_INFO.name))
     .replace(/\{\{CONTACT_PHONE\}\}/g, escapeHtml(phone || 'doplňte'))
     .replace(/\{\{CONTACT_PHONE_TEL\}\}/g, escapeHtml(phoneTel))
     .replace(/\{\{CONTACT_ICO\}\}/g, escapeHtml(info.ico || 'doplňte'))

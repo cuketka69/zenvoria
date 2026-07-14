@@ -1184,11 +1184,13 @@
 <!-- ============ ADMIN: KONTAKTNÍ ÚDAJE ============ -->
 <div class="view" id="view-admin-contact">
   <div class="wrap">
-    <div class="page-head"><h1>Kontaktní údaje</h1><p>Telefon, IČO a sídlo firmy — zobrazují se centrálně v patičce webu, na obchodních podmínkách, ochraně osobních údajů a obchodních údajích.</p></div>
+    <div class="page-head"><h1>Kontaktní údaje</h1><p>Jméno provozovatele, telefon, IČO a sídlo — zobrazují se centrálně v patičce webu, na obchodních podmínkách, ochraně osobních údajů a obchodních údajích.</p></div>
     <div class="profile-grid">
       <form class="pcard" onsubmit="return saveAdminContact(event)">
-        <h3>Provozovatel ZENVORIA s.r.o.</h3>
-        <label class="lbl" for="acPhone">Telefonní kontakt</label>
+        <h3>Provozovatel</h3>
+        <label class="lbl" for="acName">Jméno / název provozovatele</label>
+        <input class="inp" id="acName" type="text" autocomplete="off" placeholder="PeadDr. Iveta Miklášová">
+        <label class="lbl" style="margin-top:16px" for="acPhone">Telefonní kontakt</label>
         <input class="inp" id="acPhone" type="tel" autocomplete="off" placeholder="+420 777 625 165">
         <label class="lbl" style="margin-top:16px" for="acIco">IČO</label>
         <input class="inp" id="acIco" type="text" inputmode="numeric" autocomplete="off" placeholder="12345678">
