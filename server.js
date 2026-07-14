@@ -303,7 +303,7 @@ function sanitizeContactInfo(value) {
   return { name, phone, ico, address };
 }
 /* provozovatel je fyzická osoba, ne ZENVORIA s.r.o. — proto výchozí jméno, dokud admin nezadá jinak */
-const DEFAULT_CONTACT_INFO = { name: 'PeadDr. Iveta Miklášová', phone: '', ico: '', address: '' };
+const DEFAULT_CONTACT_INFO = { name: 'PaedDr. Iveta Miklášová', phone: '', ico: '', address: '' };
 
 /* tarif po registraci: { plan: 'none'|'start'|'premium', days: 0..365 (0 = neomezeně) } */
 function sanitizeSignupPlan(value) {

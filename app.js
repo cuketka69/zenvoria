@@ -39,7 +39,7 @@ const PLANS={
 /* odkazy na sociální sítě Zenvoria — nastavuje admin v sekci Sociální sítě */
 let socialLinks={facebook:'',instagram:''};
 /* centrální kontaktní údaje (jméno/název provozovatele, telefon, IČO, sídlo) — nastavuje admin v sekci Kontaktní údaje, zobrazují se v patičce i na právních stránkách */
-const DEFAULT_CONTACT_NAME='PeadDr. Iveta Miklášová';
+const DEFAULT_CONTACT_NAME='PaedDr. Iveta Miklášová';
 let contactInfo={name:'',phone:'',ico:'',address:''};
 /* patička: zobrazí telefon/sídlo, pokud je admin vyplnil */
 function renderFooterContact(){
