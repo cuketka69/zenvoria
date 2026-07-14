@@ -3869,6 +3869,7 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
     if (!ADMIN_UPDATABLE_USER_STATUSES.has(status)) return res.status(400).json({ error: 'Neplatný stav uživatele.' });
     patch.status = status;
   }
+  if (b.titul !== undefined) patch.titul = trimmedString(b.titul, 20) || null;
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   await restUpdate(T.users, `id=eq.${id}`, patch, { prefer: 'return=minimal' });
   fireAudit('admin.user.update', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: 'success', metadata: { fields: Object.keys(patch) } });

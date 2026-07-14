@@ -513,7 +513,13 @@
       </div>
     </div>
 
-    <div class="cga-sec-title">Předplatné</div>
+    <div class="cga-sec-title">Titul</div>
+    <div><label class="lbl" for="cgAdminTitul">Titul (nepovinné)</label>
+      <input class="inp" id="cgAdminTitul" maxlength="20" placeholder="Ing., Mgr., MUDr. …">
+    </div>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="cgAdminSaveTitul()">Uložit titul</button>
+
+    <div class="cga-sec-title" style="margin-top:24px">Předplatné</div>
     <div class="cga-current" id="cgAdminCurrent"></div>
     <div id="cgAdminEditor" hidden>
       <div class="cga-form">
@@ -560,6 +566,12 @@
         <div class="cga-badges" id="famAdminBadges"></div>
       </div>
     </div>
+
+    <div class="cga-sec-title" style="margin-top:24px">Titul</div>
+    <div><label class="lbl" for="famAdminTitul">Titul (nepovinné)</label>
+      <input class="inp" id="famAdminTitul" maxlength="20" placeholder="Ing., Mgr., MUDr. …">
+    </div>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="famAdminSaveTitul()">Uložit titul</button>
 
     <div class="cga-sec-title" style="margin-top:24px">Objednávky (<span id="famAdminOrdCount">0</span>)</div>
     <div id="famAdminOrders"></div>

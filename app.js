@@ -3487,6 +3487,7 @@ function openCgAdmin(id){
   cgAdminId=id;
   document.getElementById('cgAdminTitle').textContent=dispName(c);
   document.getElementById('cgAdminSub').textContent=`${c.loc||''} · ${c.exp} let praxe · ${c.rate} Kč/hod`;
+  const cgAdminTitulEl=document.getElementById('cgAdminTitul');if(cgAdminTitulEl)cgAdminTitulEl.value=c.titul||'';
   setAva(document.getElementById('cgAdminAva'),c.photo||userPhotoByEmail(c.email),c.init);
   const planKey=c.plan==='premium'?'premium':(c.plan==='start'?'start':'none');
   const isPrem=planKey==='premium';
@@ -3532,6 +3533,15 @@ function cgAdminCancelEdit(){
   const eb=document.getElementById('cgAdminEditBtn');if(eb)eb.style.display='';
 }
 function closeCgAdmin(){const m=document.getElementById('cgAdminModal');if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}}
+function cgAdminSaveTitul(){
+  const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
+  const val=(document.getElementById('cgAdminTitul').value||'').trim().slice(0,20);
+  c.titul=val||null;
+  apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{titul:c.titul}}));
+  document.getElementById('cgAdminTitle').textContent=dispName(c);
+  renderAdminCaregivers();renderCare();
+  toast('Titul byl uložen.','success');
+}
 function cgAdminToggleUntil(){
   const hasPlan=(document.getElementById('cgAdminPlan')||{}).value!=='none';
   const w=document.getElementById('cgAdminUntilWrap');
@@ -3629,6 +3639,7 @@ function openFamilyAdmin(id){
   famAdminId=id;
   document.getElementById('famAdminTitle').textContent=dispName(u);
   document.getElementById('famAdminSub').textContent=`${u.email} · registrace ${fmtDate(u.joined)}`;
+  const famAdminTitulEl=document.getElementById('famAdminTitul');if(famAdminTitulEl)famAdminTitulEl.value=u.titul||'';
   setAva(document.getElementById('famAdminAva'),u.photo,u.init);
   const suspended=isUserEffectivelySuspended(u);
   document.getElementById('famAdminBadges').innerHTML=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
@@ -3648,6 +3659,15 @@ function closeFamilyAdmin(){
   const m=document.getElementById('famAdminModal');
   if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
   famAdminId=null;
+}
+function famAdminSaveTitul(){
+  const u=USERS.find(x=>x.id===famAdminId);if(!u)return;
+  const val=(document.getElementById('famAdminTitul').value||'').trim().slice(0,20);
+  u.titul=val||null;
+  apiSync(api('/users/'+u.id,{method:'PATCH',body:{titul:u.titul}}));
+  document.getElementById('famAdminTitle').textContent=dispName(u);
+  renderAdminUsers();
+  toast('Titul byl uložen.','success');
 }
 function famAdminSuspend(){
   const id=famAdminId;if(id==null)return;
