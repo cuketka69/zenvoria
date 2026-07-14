@@ -4323,7 +4323,7 @@ function timeRange(start,hours){
 }
 
 function renderCgDashboard(){
-  if(auth.role==='caregiver'&&auth.name)cgProfile.name=auth.name;
+  if(auth.role==='caregiver'&&auth.name){cgProfile.name=auth.name;if(auth.titul)cgProfile.titul=auth.titul;}
   const st=cgStatus();const notice=document.getElementById('cgVerifyNotice');
   if(notice){
     if(st==='verified'){notice.innerHTML='';}
@@ -4614,7 +4614,7 @@ function addBlockedRange(){
 let cgLangPickerOpen=false;
 let cgServPickerOpen=false;
 function renderCgProfile(){
-  if(auth.role==='caregiver'&&auth.name)cgProfile.name=auth.name;
+  if(auth.role==='caregiver'&&auth.name){cgProfile.name=auth.name;if(auth.titul)cgProfile.titul=auth.titul;}
   document.getElementById('cpName').value=cgProfile.name;
   const cpTitulEl=document.getElementById('cpTitul');if(cpTitulEl)cpTitulEl.value=cgProfile.titul||'';
   document.getElementById('cpLoc').value=cgProfile.loc;
