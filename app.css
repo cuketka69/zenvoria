@@ -706,7 +706,7 @@
   .order .od b{font-family:'Playfair Display',serif;font-size:16px;color:var(--navy-900)}
   .order .od .det{font-size:13px;color:var(--muted);margin-top:3px}
   .order .ost{margin-left:auto;text-align:right}
-  .status{font-size:12px;font-weight:600;padding:5px 11px;border-radius:20px;display:inline-block}
+  .status{font-size:12px;font-weight:600;padding:5px 11px;border-radius:20px;display:inline-block;text-align:center;line-height:1.4}
   .status.ok{background:rgba(201,162,51,.16);color:var(--gold-deep)}
   .status.done{background:#E9EDE8;color:#5a7256}
   .status.pending{background:#FBF1DC;color:#9A7B1F}
