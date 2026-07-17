@@ -717,7 +717,7 @@
   footer{position:relative;background:var(--navy-900);color:#A2B0A6;padding:60px 0 34px;margin-top:40px}
   footer::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
     background:linear-gradient(90deg,transparent,rgba(201,162,51,.7),transparent)}
-  .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:40px;margin-bottom:40px}
+  .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:40px;margin-bottom:40px}
   footer .word{font-family:'Playfair Display',serif;font-weight:700;font-size:22px;letter-spacing:.16em;color:var(--cream)}
   footer h5{color:var(--cream);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px;font-weight:600}
   footer a{display:block;color:#A2B0A6;text-decoration:none;font-size:14px;padding:5px 0;cursor:pointer;transition:.16s}
