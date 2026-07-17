@@ -3836,6 +3836,7 @@ function saveAdminOrder(ev){
 function deleteAdminOrder(){
   if(admOrderId==null)return;
   const oid=admOrderId;
+  closeAdminOrder();
   askConfirm({
     title:'Smazat objednávku?',
     message:'Objednávka bude trvale odstraněna. Tuto akci nelze vzít zpět.',
@@ -3846,7 +3847,6 @@ function deleteAdminOrder(){
         .then(()=>{
           const i=ORDERS.findIndex(x=>x.oid===oid);if(i>=0)ORDERS.splice(i,1);
           toast('Objednávka byla smazána.','success');
-          closeAdminOrder();
           renderAdminOrders();
         })
         .catch(e=>toastApiError(e,'Objednávku se nepodařilo smazat.'));
