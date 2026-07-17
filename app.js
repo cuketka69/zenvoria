@@ -616,15 +616,13 @@ function enhanceTimeInput(inp){
     const foot=document.createElement('div'); foot.className='dp-foot';
     const clearBtn=document.createElement('button'); clearBtn.type='button'; clearBtn.className='dp-link'; clearBtn.textContent='Vymazat';
     clearBtn.onclick=e=>{e.stopPropagation();inp.value='';fmtLbl();inp.dispatchEvent(new Event('change',{bubbles:true}));closeMenu();};
-    const nowBtn=document.createElement('button'); nowBtn.type='button'; nowBtn.className='dp-link'; nowBtn.textContent='Nyní';
-    nowBtn.onclick=e=>{
+    const saveBtn=document.createElement('button'); saveBtn.type='button'; saveBtn.className='dp-link'; saveBtn.textContent='Uložit';
+    saveBtn.onclick=e=>{
       e.stopPropagation();
-      const t=new Date();
-      inp.value=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
       fmtLbl();inp.dispatchEvent(new Event('change',{bubbles:true}));
       closeMenu();
     };
-    foot.appendChild(clearBtn);foot.appendChild(nowBtn);
+    foot.appendChild(clearBtn);foot.appendChild(saveBtn);
     menu.appendChild(foot);
   };
   const reposition=()=>{
