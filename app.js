@@ -5551,7 +5551,7 @@ function confirmTerm(){
   if(!date){showErr('Vyberte datum.');return;}
   if(date<todayISO()){showErr('Datum nemůže být v minulosti.');return;}
   if(!time){showErr('Vyberte čas.');return;}
-  if(!addr||addr.length<5){showErr('Zadejte platnou adresu péče (alespoň 5 znaků).');return;}
+  if(!addr||addr.length<5){showErr('Zadejte prosím celou adresu péče — ulici s číslem popisným a město (např. Veleslavínská 123, Praha 6).');return;}
   closeTermModal();
   sendChatTerm({service,date,time,hours,addr});
 }
