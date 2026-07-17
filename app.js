@@ -3776,11 +3776,12 @@ function renderAdminOrders(){
     const c=cg(o.cid);const st=ORDER_STATUS[o.status]||{cls:'pending',label:o.status};
     const cls=st.cls==='ok'?'ok':(st.cls==='done'?'ok':(st.cls==='declined'?'bad':'wait'));
     const priority=hasPerm(c,'priorityRequests');
-    return `<tr role="button" tabindex="0" style="cursor:pointer" onclick="openAdminOrder(${o.oid})">
+    return `<tr>
       <td><b>${sNames(o.service)}</b>${priority?` <span class="badge gold" style="margin-left:6px">Prioritní</span>`:''}<div class="rd" style="font-size:12px;color:var(--muted)">${o.hours} h</div></td>
       <td>${c?esc(c.name):'—'}</td>
       <td>${fmtDate(o.date)} · ${o.time}</td>
       <td><span class="badge ${cls}">${st.label}</span></td>
+      <td style="text-align:right"><button type="button" class="icon-btn" title="Detail objednávky" aria-label="Detail objednávky" onclick="openAdminOrder(${o.oid})"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg></button></td>
     </tr>`;}).join('');
 }
 let admOrderId=null;
