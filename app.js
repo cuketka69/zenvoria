@@ -5687,7 +5687,7 @@ function insertEmoji(e){
 document.addEventListener('click',e=>{if(!e.target.closest('#emojiPicker')&&!e.target.closest('#chatEmojiBtn'))closeEmojiPicker();});
 
 /* ---------- REAKCE / ÚPRAVA / SMAZÁNÍ ZPRÁVY ---------- */
-const QUICK_REACT_EMOJIS=['👍','❤️','😂','😮','😢','🙏'];
+const QUICK_REACT_EMOJIS=['👍','❤️','😂','😮','😢','🙏','🔥','🎉','👏','😍','😡','😅'];
 function msgImgError(img){const ph=document.createElement('span');ph.className='msg-img-broken';ph.textContent='🖼️ obrázek nelze zobrazit';img.replaceWith(ph);}
 function reactionsSummaryHTML(m){
   const r=m.reactions||{};
