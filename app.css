@@ -1446,6 +1446,8 @@
   .modal-card textarea.inp{min-height:92px;margin-bottom:18px}
   /* admin: správcovský modal pečovatelky */
   #cgAdminModal .modal-card{max-height:90vh;overflow-y:auto;width:min(460px,94vw)}
+  /* admin: detail objednávky — víc polí, ať se vejde na výšku i na malých obrazovkách */
+  #admOrderModal .modal-card{max-height:90vh;overflow-y:auto;width:min(460px,94vw)}
   .cga-head{display:flex;gap:14px;align-items:center;padding-right:26px;margin-bottom:22px}
   .cga-head .ava{flex:0 0 auto}
   .cga-head-tx{min-width:0}
