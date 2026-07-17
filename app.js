@@ -5709,12 +5709,12 @@ function msgHTML(m,interactive,pinnedId){
   }
   const isPinned=pinnedId&&m.id===pinnedId;
   const tools=interactive?`<div class="msg-tools">
-      <button type="button" title="Reagovat" onclick="event.stopPropagation();toggleReactPicker(${m.id})">😊</button>
-      <button type="button" title="Odpovědět" onclick="event.stopPropagation();replyToMessage(${m.id})">↩️</button>
-      <button type="button" title="Přeposlat" onclick="event.stopPropagation();openForwardModal(${m.id})">↪️</button>
-      ${(m.me&&m.text)?`<button type="button" title="Upravit" onclick="event.stopPropagation();startEditMessage(${m.id})">✏️</button>`:''}
-      <button type="button" title="${isPinned?'Odepnout':'Připnout'}" onclick="event.stopPropagation();pinMessage(${m.id})">📌</button>
-      ${m.me?`<button type="button" title="Smazat" onclick="event.stopPropagation();deleteMessageConfirm(${m.id})">🗑️</button>`:''}
+      <button type="button" onclick="event.stopPropagation();toggleReactPicker(${m.id})">Reagovat</button>
+      <button type="button" onclick="event.stopPropagation();replyToMessage(${m.id})">Odpovědět</button>
+      <button type="button" onclick="event.stopPropagation();openForwardModal(${m.id})">Přeposlat</button>
+      ${(m.me&&m.text)?`<button type="button" onclick="event.stopPropagation();startEditMessage(${m.id})">Upravit</button>`:''}
+      <button type="button" onclick="event.stopPropagation();pinMessage(${m.id})">${isPinned?'Odepnout':'Připnout'}</button>
+      ${m.me?`<button type="button" onclick="event.stopPropagation();deleteMessageConfirm(${m.id})">Smazat</button>`:''}
     </div>
     <div class="react-picker" id="reactPicker-${m.id}" hidden>${QUICK_REACT_EMOJIS.map(e=>`<button type="button" onclick="reactToMessage(${m.id},'${e}')">${e}</button>`).join('')}</div>`:'';
   return `<div class="msg ${m.me?'me':'them'}${m.image?' has-img':''}" data-mid="${m.id}">
