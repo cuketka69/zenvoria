@@ -5708,7 +5708,8 @@ function msgHTML(m,interactive,pinnedId){
     </div>`;
   }
   const isPinned=pinnedId&&m.id===pinnedId;
-  const tools=interactive?`<div class="msg-tools">
+  const moreBtn=interactive?`<button type="button" class="msg-more" title="Možnosti zprávy" aria-label="Možnosti zprávy" onclick="event.stopPropagation();toggleMsgTools(${m.id})"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="6" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="18" r="1.8" fill="currentColor"/></svg></button>`:'';
+  const tools=interactive?`<div class="msg-tools" id="msgTools-${m.id}" hidden>
       <button type="button" onclick="event.stopPropagation();toggleReactPicker(${m.id})">Reagovat</button>
       <button type="button" onclick="event.stopPropagation();replyToMessage(${m.id})">Odpovědět</button>
       <button type="button" onclick="event.stopPropagation();openForwardModal(${m.id})">Přeposlat</button>
@@ -5718,6 +5719,7 @@ function msgHTML(m,interactive,pinnedId){
     </div>
     <div class="react-picker" id="reactPicker-${m.id}" hidden>${QUICK_REACT_EMOJIS.map(e=>`<button type="button" onclick="reactToMessage(${m.id},'${e}')">${e}</button>`).join('')}</div>`:'';
   return `<div class="msg ${m.me?'me':'them'}${m.image?' has-img':''}" data-mid="${m.id}">
+    ${moreBtn}
     ${m.forwarded?`<div class="msg-forwarded">↪ Přeposláno</div>`:''}
     ${replyPreviewHTML(m.replyTo)}
     ${m.image?`<img class="msg-img" src="${esc(m.image)}" loading="lazy" alt="obrázek" onclick="openImgLightbox('${esc(m.image)}')" onerror="msgImgError(this)">`:''}
@@ -5732,7 +5734,16 @@ function toggleReactPicker(mid){
   const el=document.getElementById('reactPicker-'+mid);
   if(el)el.hidden=!el.hidden;
 }
-document.addEventListener('click',e=>{if(!e.target.closest('.react-picker')&&!e.target.closest('.msg-tools'))document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);});
+function toggleMsgTools(mid){
+  document.querySelectorAll('.msg-tools').forEach(el=>{if(el.id!=='msgTools-'+mid)el.hidden=true;});
+  document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
+  const el=document.getElementById('msgTools-'+mid);
+  if(el)el.hidden=!el.hidden;
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.react-picker')&&!e.target.closest('.msg-tools')&&!e.target.closest('.msg-more'))document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
+  if(!e.target.closest('.msg-tools')&&!e.target.closest('.msg-more'))document.querySelectorAll('.msg-tools').forEach(el=>el.hidden=true);
+});
 async function reactToMessage(mid,emoji){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
   document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
