@@ -1035,7 +1035,7 @@
   .req{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;border:1px solid var(--line);border-radius:15px;padding:15px 16px;margin-bottom:12px;transition:.18s}
   .req:hover{border-color:rgba(201,162,51,.5)}
   .req .ava{width:48px;height:48px;font-size:16px;flex:0 0 auto}
-  .req .ri{flex:1 1 180px;min-width:0}
+  .req .ri{flex:1 1 200px;min-width:200px}
   .req .ri b{font-size:15px;color:var(--navy-900)}
   .req .ri .rd{font-size:13px;color:var(--muted);margin-top:3px}
   .req .ri .rs{display:inline-block;font-size:12px;font-weight:600;color:var(--gold-deep);margin-top:6px}
