@@ -203,6 +203,8 @@ async function copyLegalLink(){
 const GUEST_ALLOWED_VIEWS=new Set(['home','search','howto','profile','pricing','legal','login','register','forgot','reset-password','change-email']);
 async function go(v,fromPop){
   if(!auth.loggedIn&&!GUEST_ALLOWED_VIEWS.has(v))v='home';
+  // přihlášený uživatel nemá důvod vidět přihlašovací/registrační stránky — pošli ho na jeho vlastní přehled
+  if(auth.loggedIn&&(v==='login'||v==='register'||v==='forgot'))v=landingView();
   // admin-* stránky smí zobrazit jen přihlášený správce systému — chrání to i nové stránky, ne jen ty se svým vlastním hlídáním v render funkci
   if(v.indexOf('admin-')===0&&!(auth.loggedIn&&auth.role==='admin'))v=auth.loggedIn?landingView():'home';
   let target=document.getElementById('view-'+v);
