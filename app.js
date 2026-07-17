@@ -5404,6 +5404,13 @@ function renderChat(){
     searchBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
     searchBtn.onclick=()=>toggleChatSearch();
     head.appendChild(searchBtn);
+    if(c.id>0){
+      const delBtn=document.createElement('button');
+      delBtn.type='button';delBtn.className='chat-search-btn';delBtn.title='Smazat konverzaci';delBtn.setAttribute('aria-label','Smazat konverzaci');
+      delBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7M6 7l1 13a2 2 0 0 0 2 1.8h6a2 2 0 0 0 2-1.8l1-13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      delBtn.onclick=()=>deleteChatForMe(c.id);
+      head.appendChild(delBtn);
+    }
   }
   const pinBanner=document.getElementById('chatPinBanner');
   if(pinBanner)pinBanner.innerHTML=(c.pinnedMessage&&!c.readonly)?`<div class="chat-pin"><span>📌 ${c.pinnedMessage.me?'Vy: ':''}${esc(c.pinnedMessage.text||(c.pinnedMessage.image?'📷 Obrázek':''))}</span><button type="button" onclick="pinMessage(${c.pinnedMessage.id})">Odepnout</button></div>`:'';
@@ -5782,6 +5789,27 @@ function openImgLightbox(src){
 }
 function scrollChat(){const b=document.getElementById('chatBody');if(b)b.scrollTop=b.scrollHeight;}
 async function selectChat(id){activeChat=id;renderChat();if(id>0)await loadMessages(id);renderChat();document.getElementById('chatInput')?.focus();}
+/* smazání konverzace jen pro mě — protistraně zůstane celá historie zachovaná */
+function deleteChatForMe(id){
+  const c=CONVERSATIONS.find(x=>x.id===id);if(!c)return;
+  askConfirm({
+    title:'Smazat konverzaci?',
+    message:`Konverzace s ${c.name} se smaže jen u vás. Druhá strana o ní nepřijde.`,
+    confirmLabel:'Smazat',
+    danger:true,
+    onConfirm:()=>{
+      api(`/conversations/${id}`,{method:'DELETE'})
+        .then(async()=>{
+          CONVERSATIONS=CONVERSATIONS.filter(x=>x.id!==id);
+          if(activeChat===id)activeChat=CONVERSATIONS[0]&&CONVERSATIONS[0].id;
+          toast('Konverzace byla smazána.','success');
+          await loadConversations();
+          renderChat();
+        })
+        .catch(e=>toastApiError(e,'Konverzaci se nepodařilo smazat.'));
+    }
+  });
+}
 function sendChat(e){
   e.preventDefault();
   const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return false;

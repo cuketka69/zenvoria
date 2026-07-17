@@ -1692,7 +1692,7 @@ function requireConversationParticipant(req, res, next) {
     if (!req.session) return res.status(401).json({ error: 'Nepřihlášen' });
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID konverzace.' });
-    const rows = await restSelect(T.conversations, `id=eq.${id}&select=id,user_a,user_b,a_read_at,b_read_at,pinned_message_id&limit=1`);
+    const rows = await restSelect(T.conversations, `id=eq.${id}&select=id,user_a,user_b,a_read_at,b_read_at,a_deleted_at,b_deleted_at,pinned_message_id&limit=1`);
     const conv = rows && rows[0];
     if (!conv) return res.status(404).json({ error: 'Konverzace nenalezena.' });
     const me = String(req.session.uid || '');
@@ -3112,8 +3112,15 @@ function sanitizeChatImage(v) {
   if (s.length > 8 * 1024 * 1024) return null; // ~6 MB obrázek
   return s;
 }
-async function loadConversationMessages(convId, me) {
-  const rows = await restSelect(T.messages, `conversation_id=eq.${Number(convId)}&order=created_at.asc&select=id,sender_id,text,image,t,created_at,edited_at,deleted_at,reactions,reply_to_id,forwarded,term`);
+// sinceIso: pokud rodina/pečovatelka konverzaci "smazala jen u sebe", nechceme jí vracet zprávy odeslané před smazáním
+function viewerDeletedAt(conv, me) {
+  return String(conv.user_a) === String(me) ? conv.a_deleted_at : conv.b_deleted_at;
+}
+async function loadConversationMessages(convId, me, sinceIso) {
+  let q = `conversation_id=eq.${Number(convId)}`;
+  if (sinceIso) q += `&created_at=gt.${encodeURIComponent(sinceIso)}`;
+  q += `&order=created_at.asc&select=id,sender_id,text,image,t,created_at,edited_at,deleted_at,reactions,reply_to_id,forwarded,term`;
+  const rows = await restSelect(T.messages, q);
   const list = rows || [];
   const replyIds = [...new Set(list.map((m) => m.reply_to_id).filter(Boolean))];
   const repliesById = {};
@@ -3207,8 +3214,24 @@ app.get('/api/conversations', requireAuth, h(async (req, res) => {
   const me = String(req.session.uid || '');
   if (!me) return res.json({ conversations: [] });
   const rows = await restSelect(T.conversations, `or=(user_a.eq.${encodeURIComponent(me)},user_b.eq.${encodeURIComponent(me)})&order=last_at.desc.nullslast&select=*`);
-  const out = await Promise.all((rows || []).map((conv) => mapConversationForViewer(conv, me)));
+  // konverzace smazaná "jen u mě" zůstane skrytá, dokud protistrana nepošle novou zprávu — pak se objeví znovu (bez staré historie)
+  const visible = (rows || []).filter((conv) => {
+    const myDeletedAt = viewerDeletedAt(conv, me);
+    if (!myDeletedAt) return true;
+    return !!(conv.last_at && new Date(conv.last_at) > new Date(myDeletedAt));
+  });
+  const out = await Promise.all(visible.map((conv) => mapConversationForViewer(conv, me)));
   res.json({ conversations: out });
+}));
+
+// smazání konverzace jen pro mě — protistraně zůstane celá historie zachovaná
+app.delete('/api/conversations/:id', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const me = String(req.session.uid || '');
+  const conv = req.conversation;
+  const col = String(conv.user_a) === me ? 'a_deleted_at' : 'b_deleted_at';
+  await restUpdate(T.conversations, `id=eq.${conv.id}`, { [col]: new Date().toISOString() }, { prefer: 'return=minimal' });
+  fireAudit('chat.conversation.delete_for_me', { req, actor: auditActor(req), targetType: 'conversation', targetId: conv.id, status: 'success' });
+  res.json({ ok: true });
 }));
 
 // založ (nebo najdi) konverzaci s protistranou
@@ -3239,7 +3262,7 @@ app.post('/api/conversations', requireAuth, requireVerifiedEmail, rateLimit('con
     conv = await restInsert(T.conversations, { id, user_a: me, user_b: String(other), pair_key: key, created_at: new Date().toISOString() });
   }
   const mapped = await mapConversationForViewer(conv, me);
-  mapped.msgs = await loadConversationMessages(conv.id, me);
+  mapped.msgs = await loadConversationMessages(conv.id, me, viewerDeletedAt(conv, me));
   res.json({ conversation: mapped });
 }));
 
@@ -3248,7 +3271,7 @@ app.get('/api/conversations/:id/messages', requireAuth, requireConversationParti
   res.setHeader('Cache-Control', 'no-store');
   const me = String(req.session.uid || '');
   const conv = req.conversation;
-  const msgs = await loadConversationMessages(conv.id, me);
+  const msgs = await loadConversationMessages(conv.id, me, viewerDeletedAt(conv, me));
   const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
   const readAt = new Date().toISOString();
   await restUpdate(T.conversations, `id=eq.${conv.id}`, { [col]: readAt }, { prefer: 'return=minimal' }).catch(() => {});
