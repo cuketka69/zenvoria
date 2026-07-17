@@ -1932,8 +1932,6 @@ function renderNav(){
   document.getElementById('navCta').hidden=isCg||isAdmin;
   const dot=document.getElementById('notifDot');
   if(dot)dot.hidden=!(chatUnread()>0||(isCg&&CG_REQUESTS.length>0)||(isAdmin&&pendingVerCount()>0));
-  const footCgRegister=document.getElementById('footCgRegister');
-  if(footCgRegister)footCgRegister.hidden=auth.loggedIn;
 }
 function updateAuthUI(){
   const inn=auth.loggedIn;
