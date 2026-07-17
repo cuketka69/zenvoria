@@ -1323,6 +1323,8 @@
   .chat-head-state{font-size:12.5px;color:#5a7256;display:flex;align-items:center;gap:5px}
   .chat-body{flex:1;min-height:0;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:8px;background:var(--cream-2)}
   .msg{position:relative;max-width:74%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.45;animation:fade .3s ease both}
+  /* dokud je u zprávy otevřená nabídka akcí nebo reakcí, ať se nedostane pod obrázek/dalšího souseda */
+  .msg.msg-tools-active{z-index:50}
   .msg.them{background:var(--white);border:1px solid var(--line);border-bottom-left-radius:5px;align-self:flex-start;color:var(--ink)}
   .msg.me{background:var(--navy-900);color:var(--cream);border-bottom-right-radius:5px;align-self:flex-end}
   .msg .mt{display:block;font-size:10.5px;opacity:.6;margin-top:4px;text-align:right}

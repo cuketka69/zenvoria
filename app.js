@@ -5733,16 +5733,25 @@ function toggleReactPicker(mid){
   document.querySelectorAll('.react-picker').forEach(el=>{if(el.id!=='reactPicker-'+mid)el.hidden=true;});
   const el=document.getElementById('reactPicker-'+mid);
   if(el)el.hidden=!el.hidden;
+  document.querySelectorAll('.msg.msg-tools-active').forEach(el=>el.classList.remove('msg-tools-active'));
+  if(el&&!el.hidden&&el.closest('.msg'))el.closest('.msg').classList.add('msg-tools-active');
 }
 function toggleMsgTools(mid){
   document.querySelectorAll('.msg-tools').forEach(el=>{if(el.id!=='msgTools-'+mid)el.hidden=true;});
   document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
+  document.querySelectorAll('.msg.msg-tools-active').forEach(el=>el.classList.remove('msg-tools-active'));
   const el=document.getElementById('msgTools-'+mid);
-  if(el)el.hidden=!el.hidden;
+  if(el){el.hidden=!el.hidden;if(!el.hidden&&el.closest('.msg'))el.closest('.msg').classList.add('msg-tools-active');}
 }
 document.addEventListener('click',e=>{
-  if(!e.target.closest('.react-picker')&&!e.target.closest('.msg-tools')&&!e.target.closest('.msg-more'))document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
-  if(!e.target.closest('.msg-tools')&&!e.target.closest('.msg-more'))document.querySelectorAll('.msg-tools').forEach(el=>el.hidden=true);
+  if(!e.target.closest('.react-picker')&&!e.target.closest('.msg-tools')&&!e.target.closest('.msg-more')){
+    document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
+    document.querySelectorAll('.msg.msg-tools-active').forEach(el=>el.classList.remove('msg-tools-active'));
+  }
+  if(!e.target.closest('.msg-tools')&&!e.target.closest('.msg-more')){
+    document.querySelectorAll('.msg-tools').forEach(el=>el.hidden=true);
+    document.querySelectorAll('.msg.msg-tools-active').forEach(el=>el.classList.remove('msg-tools-active'));
+  }
 });
 async function reactToMessage(mid,emoji){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
