@@ -1322,7 +1322,10 @@
   .chat-head b{font-family:'Playfair Display',serif;font-size:16px;color:var(--navy-900);display:block}
   .chat-head-state{font-size:12.5px;color:#5a7256;display:flex;align-items:center;gap:5px}
   .chat-body{flex:1;min-height:0;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:8px;background:var(--cream-2)}
-  .msg{position:relative;max-width:74%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.45;animation:fade .3s ease both}
+  .msg{position:relative;max-width:74%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.45}
+  /* zprávy se při každém odeslání/přijetí/reakci celé překreslí (celý #chatBody se znovu naplní) —
+     kdyby fade animaci mělo KAŽDÉ .msg, celý chat by při každé maličkosti "problikl". Proto naskočí jen ta nejnovější (viz renderChat v app.js). */
+  .msg.msg-enter{animation:fade .3s ease both}
   /* dokud je u zprávy otevřená nabídka akcí nebo reakcí, ať se nedostane pod obrázek/dalšího souseda */
   .msg.msg-tools-active{z-index:50}
   .msg.them{background:var(--white);border:1px solid var(--line);border-bottom-left-radius:5px;align-self:flex-start;color:var(--ink)}
