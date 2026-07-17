@@ -1475,7 +1475,9 @@ function updateSummary(){
     <button class="btn btn-gold btn-block" style="margin-top:22px" onclick="confirmBooking()">Potvrdit objednávku</button>
     <p style="font-size:11.5px;color:#8E9A8F;text-align:center;margin-top:12px">Platba proběhne až po potvrzení pečovatelkou.</p>`;
 }
+let bookingInFlight=false;
 function confirmBooking(){
+  if(bookingInFlight)return;
   const c=cg(state.caregiverId);
   const date=document.getElementById('bkDate').value;
   const time=document.getElementById('bkTime').value;
@@ -1489,6 +1491,9 @@ function confirmBooking(){
   const km=Math.max(0,+document.getElementById('bkKm').value||0);
   if(!auth.loggedIn){toast('Pro objednávku se prosím přihlaste.');go('login');return;}
   const serviceCsv=state.bkServices.join(',');
+  const btn=document.querySelector('#summaryCard .btn-gold');
+  bookingInFlight=true;
+  if(btn){btn.disabled=true;btn.textContent='Odesílám…';}
   api('/orders',{method:'POST',body:{cid:c.id,service:serviceCsv,hours,date,time,addr,note,km}})
     .then(r=>{const o=r.order;
       ORDERS.unshift({oid:o.oid,cid:c.id,service:serviceCsv,hours,date,time,addr,note,km,status:'pending'});
@@ -1496,7 +1501,11 @@ function confirmBooking(){
       toast(`Objednávka u <b>${esc(c.name)}</b> odeslána — čeká na potvrzení`,'success');
       setTimeout(()=>go('bookings'),900);
     })
-    .catch(e=>toastApiError(e,'Objednávku se nepodařilo odeslat.'));
+    .catch(e=>{
+      toastApiError(e,'Objednávku se nepodařilo odeslat.');
+      bookingInFlight=false;
+      if(btn){btn.disabled=false;btn.textContent='Potvrdit objednávku';}
+    });
 }
 
 /* ---------- DATE HELPER ---------- */
