@@ -2335,7 +2335,6 @@ function renderFamilyDash(){
       </div>`:'<div class="empty" style="padding:14px">Zatím nemáte naplánovanou péči.</div>'}
       <div class="qa" style="margin-top:10px">
         <button class="qa-item" onclick="go('bookings')"><span class="qa-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#C9A233" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="qa-l">Historie péče (${done} dokončených)</span><span class="qa-ar">›</span></button>
-        <button class="qa-item" onclick="toast('SOS linka 24/7: +420 800 999 111')"><span class="qa-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#C9A233" stroke-width="1.6"/><circle cx="12" cy="12" r="3.4" stroke="#C9A233" stroke-width="1.6"/><path d="m5.4 5.4 4 4M18.6 5.4l-4 4M18.6 18.6l-4-4M5.4 18.6l4-4" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="qa-l">SOS linka 24/7</span><span class="qa-ar">›</span></button>
       </div>`;
   }
   const rec=CAREGIVERS.slice().filter(c=>c.verified&&!c.suspended&&hasPerm(c,'publishServices')).sort((a,b)=>(hasPerm(b,'priorityRanking')?1:0)-(hasPerm(a,'priorityRanking')?1:0)||b.rating-a.rating).slice(0,3);
