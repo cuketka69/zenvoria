@@ -3790,8 +3790,9 @@ function openAdminOrder(oid){
   admOrderId=oid;
   const c=cg(o.cid);
   document.getElementById('admOrderSub').textContent=`${sNames(o.service)} · ${c?c.name:'—'}`;
-  document.getElementById('admOrdDate').value=o.date||'';
-  document.getElementById('admOrdTime').value=o.time||'';
+  const dateInp=document.getElementById('admOrdDate'),timeInp=document.getElementById('admOrdTime');
+  dateInp.value=o.date||'';if(dateInp._ddRefresh)dateInp._ddRefresh();
+  timeInp.value=o.time||'';if(timeInp._ddRefresh)timeInp._ddRefresh();
   document.getElementById('admOrdHours').value=o.hours||1;
   document.getElementById('admOrdKm').value=o.km||0;
   document.getElementById('admOrdAddr').value=o.addr||'';
