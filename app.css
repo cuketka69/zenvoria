@@ -1348,6 +1348,8 @@
   .msg.them .react-picker{left:8px}
   .react-picker button{background:none;border:none;cursor:pointer;font-size:17px;padding:2px;transition:.1s;text-align:center}
   .react-picker button:hover{transform:scale(1.25)}
+  /* menu akcí/reakcí zavěšené přímo na <body> (viz openMsgTools/openReactPicker) — musí přebít absolute pozicování výše */
+  .floating-menu{z-index:500}
   /* přijaté reakce pod zprávou */
   .msg-reacts{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
   .react-chip{background:rgba(0,0,0,.06);border-radius:12px;padding:1px 7px;font-size:11.5px;cursor:pointer;display:inline-flex;align-items:center;gap:3px}

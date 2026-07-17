@@ -5345,6 +5345,7 @@ function makeChatAvatar(text,photo){
   return el;
 }
 function renderChat(){
+  closeFloatingMenus();
   ensureBroadcastConvo();
   if(!CONVERSATIONS.find(c=>c.id===activeChat))activeChat=CONVERSATIONS[0]&&CONVERSATIONS[0].id;
   const listEl=document.getElementById('chatList');
@@ -5708,16 +5709,7 @@ function msgHTML(m,interactive,pinnedId){
     </div>`;
   }
   const isPinned=pinnedId&&m.id===pinnedId;
-  const moreBtn=interactive?`<button type="button" class="msg-more" title="Možnosti zprávy" aria-label="Možnosti zprávy" onclick="event.stopPropagation();toggleMsgTools(${m.id})"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="6" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="18" r="1.8" fill="currentColor"/></svg></button>`:'';
-  const tools=interactive?`<div class="msg-tools" id="msgTools-${m.id}" hidden>
-      <button type="button" onclick="event.stopPropagation();toggleReactPicker(${m.id})">Reagovat</button>
-      <button type="button" onclick="event.stopPropagation();replyToMessage(${m.id})">Odpovědět</button>
-      <button type="button" onclick="event.stopPropagation();openForwardModal(${m.id})">Přeposlat</button>
-      ${(m.me&&m.text)?`<button type="button" onclick="event.stopPropagation();startEditMessage(${m.id})">Upravit</button>`:''}
-      <button type="button" onclick="event.stopPropagation();pinMessage(${m.id})">${isPinned?'Odepnout':'Připnout'}</button>
-      ${m.me?`<button type="button" onclick="event.stopPropagation();deleteMessageConfirm(${m.id})">Smazat</button>`:''}
-    </div>
-    <div class="react-picker" id="reactPicker-${m.id}" hidden>${QUICK_REACT_EMOJIS.map(e=>`<button type="button" onclick="reactToMessage(${m.id},'${e}')">${e}</button>`).join('')}</div>`:'';
+  const moreBtn=interactive?`<button type="button" class="msg-more" title="Možnosti zprávy" aria-label="Možnosti zprávy" onclick="event.stopPropagation();openMsgTools(event,${m.id})"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="6" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="18" r="1.8" fill="currentColor"/></svg></button>`:'';
   return `<div class="msg ${m.me?'me':'them'}${m.image?' has-img':''}" data-mid="${m.id}">
     ${moreBtn}
     ${m.forwarded?`<div class="msg-forwarded">↪ Přeposláno</div>`:''}
@@ -5725,37 +5717,70 @@ function msgHTML(m,interactive,pinnedId){
     ${m.image?`<img class="msg-img" src="${esc(m.image)}" loading="lazy" alt="obrázek" onclick="openImgLightbox('${esc(m.image)}')" onerror="msgImgError(this)">`:''}
     ${m.term?termCardHTML(m):(m.text?`<div class="msg-content">${esc(m.text)}</div>`:'')}
     ${reactionsSummaryHTML(m)}
-    ${tools}
     <span class="mt">${esc(m.t)}${m.editedAt?' · upraveno':''}</span>
   </div>`;
 }
-function toggleReactPicker(mid){
-  document.querySelectorAll('.react-picker').forEach(el=>{if(el.id!=='reactPicker-'+mid)el.hidden=true;});
-  const el=document.getElementById('reactPicker-'+mid);
-  if(el)el.hidden=!el.hidden;
+/* menu akcí a výběr reakcí se u dlouhého chatu (scrollovatelný #chatBody) NEsmí vykreslovat jako potomek zprávy —
+   overflow scrollovacího kontejneru by je useknul. Proto se staví za běhu a věší přímo na <body> jako position:fixed. */
+function closeFloatingMenus(){
+  document.querySelectorAll('.floating-menu').forEach(el=>el.remove());
   document.querySelectorAll('.msg.msg-tools-active').forEach(el=>el.classList.remove('msg-tools-active'));
-  if(el&&!el.hidden&&el.closest('.msg'))el.closest('.msg').classList.add('msg-tools-active');
 }
-function toggleMsgTools(mid){
-  document.querySelectorAll('.msg-tools').forEach(el=>{if(el.id!=='msgTools-'+mid)el.hidden=true;});
-  document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
-  document.querySelectorAll('.msg.msg-tools-active').forEach(el=>el.classList.remove('msg-tools-active'));
-  const el=document.getElementById('msgTools-'+mid);
-  if(el){el.hidden=!el.hidden;if(!el.hidden&&el.closest('.msg'))el.closest('.msg').classList.add('msg-tools-active');}
+function findActiveMsg(mid){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return null;
+  const m=c.msgs.find(x=>x.id===mid);
+  return m?{c,m}:null;
+}
+function positionFloatingMenu(menu,anchorEl,alignRight){
+  const r=anchorEl.getBoundingClientRect();
+  menu.style.position='fixed';menu.style.left='-9999px';menu.style.top='-9999px';
+  const mw=menu.offsetWidth,mh=menu.offsetHeight;
+  let left=alignRight?r.left-mw-8:r.right+8;
+  left=Math.max(8,Math.min(left,window.innerWidth-mw-8));
+  let top=r.top;
+  if(top+mh>window.innerHeight-8)top=window.innerHeight-mh-8;
+  if(top<8)top=8;
+  menu.style.left=left+'px';menu.style.top=top+'px';
+}
+function openMsgTools(ev,mid){
+  const wasOpen=!!document.getElementById('floatMsgTools-'+mid);
+  const anchorEl=ev.currentTarget;
+  closeFloatingMenus();
+  if(wasOpen)return;
+  const found=findActiveMsg(mid);if(!found)return;
+  const {c,m}=found;
+  const isPinned=!!(c.pinnedMessage&&c.pinnedMessage.id===mid);
+  const menu=document.createElement('div');
+  menu.id='floatMsgTools-'+mid;menu.className='msg-tools floating-menu';
+  menu.innerHTML=`
+    <button type="button" onclick="event.stopPropagation();openReactPicker(event,${mid})">Reagovat</button>
+    <button type="button" onclick="closeFloatingMenus();replyToMessage(${mid})">Odpovědět</button>
+    <button type="button" onclick="closeFloatingMenus();openForwardModal(${mid})">Přeposlat</button>
+    ${(m.me&&m.text)?`<button type="button" onclick="closeFloatingMenus();startEditMessage(${mid})">Upravit</button>`:''}
+    <button type="button" onclick="closeFloatingMenus();pinMessage(${mid})">${isPinned?'Odepnout':'Připnout'}</button>
+    ${m.me?`<button type="button" onclick="closeFloatingMenus();deleteMessageConfirm(${mid})">Smazat</button>`:''}
+  `;
+  document.body.appendChild(menu);
+  positionFloatingMenu(menu,anchorEl,m.me);
+  anchorEl.closest('.msg')&&anchorEl.closest('.msg').classList.add('msg-tools-active');
+}
+function openReactPicker(ev,mid){
+  const anchorEl=ev.currentTarget;
+  closeFloatingMenus();
+  const menu=document.createElement('div');
+  menu.id='floatMsgTools-'+mid;menu.className='react-picker floating-menu';
+  menu.innerHTML=QUICK_REACT_EMOJIS.map(e=>`<button type="button" onclick="reactToMessage(${mid},'${e}')">${e}</button>`).join('');
+  document.body.appendChild(menu);
+  positionFloatingMenu(menu,anchorEl,false);
 }
 document.addEventListener('click',e=>{
-  if(!e.target.closest('.react-picker')&&!e.target.closest('.msg-tools')&&!e.target.closest('.msg-more')){
-    document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
-    document.querySelectorAll('.msg.msg-tools-active').forEach(el=>el.classList.remove('msg-tools-active'));
-  }
-  if(!e.target.closest('.msg-tools')&&!e.target.closest('.msg-more')){
-    document.querySelectorAll('.msg-tools').forEach(el=>el.hidden=true);
-    document.querySelectorAll('.msg.msg-tools-active').forEach(el=>el.classList.remove('msg-tools-active'));
-  }
+  if(!e.target.closest('.floating-menu')&&!e.target.closest('.msg-more'))closeFloatingMenus();
 });
+window.addEventListener('resize',closeFloatingMenus);
+window.addEventListener('scroll',closeFloatingMenus,true);
 async function reactToMessage(mid,emoji){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
-  document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
+  closeFloatingMenus();
   try{
     const r=await api('/conversations/'+c.id+'/messages/'+mid+'/react',{method:'POST',body:{emoji}});
     const m=c.msgs.find(x=>x.id===mid);if(m)m.reactions=r.reactions;
