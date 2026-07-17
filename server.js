@@ -2737,24 +2737,70 @@ app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
 // nesmí si sama „přeskočit" přijetí pečovatelkou tím, že si status nastaví přímo na confirmed/pending/declined
 const FAMILY_ALLOWED_ORDER_TRANSITIONS = { cancelled: ['pending', 'confirmed'], done: ['confirmed'] };
 app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
-  const status = (req.body || {}).status;
-  const allowed = ['pending', 'confirmed', 'done', 'declined', 'cancelled'];
-  if (!allowed.includes(status)) return res.status(400).json({ error: 'Neplatný stav.' });
-  const current = await restSelect(T.orders, `oid=eq.${Number(req.params.oid)}&limit=1`);
+  const b = req.body || {};
+  const oid = Number(req.params.oid);
+  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).json({ error: 'Neplatné ID objednávky.' });
+  const current = await restSelect(T.orders, `oid=eq.${oid}&limit=1`);
   const order = current && current[0];
   if (!order) return res.status(404).json({ error: 'Objednávka nenalezena.' });
   const isAdmin = req.session && req.session.role === 'admin';
   if (!isAdmin && String(order.family_email || '').toLowerCase() !== String(req.session.email || '').toLowerCase()) {
     return res.status(403).json({ error: 'Tuto objednávku nemůžete upravit.' });
   }
-  if (!isAdmin) {
-    const fromAllowed = FAMILY_ALLOWED_ORDER_TRANSITIONS[status];
-    if (!fromAllowed || !fromAllowed.includes(order.status)) {
-      return res.status(400).json({ error: 'Tuto změnu stavu nelze provést.' });
+  const patch = {};
+  if (b.status !== undefined) {
+    const allowedStatuses = ['pending', 'confirmed', 'done', 'declined', 'cancelled'];
+    if (!allowedStatuses.includes(b.status)) return res.status(400).json({ error: 'Neplatný stav.' });
+    if (!isAdmin) {
+      const fromAllowed = FAMILY_ALLOWED_ORDER_TRANSITIONS[b.status];
+      if (!fromAllowed || !fromAllowed.includes(order.status)) {
+        return res.status(400).json({ error: 'Tuto změnu stavu nelze provést.' });
+      }
     }
+    patch.status = b.status;
   }
-  const rows = await restUpdate(T.orders, `oid=eq.${Number(req.params.oid)}`, { status });
+  // úpravu dalších polí objednávky (termín, délka, adresa, poznámka) smí provést jen správce — ne rodina samostatně
+  if (isAdmin) {
+    if (b.date !== undefined) {
+      const date = trimmedString(b.date, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Neplatné datum objednávky.' });
+      patch.date = date;
+    }
+    if (b.time !== undefined) {
+      const time = trimmedString(b.time, 5);
+      if (!/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Neplatný čas objednávky.' });
+      patch.time = time;
+    }
+    if (b.hours !== undefined) {
+      const hours = Number(b.hours);
+      if (!Number.isInteger(hours) || hours < 1 || hours > 24) return res.status(400).json({ error: 'Neplatná délka péče.' });
+      patch.hours = hours;
+    }
+    if (b.km !== undefined) {
+      const km = Number(b.km);
+      if (!Number.isFinite(km) || km < 0 || km > 1000) return res.status(400).json({ error: 'Neplatná vzdálenost.' });
+      patch.km = km;
+    }
+    if (b.addr !== undefined) patch.addr = trimmedString(b.addr, 250);
+    if (b.note !== undefined) patch.note = trimmedString(b.note, 2000);
+  }
+  if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
+  const rows = await restUpdate(T.orders, `oid=eq.${oid}`, patch);
+  if (isAdmin) fireAudit('admin.order.update', { req, actor: auditActor(req), targetType: 'order', targetId: oid, status: 'success', metadata: { fields: Object.keys(patch) } });
   res.json({ order: rows && rows[0] ? mapOrder(rows[0]) : null });
+}));
+
+app.delete('/api/orders/:oid', requireRole('admin'), h(async (req, res) => {
+  const oid = Number(req.params.oid);
+  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).json({ error: 'Neplatné ID objednávky.' });
+  const current = await restSelect(T.orders, `oid=eq.${oid}&limit=1`);
+  const order = current && current[0];
+  if (!order) return res.status(404).json({ error: 'Objednávka nenalezena.' });
+  await restDelete(T.requests, `oid=eq.${oid}`, { prefer: 'return=minimal' });
+  await restDelete(T.schedule, `oid=eq.${oid}`, { prefer: 'return=minimal' });
+  await restDelete(T.orders, `oid=eq.${oid}`, { prefer: 'return=minimal' });
+  fireAudit('admin.order.delete', { req, actor: auditActor(req), targetType: 'order', targetId: oid, status: 'success', metadata: { cid: order.cid, familyEmail: order.family_email || null } });
+  res.json({ ok: true });
 }));
 
 // pošle rodině e-mail o přijetí/odmítnutí objednávky (podle poptávky r)

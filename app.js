@@ -3776,12 +3776,79 @@ function renderAdminOrders(){
     const c=cg(o.cid);const st=ORDER_STATUS[o.status]||{cls:'pending',label:o.status};
     const cls=st.cls==='ok'?'ok':(st.cls==='done'?'ok':(st.cls==='declined'?'bad':'wait'));
     const priority=hasPerm(c,'priorityRequests');
-    return `<tr>
+    return `<tr role="button" tabindex="0" style="cursor:pointer" onclick="openAdminOrder(${o.oid})">
       <td><b>${sNames(o.service)}</b>${priority?` <span class="badge gold" style="margin-left:6px">Prioritní</span>`:''}<div class="rd" style="font-size:12px;color:var(--muted)">${o.hours} h</div></td>
       <td>${c?esc(c.name):'—'}</td>
       <td>${fmtDate(o.date)} · ${o.time}</td>
       <td><span class="badge ${cls}">${st.label}</span></td>
     </tr>`;}).join('');
+}
+let admOrderId=null;
+function openAdminOrder(oid){
+  const o=ORDERS.find(x=>x.oid===oid);if(!o)return;
+  admOrderId=oid;
+  const c=cg(o.cid);
+  document.getElementById('admOrderSub').textContent=`${sNames(o.service)} · ${c?c.name:'—'}`;
+  document.getElementById('admOrdDate').value=o.date||'';
+  document.getElementById('admOrdTime').value=o.time||'';
+  document.getElementById('admOrdHours').value=o.hours||1;
+  document.getElementById('admOrdKm').value=o.km||0;
+  document.getElementById('admOrdAddr').value=o.addr||'';
+  document.getElementById('admOrdNote').value=o.note||'';
+  document.getElementById('admOrdStatus').value=o.status||'pending';
+  document.getElementById('admOrdErr').textContent='';
+  document.getElementById('admOrderModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeAdminOrder(){
+  document.getElementById('admOrderModal').classList.remove('open');
+  document.body.style.overflow='';
+  admOrderId=null;
+}
+function saveAdminOrder(ev){
+  ev.preventDefault();
+  if(admOrderId==null)return false;
+  const errEl=document.getElementById('admOrdErr');
+  const date=document.getElementById('admOrdDate').value;
+  const time=document.getElementById('admOrdTime').value;
+  const hours=Math.max(1,+document.getElementById('admOrdHours').value||1);
+  const km=Math.max(0,+document.getElementById('admOrdKm').value||0);
+  const addr=document.getElementById('admOrdAddr').value.trim();
+  const note=document.getElementById('admOrdNote').value.trim();
+  const status=document.getElementById('admOrdStatus').value;
+  const btn=document.getElementById('admOrdSaveBtn');
+  btn.disabled=true;btn.textContent='Ukládám…';
+  api(`/orders/${admOrderId}`,{method:'PATCH',body:{date,time,hours,km,addr,note,status}})
+    .then(()=>{
+      const o=ORDERS.find(x=>x.oid===admOrderId);
+      if(o)Object.assign(o,{date,time,hours,km,addr,note,status});
+      toast('Objednávka byla upravena.','success');
+      closeAdminOrder();
+      renderAdminOrders();
+    })
+    .catch(e=>{errEl.textContent=(e&&e.message)||'Objednávku se nepodařilo uložit.';})
+    .finally(()=>{btn.disabled=false;btn.textContent='Uložit';});
+  return false;
+}
+function deleteAdminOrder(){
+  if(admOrderId==null)return;
+  const oid=admOrderId;
+  askConfirm({
+    title:'Smazat objednávku?',
+    message:'Objednávka bude trvale odstraněna. Tuto akci nelze vzít zpět.',
+    confirmLabel:'Smazat',
+    danger:true,
+    onConfirm:()=>{
+      api(`/orders/${oid}`,{method:'DELETE'})
+        .then(()=>{
+          const i=ORDERS.findIndex(x=>x.oid===oid);if(i>=0)ORDERS.splice(i,1);
+          toast('Objednávka byla smazána.','success');
+          closeAdminOrder();
+          renderAdminOrders();
+        })
+        .catch(e=>toastApiError(e,'Objednávku se nepodařilo smazat.'));
+    }
+  });
 }
 
 async function renderAdminAudit(){
