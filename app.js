@@ -5406,7 +5406,7 @@ function renderChat(){
     head.appendChild(searchBtn);
     if(c.id>0){
       const delBtn=document.createElement('button');
-      delBtn.type='button';delBtn.className='chat-search-btn';delBtn.title='Smazat konverzaci';delBtn.setAttribute('aria-label','Smazat konverzaci');
+      delBtn.type='button';delBtn.className='chat-search-btn chat-search-btn-tight';delBtn.title='Smazat konverzaci';delBtn.setAttribute('aria-label','Smazat konverzaci');
       delBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7M6 7l1 13a2 2 0 0 0 2 1.8h6a2 2 0 0 0 2-1.8l1-13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       delBtn.onclick=()=>deleteChatForMe(c.id);
       head.appendChild(delBtn);
