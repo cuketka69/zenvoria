@@ -1342,11 +1342,11 @@
   .msg-tools button{background:none;border:none;cursor:pointer;font-size:13px;padding:7px 10px;border-radius:8px;line-height:1.2;color:var(--ink);text-align:left;white-space:nowrap}
   .msg-tools button:hover{background:var(--cream)}
   /* rozbalovací výběr emoji pro reakci */
-  .react-picker{position:absolute;top:-86px;display:flex;flex-wrap:wrap;gap:3px;background:var(--white);border:1px solid var(--line);
-    border-radius:16px;padding:6px 7px;box-shadow:var(--shadow-sm);z-index:6;max-width:210px}
+  .react-picker{position:absolute;top:-86px;display:grid;grid-template-columns:repeat(6,1fr);gap:3px;background:var(--white);border:1px solid var(--line);
+    border-radius:16px;padding:6px 7px;box-shadow:var(--shadow-sm);z-index:6;width:210px}
   .msg.me .react-picker{right:8px}
   .msg.them .react-picker{left:8px}
-  .react-picker button{background:none;border:none;cursor:pointer;font-size:17px;padding:2px;transition:.1s}
+  .react-picker button{background:none;border:none;cursor:pointer;font-size:17px;padding:2px;transition:.1s;text-align:center}
   .react-picker button:hover{transform:scale(1.25)}
   /* přijaté reakce pod zprávou */
   .msg-reacts{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
