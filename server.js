@@ -3248,7 +3248,7 @@ app.post('/api/conversations', requireAuth, requireVerifiedEmail, rateLimit('con
   if (!conv) {
     // chat je určený jen pro dvojici rodina <-> pečovatelka; admin smí založit konverzaci s kýmkoli (moderace/podpora)
     if (req.session.role !== 'admin') {
-      const otherRows = await restSelect(T.users, `id=eq.${Number(other)}&select=role&limit=1`);
+      const otherRows = await restSelect(T.users, `id=eq.${encodeURIComponent(other)}&select=role&limit=1`);
       const otherRole = otherRows && otherRows[0] && otherRows[0].role;
       const isValidPair = (req.session.role === 'family' && otherRole === 'caregiver') || (req.session.role === 'caregiver' && otherRole === 'family');
       if (!isValidPair) return res.status(403).json({ error: 'Konverzaci lze založit jen mezi rodinou a pečovatelkou.' });
