@@ -3797,7 +3797,8 @@ function openAdminOrder(oid){
   document.getElementById('admOrdKm').value=o.km||0;
   document.getElementById('admOrdAddr').value=o.addr||'';
   document.getElementById('admOrdNote').value=o.note||'';
-  document.getElementById('admOrdStatus').value=o.status||'pending';
+  const statusSel=document.getElementById('admOrdStatus');
+  statusSel.value=o.status||'pending';if(statusSel._ddRefresh)statusSel._ddRefresh();
   document.getElementById('admOrdErr').textContent='';
   document.getElementById('admOrderModal').classList.add('open');
   document.body.style.overflow='hidden';
