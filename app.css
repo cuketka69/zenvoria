@@ -619,10 +619,11 @@
   .rev-reply-form textarea{min-height:70px;resize:vertical}
   /* ---------- PRESENCE (online / naposledy aktivní) ---------- */
   .pres-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--muted)}
-  .pres-dot.is-online{background:#2Fb463;box-shadow:0 0 0 3px rgba(47,180,99,.18)}
+  .pres-dot.is-online{background:#2Fb463;box-shadow:0 0 0 3px rgba(47,180,99,.18);animation:presPulse 2s ease-in-out infinite}
   .pres-dot.is-offline{background:#B7AE9F}
-  .presence{display:inline-flex;align-items:center;gap:7px;margin-top:9px;font-size:13px;color:var(--muted)}
-  .presence.is-online{color:#1f7a45}
+  @keyframes presPulse{0%,100%{box-shadow:0 0 0 3px rgba(47,180,99,.18)}50%{box-shadow:0 0 0 6px rgba(47,180,99,.1)}}
+  .presence{display:inline-flex;align-items:center;gap:7px;margin-top:9px;font-size:13px;color:var(--muted);font-weight:500}
+  .presence.is-online{color:#1f7a45;font-weight:600}
   /* dot v hlavičce/seznamu chatu */
   .chat-head-state{display:inline-flex;align-items:center;gap:7px}
   /* stav tečka v pravém dolním rohu profilovky v seznamu konverzací */

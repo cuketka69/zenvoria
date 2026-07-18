@@ -1139,7 +1139,7 @@ function applyPresence(el,p){
   const online=!!p.online;
   el.classList.toggle('is-online',online);
   el.classList.toggle('is-offline',!online);
-  if(dot)dot.setAttribute('aria-hidden','true');
+  if(dot){dot.classList.toggle('is-online',online);dot.classList.toggle('is-offline',!online);dot.setAttribute('aria-hidden','true');}
   if(txt)txt.textContent=online?'Online':('Naposledy aktivní '+presenceAgo(p));
   el.hidden=false;return true;
 }
