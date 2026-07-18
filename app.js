@@ -5417,12 +5417,13 @@ function renderChat(){
   const query=(searchInput&&searchBar&&!searchBar.hidden)?searchInput.value.trim().toLowerCase():'';
   const visibleMsgs=query?c.msgs.filter(m=>!m.deletedAt&&m.text&&m.text.toLowerCase().includes(query)):c.msgs;
   body.innerHTML=visibleMsgs.length?visibleMsgs.map(m=>msgHTML(m,!c.readonly,c.pinnedMessage&&c.pinnedMessage.id)).join(''):(query?'<div class="empty">Žádné zprávy neodpovídají hledání.</div>':'');
-  // celý seznam zpráv se při každém překreslení vytvoří znovu (i jen kvůli "přečteno"/presence/pollingu) —
-  // animaci "naskočení" proto dostane poslední zpráva jen JEDNOU, když se objeví poprvé, ne při každém překreslení
+  // celý seznam zpráv se při každém překreslení vytvoří znovu (i jen kvůli "přečteno"/presence/pollingu,
+  // nebo když se dočasná "odesílám…" bublina nahradí potvrzenou zprávou se stejnou pozicí) —
+  // animaci "naskočení" proto dostane poslední zpráva jen když se PŘIBYLA (přibyla nová položka), ne při každém překreslení
   const msgEls=body.querySelectorAll('.msg');
   const lastEl=msgEls.length?msgEls[msgEls.length-1]:null;
-  const lastId=lastEl?lastEl.dataset.mid:null;
-  if(lastEl&&lastId!=null&&c._lastAnimatedMid!==lastId){lastEl.classList.add('msg-enter');c._lastAnimatedMid=lastId;}
+  if(lastEl&&visibleMsgs.length>(c._lastRenderedCount||0))lastEl.classList.add('msg-enter');
+  c._lastRenderedCount=visibleMsgs.length;
   if(!query){
     const lastMine=c.msgs.slice().reverse().find(m=>m.me&&!m.deletedAt);
     if(lastMine&&c.otherReadAt&&Date.parse(c.otherReadAt)>=Date.parse(lastMine.createdAt)){
