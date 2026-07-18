@@ -4942,6 +4942,10 @@ function syncCgPreview(){
   const langs=(cgProfile.langs||[]).map(l=>`<span class="lang-abbr" title="${esc(l)}">${esc(langAbbr(l))}</span>`).join('');
   const photo=cgProfile.photo||auth.photo||null;
   if(!photo)updateCgAvatar();
+  const socHTML=`<div class="soc-links" style="margin-top:12px">
+      <button type="button" class="soc-btn" onclick="event.stopPropagation();previewOpenSocial('cpFacebook')" aria-label="Facebook" title="Facebook"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 8.5h2.3V5.6c-.4-.06-1.6-.16-3-.16-2.5 0-4.2 1.5-4.2 4.3V12H7.5v3.2H10V22h3.2v-6.8h2.6l.4-3.2h-3V9.4c0-.6.2-.9 1.1-.9Z" fill="currentColor"/></svg></button>
+      <button type="button" class="soc-btn" onclick="event.stopPropagation();previewOpenSocial('cpInstagram')" aria-label="Instagram" title="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><circle cx="16.7" cy="7.3" r="1.15" fill="currentColor"/></svg></button>
+    </div>`;
   document.getElementById('cgPreview').innerHTML=`
     <div class="care-card" style="cursor:default">
       <div class="care-top">
@@ -4954,8 +4958,16 @@ function syncCgPreview(){
         </div>
       </div>
       <div class="care-tags">${cgStatus()==='verified'?'<span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>':''}${servs}</div>
+      ${socHTML}
       <div class="care-foot"><div class="price">${priceHTML}</div><button type="button" class="btn btn-gold" style="padding:9px 16px" onclick="previewOwnProfile()">Zobrazit profil</button></div>
     </div>`;
+}
+/* klik na ikonku sítě v náhledu profilu — otevře odkaz z právě rozepsaného pole, nebo poradí, kam ho vyplnit */
+function previewOpenSocial(inputId){
+  const el=document.getElementById(inputId);
+  const url=el?el.value.trim():'';
+  if(url)window.open(url,'_blank','noopener');
+  else toast('Vyplňte odkaz do pole výše a uložte změny.');
 }
 /* v náhledu profilu (na stránce "Můj profil") otevře skutečný veřejný profil, ať si pečovatelka ověří, jak vypadá po uložení */
 function previewOwnProfile(){
