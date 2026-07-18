@@ -210,7 +210,7 @@ async function copyLegalLink(){
 /* ---------- NAV ---------- */
 /* stránky dostupné i bez přihlášení — vše ostatní nepřihlášeného návštěvníka pošle na Domů */
 const GUEST_ALLOWED_VIEWS=new Set(['home','search','howto','profile','pricing','legal','login','register','forgot','reset-password','change-email']);
-const FAMILY_ONLY_VIEWS=new Set(['fam-dash','bookings','booking','order-detail']);
+const FAMILY_ONLY_VIEWS=new Set(['fam-dash','bookings','booking']);
 async function go(v,fromPop){
   if(!auth.loggedIn&&!GUEST_ALLOWED_VIEWS.has(v))v='home';
   // přihlášený uživatel nemá důvod vidět přihlašovací/registrační stránky — pošli ho na jeho vlastní přehled
@@ -222,6 +222,8 @@ async function go(v,fromPop){
   // objednávky rodiny (bookings/booking/fam-dash) smí zobrazit jen role rodina — jinak správce/pečovatelka
   // vidí cizí objednávky, protože ORDERS není filtrováno podle role
   if(FAMILY_ONLY_VIEWS.has(v)&&!(auth.loggedIn&&auth.role==='family'))v=auth.loggedIn?landingView():'home';
+  // detail objednávky si otevírá jak rodina (vlastní objednávka), tak pečovatelka (svá potvrzená služba) — jen ne admin/host
+  if(v==='order-detail'&&!(auth.loggedIn&&(auth.role==='family'||auth.role==='caregiver')))v=auth.loggedIn?landingView():'home';
   let target=document.getElementById('view-'+v);
   if(!target&&isDeferredView(v)){
     try{
