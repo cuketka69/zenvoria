@@ -686,8 +686,7 @@ function initLocationAutocomplete(){
 }
 document.addEventListener('click',e=>{if(!e.target.closest('.loc-ac'))closeLocationMenus();});
 
-/* ---------- VLASTNÍ ADRESNÍ DATABÁZE (RÚIAN) — vyhledávání + mapa, bez Geoapify ---------- */
-const CZ_CENTER=[49.8175,15.4730];
+/* ---------- VLASTNÍ ADRESNÍ DATABÁZE (RÚIAN) — vyhledávání + mapa, bez cizí služby ---------- */
 async function fetchAddressMatches(query,{scope='address'}={}){
   const q=String(query||'').trim();
   if(q.length<2)return [];
@@ -699,40 +698,49 @@ async function fetchAddressMatches(query,{scope='address'}={}){
   }catch(e){}
   return [];
 }
+/* vlastní mapa ZENVORIA (MapLibre GL + OpenFreeMap vektorová data, styl v barvách webu — viz /map-style.json),
+   ne cizí OpenStreetMap vzhled */
 function renderAddressMap(containerId,{lat,lng,draggable=true,onChange}={}){
   const el=document.getElementById(containerId);
-  if(!el||typeof L==='undefined')return null;
-  if(el._leafletMap){try{el._leafletMap.remove();}catch(e){} el._leafletMap=null;}
+  if(!el||typeof maplibregl==='undefined')return null;
+  if(el._zvMap){try{el._zvMap.remove();}catch(e){} el._zvMap=null;}
   el.classList.add('addr-map');
   const hasPoint=lat!=null&&lng!=null;
-  const map=L.map(el,{attributionControl:true}).setView(hasPoint?[lat,lng]:CZ_CENTER,hasPoint?16:7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
-  }).addTo(map);
-  let marker=hasPoint?L.marker([lat,lng],{draggable}).addTo(map):null;
-  function bindDrag(){
-    if(!marker)return;
-    marker.on('dragend',()=>resolvePoint(marker.getLatLng(),{fetchLabel:true}));
+  const map=new maplibregl.Map({
+    container:el,
+    style:'/map-style.json',
+    center:hasPoint?[lng,lat]:[15.4730,49.8175],
+    zoom:hasPoint?15:6.4,
+    attributionControl:{compact:true},
+  });
+  map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+  let marker=null;
+  function ensureMarker(la,ln){
+    if(marker){marker.setLngLat([ln,la]);return;}
+    marker=new maplibregl.Marker({draggable,color:'#A98821'}).setLngLat([ln,la]).addTo(map);
+    if(draggable)marker.on('dragend',()=>{const p=marker.getLngLat();resolvePoint(p.lat,p.lng,{fetchLabel:true});});
   }
-  async function resolvePoint(latlng,{fetchLabel}={}){
-    if(marker)marker.setLatLng(latlng);
-    else{marker=L.marker(latlng,{draggable}).addTo(map);bindDrag();}
+  if(hasPoint)map.on('load',()=>ensureMarker(lat,lng));
+  async function resolvePoint(la,ln,{fetchLabel}={}){
+    ensureMarker(la,ln);
     if(!fetchLabel)return;
-    if(onChange)onChange({lat:latlng.lat,lng:latlng.lng,loading:true,item:null});
+    if(onChange)onChange({lat:la,lng:ln,loading:true,item:null});
     try{
-      const res=await fetch(`/api/locations/reverse?lat=${latlng.lat}&lng=${latlng.lng}`,{credentials:'include',cache:'no-store'});
+      const res=await fetch(`/api/locations/reverse?lat=${la}&lng=${ln}`,{credentials:'include',cache:'no-store'});
       const data=await res.json();
-      if(onChange)onChange({lat:latlng.lat,lng:latlng.lng,loading:false,item:(data&&data.item)||null});
+      if(onChange)onChange({lat:la,lng:ln,loading:false,item:(data&&data.item)||null});
     }catch(e){
-      if(onChange)onChange({lat:latlng.lat,lng:latlng.lng,loading:false,item:null});
+      if(onChange)onChange({lat:la,lng:ln,loading:false,item:null});
     }
   }
-  bindDrag();
-  map.on('click',e=>resolvePoint(e.latlng,{fetchLabel:true}));
-  el._leafletMap=map;
+  map.on('click',e=>resolvePoint(e.lngLat.lat,e.lngLat.lng,{fetchLabel:true}));
+  el._zvMap=map;
   return {
-    moveTo(la,ln){map.setView([la,ln],16);resolvePoint({lat:la,lng:ln},{fetchLabel:false});},
-    destroy(){try{map.remove();}catch(e){} el._leafletMap=null;}
+    moveTo(la,ln){
+      const go=()=>{map.flyTo({center:[ln,la],zoom:15,speed:1.4});resolvePoint(la,ln,{fetchLabel:false});};
+      if(map.loaded())go();else map.once('load',go);
+    },
+    destroy(){try{map.remove();}catch(e){} el._zvMap=null;}
   };
 }
 /* inputId = textové pole s adresou; mapId = kontejner pro mapu (nepovinný); scope 'address'|'municipality';
