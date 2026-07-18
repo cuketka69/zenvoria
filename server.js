@@ -144,13 +144,17 @@ const RATE_LIMITS = {
     max: parseInt(process.env.RATE_LIMIT_VERIFY_EMAIL_MAX || '10', 10),
     message: 'Příliš mnoho pokusů o ověření e-mailu. Zkuste to prosím později.',
   },
+  locations: {
+    windowMs: parseInt(process.env.RATE_LIMIT_LOCATIONS_WINDOW_MS || String(1000 * 60), 10),
+    max: parseInt(process.env.RATE_LIMIT_LOCATIONS_MAX || '60', 10),
+    message: 'Příliš mnoho dotazů na adresní databázi. Zkuste to prosím za chvíli.',
+  },
 };
 
 const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !== 'false';
 const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const APP_URL = process.env.APP_URL || 'https://www.zenvoria.cz';
-const GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY || '';
 
 // --- Stripe (předplatné PREMIUM pro pečovatelky) ---
 // klíče lze nastavit přes proměnné prostředí (Railway) NEBO za běhu přes admin panel (Nastavení > Platby) —
@@ -1763,7 +1767,7 @@ function decodeVerificationNote(note) {
 }
 function mapVerification(v) {
   const parsed = decodeVerificationNote(v.note);
-  return { id: Number(v.id), name: v.name, email: v.email, init: v.init, loc: v.loc, rate: v.rate, exp: v.exp,
+  return { id: Number(v.id), name: v.name, email: v.email, init: v.init, loc: v.loc, lat: v.lat, lng: v.lng, rate: v.rate, exp: v.exp,
     phone: v.phone, docType: v.doc_type, docNum: v.doc_num, idFront: v.id_front, idBack: v.id_back, selfie: v.selfie,
     services: v.services || [], cert: v.cert, issuer: v.issuer, validUntil: v.valid_until, fileName: v.file_name,
     refs: v.refs, note: parsed.note, certifications: parsed.certifications, bio: v.bio, status: v.status, date: v.date, reason: v.reason };
@@ -1859,7 +1863,6 @@ const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(
 app.get('/api/health', (_req, res) => res.json({
   ok: true,
   rest: REST_ENABLED,
-  geoapifyConfigured: !!GEOAPIFY_API_KEY,
   stripeConfigured: isStripeEnabled(),
   openaiConfigured: isOpenAiEnabled(),
 }));
@@ -2011,73 +2014,6 @@ function sendIndex(res) {
   return res.sendFile(path.join(ROOT, 'index.html'));
 }
 
-function formatPostalCode(postcode) {
-  const digits = String(postcode || '').replace(/\D/g, '');
-  return digits.length === 5 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : String(postcode || '').trim();
-}
-function firstLocationPart(row) {
-  return row.city || row.town || row.village || row.hamlet || row.municipality || row.county || row.state || '';
-}
-app.get('/api/locations/autocomplete', h(async (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  const q = trimmedString(req.query.q, 120);
-  if (!q || q.length < 2) return res.json({ items: [], source: 'empty' });
-  if (!GEOAPIFY_API_KEY) return res.json({ items: [], source: 'missing-key' });
-  const kind = /^[0-9\s]{2,}$/.test(q) ? 'postcode' : 'city';
-  const params = new URLSearchParams({
-    text: q,
-    lang: 'cs',
-    limit: '8',
-    format: 'json',
-    filter: 'countrycode:cz',
-    type: kind,
-    apiKey: GEOAPIFY_API_KEY,
-  });
-  const url = `https://api.geoapify.com/v1/geocode/autocomplete?${params.toString()}`;
-  const ext = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, 8000);
-  if (!ext.ok) {
-    const body = await ext.text().catch(() => '');
-    throw new Error(`Geoapify ${ext.status}: ${body || ext.statusText}`);
-  }
-  const payload = await ext.json();
-  const seen = new Set();
-  const items = (Array.isArray(payload?.results) ? payload.results : []).map((row) => {
-    const name = firstLocationPart(row);
-    const postcode = formatPostalCode(row.postcode);
-    const region = row.state || row.county || '';
-    const parts = [name, postcode, region].filter(Boolean);
-    const label = parts.join(', ');
-    const key = label.toLowerCase();
-    if (!name || !label || seen.has(key)) return null;
-    seen.add(key);
-    return {
-      label,
-      value: label,
-      name,
-      postcode,
-      region,
-      lat: Number.isFinite(row.lat) ? row.lat : null,
-      lon: Number.isFinite(row.lon) ? row.lon : null,
-    };
-  }).filter(Boolean);
-  res.json({ items, source: 'geoapify' });
-}));
-
-// zjisti souřadnice textového místa (nejlepší shoda) — použito pro dopočet vzdálenosti a geokódování profilů pečovatelek
-async function geocodeCzechLocation(text) {
-  if (!GEOAPIFY_API_KEY) return null;
-  const q = trimmedString(text, 120);
-  if (!q) return null;
-  const params = new URLSearchParams({ text: q, lang: 'cs', limit: '1', format: 'json', filter: 'countrycode:cz', apiKey: GEOAPIFY_API_KEY });
-  try {
-    const ext = await fetchWithTimeout(`https://api.geoapify.com/v1/geocode/search?${params.toString()}`, { headers: { Accept: 'application/json' } }, 8000);
-    if (!ext.ok) return null;
-    const payload = await ext.json();
-    const row = payload && Array.isArray(payload.results) ? payload.results[0] : null;
-    if (!row || !Number.isFinite(row.lat) || !Number.isFinite(row.lon)) return null;
-    return { lat: row.lat, lng: row.lon };
-  } catch (e) { return null; }
-}
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -2097,8 +2033,8 @@ app.get('/api/caregivers/distances', h(async (req, res) => {
   res.json({ distances });
 }));
 
-// vlastní adresní databáze (RÚIAN) — vyhledávání a přichycení pinu na mapě, bez závislosti na Geoapify
-app.get('/api/locations/search', h(async (req, res) => {
+// vlastní adresní databáze (RÚIAN) — vyhledávání a přichycení pinu na mapě, bez závislosti na externí službě
+app.get('/api/locations/search', rateLimit('locations', RATE_LIMITS.locations), h(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const q = trimmedString(req.query.q, 120);
   if (!q || q.length < 2) return res.json({ items: [] });
@@ -2119,7 +2055,7 @@ app.get('/api/locations/search', h(async (req, res) => {
 }));
 
 // hrubší varianta search_addresses — jedna položka na obec, pro pole "kde pečovatelka působí" (netřeba číslo popisné)
-app.get('/api/locations/search-municipality', h(async (req, res) => {
+app.get('/api/locations/search-municipality', rateLimit('locations', RATE_LIMITS.locations), h(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const q = trimmedString(req.query.q, 120);
   if (!q || q.length < 2) return res.json({ items: [] });
@@ -2135,7 +2071,7 @@ app.get('/api/locations/search-municipality', h(async (req, res) => {
   res.json({ items });
 }));
 
-app.get('/api/locations/reverse', h(async (req, res) => {
+app.get('/api/locations/reverse', rateLimit('locations', RATE_LIMITS.locations), h(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const lat = Number(req.query.lat);
   const lng = Number(req.query.lng);
@@ -3042,7 +2978,7 @@ app.get('/api/verifications/:id/files', requireAuth, h(async (req, res) => {
 
 /* lehký seznam žádostí pro admin (bez příloh) — pro automatické obnovení stránky */
 app.get('/api/verifications', requireRole('admin'), h(async (req, res) => {
-  const cols = 'id,name,email,init,loc,rate,exp,phone,doc_type,doc_num,id_front,id_back,selfie,services,cert,issuer,valid_until,file_name,refs,note,bio,status,date,reason';
+  const cols = 'id,name,email,init,loc,lat,lng,rate,exp,phone,doc_type,doc_num,id_front,id_back,selfie,services,cert,issuer,valid_until,file_name,refs,note,bio,status,date,reason';
   const rows = await restSelect(T.verifications, `select=${cols}&order=id.asc`);
   res.setHeader('Cache-Control', 'no-store');
   res.json({ verifications: (rows || []).map(mapVerification) });
@@ -4808,15 +4744,19 @@ async function sendCertExpiryReminders() {
 }
 setInterval(sendCertExpiryReminders, 30 * 60 * 1000).unref();
 
-/* doplní lat/lng pečovatelkám, které je ještě nemají (nová lokalita nebo první běh) — po malých dávkách, ať nenarazíme na limit Geoapify */
+/* doplní lat/lng pečovatelkám, které je ještě nemají (starší text bez pinu na mapě, nebo první běh) —
+   dohledá je přes vlastní adresní databázi místo externí služby */
 async function geocodeCaregiverLocations() {
-  if (!REST_ENABLED || !GEOAPIFY_API_KEY) return;
+  if (!REST_ENABLED) return;
   try {
     const rows = await restSelect(T.caregivers, `lat=is.null&loc=not.is.null&select=id,loc&limit=15`);
     for (const c of rows || []) {
       if (!c.loc) continue;
-      const geo = await geocodeCzechLocation(c.loc);
-      if (geo) await restUpdate(T.caregivers, `id=eq.${c.id}`, { lat: geo.lat, lng: geo.lng }, { prefer: 'return=minimal' });
+      const matches = await supabaseRestRequest('POST', 'rpc/search_municipalities_ranked', { body: { q: c.loc, lim: 1 } });
+      const m = Array.isArray(matches) ? matches[0] : null;
+      if (m && Number.isFinite(m.lat) && Number.isFinite(m.lng)) {
+        await restUpdate(T.caregivers, `id=eq.${c.id}`, { lat: m.lat, lng: m.lng }, { prefer: 'return=minimal' });
+      }
     }
   } catch (e) { console.warn('[jobs] geocodeCaregiverLocations failed:', e.message); }
 }

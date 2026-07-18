@@ -941,7 +941,7 @@ function renderHome(){
 
 /* ---------- SEARCH RENDER ---------- */
 let activeFilter='';
-/* vzdálenost od zadané lokality — vyplní se jen když uživatel vybere návrh se souřadnicemi (Geoapify) */
+/* vzdálenost od zadané lokality — vyplní se jen když uživatel vybere návrh se souřadnicemi (vlastní adresní DB) */
 let searchLocCoords=null;
 let searchDistances={};
 function onSearchLocInput(){
