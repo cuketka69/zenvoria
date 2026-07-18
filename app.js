@@ -749,20 +749,23 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved}={}){
   menu.className='loc-ac-menu';
   wrap.appendChild(menu);
   let active=-1,current=[],timer=null;
-  /* mapa se vykreslí, až uživatel něco vybere/potvrdí — ne hned při otevření formuláře
-     (prázdná mapa celé ČR by tu jen zabírala místo a schovávala nabídku našeptávače) */
-  let mapCtl=null;
+  const onMapChange=(ev)=>{
+    if(ev.loading)return;
+    if(ev.item){input.value=ev.item.label;if(onResolved)onResolved(ev.item);}
+  };
+  let mapCtl=mapId?renderAddressMap(mapId,{onChange:onMapChange}):null;
+  // pole už mělo hodnotu (např. dřív uložená lokalita) → zkus mapu rovnou vycentrovat na ni, ať nezůstane na oddálené celé ČR
+  if(mapId&&input.value.trim()){
+    fetchAddressMatches(input.value.trim(),{scope}).then(items=>{
+      const best=items&&items[0];
+      if(best&&mapCtl)mapCtl.moveTo(best.lat,best.lng);
+    });
+  }
   const pick=(item)=>{
     if(!item)return;
     input.value=item.label||input.value;
     closeLocationMenus();
-    if(mapId){
-      if(mapCtl)mapCtl.moveTo(item.lat,item.lng);
-      else mapCtl=renderAddressMap(mapId,{lat:item.lat,lng:item.lng,onChange:(ev)=>{
-        if(ev.loading)return;
-        if(ev.item){input.value=ev.item.label;if(onResolved)onResolved(ev.item);}
-      }});
-    }
+    if(mapId&&mapCtl)mapCtl.moveTo(item.lat,item.lng);
     if(onResolved)onResolved(item);
   };
   const syncActive=()=>{menu.querySelectorAll('.loc-ac-opt').forEach((el,i)=>el.classList.toggle('active',i===active));};
