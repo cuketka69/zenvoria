@@ -1080,6 +1080,10 @@ async function openProfile(id,fromPop){
       <div class="pdiv"></div>
       <h3>O mně</h3>
       <p class="bio">${esc(c.bio)}</p>
+      ${(c.facebook||c.instagram)?`<div class="soc-links">
+        ${c.facebook?`<a class="soc-btn" href="${esc(c.facebook)}" target="_blank" rel="noopener" aria-label="Facebook" title="Facebook"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 8.5h2.3V5.6c-.4-.06-1.6-.16-3-.16-2.5 0-4.2 1.5-4.2 4.3V12H7.5v3.2H10V22h3.2v-6.8h2.6l.4-3.2h-3V9.4c0-.6.2-.9 1.1-.9Z" fill="currentColor"/></svg></a>`:''}
+        ${c.instagram?`<a class="soc-btn" href="${esc(c.instagram)}" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><circle cx="16.7" cy="7.3" r="1.15" fill="currentColor"/></svg></a>`:''}
+      </div>`:''}
       <div class="pdiv"></div>
       <h3>Nabízené služby</h3>
       <div class="pservices" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
@@ -4462,6 +4466,7 @@ const cgProfile={
   services:[],
   langs:['Čeština'],
   bio:'',
+  facebook:'',instagram:'',
   views:0,perms:null
 };
 /* jazyky, které si pečovatelka může nastavit v profilu */
@@ -4799,6 +4804,8 @@ function renderCgProfile(){
   document.getElementById('cpPriceType').value=cgProfile.priceType||'hod';
   if(cgProfile.priceType==='den')document.getElementById('cpRate').value=cgProfile.dayRate;
   document.getElementById('cpBio').value=cgProfile.bio;
+  const cpFbEl=document.getElementById('cpFacebook');if(cpFbEl)cpFbEl.value=cgProfile.facebook||'';
+  const cpIgEl=document.getElementById('cpInstagram');if(cpIgEl)cpIgEl.value=cgProfile.instagram||'';
   renderCgServiceChips();
   renderCgLangChips();
   updateCgAvatar();
@@ -4961,15 +4968,22 @@ function saveCgProfile(){
   const rv=numOr('cpRate',null);
   if(rv!==null){if(cgProfile.priceType==='den')cgProfile.dayRate=rv;else if(cgProfile.priceType==='hod')cgProfile.rate=rv;}
   cgProfile.bio=document.getElementById('cpBio').value.trim().slice(0,500);
+  const cpFbVal=document.getElementById('cpFacebook'),cpIgVal=document.getElementById('cpInstagram');
+  if(cpFbVal)cgProfile.facebook=cpFbVal.value.trim().slice(0,300);
+  if(cpIgVal)cgProfile.instagram=cpIgVal.value.trim().slice(0,300);
+  if(cgProfile.facebook&&!/^https?:\/\/.+/i.test(cgProfile.facebook)){toast('Adresa Facebook profilu musí začínat http:// nebo https://.','declined');cpFbVal.focus();return;}
+  if(cgProfile.instagram&&!/^https?:\/\/.+/i.test(cgProfile.instagram)){toast('Adresa Instagram profilu musí začínat http:// nebo https://.','declined');cpIgVal.focus();return;}
   // propsat změny do veřejné karty pečovatelky (Jana = id 1 / dle e-mailu)
   if(!Array.isArray(cgProfile.langs))cgProfile.langs=[];
   const me=CAREGIVERS.find(x=>x.email===auth.email)||CAREGIVERS[0];
   if(me){me.name=cgProfile.name;me.titul=cgProfile.titul||null;me.photo=cgProfile.photo||null;me.loc=cgProfile.loc;me.rate=cgProfile.rate;me.exp=cgProfile.exp;me.bio=cgProfile.bio;
+    me.facebook=cgProfile.facebook||null;me.instagram=cgProfile.instagram||null;
     me.radius=cgProfile.radius;me.priceType=cgProfile.priceType;me.dayRate=cgProfile.dayRate;
     me.kmPrice=cgProfile.kmPrice;me.services=cgProfile.services.slice();me.langs=cgProfile.langs.slice();}
   if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role,cgProfile.photo,undefined,undefined,cgProfile.titul);}
   if(me&&me.id){apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{
     name:cgProfile.name,titul:cgProfile.titul||null,loc:cgProfile.loc,rate:cgProfile.rate,exp:me.exp,bio:cgProfile.bio,
+    facebook:cgProfile.facebook||null,instagram:cgProfile.instagram||null,
     services:cgProfile.services,langs:cgProfile.langs,radius:cgProfile.radius,priceType:cgProfile.priceType,
     dayRate:cgProfile.dayRate,kmPrice:cgProfile.kmPrice,photo:cgProfile.photo||null
   }}));}
@@ -5995,6 +6009,7 @@ async function bootstrap(){
   if(auth.loggedIn&&auth.role==='caregiver'){
     const me=CAREGIVERS.find(c=>c.email===auth.email);
     if(me){Object.assign(cgProfile,{name:me.name,titul:me.titul||'',bio:me.bio,loc:me.loc,rate:me.rate,services:me.services,langs:me.langs,photo:me.photo||cgProfile.photo,
+      facebook:me.facebook||'',instagram:me.instagram||'',
       exp:me.exp!=null?me.exp:cgProfile.exp,radius:me.radius!=null?me.radius:cgProfile.radius,
       priceType:me.priceType||cgProfile.priceType,dayRate:me.dayRate!=null?me.dayRate:cgProfile.dayRate,kmPrice:me.kmPrice!=null?me.kmPrice:cgProfile.kmPrice,
       views:me.views!=null?me.views:cgProfile.views,perms:me.perms||cgProfile.perms});

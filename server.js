@@ -1720,6 +1720,7 @@ function mapCaregiver(c, permsSetting) {
     id: Number(c.id), publicId: c.public_id || null, slug: c.slug || null, name: c.name, titul: c.titul || null, init: c.init, loc: c.loc, rate: c.rate,
     rating: Number(c.rating), reviews: c.reviews, exp: c.exp, services: c.services || [],
     verified: c.verified, cert: c.cert, bio: c.bio, status: c.status, suspended: c.suspended,
+    facebook: c.facebook || null, instagram: c.instagram || null,
     idVerified: c.id_verified, plan: c.plan, planStatus: c.plan_status || null, trialUntil: c.trial_until || null,
     langs: c.langs || ['Čeština'],
     priceType: c.price_type, dayRate: c.day_rate, radius: c.radius, kmPrice: c.km_price,
@@ -3686,10 +3687,11 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   const map = { name: 'name', titul: 'titul', loc: 'loc', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
     plan: 'plan', priceType: 'price_type', dayRate: 'day_rate', radius: 'radius', kmPrice: 'km_price',
     photo: 'photo', avail: 'avail', blockedDates: 'blocked_dates', availOverrides: 'avail_overrides',
-    suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until' };
+    suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until',
+    facebook: 'facebook', instagram: 'instagram' };
   for (const k in map) if (b[k] !== undefined) patch[map[k]] = b[k];
   // úprava vlastního profilu vyžaduje oprávnění „Správa profilu" u aktuálního tarifu
-  const PROFILE_FIELD_KEYS = new Set(['name', 'titul', 'loc', 'rate', 'exp', 'bio', 'services', 'langs', 'priceType', 'dayRate', 'radius', 'kmPrice', 'photo', 'avail', 'blockedDates', 'availOverrides']);
+  const PROFILE_FIELD_KEYS = new Set(['name', 'titul', 'loc', 'rate', 'exp', 'bio', 'services', 'langs', 'priceType', 'dayRate', 'radius', 'kmPrice', 'photo', 'avail', 'blockedDates', 'availOverrides', 'facebook', 'instagram']);
   if (!isAdmin && Object.keys(b).some((k) => PROFILE_FIELD_KEYS.has(k))) {
     const perms = permsForPlan(ownCaregiver.plan, await getPlanPermissions());
     if (!perms.manageProfile) return res.status(403).json({ error: 'Úprava profilu není ve vašem aktuálním tarifu dostupná.' });
@@ -3720,6 +3722,14 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     patch.lng = null;
   }
   if (patch.bio !== undefined) patch.bio = trimmedString(patch.bio, 4000);
+  if (patch.facebook !== undefined) {
+    patch.facebook = trimmedString(patch.facebook, 300) || null;
+    if (patch.facebook && !/^https?:\/\/.+/i.test(patch.facebook)) return res.status(400).json({ error: 'Neplatná adresa Facebook profilu (musí začínat http:// nebo https://).' });
+  }
+  if (patch.instagram !== undefined) {
+    patch.instagram = trimmedString(patch.instagram, 300) || null;
+    if (patch.instagram && !/^https?:\/\/.+/i.test(patch.instagram)) return res.status(400).json({ error: 'Neplatná adresa Instagram profilu (musí začínat http:// nebo https://).' });
+  }
   if (patch.blocked_dates !== undefined) {
     const arr = Array.isArray(patch.blocked_dates) ? patch.blocked_dates : [];
     patch.blocked_dates = [...new Set(arr.map((d) => trimmedString(d, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))].slice(0, 200);
