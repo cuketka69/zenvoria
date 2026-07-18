@@ -6080,9 +6080,13 @@ function reloadIsSafe(){
   if(document.body&&document.body.style.overflow==='hidden')return false; // otevřený modal/menu
   return true;
 }
+let reloadScheduled=false;
 function applyUpdateIfSafe(){
-  if(!updatePending||!reloadIsSafe())return false;
-  location.reload();
+  if(!updatePending||!reloadIsSafe()||reloadScheduled)return false;
+  reloadScheduled=true;
+  // malé zpoždění (2-5 s), ať reload nepadne přesně do okamžiku, kdy server ještě dokončuje restart po deployi
+  // (jinak hrozí, že stránka načte nové index.html, ale app.css/app.js ještě na chvíli neodpovídá — nestylovaná stránka)
+  setTimeout(()=>location.reload(),2000+Math.random()*3000);
   return true;
 }
 function initAutoUpdate(){
