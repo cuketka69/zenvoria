@@ -4649,8 +4649,8 @@ function renderCgCalendar(){
   document.getElementById('cgCalDays').innerHTML=html;
   renderAvailEditor();
   const jobs=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date));
-  document.getElementById('cgCalJobs').innerHTML=jobs.length?jobs.map(j=>`
-    <div class="order" style="padding:13px 15px"><div class="ava" style="width:42px;height:42px;font-size:14px">${j.init}</div>
+  document.getElementById('cgCalJobs').innerHTML=jobs.length?jobs.map((j,i)=>`
+    <div class="order" style="padding:13px 15px;cursor:pointer" role="button" tabindex="0" onclick="openCgOrder(${i})"><div class="ava" style="width:42px;height:42px;font-size:14px">${j.init}</div>
       <div class="od"><b style="font-size:15px">${sNames(j.service)}</b><div class="det">${fmtDate(j.date)} · ${timeRange(j.time,j.hours)}</div></div></div>`).join(''):'<div class="empty">Žádné naplánované služby v tomto období.</div>';
 }
 function cgCalMove(dir){cgCalMonth+=dir;if(cgCalMonth<0){cgCalMonth=11;cgCalYear--}if(cgCalMonth>11){cgCalMonth=0;cgCalYear++}renderCgCalendar();}
