@@ -2097,6 +2097,68 @@ app.get('/api/caregivers/distances', h(async (req, res) => {
   res.json({ distances });
 }));
 
+// vlastní adresní databáze (RÚIAN) — vyhledávání a přichycení pinu na mapě, bez závislosti na Geoapify
+app.get('/api/locations/search', h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const q = trimmedString(req.query.q, 120);
+  if (!q || q.length < 2) return res.json({ items: [] });
+  const rows = await supabaseRestRequest('POST', 'rpc/search_addresses', { body: { q, lim: 10 } });
+  const items = (Array.isArray(rows) ? rows : []).map((r) => ({
+    label: r.label,
+    municipality: r.municipality,
+    district: r.district,
+    part: r.part,
+    street: r.street,
+    house_number: r.house_number,
+    orientation_number: r.orientation_number,
+    postal_code: r.postal_code,
+    lat: r.lat,
+    lng: r.lng,
+  }));
+  res.json({ items });
+}));
+
+// hrubší varianta search_addresses — jedna položka na obec, pro pole "kde pečovatelka působí" (netřeba číslo popisné)
+app.get('/api/locations/search-municipality', h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const q = trimmedString(req.query.q, 120);
+  if (!q || q.length < 2) return res.json({ items: [] });
+  const rows = await supabaseRestRequest('POST', 'rpc/search_municipalities_ranked', { body: { q, lim: 8 } });
+  const items = (Array.isArray(rows) ? rows : []).map((r) => ({
+    label: r.label,
+    municipality: r.municipality,
+    district: r.district,
+    postal_code: r.postal_code,
+    lat: r.lat,
+    lng: r.lng,
+  }));
+  res.json({ items });
+}));
+
+app.get('/api/locations/reverse', h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Neplatné souřadnice.' });
+  const rows = await supabaseRestRequest('POST', 'rpc/nearest_address', { body: { p_lat: lat, p_lng: lng, lim: 1 } });
+  const r = Array.isArray(rows) ? rows[0] : null;
+  if (!r) return res.json({ item: null });
+  res.json({
+    item: {
+      label: [r.street ? `${r.street} ${r.house_number}${r.orientation_number ? '/' + r.orientation_number : ''}` : r.house_number, r.part && r.part !== r.municipality ? r.part : null, r.municipality, r.postal_code ? `${r.postal_code.slice(0, 3)} ${r.postal_code.slice(3)}` : null].filter(Boolean).join(', '),
+      municipality: r.municipality,
+      district: r.district,
+      part: r.part,
+      street: r.street,
+      house_number: r.house_number,
+      orientation_number: r.orientation_number,
+      postal_code: r.postal_code,
+      lat: r.lat,
+      lng: r.lng,
+    },
+  });
+}));
+
 /* ---------------- AUTH ------------------ */
 async function findUserByEmail(email) {
   const rows = await restSelect(T.users, `email=eq.${encodeURIComponent((email || '').toLowerCase())}&limit=1`);
@@ -2628,6 +2690,9 @@ app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, ra
   const note = trimmedString(b.note, 2000);
   const hours = Number(b.hours == null ? 1 : b.hours);
   const km = Number(b.km == null ? 0 : b.km);
+  const lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
+  const lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
+  const postalCode = trimmedString(b.postal_code, 10) || null;
   if (!Number.isInteger(cid) || cid <= 0 || !service || !date || !time || !addr) {
     return res.status(400).json({ error: 'Neúplná objednávka.' });
   }
@@ -2659,7 +2724,7 @@ app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, ra
   const order = await restInsert(T.orders, {
     oid, cid, family_email: req.session.email, fam_name: famName,
     service, hours, date, time, addr,
-    note, km, status: 'pending',
+    note, km, status: 'pending', lat, lng, postal_code: postalCode,
   });
   const reqId = await nextId(T.requests, 'id');
   const init = (famName.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
@@ -2787,6 +2852,9 @@ app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
     }
     if (b.addr !== undefined) patch.addr = trimmedString(b.addr, 250);
     if (b.note !== undefined) patch.note = trimmedString(b.note, 2000);
+    if (b.lat !== undefined) patch.lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
+    if (b.lng !== undefined) patch.lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
+    if (b.postal_code !== undefined) patch.postal_code = trimmedString(b.postal_code, 10) || null;
   }
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   const rows = await restUpdate(T.orders, `oid=eq.${oid}`, patch);
@@ -2913,9 +2981,11 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), requireVerifie
     ? `${note}${note ? `\n${VERIFY_CERTS_MARKER}` : VERIFY_CERTS_MARKER}${JSON.stringify(certifications)}`
     : note;
   const files = sanitizeVerificationFiles(b.files);
+  const lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
+  const lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
   const id = await nextId(T.verifications, 'id');
   const row = await restInsert(T.verifications, {
-    id, name, email, init, loc, rate, exp,
+    id, name, email, init, loc, lat, lng, rate, exp,
     phone, doc_type: docType, doc_num: docNum, id_front: idFront, id_back: idBack, selfie,
     services, cert, issuer, valid_until: validUntil, file_name: fileName,
     refs, note: storedNote, bio, files, status: 'submitted', date: new Date().toISOString().slice(0, 10),
@@ -2994,8 +3064,9 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
     services: v.services || [], verified: true, id_verified: true, status: 'verified', suspended: false,
     bio: v.bio, cert: !!v.cert,
     ...(userPhoto ? { photo: userPhoto } : {}),
-    // lokalita mohla přijít nová/upravená → zahoď starou geopozici, dohoní ji background job
-    ...(cg && cg.loc !== v.loc ? { lat: null, lng: null } : {}),
+    // lokalita vybraná na mapě už má souřadnice rovnou z žádosti; jinak (starší data bez pinu) je zahoď,
+    // ať to při další příležitosti dožene reverse lookup nad vlastní adresní databází
+    ...(v.lat != null && v.lng != null ? { lat: v.lat, lng: v.lng } : (cg && cg.loc !== v.loc ? { lat: null, lng: null } : {})),
   };
   if (cg) {
     await restUpdate(T.caregivers, `id=eq.${cg.id}`, data, { prefer: 'return=minimal' });
@@ -3304,7 +3375,10 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
     if (!Number.isInteger(thours) || thours < 1 || thours > 24) return res.status(400).json({ error: 'Neplatná délka péče.' });
     if (!tservice) return res.status(400).json({ error: 'Vyberte službu.' });
     if (!taddr) return res.status(400).json({ error: 'Zadejte adresu péče.' });
-    term = { date: tdate, time: ttime, hours: thours, service: tservice, addr: taddr, note: trimmedString(b.term.note, 500), km: Math.max(0, Number(b.term.km) || 0), status: 'proposed', orderId: null };
+    const tlat = Number.isFinite(Number(b.term.lat)) ? Number(b.term.lat) : null;
+    const tlng = Number.isFinite(Number(b.term.lng)) ? Number(b.term.lng) : null;
+    const tpostal = trimmedString(b.term.postal_code, 10) || null;
+    term = { date: tdate, time: ttime, hours: thours, service: tservice, addr: taddr, lat: tlat, lng: tlng, postal_code: tpostal, note: trimmedString(b.term.note, 500), km: Math.max(0, Number(b.term.km) || 0), status: 'proposed', orderId: null };
   }
   if (!text && !image && !term) return res.status(400).json({ error: 'Chybí text zprávy.' });
   if (text.length > 2000) return res.status(400).json({ error: 'Zpráva je příliš dlouhá.' });
@@ -3367,7 +3441,7 @@ app.post('/api/conversations/:id/messages/:mid/term/accept', requireAuth, requir
   const oid = await nextId(T.orders, 'oid');
   const status = iAmFamily ? 'pending' : 'confirmed';
   const famInit = (String(family.name || '').trim().split(/\s+/).map((p) => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
-  await restInsert(T.orders, { oid, cid: caregiver.id, family_email: family.email, fam_name: family.name, service: t.service, hours: t.hours, date: t.date, time: t.time, addr: t.addr, note: t.note || '', km: t.km || 0, status });
+  await restInsert(T.orders, { oid, cid: caregiver.id, family_email: family.email, fam_name: family.name, service: t.service, hours: t.hours, date: t.date, time: t.time, addr: t.addr, note: t.note || '', km: t.km || 0, status, lat: t.lat ?? null, lng: t.lng ?? null, postal_code: t.postal_code ?? null });
   if (iAmFamily) {
     const reqId = await nextId(T.requests, 'id');
     await restInsert(T.requests, { id: reqId, oid, cid: caregiver.id, fam: family.name, init: famInit, service: t.service, date: t.date, time: t.time, hours: t.hours, addr: t.addr }, { prefer: 'return=minimal' });
@@ -3687,7 +3761,7 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   }
   const patch = {};
   // jen povolená pole
-  const map = { name: 'name', titul: 'titul', loc: 'loc', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
+  const map = { name: 'name', titul: 'titul', loc: 'loc', lat: 'lat', lng: 'lng', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
     plan: 'plan', priceType: 'price_type', dayRate: 'day_rate', radius: 'radius', kmPrice: 'km_price',
     photo: 'photo', avail: 'avail', blockedDates: 'blocked_dates', availOverrides: 'avail_overrides',
     suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until',
@@ -3720,10 +3794,15 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   if (patch.loc !== undefined) {
     patch.loc = trimmedString(patch.loc, 120);
     if (!patch.loc) return res.status(400).json({ error: 'Zadejte lokalitu (město nebo okres).' });
-    // lokalita se změnila → zahoď starou geopozici, background job geocodeCaregiverLocations ji časem dohoní
-    patch.lat = null;
-    patch.lng = null;
+    // pokud přišla souřadnice z mapového pickeru rovnou s lokalitou, použij ji; jinak (starší text bez pinu)
+    // zahoď starou geopozici, background job geocodeCaregiverLocations ji časem dohoní
+    if (!(Number.isFinite(Number(patch.lat)) && Number.isFinite(Number(patch.lng)))) {
+      patch.lat = null;
+      patch.lng = null;
+    }
   }
+  if (patch.lat !== undefined) patch.lat = Number.isFinite(Number(patch.lat)) ? Number(patch.lat) : null;
+  if (patch.lng !== undefined) patch.lng = Number.isFinite(Number(patch.lng)) ? Number(patch.lng) : null;
   if (patch.bio !== undefined) patch.bio = trimmedString(patch.bio, 4000);
   if (patch.facebook !== undefined) {
     patch.facebook = trimmedString(patch.facebook, 300) || null;

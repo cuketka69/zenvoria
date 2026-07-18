@@ -26,6 +26,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="/hero.webp" fetchpriority="high">
 <link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/leaflet.css">
 </head>
 <body>
 
@@ -489,7 +490,8 @@
       </select>
     </div>
     <div style="margin-top:14px"><label class="lbl" for="termAddr">Adresa péče</label><input class="inp" id="termAddr" placeholder="Např. Veleslavínská 123, Praha 6">
-      <p style="font-size:11.5px;color:var(--muted);margin-top:6px">Zadejte celou adresu, kde má péče probíhat — ulici s číslem popisným a město.</p>
+      <p style="font-size:11.5px;color:var(--muted);margin-top:6px">Najděte a potvrďte adresu, kde má péče probíhat — buď napište adresu, nebo klikněte přímo na mapu.</p>
+      <div id="termAddrMap"></div>
     </div>
     <div class="set-err" id="termErr" style="margin-top:10px"></div>
     <div class="date-modal-actions">
@@ -632,6 +634,7 @@
       </div>
       <label class="lbl" style="margin-top:12px">Adresa</label>
       <input class="inp" id="admOrdAddr">
+      <div id="admOrdAddrMap"></div>
       <label class="lbl" style="margin-top:12px">Poznámka</label>
       <textarea class="inp" id="admOrdNote" rows="2" style="resize:vertical"></textarea>
       <label class="lbl" style="margin-top:12px">Stav</label>
@@ -772,6 +775,7 @@
   </button>
 </div>
 
+<script src="/leaflet.js" defer></script>
 <script src="/app.js" defer></script>
 </body>
 </html>

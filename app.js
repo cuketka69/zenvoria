@@ -12,16 +12,6 @@ let SERVICES=[
   {id:'hygiena',name:'Hygiena',icon:'M7 13h10v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6ZM6 13h12M9 13V7a3 3 0 0 1 6 0',desc:'Citlivá pomoc s osobní hygienou a péčí o tělo s respektem a důstojností.'},
   {id:'nakupy',name:'Nákupy',icon:'M6 6h15l-1.5 9h-12L6 6ZM6 6 5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z',desc:'Zajištění nákupů, léků a pochůzek, aby měl senior vše potřebné doma.'}
 ];
-const LOCATION_OPTIONS=[
-  'Praha','Praha-východ','Praha-západ','Beroun','Benešov','Brno','Brno-venkov','Bruntál',
-  'České Budějovice','Český Krumlov','Děčín','Frýdek-Místek','Havlíčkův Brod','Hradec Králové',
-  'Cheb','Chomutov','Jablonec nad Nisou','Jeseník','Jičín','Jihlava','Jindřichův Hradec','Karlovy Vary',
-  'Karviná','Kladno','Klatovy','Kolín','Kutná Hora','Liberec','Litoměřice','Louny','Mělník','Mladá Boleslav',
-  'Most','Náchod','Nový Jičín','Nymburk','Olomouc','Opava','Ostrava','Pardubice','Pelhřimov','Písek',
-  'Plzeň','Prachatice','Prostějov','Přerov','Příbram','Rakovník','Rychnov nad Kněžnou','Semily','Sokolov',
-  'Strakonice','Svitavy','Šumperk','Tábor','Tachov','Teplice','Trutnov','Třebíč','Uherské Hradiště',
-  'Ústí nad Labem','Ústí nad Orlicí','Vsetín','Vyškov','Zlín','Znojmo','Žďár nad Sázavou'
-];
 const VALUES=['Lidskost','Důvěra','Respekt','Bezpečí','Profesionalita'];
 const VAL_SUBS=['Empatie a srdce','Prověřeno a ověřeno','Důstojnost vždy','Pojištěno a chráněno','Zkušenost a péče'];
 const VAL_ICONS=['M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','m5 12 4 4 10-10','M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z','M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM5 21c0-4 3-7 7-7s7 3 7 7'];
@@ -688,47 +678,69 @@ function dpSetDisabled(inp,disabled){
 function locNorm(v){
   return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 }
-function getLocationMatches(query){
-  const q=locNorm(query).trim();
-  const toItem=name=>({label:name,lat:null,lon:null});
-  if(!q)return LOCATION_OPTIONS.slice(0,10).map(toItem);
-  const starts=[],word=[],contains=[];
-  LOCATION_OPTIONS.forEach(name=>{
-    const n=locNorm(name);
-    if(n.startsWith(q))starts.push(name);
-    else if(n.split(/[\s-]+/).some(part=>part.startsWith(q)))word.push(name);
-    else if(n.includes(q))contains.push(name);
-  });
-  const primary=starts.concat(word);
-  return (primary.length?primary:contains).slice(0,8).map(toItem);
-}
-let locationAutocompleteSeq=0;
-async function fetchLocationMatches(query){
-  const q=String(query||'').trim();
-  if(q.length<2)return { items: [], source: 'empty' };
-  const seq=++locationAutocompleteSeq;
-  try{
-    const res=await fetch('/api/locations/autocomplete?q='+encodeURIComponent(q),{credentials:'include',cache:'no-store'});
-    let data=null;try{data=await res.json();}catch(e){}
-    if(seq!==locationAutocompleteSeq)return null;
-    if(res.ok&&data&&Array.isArray(data.items)){
-      // bez nastaveného Geoapify klíče server vrátí prázdný seznam — použij vestavěný seznam měst/okresů místo hlášení chyby uživateli
-      if(data.source==='missing-key')return { items:getLocationMatches(q), source:'fallback' };
-      return {
-        items:data.items.filter(item=>item&&item.label).map(item=>({label:item.label,lat:item.lat!=null?item.lat:null,lon:item.lon!=null?item.lon:null})),
-        source:data.source||'remote'
-      };
-    }
-  }catch(e){}
-  if(seq!==locationAutocompleteSeq)return null;
-  return { items:getLocationMatches(q), source:'fallback' };
-}
 function closeLocationMenus(){document.querySelectorAll('.loc-ac.open').forEach(el=>el.classList.remove('open'));}
-/* onPick(item) dostane {label,lat,lon} — lat/lon jsou null, pokud přišly z lokálního záložního seznamu (bez Geoapify) */
-function bindLocationAutocomplete(inputId,onPick){
+let cpLocGeo=null,vfLocGeo=null;
+function initLocationAutocomplete(){
+  bindAddressPicker('cpLoc','cpLocMap',{scope:'municipality',onResolved(item){cpLocGeo={lat:item.lat,lng:item.lng};syncCgPreview();}});
+  bindAddressPicker('vfLoc','vfLocMap',{scope:'municipality',onResolved(item){vfLocGeo={lat:item.lat,lng:item.lng};}});
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.loc-ac'))closeLocationMenus();});
+
+/* ---------- VLASTNÍ ADRESNÍ DATABÁZE (RÚIAN) — vyhledávání + mapa, bez Geoapify ---------- */
+const CZ_CENTER=[49.8175,15.4730];
+async function fetchAddressMatches(query,{scope='address'}={}){
+  const q=String(query||'').trim();
+  if(q.length<2)return [];
+  const url=scope==='municipality'?'/api/locations/search-municipality':'/api/locations/search';
+  try{
+    const res=await fetch(url+'?q='+encodeURIComponent(q),{credentials:'include',cache:'no-store'});
+    const data=await res.json();
+    if(res.ok&&data&&Array.isArray(data.items))return data.items;
+  }catch(e){}
+  return [];
+}
+function renderAddressMap(containerId,{lat,lng,draggable=true,onChange}={}){
+  const el=document.getElementById(containerId);
+  if(!el||typeof L==='undefined')return null;
+  if(el._leafletMap){try{el._leafletMap.remove();}catch(e){} el._leafletMap=null;}
+  el.classList.add('addr-map');
+  const hasPoint=lat!=null&&lng!=null;
+  const map=L.map(el,{attributionControl:true}).setView(hasPoint?[lat,lng]:CZ_CENTER,hasPoint?16:7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+  }).addTo(map);
+  let marker=hasPoint?L.marker([lat,lng],{draggable}).addTo(map):null;
+  function bindDrag(){
+    if(!marker)return;
+    marker.on('dragend',()=>resolvePoint(marker.getLatLng(),{fetchLabel:true}));
+  }
+  async function resolvePoint(latlng,{fetchLabel}={}){
+    if(marker)marker.setLatLng(latlng);
+    else{marker=L.marker(latlng,{draggable}).addTo(map);bindDrag();}
+    if(!fetchLabel)return;
+    if(onChange)onChange({lat:latlng.lat,lng:latlng.lng,loading:true,item:null});
+    try{
+      const res=await fetch(`/api/locations/reverse?lat=${latlng.lat}&lng=${latlng.lng}`,{credentials:'include',cache:'no-store'});
+      const data=await res.json();
+      if(onChange)onChange({lat:latlng.lat,lng:latlng.lng,loading:false,item:(data&&data.item)||null});
+    }catch(e){
+      if(onChange)onChange({lat:latlng.lat,lng:latlng.lng,loading:false,item:null});
+    }
+  }
+  bindDrag();
+  map.on('click',e=>resolvePoint(e.latlng,{fetchLabel:true}));
+  el._leafletMap=map;
+  return {
+    moveTo(la,ln){map.setView([la,ln],16);resolvePoint({lat:la,lng:ln},{fetchLabel:false});},
+    destroy(){try{map.remove();}catch(e){} el._leafletMap=null;}
+  };
+}
+/* inputId = textové pole s adresou; mapId = kontejner pro mapu (nepovinný); scope 'address'|'municipality';
+   onResolved(item) dostane vybranou/potvrzenou položku {municipality,district,part,street,house_number,postal_code,lat,lng,label} */
+function bindAddressPicker(inputId,mapId,{scope='address',onResolved}={}){
   const input=document.getElementById(inputId);
-  if(!input||input.dataset.locAc)return;
-  input.dataset.locAc='1';
+  if(!input||input.dataset.addrAc)return;
+  input.dataset.addrAc='1';
   const wrap=document.createElement('div');
   wrap.className='loc-ac';
   input.parentNode.insertBefore(wrap,input);
@@ -736,47 +748,55 @@ function bindLocationAutocomplete(inputId,onPick){
   const menu=document.createElement('div');
   menu.className='loc-ac-menu';
   wrap.appendChild(menu);
-  let active=-1;
-  let current=[];
-  let timer=null;
+  let active=-1,current=[],timer=null;
+  let mapCtl=mapId?renderAddressMap(mapId,{
+    onChange(ev){
+      if(ev.loading)return;
+      if(ev.item){
+        input.value=ev.item.label;
+        if(onResolved)onResolved(ev.item);
+      }else if(onResolved){
+        onResolved({lat:ev.lat,lng:ev.lng,label:input.value,municipality:null,district:null,part:null,street:null,house_number:null,postal_code:null});
+      }
+    }
+  }):null;
   const pick=(item)=>{
     if(!item)return;
     input.value=item.label||input.value;
     closeLocationMenus();
-    if(onPick)onPick(item);
+    if(mapId){
+      if(mapCtl)mapCtl.moveTo(item.lat,item.lng);
+      else mapCtl=renderAddressMap(mapId,{lat:item.lat,lng:item.lng,onChange:(ev)=>{
+        if(ev.loading)return;
+        if(ev.item){input.value=ev.item.label;if(onResolved)onResolved(ev.item);}
+      }});
+    }
+    if(onResolved)onResolved(item);
   };
   const syncActive=()=>{menu.querySelectorAll('.loc-ac-opt').forEach((el,i)=>el.classList.toggle('active',i===active));};
-  const render=(items,emptyText)=>{
+  const render=(items)=>{
     current=items.slice();
     active=-1;
     if(!items.length){
-      menu.innerHTML=`<div class="loc-ac-empty">${esc(emptyText||'Nenalezena žádná odpovídající lokalita.')}</div>`;
+      menu.innerHTML=`<div class="loc-ac-empty">Nenalezena žádná odpovídající adresa.</div>`;
       wrap.classList.add('open');
       return;
     }
     menu.innerHTML=items.map((it,i)=>`<div class="loc-ac-opt" data-i="${i}">${esc(it.label)}</div>`).join('');
     menu.querySelectorAll('.loc-ac-opt').forEach(el=>{
-      el.addEventListener('mousedown',e=>{
-        e.preventDefault();
-        pick(current[Number(el.dataset.i)]);
-      });
+      el.addEventListener('mousedown',e=>{e.preventDefault();pick(current[Number(el.dataset.i)]);});
     });
     wrap.classList.add('open');
   };
   const refresh=async()=>{
     const value=input.value.trim();
     if(!value){wrap.classList.remove('open');return;}
-    const result=await fetchLocationMatches(value);
-    if(result==null||value!==input.value.trim())return;
-    let emptyText='Nenalezena žádná odpovídající lokalita.';
-    if(/^\d[\d\s]*$/.test(value)&&result.source==='fallback')emptyText='Vyhledání podle PSČ bude fungovat po nastavení Geoapify API klíče.';
-    render(result.items||[],emptyText);
+    const items=await fetchAddressMatches(value,{scope});
+    if(value!==input.value.trim())return;
+    render(items);
   };
   input.addEventListener('focus',refresh);
-  input.addEventListener('input',()=>{
-    if(timer)clearTimeout(timer);
-    timer=setTimeout(refresh,180);
-  });
+  input.addEventListener('input',()=>{if(timer)clearTimeout(timer);timer=setTimeout(refresh,180);});
   input.addEventListener('keydown',e=>{
     if((e.key==='ArrowDown'||e.key==='ArrowUp')&&!wrap.classList.contains('open')){
       if(timer)clearTimeout(timer);
@@ -790,12 +810,11 @@ function bindLocationAutocomplete(inputId,onPick){
     else if(e.key==='Escape'){wrap.classList.remove('open');}
   });
   input.addEventListener('blur',()=>setTimeout(()=>wrap.classList.remove('open'),120));
+  if(mapId&&!mapCtl)mapCtl=renderAddressMap(mapId,{onChange(ev){
+    if(ev.loading)return;
+    if(ev.item){input.value=ev.item.label;if(onResolved)onResolved(ev.item);}
+  }});
 }
-function initLocationAutocomplete(){
-  bindLocationAutocomplete('cpLoc',()=>syncCgPreview());
-  bindLocationAutocomplete('vfLoc');
-}
-document.addEventListener('click',e=>{if(!e.target.closest('.loc-ac'))closeLocationMenus();});
 
 /* ---------- SCROLL REVEAL ANIMACE (stejné jako patrikzdercik.cz) ---------- */
 let revealIO=null;
@@ -932,16 +951,16 @@ function onSearchLocInput(){
   renderCare();
 }
 function bindSearchLocationAutocomplete(){
-  bindLocationAutocomplete('loc',async(item)=>{
-    if(item&&item.lat!=null&&item.lon!=null){
-      searchLocCoords={lat:item.lat,lon:item.lon};
+  bindAddressPicker('loc',null,{scope:'municipality',async onResolved(item){
+    if(item&&item.lat!=null&&item.lng!=null){
+      searchLocCoords={lat:item.lat,lon:item.lng};
       await fetchSearchDistances();
     }else{
       searchLocCoords=null;searchDistances={};
     }
     updateDistanceSortAvailability();
     renderCare();
-  });
+  }});
 }
 async function fetchSearchDistances(){
   if(!searchLocCoords)return;
@@ -1440,9 +1459,11 @@ function openBooking(id){
 }
 /* vykreslí formulář objednávky pro state.caregiverId — volá se jak z openBooking(), tak z routeru go(),
    ať se stránka správně obnoví i při návratu tlačítkem zpět nebo refreshi na #booking */
+let bkAddrGeo=null;
 function renderBookingForm(){
   const c=cg(state.caregiverId);
   if(!c)return;
+  bindAddressPicker('bkAddr','bkAddrMap',{onResolved(item){bkAddrGeo={lat:item.lat,lng:item.lng,postal_code:item.postal_code};}});
   if(!state.bkServices||!state.bkServices.length)state.bkServices=[c.services[0]];
   if(!state.bkHours)state.bkHours=4;
   renderBookingServiceOpts(c);
@@ -1515,7 +1536,8 @@ function confirmBooking(){
   const btn=document.querySelector('#summaryCard .btn-gold');
   bookingInFlight=true;
   if(btn){btn.disabled=true;btn.textContent='Odesílám…';}
-  api('/orders',{method:'POST',body:{cid:c.id,service:serviceCsv,hours,date,time,addr,note,km}})
+  const geo=bkAddrGeo||{};
+  api('/orders',{method:'POST',body:{cid:c.id,service:serviceCsv,hours,date,time,addr,note,km,lat:geo.lat,lng:geo.lng,postal_code:geo.postal_code}})
     .then(r=>{const o=r.order;
       ORDERS.unshift({oid:o.oid,cid:c.id,service:serviceCsv,hours,date,time,addr,note,km,status:'pending'});
       orderSeq=Math.max(orderSeq,o.oid);
@@ -3055,8 +3077,9 @@ async function submitVerify(e){
   if(!services.length){verifyError(err,'Vyberte alespoň jednu nabízenou službu.');return false;}
   if(!document.getElementById('vfRules').checked){verifyError(err,'Potvrďte prosím pravdivost údajů a souhlas s pravidly.');return false;}
   if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){verifyError(err,'Už máte žádost čekající na schválení.');return false;}
+  const vfGeo=vfLocGeo||{};
   const rec={
-    name,email:auth.email,init:initials(name),loc:g('vfLoc'),
+    name,email:auth.email,init:initials(name),loc:g('vfLoc'),lat:vfGeo.lat,lng:vfGeo.lng,
     rate,exp:+g('vfExp')||0,phone,
     docType:document.getElementById('vfDocType').value==='pas'?'Cestovni pas':'Obcansky prukaz',docNum,
     idFront:verifyIdFrontName,idBack:verifyIdBackName,selfie:verifySelfieName,
@@ -3797,9 +3820,12 @@ function renderAdminOrders(){
     </tr>`;}).join('');
 }
 let admOrderId=null;
+let admOrdAddrGeo=null;
 function openAdminOrder(oid){
   const o=ORDERS.find(x=>x.oid===oid);if(!o)return;
   admOrderId=oid;
+  admOrdAddrGeo=null;
+  bindAddressPicker('admOrdAddr','admOrdAddrMap',{onResolved(item){admOrdAddrGeo={lat:item.lat,lng:item.lng,postal_code:item.postal_code};}});
   const c=cg(o.cid);
   document.getElementById('admOrderSub').textContent=`${sNames(o.service)} · ${c?c.name:'—'}`;
   const dateInp=document.getElementById('admOrdDate'),timeInp=document.getElementById('admOrdTime');
@@ -3833,7 +3859,8 @@ function saveAdminOrder(ev){
   const status=document.getElementById('admOrdStatus').value;
   const btn=document.getElementById('admOrdSaveBtn');
   btn.disabled=true;btn.textContent='Ukládám…';
-  api(`/orders/${admOrderId}`,{method:'PATCH',body:{date,time,hours,km,addr,note,status}})
+  const geo=admOrdAddrGeo||{};
+  api(`/orders/${admOrderId}`,{method:'PATCH',body:{date,time,hours,km,addr,note,status,lat:geo.lat,lng:geo.lng,postal_code:geo.postal_code}})
     .then(()=>{
       const o=ORDERS.find(x=>x.oid===admOrderId);
       if(o)Object.assign(o,{date,time,hours,km,addr,note,status});
@@ -5013,8 +5040,8 @@ function saveCgProfile(){
     me.radius=cgProfile.radius;me.priceType=cgProfile.priceType;me.dayRate=cgProfile.dayRate;
     me.kmPrice=cgProfile.kmPrice;me.services=cgProfile.services.slice();me.langs=cgProfile.langs.slice();}
   if(auth.role==='caregiver'){loginAs(cgProfile.name,auth.email,auth.role,cgProfile.photo,undefined,undefined,cgProfile.titul);}
-  if(me&&me.id){apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{
-    name:cgProfile.name,titul:cgProfile.titul||null,loc:cgProfile.loc,rate:cgProfile.rate,exp:me.exp,bio:cgProfile.bio,
+  if(me&&me.id){const cpGeo=cpLocGeo||{};apiSync(api('/caregivers/'+me.id,{method:'PATCH',body:{
+    name:cgProfile.name,titul:cgProfile.titul||null,loc:cgProfile.loc,lat:cpGeo.lat,lng:cpGeo.lng,rate:cgProfile.rate,exp:me.exp,bio:cgProfile.bio,
     facebook:cgProfile.facebook||null,instagram:cgProfile.instagram||null,
     services:cgProfile.services,langs:cgProfile.langs,radius:cgProfile.radius,priceType:cgProfile.priceType,
     dayRate:cgProfile.dayRate,kmPrice:cgProfile.kmPrice,photo:cgProfile.photo||null
@@ -5612,6 +5639,7 @@ function sendTerm(){
   if(!c||c.readonly||!(c.id>0)){toast('Vyberte konverzaci.');return;}
   openTermModal();
 }
+let termAddrGeo=null;
 function openTermModal(){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);
   const d=new Date(Date.now()+2*86400000);
@@ -5620,6 +5648,8 @@ function openTermModal(){
   if(tEl){tEl.value='10:00';}
   if(hEl){hEl.value='4';if(hEl._ddRefresh)hEl._ddRefresh();}
   if(aEl)aEl.value='';
+  termAddrGeo=null;
+  bindAddressPicker('termAddr','termAddrMap',{onResolved(item){termAddrGeo={lat:item.lat,lng:item.lng,postal_code:item.postal_code};}});
   if(errEl)errEl.textContent='';
   if(sEl){
     let services=[];
@@ -5651,7 +5681,8 @@ function confirmTerm(){
   if(!time){showErr('Vyberte čas.');return;}
   if(!addr||addr.length<5){showErr('Zadejte prosím celou adresu péče — ulici s číslem popisným a město (např. Veleslavínská 123, Praha 6).');return;}
   closeTermModal();
-  sendChatTerm({service,date,time,hours,addr});
+  const geo=termAddrGeo||{};
+  sendChatTerm({service,date,time,hours,addr,lat:geo.lat,lng:geo.lng,postal_code:geo.postal_code});
 }
 /* pošli návrh termínu jako interaktivní zprávu (po přijetí založí/potvrdí objednávku) */
 async function sendChatTerm(term){

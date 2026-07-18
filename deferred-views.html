@@ -37,6 +37,7 @@
           <div class="step-h"><div class="step-num">3</div><b>Adresa a poznámka</b></div>
           <label class="lbl">Adresa</label>
           <input class="inp" id="bkAddr" placeholder="Ulice a číslo, Praha" value="Veleslavínská 123, Praha 6">
+          <div id="bkAddrMap"></div>
           <div style="margin-top:14px" id="bkKmWrap"><label class="lbl">Vzdálenost dojezdu (km)</label>
             <input class="inp" type="number" id="bkKm" min="0" max="80" step="1" value="0" oninput="updateSummary()">
           </div>
@@ -249,7 +250,7 @@
           <div><label class="lbl">Titul (nepovinné)</label><input class="inp" id="cpTitul" maxlength="20" placeholder="Ing., Mgr., MUDr. …" oninput="syncCgPreview()"></div>
         </div>
         <div class="grid2" style="margin-top:14px">
-          <div><label class="lbl">Lokalita</label><input class="inp" id="cpLoc" autocomplete="off" placeholder="Začněte psát město nebo okres" oninput="syncCgPreview()"></div>
+          <div><label class="lbl">Lokalita</label><input class="inp" id="cpLoc" autocomplete="off" placeholder="Začněte psát město nebo okres" oninput="syncCgPreview()"><div id="cpLocMap"></div></div>
         </div>
         <div class="grid2" style="margin-top:14px">
           <div><label class="lbl">Roky praxe</label><input class="inp" type="number" id="cpExp" min="0" max="40" oninput="syncCgPreview()"></div>
@@ -322,7 +323,7 @@
         <h3>Základní údaje</h3>
         <div class="grid2" style="margin-top:6px">
           <div><label class="lbl">Jméno a příjmení</label><input class="inp" id="vfName" placeholder="Jana Nováková"></div>
-          <div><label class="lbl">Lokalita</label><input class="inp" id="vfLoc" autocomplete="off" placeholder="Začněte psát město nebo okres"></div>
+          <div><label class="lbl">Lokalita</label><input class="inp" id="vfLoc" autocomplete="off" placeholder="Začněte psát město nebo okres"><div id="vfLocMap"></div></div>
         </div>
         <div class="grid2" style="margin-top:14px">
           <div><label class="lbl">Hodinová sazba (Kč)</label><input class="inp" type="number" id="vfRate" min="150" max="600" step="10" placeholder="Např. 240"></div>
