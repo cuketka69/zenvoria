@@ -771,7 +771,7 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved}={}){
   }
   const pick=(item)=>{
     if(!item)return;
-    input.value=item.label||input.value;
+    input.value=(scope==='municipality'?item.municipality:item.label)||item.label||input.value;
     closeLocationMenus();
     if(mapId&&mapCtl)mapCtl.moveTo(item.lat,item.lng);
     if(onResolved)onResolved(item);
@@ -785,7 +785,14 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved}={}){
       wrap.classList.add('open');
       return;
     }
-    menu.innerHTML=items.map((it,i)=>`<div class="loc-ac-opt" data-i="${i}">${esc(it.label)}</div>`).join('');
+    const rowHtml=(it)=>{
+      if(scope==='municipality'&&it.postal_code){
+        const psc=it.postal_code.length===5?it.postal_code.slice(0,3)+' '+it.postal_code.slice(3):it.postal_code;
+        return `<span class="loc-ac-opt-name">${esc(it.municipality||it.label)}</span><span class="loc-ac-opt-psc">${esc(psc)}</span>`;
+      }
+      return esc(it.label);
+    };
+    menu.innerHTML=items.map((it,i)=>`<div class="loc-ac-opt" data-i="${i}">${rowHtml(it)}</div>`).join('');
     menu.querySelectorAll('.loc-ac-opt').forEach(el=>{
       el.addEventListener('mousedown',e=>{e.preventDefault();pick(current[Number(el.dataset.i)]);});
     });
