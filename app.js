@@ -56,6 +56,15 @@ function openSocial(net){
   if(auth.loggedIn&&auth.role==='admin'){toast('Adresa zatím není nastavená — doplňte ji v sekci Sociální sítě.');go('admin-social');}
   else toast('Tento profil zatím není k dispozici.');
 }
+/* totéž, ale pro sociální sítě konkrétní pečovatelky (vyplňuje si je sama ve svém profilu) */
+function openCaregiverSocial(id,net){
+  const c=cg(id);
+  const url=c&&c[net];
+  if(url){window.open(url,'_blank','noopener');return;}
+  if(auth.loggedIn&&auth.role==='caregiver'&&c&&c.email&&auth.email&&c.email.toLowerCase()===auth.email.toLowerCase()){
+    toast('Adresu zatím nemáte vyplněnou — doplňte ji v sekci Můj profil.');go('cg-profile');
+  }else toast('Tento profil zatím není k dispozici.');
+}
 /* ceny tarifů (Kč/měsíc). Cenu obou tarifů nastavuje admin v sekci Tarify. */
 let planPrices={start:190,premium:390};
 let signupPlan={plan:'none',days:0};
@@ -1080,10 +1089,10 @@ async function openProfile(id,fromPop){
       <div class="pdiv"></div>
       <h3>O mně</h3>
       <p class="bio">${esc(c.bio)}</p>
-      ${(c.facebook||c.instagram)?`<div class="soc-links">
-        ${c.facebook?`<a class="soc-btn" href="${esc(c.facebook)}" target="_blank" rel="noopener" aria-label="Facebook" title="Facebook"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 8.5h2.3V5.6c-.4-.06-1.6-.16-3-.16-2.5 0-4.2 1.5-4.2 4.3V12H7.5v3.2H10V22h3.2v-6.8h2.6l.4-3.2h-3V9.4c0-.6.2-.9 1.1-.9Z" fill="currentColor"/></svg></a>`:''}
-        ${c.instagram?`<a class="soc-btn" href="${esc(c.instagram)}" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><circle cx="16.7" cy="7.3" r="1.15" fill="currentColor"/></svg></a>`:''}
-      </div>`:''}
+      <div class="soc-links">
+        <button type="button" class="soc-btn" onclick="openCaregiverSocial(${c.id},'facebook')" aria-label="Facebook" title="Facebook"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 8.5h2.3V5.6c-.4-.06-1.6-.16-3-.16-2.5 0-4.2 1.5-4.2 4.3V12H7.5v3.2H10V22h3.2v-6.8h2.6l.4-3.2h-3V9.4c0-.6.2-.9 1.1-.9Z" fill="currentColor"/></svg></button>
+        <button type="button" class="soc-btn" onclick="openCaregiverSocial(${c.id},'instagram')" aria-label="Instagram" title="Instagram"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><circle cx="16.7" cy="7.3" r="1.15" fill="currentColor"/></svg></button>
+      </div>
       <div class="pdiv"></div>
       <h3>Nabízené služby</h3>
       <div class="pservices" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
@@ -4945,8 +4954,14 @@ function syncCgPreview(){
         </div>
       </div>
       <div class="care-tags">${cgStatus()==='verified'?'<span class="chip badge-id"><img src="verify.webp" alt="" width="14" height="17" style="vertical-align:-3px;margin-right:3px">Ověřená identita</span>':''}${servs}</div>
-      <div class="care-foot"><div class="price">${priceHTML}</div><button class="btn btn-gold" style="padding:9px 16px">Zobrazit profil</button></div>
+      <div class="care-foot"><div class="price">${priceHTML}</div><button type="button" class="btn btn-gold" style="padding:9px 16px" onclick="previewOwnProfile()">Zobrazit profil</button></div>
     </div>`;
+}
+/* v náhledu profilu (na stránce "Můj profil") otevře skutečný veřejný profil, ať si pečovatelka ověří, jak vypadá po uložení */
+function previewOwnProfile(){
+  const me=CAREGIVERS.find(x=>x.email===auth.email);
+  if(me)openProfile(me.id);
+  else toast('Profil zatím nemá veřejnou kartu — nejdřív uložte změny.','declined');
 }
 function saveCgProfile(){
   const locEl=document.getElementById('cpLoc');
