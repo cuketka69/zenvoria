@@ -749,17 +749,9 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved}={}){
   menu.className='loc-ac-menu';
   wrap.appendChild(menu);
   let active=-1,current=[],timer=null;
-  let mapCtl=mapId?renderAddressMap(mapId,{
-    onChange(ev){
-      if(ev.loading)return;
-      if(ev.item){
-        input.value=ev.item.label;
-        if(onResolved)onResolved(ev.item);
-      }else if(onResolved){
-        onResolved({lat:ev.lat,lng:ev.lng,label:input.value,municipality:null,district:null,part:null,street:null,house_number:null,postal_code:null});
-      }
-    }
-  }):null;
+  /* mapa se vykreslí, až uživatel něco vybere/potvrdí — ne hned při otevření formuláře
+     (prázdná mapa celé ČR by tu jen zabírala místo a schovávala nabídku našeptávače) */
+  let mapCtl=null;
   const pick=(item)=>{
     if(!item)return;
     input.value=item.label||input.value;
@@ -810,10 +802,6 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved}={}){
     else if(e.key==='Escape'){wrap.classList.remove('open');}
   });
   input.addEventListener('blur',()=>setTimeout(()=>wrap.classList.remove('open'),120));
-  if(mapId&&!mapCtl)mapCtl=renderAddressMap(mapId,{onChange(ev){
-    if(ev.loading)return;
-    if(ev.item){input.value=ev.item.label;if(onResolved)onResolved(ev.item);}
-  }});
 }
 
 /* ---------- SCROLL REVEAL ANIMACE (stejné jako patrikzdercik.cz) ---------- */
