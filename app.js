@@ -5415,15 +5415,29 @@ function renderChat(){
   if(pinBanner)pinBanner.innerHTML=(c.pinnedMessage&&!c.readonly)?`<div class="chat-pin"><span>📌 ${c.pinnedMessage.me?'Vy: ':''}${esc(c.pinnedMessage.text||(c.pinnedMessage.image?'📷 Obrázek':''))}</span><button type="button" onclick="pinMessage(${c.pinnedMessage.id})">Odepnout</button></div>`:'';
   const searchBar=document.getElementById('chatSearchBar'),searchInput=document.getElementById('chatSearchInput');
   const query=(searchInput&&searchBar&&!searchBar.hidden)?searchInput.value.trim().toLowerCase():'';
-  const visibleMsgs=query?c.msgs.filter(m=>!m.deletedAt&&m.text&&m.text.toLowerCase().includes(query)):c.msgs;
-  body.innerHTML=visibleMsgs.length?visibleMsgs.map(m=>msgHTML(m,!c.readonly,c.pinnedMessage&&c.pinnedMessage.id)).join(''):(query?'<div class="empty">Žádné zprávy neodpovídají hledání.</div>':'');
+  if(query){
+    if(query!==chatSearchLastQuery){
+      chatSearchMatches=c.msgs.filter(m=>!m.deletedAt&&m.text&&m.text.toLowerCase().includes(query)).map(m=>m.id);
+      chatSearchIndex=chatSearchMatches.length?chatSearchMatches.length-1:-1; // ať skočí rovnou na nejnovější nález
+      chatSearchLastQuery=query;
+    }
+  }else if(chatSearchLastQuery){
+    chatSearchMatches=[];chatSearchIndex=-1;chatSearchLastQuery='';
+  }
+  const currentMatchId=(query&&chatSearchIndex>=0)?chatSearchMatches[chatSearchIndex]:null;
+  const countEl=document.getElementById('chatSearchCount');
+  if(countEl){
+    if(query){countEl.hidden=false;countEl.textContent=chatSearchMatches.length?`${chatSearchIndex+1}/${chatSearchMatches.length}`:'0/0';}
+    else countEl.hidden=true;
+  }
+  body.innerHTML=c.msgs.length?c.msgs.map(m=>msgHTML(m,!c.readonly,c.pinnedMessage&&c.pinnedMessage.id,query,query&&m.id===currentMatchId)).join(''):'';
   // celý seznam zpráv se při každém překreslení vytvoří znovu (i jen kvůli "přečteno"/presence/pollingu,
   // nebo když se dočasná "odesílám…" bublina nahradí potvrzenou zprávou se stejnou pozicí) —
   // animaci "naskočení" proto dostane poslední zpráva jen když se PŘIBYLA (přibyla nová položka), ne při každém překreslení
   const msgEls=body.querySelectorAll('.msg');
   const lastEl=msgEls.length?msgEls[msgEls.length-1]:null;
-  if(lastEl&&visibleMsgs.length>(c._lastRenderedCount||0))lastEl.classList.add('msg-enter');
-  c._lastRenderedCount=visibleMsgs.length;
+  if(lastEl&&c.msgs.length>(c._lastRenderedCount||0))lastEl.classList.add('msg-enter');
+  c._lastRenderedCount=c.msgs.length;
   if(!query){
     const lastMine=c.msgs.slice().reverse().find(m=>m.me&&!m.deletedAt);
     if(lastMine&&c.otherReadAt&&Date.parse(c.otherReadAt)>=Date.parse(lastMine.createdAt)){
@@ -5436,7 +5450,7 @@ function renderChat(){
   const actions=document.getElementById('chatActions'),form=document.getElementById('chatForm');
   if(actions)actions.style.display=c.readonly?'none':'';
   if(form)form.style.display=c.readonly?'none':'';
-  scrollChat();
+  if(query)scrollToSearchMatch();else scrollChat();
   updateAuthUI();
   applyChatPresenceToDom();
   startChatPresence();
@@ -5445,11 +5459,42 @@ function toggleChatSearch(){
   const bar=document.getElementById('chatSearchBar');if(!bar)return;
   bar.hidden=!bar.hidden;
   if(!bar.hidden){const inp=document.getElementById('chatSearchInput');if(inp){inp.value='';inp.focus();}}
+  chatSearchMatches=[];chatSearchIndex=-1;chatSearchLastQuery='';
   renderChat();
 }
 function closeChatSearch(){
   const bar=document.getElementById('chatSearchBar');if(bar)bar.hidden=true;
+  chatSearchMatches=[];chatSearchIndex=-1;chatSearchLastQuery='';
   renderChat();
+}
+/* --- vyhledávání ve zprávách: zvýraznění + skákání mezi výsledky --- */
+let chatSearchMatches=[],chatSearchIndex=-1,chatSearchLastQuery='';
+function escRegExp(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+function highlightMatches(text,query){
+  if(!query)return esc(text);
+  const re=new RegExp('('+escRegExp(query)+')','ig');
+  return text.split(re).map((part,i)=>i%2===1?`<mark class="search-hit">${esc(part)}</mark>`:esc(part)).join('');
+}
+function onChatSearchInput(){renderChat();}
+function onChatSearchKeydown(ev){
+  if(ev.key==='Enter'){ev.preventDefault();ev.shiftKey?chatSearchPrev():chatSearchNext();}
+  else if(ev.key==='Escape'){ev.preventDefault();closeChatSearch();}
+}
+function chatSearchNext(){
+  if(!chatSearchMatches.length)return;
+  chatSearchIndex=(chatSearchIndex+1)%chatSearchMatches.length;
+  renderChat();
+}
+function chatSearchPrev(){
+  if(!chatSearchMatches.length)return;
+  chatSearchIndex=(chatSearchIndex-1+chatSearchMatches.length)%chatSearchMatches.length;
+  renderChat();
+}
+function scrollToSearchMatch(){
+  if(chatSearchIndex<0||!chatSearchMatches.length)return;
+  const mid=chatSearchMatches[chatSearchIndex];
+  const el=document.querySelector('#chatBody .msg[data-mid="'+mid+'"]');
+  if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
 }
 function replyToMessage(mid){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
@@ -5706,7 +5751,7 @@ function replyPreviewHTML(r){
   const snippet=r.text?esc(r.text):(r.image?'📷 Obrázek':'');
   return `<div class="msg-reply-quote">${r.me?'Vy':'Protistrana'}: ${snippet}</div>`;
 }
-function msgHTML(m,interactive,pinnedId){
+function msgHTML(m,interactive,pinnedId,searchQuery,isCurrentMatch){
   if(m.deletedAt){
     return `<div class="msg ${m.me?'me':'them'} msg-deleted" data-mid="${m.id}">
       <div class="msg-content"><i>Zpráva byla smazána</i></div>
@@ -5715,12 +5760,13 @@ function msgHTML(m,interactive,pinnedId){
   }
   const isPinned=pinnedId&&m.id===pinnedId;
   const moreBtn=interactive?`<button type="button" class="msg-more" title="Možnosti zprávy" aria-label="Možnosti zprávy" onclick="event.stopPropagation();openMsgTools(event,${m.id})"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="6" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="18" r="1.8" fill="currentColor"/></svg></button>`:'';
-  return `<div class="msg ${m.me?'me':'them'}${m.image?' has-img':''}" data-mid="${m.id}">
+  const textHTML=m.text?(searchQuery?highlightMatches(m.text,searchQuery):esc(m.text)):'';
+  return `<div class="msg ${m.me?'me':'them'}${m.image?' has-img':''}${isCurrentMatch?' search-current':''}" data-mid="${m.id}">
     ${moreBtn}
     ${m.forwarded?`<div class="msg-forwarded">↪ Přeposláno</div>`:''}
     ${replyPreviewHTML(m.replyTo)}
     ${m.image?`<img class="msg-img" src="${esc(m.image)}" loading="lazy" alt="obrázek" onclick="openImgLightbox('${esc(m.image)}')" onerror="msgImgError(this)">`:''}
-    ${m.term?termCardHTML(m):(m.text?`<div class="msg-content">${esc(m.text)}</div>`:'')}
+    ${m.term?termCardHTML(m):(textHTML?`<div class="msg-content">${textHTML}</div>`:'')}
     ${reactionsSummaryHTML(m)}
     <span class="mt">${esc(m.t)}${m.editedAt?' · upraveno':''}</span>
   </div>`;

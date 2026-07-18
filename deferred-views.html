@@ -432,7 +432,14 @@
       <div class="chat-main">
         <div class="chat-head" id="chatHead"></div>
         <div class="chat-search" id="chatSearchBar" hidden>
-          <input id="chatSearchInput" placeholder="Hledat ve zprávách…" oninput="renderChat()">
+          <input id="chatSearchInput" placeholder="Hledat ve zprávách…" oninput="onChatSearchInput()" onkeydown="onChatSearchKeydown(event)">
+          <span class="chat-search-count" id="chatSearchCount" hidden></span>
+          <button type="button" class="chat-search-nav" onclick="chatSearchPrev()" aria-label="Předchozí výsledek" title="Předchozí výsledek">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m6 15 6-6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button type="button" class="chat-search-nav" onclick="chatSearchNext()" aria-label="Další výsledek" title="Další výsledek">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
           <button type="button" onclick="closeChatSearch()" aria-label="Zavřít hledání">✕</button>
         </div>
         <div id="chatPinBanner"></div>
