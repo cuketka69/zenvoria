@@ -1973,11 +1973,14 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
    cssRef/jsRef ukazují na minifikované soubory, jakmile je minifyAssets() při startu
    připraví — do té doby (a při jakémkoli selhání minifikace) se bezpečně použije
    nezmenšený zdroj, appka tedy nikdy nepočká na minifikaci ani na ní nezávisí. */
+// odkazy MUSÍ být absolutní (od kořene) — na vnořených cestách jako /pecovatelka/:slug by relativní
+// "app.css" prohlížeč vyhodnotil vůči aktuální cestě (tj. jako /pecovatelka/app.css), což by spadlo
+// na stejnou route a vrátilo HTML místo CSS/JS (stránka by se pak načetla úplně bez stylů)
 function buildIndexHtml(cssRef, jsRef) {
   try {
     return fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8')
-      .replace(/(href=")app\.css(")/g, `$1${cssRef}?v=${APP_VERSION}$2`)
-      .replace(/(src=")app\.js(")/g, `$1${jsRef}?v=${APP_VERSION}$2`);
+      .replace(/(href=")\/app\.css(")/g, `$1/${cssRef}?v=${APP_VERSION}$2`)
+      .replace(/(src=")\/app\.js(")/g, `$1/${jsRef}?v=${APP_VERSION}$2`);
   } catch (e) {
     return null;
   }
