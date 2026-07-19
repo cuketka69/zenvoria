@@ -985,9 +985,11 @@ async function openRadiusPickerModal(){
   const kmInput=document.getElementById('radiusPickerInput');
   kmInput.value=km;
   kmInput.oninput=()=>{const v=Math.max(1,+kmInput.value||1);updateRadiusCircle(v);};
-  renderRadiusMap('radiusPickerMap',center.lat,center.lng,km);
   el.classList.add('open');
   document.body.style.overflow='hidden';
+  /* mapu vytvoř až AŽ PO zviditelnění modalu — MapLibre si při vzniku změří rozměry kontejneru,
+     a dokud měl display:none, byly nulové (proto se mapa vykreslila maličká) */
+  requestAnimationFrame(()=>renderRadiusMap('radiusPickerMap',center.lat,center.lng,km));
 }
 function closeRadiusPickerModal(){
   const el=document.getElementById('radiusPickerModal');
