@@ -255,9 +255,12 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#7A736A" stroke-width="1.6"/><path d="m20 20-3-3" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/></svg>
         <input id="q" placeholder="Hledat p&#233;&#269;e / lokalitu" oninput="renderCare()">
       </div>
-      <div class="field" style="max-width:230px">
+      <div class="field loc-browse-field" style="max-width:280px">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.4" stroke="#7A736A" stroke-width="1.6"/></svg>
         <input id="loc" autocomplete="off" placeholder="Lokalita" oninput="onSearchLocInput()">
+        <button type="button" class="loc-browse-btn" aria-label="Zobrazit všechny lokality" onclick="event.stopPropagation();toggleLocationBrowseList()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m6 9 6 6 6-6" stroke="#7A736A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
     </div>
     <div class="filters" id="servFilters"></div>

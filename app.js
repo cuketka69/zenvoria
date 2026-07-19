@@ -1154,6 +1154,44 @@ function onSearchLocInput(){
   updateDistanceSortAvailability();
   renderCare();
 }
+/* seznam všech lokalit, kde aktuálně mají ověřené pečovatelky uvedené působiště — tlačítko vedle pole Lokalita */
+function toggleLocationBrowseList(){
+  const existing=document.getElementById('locBrowseList');
+  if(existing){existing.classList.remove('open');existing.remove();return;}
+  const field=document.querySelector('.loc-browse-field');
+  if(!field)return;
+  const counts=new Map();
+  CAREGIVERS.forEach(c=>{
+    if(!c.verified||c.suspended||!hasPerm(c,'publishServices')||!c.loc)return;
+    const key=locNorm(c.loc);
+    const cur=counts.get(key);
+    if(cur)cur.n++;else counts.set(key,{label:c.loc,n:1});
+  });
+  const items=[...counts.values()].sort((a,b)=>a.label.localeCompare(b.label,'cs'));
+  const menu=document.createElement('div');
+  menu.className='loc-browse-list open';
+  menu.id='locBrowseList';
+  menu.innerHTML=items.length
+    ? items.map(it=>`<div class="loc-browse-opt" data-loc="${esc(it.label)}"><span>${esc(it.label)}</span><span class="loc-browse-opt-count">${it.n}×</span></div>`).join('')
+    : `<div class="loc-browse-empty">Zatím žádné pečovatelky s uvedenou lokalitou.</div>`;
+  menu.querySelectorAll('.loc-browse-opt').forEach(el=>{
+    el.addEventListener('mousedown',e=>{
+      e.preventDefault();
+      const locInput=document.getElementById('loc');
+      locInput.value=el.dataset.loc;
+      menu.remove();
+      onSearchLocInput();
+    });
+  });
+  field.appendChild(menu);
+  const closeOnce=(e)=>{
+    if(!menu.contains(e.target)&&e.target!==field.querySelector('.loc-browse-btn')){
+      menu.remove();
+      document.removeEventListener('mousedown',closeOnce);
+    }
+  };
+  setTimeout(()=>document.addEventListener('mousedown',closeOnce),0);
+}
 function bindSearchLocationAutocomplete(){
   bindAddressPicker('loc',null,{scope:'municipality',async onResolved(item){
     if(item&&item.lat!=null&&item.lng!=null){
