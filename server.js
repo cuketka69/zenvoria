@@ -3292,6 +3292,15 @@ app.post('/api/verifications/:id/reject', requireRole('admin'), h(async (req, re
 }));
 
 /* ---------------- RECENZE ---------------- */
+// přepočítá agregovaný rating/počet recenzí u pečovatelky (sloupce caregivers.rating/reviews jsou jen
+// zrcadlo pro rychlé zobrazení v kartách/vyhledávání — reálná data jsou v tabulce zenvoria_reviews)
+async function recalcCaregiverRating(caregiverId) {
+  const rows = await restSelect(T.reviews, `caregiver_id=eq.${caregiverId}&select=stars`);
+  const stars = (rows || []).map((r) => Number(r.stars)).filter((n) => Number.isFinite(n));
+  const count = stars.length;
+  const avg = count ? Math.round((stars.reduce((a, b) => a + b, 0) / count) * 10) / 10 : 0;
+  await restUpdate(T.caregivers, `id=eq.${caregiverId}`, { rating: avg, reviews: count }, { prefer: 'return=minimal' });
+}
 // recenzi smí napsat jen rodina, a jen k VLASTNÍ dokončené objednávce u té pečovatelky — jinak by šlo
 // napsat libovolné množství falešných recenzí komukoli bez jakéhokoli vztahu k pečovatelce
 app.post('/api/reviews', requireRole('family'), requireVerifiedEmail, rateLimit('reviews', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho recenzí. Zkuste to prosím později.' }), h(async (req, res) => {
@@ -3319,6 +3328,7 @@ app.post('/api/reviews', requireRole('family'), requireVerifiedEmail, rateLimit(
   const reviewPerms = permsForPlan(caregiverRows[0].plan, await getPlanPermissions());
   if (!reviewPerms.reviews) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá hodnocení.' });
   await restInsert(T.reviews, { caregiver_id: caregiverId, order_oid: oid, family_email: req.session.email, init, name, stars, text }, { prefer: 'return=minimal' });
+  await recalcCaregiverRating(caregiverId);
   res.json({ ok: true });
 }));
 
