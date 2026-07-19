@@ -274,6 +274,7 @@ async function go(v,fromPop){
   if(v==='admin-stats')renderAdminStats();
   if(v==='admin-services')renderAdminServices();
   if(v==='admin-payments')renderAdminPayments();
+  if(v==='admin-invoices')renderAdminInvoices();
   if(v==='admin-helpchat')renderAdminOpenAi();
   if(v==='admin-plans')renderAdminPlans();
   if(v==='admin-social')renderAdminSocial();
@@ -1877,7 +1878,7 @@ const DEFERRED_VIEW_IDS=new Set([
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
   'chat',
   'order-detail','login','forgot','reset-password','change-email','register',
-  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-payments','admin-helpchat',
+  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-payments','admin-invoices','admin-helpchat',
   'pricing','settings'
 ]);
 let deferredViewsLoaded=false;
@@ -2335,6 +2336,7 @@ function updateAuthUI(){
         +mi("go('admin-social')",'Sociální sítě','<circle cx="6" cy="12" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="6.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><circle cx="17" cy="17.5" r="2.2" stroke="#7A736A" stroke-width="1.6"/><path d="m8 11 7-3.4M8 13l7 3.4" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-contact')",'Kontaktní údaje','<path d="M4 4h16v14H8l-4 4V4Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 9h8M8 12.5h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-payments')",'Platby (Stripe)','<rect x="3" y="5.5" width="18" height="13" rx="2.3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 10h18" stroke="#7A736A" stroke-width="1.6"/>')
+        +mi("go('admin-invoices')",'Faktury','<path d="M7 3h10v18l-3-2-2 2-2-2-3 2V3Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 8h6M9 11.5h6" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-helpchat')",'Nápovědný chat (AI)','<path d="M4 5h16v11H9l-5 4V5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
@@ -4072,6 +4074,10 @@ function openFamilyAdmin(id){
       <span>${esc(sNames(o.service))} · ${fmtDate(o.date)}</span>
       <span class="status ${ORDER_STATUS[o.status].cls}">${ORDER_STATUS[o.status].label}</span>
     </div>`).join(''):'<div class="empty">Zatím žádné objednávky.</div>';
+  const famRevs=FAMILY_REVIEWS.filter(r=>String(r.familyEmail||'').toLowerCase()===String(u.email||'').toLowerCase());
+  document.getElementById('famAdminRevCount').textContent=famRevs.length;
+  document.getElementById('famAdminReviews').innerHTML=famRevs.length?famRevs.map(r=>`
+    <div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join(''):'<div class="empty">Zatím žádné recenze.</div>';
   const m=document.getElementById('famAdminModal');
   m.classList.add('open');document.body.style.overflow='hidden';
 }
@@ -4452,6 +4458,17 @@ async function renderAdminPayments(){
     const modeLabel=s.mode==='live'?'ŽIVÝ provoz — skutečné platby':(s.mode==='test'?'Testovací režim (Sandbox) — žádné skutečné peníze':'Neznámý formát klíče');
     banner.innerHTML=`<div class="verify-banner ok"><span class="vb-ic">${checkCircleSVG(26)}</span><div class="vb-t"><b>Stripe nakonfigurován (${esc(s.secretKeyMasked)})</b><span>${esc(modeLabel)}${s.webhookConfigured?' · webhook nastaven':' · webhook NENÍ nastaven — platby se aktivují se zpožděním'}</span></div></div>`;
   }
+}
+function renderAdminInvoices(){
+  document.getElementById('admInvCount').textContent=INVOICES.length;
+  document.getElementById('admInvBody').innerHTML=INVOICES.length?INVOICES.map(i=>`
+    <tr>
+      <td>${esc(i.number)}</td>
+      <td>${esc(i.name||'—')}</td>
+      <td>${i.plan==='premium'?'PREMIUM':'START'}</td>
+      <td>${Number(i.amountCzk||0).toLocaleString('cs-CZ')} ${esc(i.currency||'CZK')}</td>
+      <td>${fmtDate(i.issuedAt)}</td>
+    </tr>`).join(''):'<tr><td colspan="5"><div class="empty">Zatím žádné faktury.</div></td></tr>';
 }
 function saveStripeConfig(e){
   if(e)e.preventDefault();
@@ -4838,6 +4855,7 @@ const LANG_ABBR={'Čeština':'CZ','Slovenština':'SK','Angličtina':'EN','Němč
 const langAbbr=l=>LANG_ABBR[l]||String(l||'').slice(0,2).toUpperCase();
 let CG_REQUESTS=[];
 let FAMILY_REVIEWS=[];
+let INVOICES=[];
 let reqSeq=0;
 let AUDIT_LOGS=[];
 let FILTERED_AUDIT_LOGS=[];
@@ -6542,6 +6560,7 @@ async function bootstrap(){
   USERS=d.users||[];
   cgReviews=d.cgReviews||{};
   FAMILY_REVIEWS=d.familyReviews||[];
+  INVOICES=d.invoices||[];
   // konverzace se načítají zvlášť přes /api/conversations (ne z bootstrapu) —
   // bootstrap je NESMÍ přepsat na prázdno, jinak by zmizely načtené konverzace
   BROADCASTS=d.broadcasts||[];

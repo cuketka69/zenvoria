@@ -2553,7 +2553,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     ? 'guest'
     : (req.session.role === 'admin' ? 'admin' : (req.session.role === 'caregiver' ? 'caregiver' : 'family'));
   const ownCaregiver = viewer === 'caregiver' ? await currentCaregiverRow(req) : null;
-  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows] =
+  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows] =
     await Promise.all([
       viewer === 'guest'
         ? restSelect(T.caregivers, 'select=*&verified=eq.true&suspended=eq.false&order=id.asc')
@@ -2594,7 +2594,10 @@ app.get('/api/bootstrap', h(async (req, res) => {
         ? restSelect(T.familyReviews, `caregiver_id=eq.${Number(ownCaregiver.id)}&select=order_oid`)
         : (viewer === 'family'
           ? restSelect(T.familyReviews, `family_email=eq.${encodeURIComponent(req.session.email)}&order=id.desc`)
-          : []),
+          : (viewer === 'admin'
+            ? restSelect(T.familyReviews, 'select=*&order=id.desc')
+            : [])),
+      viewer === 'admin' ? restSelect(T.invoices, 'select=*&order=id.desc&limit=200') : [],
     ]);
 
   // cgReviews: { [caregiverId]: [{init,name,stars,text}] } + obecné recenze (caregiver_id null)
@@ -2668,8 +2671,11 @@ app.get('/api/bootstrap', h(async (req, res) => {
     verifications: (verifications || []).map(mapVerification),
     users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null })),
     cgReviews, generalReviews,
-    familyReviews: viewer === 'family'
-      ? (familyReviewsRows || []).map((r) => ({ id: Number(r.id), caregiverName: r.caregiver_name, stars: r.stars, text: r.text, createdAt: r.created_at }))
+    familyReviews: (viewer === 'family' || viewer === 'admin')
+      ? (familyReviewsRows || []).map((r) => ({ id: Number(r.id), caregiverName: r.caregiver_name, caregiverId: r.caregiver_id != null ? Number(r.caregiver_id) : null, familyEmail: r.family_email || null, familyName: r.family_name || null, stars: r.stars, text: r.text, createdAt: r.created_at }))
+      : [],
+    invoices: viewer === 'admin'
+      ? (invoiceRows || []).map((i) => ({ id: Number(i.id), number: i.number, caregiverId: i.caregiver_id != null ? Number(i.caregiver_id) : null, email: i.email, name: i.name, plan: i.plan, amountCzk: i.amount_czk, currency: i.currency, issuedAt: i.issued_at }))
       : [],
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
