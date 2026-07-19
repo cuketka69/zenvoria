@@ -2335,7 +2335,12 @@ app.post('/api/auth/logout', (req, res) => {
 app.get('/api/auth/me', h(async (req, res) => {
   if (!req.session) return res.json({ user: null });
   const rows = await restSelect(T.users, `id=eq.${req.session.uid}&limit=1`);
-  res.json({ user: publicUser(rows && rows[0]) });
+  const user = rows && rows[0];
+  // session cookie nese jen otisk z doby přihlášení (role, jméno, ověření e-mailu) — bez obnovení tady
+  // by zůstal navěky stažený i po změně v DB (např. ověření e-mailu na jiném zařízení/kartě) a chráněné
+  // akce (recenze, objednávky…) by dál padaly na "Nejprve prosím ověřte svůj e-mail." i po ověření
+  if (user) setSession(res, { ...user, csrf: req.session.csrf });
+  res.json({ user: publicUser(user) });
 }));
 
 app.post('/api/auth/change-password', requireAuth, rateLimit('change-password', RATE_LIMITS.changePassword), h(async (req, res) => {
