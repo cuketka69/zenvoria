@@ -2960,6 +2960,32 @@ app.post('/api/requests/:id/decline', requireRole('caregiver', 'admin'), h(async
   res.json({ ok: true });
 }));
 
+// pečovatelka obnoví dřív odmítnutou objednávku a rovnou ji přijme → confirmed, vznikne schedule
+app.post('/api/orders/:oid/restore', requireRole('caregiver', 'admin'), h(async (req, res) => {
+  const oid = Number(req.params.oid);
+  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).json({ error: 'Neplatné ID objednávky.' });
+  const rows = await restSelect(T.orders, `oid=eq.${oid}&limit=1`);
+  const order = rows && rows[0];
+  if (!order) return res.status(404).json({ error: 'Objednávka nenalezena.' });
+  if (order.status !== 'declined') return res.status(400).json({ error: 'Obnovit lze jen odmítnutou objednávku.' });
+  if (req.session.role !== 'admin') {
+    const ownCaregiver = await currentCaregiverRow(req);
+    if (!ownCaregiver || Number(order.cid) !== Number(ownCaregiver.id)) {
+      return res.status(403).json({ error: 'Tuto objednávku nemůžete obnovit.' });
+    }
+  }
+  const conflict = await findScheduleConflict(order.cid, order.date, order.time, order.hours, oid);
+  if (conflict) return res.status(409).json({ error: `Na tento termín už máte potvrzenou jinou objednávku (#${conflict.oid}). Nejdřív ji zrušte.` });
+  const famName = order.fam_name || 'Rodina';
+  const init = (famName.trim().split(/\s+/).map((p) => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
+  await restUpdate(T.orders, `oid=eq.${oid}`, { status: 'confirmed' }, { prefer: 'return=minimal' });
+  await restInsert(T.schedule, { cid: order.cid, oid, fam: famName, init, service: order.service, date: order.date, time: order.time, hours: order.hours }, { prefer: 'return=minimal' });
+  const r = { oid, cid: order.cid, fam: famName, service: order.service, date: order.date, time: order.time };
+  await notifyOrderStatus(r, true);
+  await notifyCaregiverOrderConfirm(r);
+  res.json({ ok: true });
+}));
+
 /* ---------------- OVĚŘENÍ ---------------- */
 // pečovatelka podá žádost o ověření
 app.post('/api/verifications', requireRole('caregiver', 'admin'), requireVerifiedEmail, rateLimit('verifications', RATE_LIMITS.verifications), h(async (req, res) => {

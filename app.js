@@ -4896,7 +4896,7 @@ function reqCardHTML(r){
 }
 function declinedCardHTML(o){
   const init=(o.famName||'').trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase()||'?';
-  return `<div class="req">
+  return `<div class="req" style="cursor:pointer" role="button" tabindex="0" onclick="openCgDeclinedOrder(${o.oid})">
     ${avaHtml(init,o.famPhoto)}
     <div class="ri">
       <b>${esc(o.famName||'Klient')}</b>
@@ -5410,6 +5410,32 @@ function openCgOrder(i){
     back:'cg-requests',backLabel:'Zpět na poptávky'};
   renderOrderDetail();go('order-detail');
 }
+function openCgDeclinedOrder(oid){
+  const o=ORDERS.find(x=>x.oid===oid);if(!o)return;
+  const init=(o.famName||'').trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase()||'?';
+  curOrder={oid:o.oid,cid:o.cid,viewer:'caregiver',title:sNames(o.service),status:'declined',
+    cpName:o.famName,cpInit:init,cpPhoto:o.famPhoto||null,cpRole:'Klient',cpChatRole:'family',
+    dateLabel:fmtDate(o.date),timeLabel:timeRange(o.time,o.hours),hours:o.hours,price:o.hours*cgProfile.rate,
+    rate:cgProfile.rate,transport:0,addr:o.addr||'',note:o.note||'',
+    back:'cg-requests',backLabel:'Zpět na poptávky'};
+  renderOrderDetail();go('order-detail');
+}
+function restoreAndAcceptOrder(oid){
+  askConfirm({title:'Obnovit a přijmout?',icon:checkCircleSVG(),
+    message:'Poptávka bude znovu potvrzena a přidána do vašeho kalendáře.',
+    confirmLabel:'Obnovit a přijmout',onConfirm:()=>{
+      api('/orders/'+oid+'/restore',{method:'POST'}).then(()=>{
+        const i=ORDERS.findIndex(x=>x.oid===oid);
+        if(i>=0){
+          const o=ORDERS.splice(i,1)[0];
+          const init=(o.famName||'').trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase()||'?';
+          CG_SCHEDULE.push({fam:o.famName,init,service:o.service,date:o.date,time:o.time,hours:o.hours,photo:o.famPhoto||null});
+        }
+        toast('Poptávka byla obnovena a přijata.','success');
+        go('cg-requests');refreshCg();
+      }).catch(e=>{toast('Obnovit se nepodařilo: '+(e.message||''),'declined');});
+    }});
+}
 function cancelOrder(oid){
   const o=ORDERS.find(x=>x.oid===oid);if(!o)return;
   o.status='cancelled';
@@ -5448,7 +5474,9 @@ function renderOrderDetail(){
   }).join('');
   if(declined)tl+=`<div class="tl-step active" style="padding-top:6px"><div class="tl-dot" style="border-color:#B23A2E;background:#FBF3F1"></div><div class="tl-tx"><b style="color:#B23A2E">${st.label}</b><span>Objednávka neproběhne</span></div></div>`;
   let action;
-  if(o.viewer==='caregiver'){action='';}
+  if(o.viewer==='caregiver'){
+    action=declined?`<button class="btn btn-accept btn-block" style="margin-top:10px" onclick="restoreAndAcceptOrder(${o.oid})">Obnovit a přijmout</button>`:'';
+  }
   else if(o.status==='done'){
     action=o.rated
       ?`<button class="btn btn-ghost btn-block" style="margin-top:10px" disabled>Hodnocení odesláno ${checkSVG(13)}</button>`
