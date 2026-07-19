@@ -765,7 +765,10 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved,mapMode='bu
   let active=-1,current=[],timer=null;
   const onMapChange=(ev)=>{
     if(ev.loading)return;
-    if(ev.item){input.value=ev.item.label;if(onResolved)onResolved(ev.item);}
+    if(ev.item){
+      input.value=(scope==='municipality'?ev.item.municipality:ev.item.label)||ev.item.label;
+      if(onResolved)onResolved(ev.item);
+    }
   };
   let mapCtl=null;
   const pick=(item)=>{
