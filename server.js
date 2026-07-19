@@ -1977,13 +1977,29 @@ app.get('/api/u/:token', h(async (req, res) => {
   if (c && c.verified && !c.suspended) {
     return res.json({ kind: 'caregiver', id: Number(c.id) });
   }
-  // 2) rodina / uživatelský účet — minimální veřejná vizitka
-  const users = await restSelect(T.users, `public_id=eq.${encodeURIComponent(token)}&select=name,titul,init,photo,role,joined,status&limit=1`);
+  // 2) rodina / uživatelský účet — minimální veřejná vizitka + pár neosobních statistik
+  const users = await restSelect(T.users, `public_id=eq.${encodeURIComponent(token)}&select=id,email,name,titul,init,photo,role,joined,status&limit=1`);
   const u = users && users[0];
   if (u && u.status !== 'suspended' && u.role !== 'admin') {
+    let ordersCount = 0;
+    let rating = 0;
+    let reviewsCount = 0;
+    if (u.role === 'family' && u.email) {
+      try {
+        const doneOrders = await restSelect(T.orders, `family_email=eq.${encodeURIComponent(u.email)}&status=eq.done&select=oid`);
+        ordersCount = (doneOrders || []).length;
+      } catch (e) { /* statistiky nejsou kritické */ }
+      try {
+        const revs = await restSelect(T.familyReviews, `family_email=eq.${encodeURIComponent(u.email)}&select=stars`);
+        const stars = (revs || []).map((r) => Number(r.stars)).filter((n) => Number.isFinite(n));
+        reviewsCount = stars.length;
+        rating = reviewsCount ? Math.round((stars.reduce((a, b) => a + b, 0) / reviewsCount) * 10) / 10 : 0;
+      } catch (e) { /* statistiky nejsou kritické */ }
+    }
     return res.json({ kind: 'account', profile: {
       name: u.name || '', titul: u.titul || null, init: u.init || '', photo: u.photo || null,
       role: u.role || 'family', memberSince: u.joined || null,
+      ordersCount, rating, reviewsCount,
     } });
   }
   return res.status(404).json({ error: 'Profil nenalezen.' });

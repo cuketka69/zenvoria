@@ -1704,9 +1704,13 @@ async function renderPublicAccount(p,token,fromPop){
           <div class="pmeta" style="margin-top:12px">
             <span class="chip gold">${roleLabel}</span>
             ${since?`<span class="chip">${esc(since)}</span>`:''}
+            ${p.reviewsCount?`<span class="chip">${starFillSVG(13)} ${p.rating} (${p.reviewsCount} hodnocení)</span>`:''}
           </div>
         </div>
       </div>
+      ${p.role==='family'?`<div class="pchips" style="margin-top:18px">
+        <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 2v4M16 2v4M4 9h16M4 5h16v15H4z" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>${p.ordersCount} dokončených objednávek</div>
+      </div>`:''}
     </div>`;
   go('profile',fromPop);
 }
