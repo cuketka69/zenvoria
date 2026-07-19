@@ -2595,6 +2595,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
   const cgPhotoById = {};
   (caregivers || []).forEach((c) => { if (c && c.photo) cgPhotoById[c.id] = c.photo; });
   const famPhotoByEmail = {};
+  const famPublicIdByEmail = {};
   const oidToEmail = {};
   if (viewer === 'admin') {
     (usersRows || []).forEach((u) => { if (u.photo) famPhotoByEmail[u.email] = u.photo; });
@@ -2611,8 +2612,8 @@ app.get('/api/bootstrap', h(async (req, res) => {
     if (emails.size) {
       const list = [...emails].map((e) => `"${e}"`).join(',');
       try {
-        const rows = await restSelect(T.users, `email=in.(${list})&select=email,photo`);
-        (rows || []).forEach((u) => { if (u.photo) famPhotoByEmail[u.email] = u.photo; });
+        const rows = await restSelect(T.users, `email=in.(${list})&select=email,photo,public_id`);
+        (rows || []).forEach((u) => { if (u.photo) famPhotoByEmail[u.email] = u.photo; if (u.public_id) famPublicIdByEmail[u.email] = u.public_id; });
       } catch (e) { /* fotky nejsou kritické */ }
     }
   }
@@ -2631,9 +2632,10 @@ app.get('/api/bootstrap', h(async (req, res) => {
       ratedFamily: ratedFamilyOids ? ratedFamilyOids.has(Number(o.oid)) : undefined,
       cgPhoto: cgPhotoById[o.cid] || null,
       famPhoto: famPhotoByEmail[o.family_email] || null,
+      famPublicId: famPublicIdByEmail[o.family_email] || null,
     })),
     requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
-    schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null })),
+    schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null, famPublicId: (oidToEmail[s.oid] && famPublicIdByEmail[oidToEmail[s.oid]]) || null })),
     verifications: (verifications || []).map(mapVerification),
     users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null })),
     cgReviews, generalReviews,

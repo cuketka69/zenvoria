@@ -5416,7 +5416,7 @@ function openCgOrder(i){
   const o=j.oid?ORDERS.find(x=>x.oid===j.oid):null;
   curOrder={oid:j.oid||null,cid:j.cid||null,viewer:'caregiver',title:sNames(j.service),status:(o&&o.status)||'confirmed',
     ratedFamily:!!(o&&o.ratedFamily),
-    cpName:j.fam,cpInit:j.init,cpPhoto:j.photo||null,cpRole:'Klient',cpChatRole:'family',
+    cpName:j.fam,cpInit:j.init,cpPhoto:j.photo||null,cpRole:'Klient',cpChatRole:'family',cpPublicId:j.famPublicId||(o&&o.famPublicId)||null,
     dateLabel:fmtDate(j.date),timeLabel:timeRange(j.time,j.hours),hours:j.hours,price:j.hours*cgProfile.rate,
     rate:cgProfile.rate,transport:0,addr:'Adresa bude sdílena před službou',note:'',
     back:'cg-requests',backLabel:'Zpět na poptávky'};
@@ -5426,7 +5426,7 @@ function openCgDeclinedOrder(oid){
   const o=ORDERS.find(x=>x.oid===oid);if(!o)return;
   const init=(o.famName||'').trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase()||'?';
   curOrder={oid:o.oid,cid:o.cid,viewer:'caregiver',title:sNames(o.service),status:'declined',
-    cpName:o.famName,cpInit:init,cpPhoto:o.famPhoto||null,cpRole:'Klient',cpChatRole:'family',
+    cpName:o.famName,cpInit:init,cpPhoto:o.famPhoto||null,cpRole:'Klient',cpChatRole:'family',cpPublicId:o.famPublicId||null,
     dateLabel:fmtDate(o.date),timeLabel:timeRange(o.time,o.hours),hours:o.hours,price:o.hours*cgProfile.rate,
     rate:cgProfile.rate,transport:0,addr:o.addr||'',note:o.note||'',
     back:'cg-requests',backLabel:'Zpět na poptávky'};
@@ -5531,7 +5531,7 @@ function renderOrderDetail(){
         <div>
           <h1 style="font-size:24px">${esc(o.title)}</h1>
           <div class="pmeta"><span style="color:var(--muted);font-size:14px">${esc(o.cpRole)}: <b style="color:var(--navy-900)">${esc(o.cpName)}</b></span></div>
-          <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="status ${st.cls}">${st.label}</span>${o.viewer==='family'?`<button class="btn btn-ghost btn-sm" onclick="openProfile(${o.cid})">Zobrazit profil</button>`:''}</div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="status ${st.cls}">${st.label}</span>${o.viewer==='family'?`<button class="btn btn-ghost btn-sm" onclick="openProfile(${o.cid})">Zobrazit profil</button>`:(o.viewer==='caregiver'&&o.cpPublicId?`<button class="btn btn-ghost btn-sm" onclick="openProfileByToken(${jsq(o.cpPublicId)})">Zobrazit profil</button>`:'')}</div>
         </div>
       </div>
       <div class="pdiv"></div>
