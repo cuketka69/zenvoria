@@ -1761,7 +1761,7 @@ function withTitul(name, titul) {
 }
 function publicUser(u) {
   if (!u) return null;
-  return { id: u.id, email: u.email, name: u.name, titul: u.titul || null, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null, emailVerified: !!u.email_verified };
+  return { id: u.id, email: u.email, name: u.name, titul: u.titul || null, phone: u.phone || null, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null, emailVerified: !!u.email_verified };
 }
 function mapCaregiver(c, permsSetting) {
   return {
@@ -2510,13 +2510,15 @@ app.patch('/api/users/me/settings', requireAuth, h(async (req, res) => {
   res.json({ ok: true });
 }));
 
-/* vlastní jméno a titul uživatele (funguje pro family/caregiver/admin) */
+/* vlastní jméno, titul a telefon uživatele (funguje pro family/caregiver/admin) */
 app.patch('/api/users/me/profile', requireAuth, h(async (req, res) => {
   const b = req.body || {};
   const name = trimmedString(b.name, 120);
   const titul = trimmedString(b.titul, 20) || null;
+  const phone = trimmedString(b.phone, 30) || null;
   if (!name) return res.status(400).json({ error: 'Zadejte jméno a příjmení.' });
-  await restUpdate(T.users, `id=eq.${req.session.uid}`, { name, titul }, { prefer: 'return=minimal' });
+  if (phone && !/^[0-9+\s/]{6,30}$/.test(phone)) return res.status(400).json({ error: 'Zadejte platné telefonní číslo.' });
+  await restUpdate(T.users, `id=eq.${req.session.uid}`, { name, titul, phone }, { prefer: 'return=minimal' });
   // pečovatelce propíšeme jméno/titul i do veřejné karty (aby je viděly rodiny ve vyhledávání)
   if (req.session.role === 'caregiver' && req.session.email) {
     try { await restUpdate(T.caregivers, `email=eq.${encodeURIComponent(req.session.email)}`, { name, titul }, { prefer: 'return=minimal' }); } catch (e) { /* nekritické */ }
@@ -2525,7 +2527,7 @@ app.patch('/api/users/me/profile', requireAuth, h(async (req, res) => {
   // (např. jméno rodiny na nově vytvořené objednávce) dál viděl staré, dokud by se uživatel znovu nepřihlásil
   setSession(res, { id: req.session.uid, email: req.session.email, name, role: req.session.role, email_verified: req.session.emailVerified, csrf: req.session.csrf });
   fireAudit('users.me.profile.update', { req, actor: auditActor(req), targetType: 'user', targetId: req.session.uid, status: 'success' });
-  res.json({ ok: true, name, titul });
+  res.json({ ok: true, name, titul, phone });
 }));
 
 /* profilová fotka uživatele (data URL nebo null pro odebrání) */

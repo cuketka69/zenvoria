@@ -1871,7 +1871,7 @@ function todayISO(){
 
 /* ---------- AUTH ---------- */
 let regRole='family';
-const auth={loggedIn:false,name:'',titul:'',email:'',role:'family',photo:null,publicId:null,emailVerified:true};
+const auth={loggedIn:false,name:'',titul:'',phone:null,email:'',role:'family',photo:null,publicId:null,emailVerified:true};
 const DEFERRED_VIEW_IDS=new Set([
   'profile','booking','bookings',
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
@@ -2030,6 +2030,7 @@ function renderSettings(){
   document.getElementById('setRole').textContent=auth.role==='caregiver'?'Účet pečovatelky':(auth.role==='admin'?'Správce systému':'Účet rodiny');
   const setNameInput=document.getElementById('setNameInput');if(setNameInput)setNameInput.value=auth.loggedIn?auth.name:'';
   const setTitulInput=document.getElementById('setTitulInput');if(setTitulInput)setTitulInput.value=auth.loggedIn?(auth.titul||''):'';
+  const setPhoneInput=document.getElementById('setPhoneInput');if(setPhoneInput)setPhoneInput.value=auth.loggedIn?(auth.phone||''):'';
   const photo=auth.photo||(auth.role==='caregiver'?cgProfile.photo:null);
   setAva(document.getElementById('setAva'),photo,initials(name));
   const rm=document.getElementById('setPhotoRemove');if(rm)rm.style.display=photo?'':'none';
@@ -2067,14 +2068,17 @@ function removeUserPhoto(){
 function toggleSetting(key,el){appSettings[key]=el.checked;if(auth.loggedIn)apiSync(api('/users/me/settings',{method:'PATCH',body:{settings:appSettings}}));toast('Nastavení uloženo');}
 /* vlastní jméno a titul (Nastavení → Účet) — funguje pro rodinu, pečovatelku i správce */
 async function saveAccountName(){
-  const nameEl=document.getElementById('setNameInput'),titulEl=document.getElementById('setTitulInput'),errEl=document.getElementById('setNameErr');
+  const nameEl=document.getElementById('setNameInput'),titulEl=document.getElementById('setTitulInput'),phoneEl=document.getElementById('setPhoneInput'),errEl=document.getElementById('setNameErr');
   const name=(nameEl.value||'').trim();
   const titul=(titulEl.value||'').trim().slice(0,20);
+  const phone=(phoneEl&&phoneEl.value||'').trim().slice(0,30);
   if(errEl)errEl.textContent='';
   if(!name){if(errEl)errEl.textContent='Zadejte jméno a příjmení.';nameEl.focus();return;}
+  if(phone&&!isPhone(phone)){if(errEl)errEl.textContent='Zadejte platné telefonní číslo.';phoneEl.focus();return;}
   try{
-    await api('/users/me/profile',{method:'PATCH',body:{name,titul}});
+    await api('/users/me/profile',{method:'PATCH',body:{name,titul,phone}});
     loginAs(name,auth.email,auth.role,undefined,undefined,undefined,titul);
+    auth.phone=phone||null;
     if(auth.role==='caregiver'){
       cgProfile.name=name;cgProfile.titul=titul;
       const me=CAREGIVERS.find(x=>x.email===auth.email);
@@ -2082,7 +2086,7 @@ async function saveAccountName(){
       renderCare();
     }
     renderSettings();
-    toast('Jméno bylo uloženo.','success');
+    toast('Údaje byly uloženy.','success');
   }catch(err){
     if(errEl)errEl.textContent=err.message||'Uložení se nezdařilo.';
     toast(''+(err.message||'Uložení se nezdařilo.'),'declined');
@@ -2378,6 +2382,7 @@ async function submitLogin(e){
   try{
     const r=await api('/auth/login',{method:'POST',body:{email:key,password:pw.value}});
     loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId,r.user.emailVerified,r.user.titul);
+    auth.phone=r.user.phone||null;
     if(r.user.settings)Object.assign(appSettings,r.user.settings);
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(`Vítejte zpět, <b>${esc(auth.name.split(/\s+/)[0])}</b>!`,null,userSVG());
@@ -2406,6 +2411,7 @@ async function submitRegister(e){
     const titul=(document.getElementById('regTitul')?.value||'').trim();
     const r=await api('/auth/register',{method:'POST',body:{name:name.value.trim(),titul,email:email.value.trim().toLowerCase(),password:pw.value,role:regRole,phone:phFull}});
     loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId,r.user.emailVerified,r.user.titul);
+    auth.phone=r.user.phone||null;
     await apiSync(bootstrap());updateAuthUI();renderCare();
     toast(regRole==='caregiver'?'Účet pečovatelky vytvořen. Dokončete prosím ověření.':'Účet vytvořen. Vítejte v ZENVORIA!','success');
     if(!resumePendingBooking())go(landingView());
@@ -6728,7 +6734,7 @@ async function initApp(){
     }
   }
   try{const m=await api('/auth/me');
-    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.titul=m.user.titul||'';auth.email=m.user.email;auth.role=m.user.role||'family';auth.photo=m.user.photo||null;auth.publicId=m.user.publicId||null;auth.emailVerified=!!m.user.emailVerified;
+    if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.titul=m.user.titul||'';auth.phone=m.user.phone||null;auth.email=m.user.email;auth.role=m.user.role||'family';auth.photo=m.user.photo||null;auth.publicId=m.user.publicId||null;auth.emailVerified=!!m.user.emailVerified;
       if(m.user.settings)Object.assign(appSettings,m.user.settings);}
   }catch(e){console.warn('auth/me',e.message);}
   try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
