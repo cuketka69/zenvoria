@@ -903,8 +903,9 @@ function closeMapPickerModal(){
 function confirmMapPicker(){
   if(!mapPickerItem)return;
   const cb=mapPickerOnConfirm;
+  const item=mapPickerItem;
   closeMapPickerModal();
-  if(cb)cb(mapPickerItem);
+  if(cb)cb(item);
 }
 
 /* ---------- MODAL „Dojezdová vzdálenost na mapě" — kruh o poloměru X km kolem lokality pečovatelky ---------- */
