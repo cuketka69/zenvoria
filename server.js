@@ -2804,10 +2804,14 @@ function buildOrderReceiptPdf(d) {
       const navy = '#0A5A34';
       const muted = '#6C786C';
 
+      const statusColors = {
+        pending: '#8A6A15', confirmed: '#8A6A15', done: '#2F5C2A',
+        declined: '#A02E23', cancelled: '#A02E23',
+      };
       doc.fillColor(navy).fontSize(22).font('Bold').text('ZENVORIA');
       doc.moveDown(0.2);
       doc.fillColor(muted).fontSize(11).font('Regular').text(`Doklad o objednané péči č. ${d.oid}`, { continued: true });
-      doc.text('   ' + (ORDER_RECEIPT_STATUS_LABELS[d.status] || d.status), { align: 'left' });
+      doc.fillColor(statusColors[d.status] || muted).font('Bold').text('   ' + (ORDER_RECEIPT_STATUS_LABELS[d.status] || d.status).toUpperCase(), { align: 'left' });
       doc.moveDown(1.2);
       doc.strokeColor(gold).lineWidth(1.5).moveTo(56, doc.y).lineTo(539, doc.y).stroke();
       doc.moveDown(1);
@@ -2872,13 +2876,17 @@ app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
   td.l{color:#6C786C;width:45%}
   td.v{font-weight:600;text-align:right}
   .total{font-size:19px;font-weight:700;color:#0A5A34}
-  .status{display:inline-block;padding:4px 12px;border-radius:20px;background:#EEF3EC;font-size:13px;font-weight:600}
+  .status{display:inline-block;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:700}
+  .status.st-pending{background:#FBF1DC;color:#8A6A15}
+  .status.st-confirmed{background:rgba(201,162,51,.22);color:#8A6A15}
+  .status.st-done{background:#DCEBD8;color:#2F5C2A}
+  .status.st-declined,.status.st-cancelled{background:#F7DAD5;color:#A02E23}
   .footer{margin-top:36px;font-size:12px;color:#6C786C}
   .print-btn{margin-top:24px;margin-right:10px;padding:10px 20px;background:#C9A233;color:#1A1005;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px}
   .pdf-btn{margin-top:24px;padding:10px 20px;background:#fff;color:#0A5A34;border:2px solid #0A5A34;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;text-decoration:none;display:inline-block}
   @media print{.print-btn,.pdf-btn{display:none}}
 </style></head><body>
-  <div class="head"><div><div class="brand">ZENVORIA</div><div class="doc-title">Doklad o objednané péči č. ${oid}</div></div><span class="status">${statusLabels[o.status] || o.status}</span></div>
+  <div class="head"><div><div class="brand">ZENVORIA</div><div class="doc-title">Doklad o objednané péči č. ${oid}</div></div><span class="status st-${o.status}">${statusLabels[o.status] || o.status}</span></div>
   <table>
     <tr><td class="l">Rodina</td><td class="v">${escapeHtml(o.fam_name || '')}</td></tr>
     <tr><td class="l">Pečovatelka</td><td class="v">${escapeHtml(caregiverName)}</td></tr>
