@@ -4894,10 +4894,24 @@ function reqCardHTML(r){
     </div>
   </div>`;
 }
+function declinedCardHTML(o){
+  const init=(o.famName||'').trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase()||'?';
+  return `<div class="req">
+    ${avaHtml(init,o.famPhoto)}
+    <div class="ri">
+      <b>${esc(o.famName||'Klient')}</b>
+      <div class="rd">${sNames(o.service)} · ${fmtDate(o.date)} · ${timeRange(o.time,o.hours)}</div>
+      <span class="rs">${esc(o.addr||'')}</span>
+    </div>
+    <div class="req-actions"><span class="status declined">Odmítnuto</span></div>
+  </div>`;
+}
 function renderCgRequests(){
   document.getElementById('cgReqBadge2').textContent=CG_REQUESTS.length;
   document.getElementById('cgReqFull').innerHTML=CG_REQUESTS.length?CG_REQUESTS.map(reqCardHTML).join(''):'<div class="empty">'+clockSVG(15)+' Žádné nové poptávky.</div>';
   document.getElementById('cgConfirmed').innerHTML=cgScheduleHTML();
+  const declinedEl=document.getElementById('cgDeclined');
+  if(declinedEl)declinedEl.innerHTML=ORDERS.length?ORDERS.map(declinedCardHTML).join(''):'<div class="empty">'+clockSVG(15)+' Zatím jste žádnou poptávku neodmítli.</div>';
 }
 function acceptRequest(id){
   const i=CG_REQUESTS.findIndex(r=>r.id===id);if(i<0)return;

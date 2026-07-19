@@ -2532,7 +2532,9 @@ app.get('/api/bootstrap', h(async (req, res) => {
         ? restSelect(T.orders, 'select=*&order=oid.desc')
         : (viewer === 'family'
           ? restSelect(T.orders, `family_email=eq.${encodeURIComponent(req.session.email)}&order=oid.desc`)
-          : []),
+          : (viewer === 'caregiver' && ownCaregiver
+            ? restSelect(T.orders, `cid=eq.${Number(ownCaregiver.id)}&status=eq.declined&order=oid.desc&limit=50`)
+            : [])),
       viewer === 'admin'
         ? restSelect(T.requests, 'select=*&order=id.desc')
         : (viewer === 'caregiver' && ownCaregiver
