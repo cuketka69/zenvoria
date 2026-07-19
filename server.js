@@ -1110,6 +1110,39 @@ function orderStatusMail({ familyName, order, caregiverName, accepted }) {
     }),
   };
 }
+// ---- e-mail: potvrzení přijetí poptávky (pečovatelce, hned po jejím vlastním přijetí) ----
+function caregiverOrderConfirmMail({ name, order, familyName }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  const when = [order.date, order.time].filter(Boolean).join(' v ');
+  const facts = [
+    { label: 'Služba', value: order.service || '' },
+    { label: 'Termín', value: when || '' },
+  ];
+  if (familyName) facts.push({ label: 'Klient', value: familyName });
+  return {
+    subject: `Potvrdili jste službu na ${order.date}`,
+    text:
+      `Dobrý den, ${name || firstName},\n\n` +
+      'potvrdili jste přijetí poptávky v ZENVORIA.\n\n' +
+      `Služba: ${order.service}\nTermín: ${when}\n\n` +
+      (familyName ? `Klient: ${familyName}\n\n` : '') +
+      'Termín najdete ve svém kalendáři v účtu.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Potvrdili jste přijetí poptávky.',
+      title: 'Služba potvrzena',
+      intro: `Dobrý den, ${firstName}. Potvrdili jste přijetí této poptávky — termín se vám přidal do kalendáře.`,
+      bodyHtml: '<p style="margin:0;">Detaily najdete ve svém účtu v sekci „Kalendář".</p>',
+      ctaLabel: 'Zobrazit kalendář',
+      ctaUrl: `${APP_URL}/#calendar`,
+      ctaNote: '',
+      facts,
+      closingTitle: 'Děkujeme za spolehlivost.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail potvrzuje přijetí poptávky, kterou jste sami odsouhlasili v ZENVORIA.',
+    }),
+  };
+}
 // ---- e-mail: proběhla péče? (rodině, po uplynutí naplánovaného konce služby) ----
 function serviceDoneCheckMail({ familyName, order, caregiverName }) {
   const firstName = (familyName || '').trim().split(/\s+/)[0] || 'zákazníku';
@@ -2874,6 +2907,18 @@ async function notifyOrderStatus(r, accepted) {
   } catch (e) { console.error('[mail] notifyOrderStatus:', e.message); }
 }
 
+// pošle pečovatelce e-mail o tom, že sama právě potvrdila poptávku
+async function notifyCaregiverOrderConfirm(r) {
+  try {
+    if (!r || r.cid == null) return;
+    const cgs = await restSelect(T.caregivers, `id=eq.${r.cid}&select=name,email&limit=1`);
+    const cg = cgs && cgs[0];
+    if (!cg || !cg.email) return;
+    const order = { service: r.service, date: r.date, time: r.time };
+    await sendMailSafe({ to: cg.email, ...caregiverOrderConfirmMail({ name: cg.name, order, familyName: r.fam }) });
+  } catch (e) { console.error('[mail] notifyCaregiverOrderConfirm:', e.message); }
+}
+
 // pečovatelka přijme poptávku → objednávka confirmed, vznikne schedule, poptávka zmizí
 app.post('/api/requests/:id/accept', requireRole('caregiver', 'admin'), h(async (req, res) => {
   const id = Number(req.params.id);
@@ -2892,6 +2937,7 @@ app.post('/api/requests/:id/accept', requireRole('caregiver', 'admin'), h(async 
   await restInsert(T.schedule, { cid: r.cid, oid: r.oid != null ? r.oid : null, fam: r.fam, init: r.init, service: r.service, date: r.date, time: r.time, hours: r.hours }, { prefer: 'return=minimal' });
   await restDelete(T.requests, `id=eq.${id}`);
   await notifyOrderStatus(r, true);
+  await notifyCaregiverOrderConfirm(r);
   res.json({ ok: true });
 }));
 
