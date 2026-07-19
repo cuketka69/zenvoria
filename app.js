@@ -743,15 +743,21 @@ function renderAddressMap(containerId,{lat,lng,draggable=true,onChange}={}){
     destroy(){try{map.remove();}catch(e){} el._zvMap=null;}
   };
 }
-/* inputId = textové pole s adresou; mapId = kontejner pro mapu (nepovinný); scope 'address'|'municipality';
-   onResolved(item) dostane vybranou/potvrzenou položku {municipality,district,part,street,house_number,postal_code,lat,lng,label} */
-function bindAddressPicker(inputId,mapId,{scope='address',onResolved}={}){
+/* inputId = textové pole s adresou; mapId = kontejner pro mapu (nepovinný) — mimo modal se mapa nevykresluje
+   inline, jen se vedle pole přidá tlačítko „Najít na mapě“, které otevře velkou mapu v modalu; scope
+   'address'|'municipality'; onResolved(item) dostane vybranou/potvrzenou položku
+   {municipality,district,part,street,house_number,postal_code,lat,lng,label}.
+   Vrací {pick} — pick(item) jde zavolat i zvenčí (používá to modal pro naprogramování počáteční pozice). */
+function bindAddressPicker(inputId,mapId,{scope='address',onResolved,mapMode='button'}={}){
   const input=document.getElementById(inputId);
-  if(!input||input.dataset.addrAc)return;
+  if(!input||input.dataset.addrAc)return null;
   input.dataset.addrAc='1';
+  const outer=document.createElement('div');
+  outer.className='loc-ac-row';
+  input.parentNode.insertBefore(outer,input);
   const wrap=document.createElement('div');
   wrap.className='loc-ac';
-  input.parentNode.insertBefore(wrap,input);
+  outer.appendChild(wrap);
   wrap.appendChild(input);
   const menu=document.createElement('div');
   menu.className='loc-ac-menu';
@@ -761,18 +767,27 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved}={}){
     if(ev.loading)return;
     if(ev.item){input.value=ev.item.label;if(onResolved)onResolved(ev.item);}
   };
-  /* mapa zůstává skrytá, dokud si uživatel něco nevybere — ne hned při otevření formuláře */
   let mapCtl=null;
   const pick=(item)=>{
     if(!item)return;
     input.value=(scope==='municipality'?item.municipality:item.label)||item.label||input.value;
     closeLocationMenus();
-    if(mapId){
+    if(mapId&&mapMode==='inline'){
       if(mapCtl)mapCtl.moveTo(item.lat,item.lng);
       else mapCtl=renderAddressMap(mapId,{lat:item.lat,lng:item.lng,onChange:onMapChange});
     }
     if(onResolved)onResolved(item);
   };
+  if(mapId&&mapMode==='button'){
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='loc-ac-mapbtn';
+    btn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-4.5-7-10a7 7 0 0 1 14 0c0 5.5-7 10-7 10Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="11" r="2.4" stroke="currentColor" stroke-width="1.8"/></svg><span>Najít na mapě</span>`;
+    btn.addEventListener('click',()=>{
+      openMapPickerModal({initialQuery:input.value.trim(),scope,onConfirm:(item)=>{pick(item);}});
+    });
+    outer.appendChild(btn);
+  }
   const syncActive=()=>{menu.querySelectorAll('.loc-ac-opt').forEach((el,i)=>el.classList.toggle('active',i===active));};
   const render=(items)=>{
     current=items.slice();
@@ -817,6 +832,71 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved}={}){
     else if(e.key==='Escape'){wrap.classList.remove('open');}
   });
   input.addEventListener('blur',()=>setTimeout(()=>wrap.classList.remove('open'),120));
+  return {pick};
+}
+
+/* ---------- MODAL „Najít na mapě" — velká mapa na vyžádání, sdílená pro všechna adresní pole ---------- */
+let mapPickerModalEl=null,mapPickerOnConfirm=null,mapPickerItem=null;
+function ensureMapPickerModal(){
+  if(mapPickerModalEl)return mapPickerModalEl;
+  const el=document.createElement('div');
+  el.className='modal map-picker-modal';
+  el.id='mapPickerModal';
+  el.innerHTML=`
+    <div class="modal-scrim" onclick="closeMapPickerModal()"></div>
+    <div class="modal-card map-picker-card">
+      <button type="button" class="modal-x" aria-label="Zavřít" onclick="closeMapPickerModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <h3>Najít na mapě</h3>
+      <p class="msub">Napište adresu nebo obec, případně klikněte přímo na mapu či přetáhněte značku.</p>
+      <div id="mapPickerAcHost"></div>
+      <div id="mapPickerMap" class="addr-map map-picker-map"></div>
+      <div class="map-picker-result" id="mapPickerResult"></div>
+      <div class="date-modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeMapPickerModal()">Zrušit</button>
+        <button type="button" class="btn btn-gold" id="mapPickerConfirmBtn" disabled onclick="confirmMapPicker()">Potvrdit místo</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  mapPickerModalEl=el;
+  return el;
+}
+function openMapPickerModal({initialQuery='',scope='address',onConfirm}={}){
+  ensureMapPickerModal();
+  mapPickerOnConfirm=onConfirm||null;
+  mapPickerItem=null;
+  document.getElementById('mapPickerConfirmBtn').disabled=true;
+  document.getElementById('mapPickerResult').textContent='';
+  const host=document.getElementById('mapPickerAcHost');
+  host.innerHTML=`<input type="text" class="inp" id="mapPickerInput" placeholder="Začněte psát adresu nebo obec" autocomplete="off">`;
+  const freshInput=document.getElementById('mapPickerInput');
+  freshInput.value=initialQuery||'';
+  const ctl=bindAddressPicker('mapPickerInput','mapPickerMap',{scope,mapMode:'inline',onResolved(item){
+    mapPickerItem=item;
+    document.getElementById('mapPickerConfirmBtn').disabled=false;
+    document.getElementById('mapPickerResult').textContent=item.label;
+  }});
+  if(initialQuery){
+    fetchAddressMatches(initialQuery,{scope}).then(items=>{
+      const best=items&&items[0];
+      if(best&&ctl)ctl.pick(best);
+    });
+  }
+  mapPickerModalEl.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeMapPickerModal(){
+  if(!mapPickerModalEl)return;
+  mapPickerModalEl.classList.remove('open');
+  document.body.style.overflow='';
+  mapPickerOnConfirm=null;mapPickerItem=null;
+}
+function confirmMapPicker(){
+  if(!mapPickerItem)return;
+  const cb=mapPickerOnConfirm;
+  closeMapPickerModal();
+  if(cb)cb(mapPickerItem);
 }
 
 /* ---------- SCROLL REVEAL ANIMACE (stejné jako patrikzdercik.cz) ---------- */
