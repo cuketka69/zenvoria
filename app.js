@@ -5531,7 +5531,7 @@ function renderOrderDetail(){
         <div>
           <h1 style="font-size:24px">${esc(o.title)}</h1>
           <div class="pmeta"><span style="color:var(--muted);font-size:14px">${esc(o.cpRole)}: <b style="color:var(--navy-900)">${esc(o.cpName)}</b></span></div>
-          <div style="margin-top:10px"><span class="status ${st.cls}">${st.label}</span></div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="status ${st.cls}">${st.label}</span>${o.viewer==='family'?`<button class="btn btn-ghost btn-sm" onclick="openProfile(${o.cid})">Zobrazit profil</button>`:''}</div>
         </div>
       </div>
       <div class="pdiv"></div>
