@@ -1230,6 +1230,9 @@ function renderCare(){
       c.services.some(s=>sName(s).toLowerCase().includes(q));
     return matchF&&matchL&&matchQ&&c.rate<=priceMax;
   });
+  // v režimu vzdálenosti pečovatelka "mimo dojezd" (skutečná vzdálenost přesahuje její vlastní dojezdovou vzdálenost)
+  // nemizí z výsledků, ale vždy skončí až za těmi v dojezdu — nezávisle na zvoleném řazení
+  const outOfRange=c=>distanceMode&&searchDistances[c.id]!=null&&c.radius!=null&&searchDistances[c.id]>c.radius;
   const sorters={'price-asc':(a,b)=>a.rate-b.rate,'price-desc':(a,b)=>b.rate-a.rate,
     'rating':(a,b)=>b.rating-a.rating,'exp':(a,b)=>b.exp-a.exp,
     'distance':(a,b)=>{
@@ -1242,12 +1245,15 @@ function renderCare(){
   if(sorters[sortBy])list.sort(sorters[sortBy]);
   // pečovatelky s oprávněním "přednostní zobrazení" mají vyšší zobrazení v doporučeném řazení
   if(!sorters[sortBy])list.sort((a,b)=>(hasPerm(b,'priorityRanking')?1:0)-(hasPerm(a,'priorityRanking')?1:0));
+  if(distanceMode)list.sort((a,b)=>(outOfRange(a)?1:0)-(outOfRange(b)?1:0));
   const cnt=document.getElementById('careCount');
   if(cnt){const n=list.length;cnt.textContent=n+' '+(n===1?'pečovatelka':(n>=2&&n<=4?'pečovatelky':'pečovatelek'));}
   const g=document.getElementById('careGrid');
   if(!list.length){g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted)">Žádná pečovatelka neodpovídá filtru.</div>`;return;}
-  g.innerHTML=list.map(c=>`
-    <div class="care-card ${hasPerm(c,'highlightedProfile')?'is-premium':''}" onclick="openProfile(${c.id})">
+  g.innerHTML=list.map(c=>{
+    const oor=outOfRange(c);
+    return `
+    <div class="care-card ${hasPerm(c,'highlightedProfile')?'is-premium':''} ${oor?'is-out-of-range':''}" onclick="openProfile(${c.id})">
       ${hasPerm(c,'highlightedProfile')?`<span class="prem-ribbon">${diamondSVG(13)}PREMIUM</span>`:''}
       <div class="care-top">
         ${avaHtml(c.init,c.photo)}
@@ -1259,6 +1265,7 @@ function renderCare(){
       </div>
       <div class="care-tags">
         ${cgBadges(c)}
+        ${oor?`<span class="chip chip-warn">Mimo dojezd (do ${c.radius} km)</span>`:''}
         ${c.services.map(s=>`<span class="chip">${sName(s)}</span>`).join('')}
         ${c.kmPrice>0?`<span class="chip">${carSVG()} ${c.kmPrice} Kč/km</span>`:''}
       </div>
@@ -1266,7 +1273,8 @@ function renderCare(){
         <div class="price">${priceShort(c)}</div>
         <button class="btn btn-gold" style="padding:9px 16px" onclick="event.stopPropagation();openProfile(${c.id})">Zobrazit profil</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 /* ---------- PROFILE ---------- */
