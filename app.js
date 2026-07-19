@@ -5403,7 +5403,7 @@ function openFamilyOrder(oid){
 }
 function openCgOrder(i){
   const j=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date))[i];if(!j)return;
-  curOrder={viewer:'caregiver',title:sNames(j.service),status:'confirmed',
+  curOrder={oid:j.oid||null,cid:j.cid||null,viewer:'caregiver',title:sNames(j.service),status:'confirmed',
     cpName:j.fam,cpInit:j.init,cpPhoto:j.photo||null,cpRole:'Klient',cpChatRole:'family',
     dateLabel:fmtDate(j.date),timeLabel:timeRange(j.time,j.hours),hours:j.hours,price:j.hours*cgProfile.rate,
     rate:cgProfile.rate,transport:0,addr:'Adresa bude sdílena před službou',note:'',
