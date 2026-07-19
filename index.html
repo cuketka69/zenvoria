@@ -53,10 +53,12 @@
       <a data-v="howto" role="button" tabindex="0" onclick="navProgress(this,()=>{go('howto')})">Jak to funguje</a>
     </nav>
     <div class="nav-right">
-      <button class="theme-toggle msg-btn" id="msgBtn" aria-label="Zprávy" onclick="go('chat')" hidden>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6.5h18v11H3z" stroke="#C9A233" stroke-width="1.7"/><path d="m3.5 7 8.5 6 8.5-6" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/></svg>
-        <span class="msg-badge" id="msgBadge" hidden>0</span>
-      </button>
+      <div class="msg-btn-wrap" hidden id="msgBtnWrap">
+        <button class="theme-toggle msg-btn" id="msgBtn" aria-label="Zprávy" onclick="event.stopPropagation();toggleMsgPreview()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6.5h18v11H3z" stroke="#C9A233" stroke-width="1.7"/><path d="m3.5 7 8.5 6 8.5-6" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          <span class="msg-badge" id="msgBadge" hidden>0</span>
+        </button>
+      </div>
       <button class="btn btn-ghost" id="loginBtn" onclick="fillThen(this,()=>go('login'))">Přihlásit se</button>
       <button class="btn btn-gold btn-cta" id="navCta" onclick="go('search')">Najít pečovatelku</button>
       <div class="account" id="accountWrap" hidden>

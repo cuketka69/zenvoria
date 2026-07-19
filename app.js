@@ -2241,10 +2241,11 @@ function updateAuthUI(){
   document.getElementById('loginBtn').hidden=inn;
   // obálka zpráv v headeru — jen pro přihlášené rodiny/pečovatelky (admin nemá chat)
   const msgBtn=document.getElementById('msgBtn');
-  if(msgBtn){
+  const msgBtnWrap=document.getElementById('msgBtnWrap');
+  if(msgBtn&&msgBtnWrap){
     const hasChat=inn&&auth.role!=='admin';
     const u=chatUnread();
-    msgBtn.hidden=!(hasChat&&u>0);
+    msgBtnWrap.hidden=!(hasChat&&u>0);
     const badge=document.getElementById('msgBadge');
     msgBtn.classList.toggle('has-unread',hasChat&&u>0);
     if(badge){badge.hidden=!(hasChat&&u>0);badge.textContent=u>9?'9+':u;}
@@ -5644,6 +5645,49 @@ function startChatPolling(){
     if(chatSignature()!==before)renderChat();
   },15000);
 }
+/* ---------- MALÝ NÁHLED KONVERZACÍ pod obálkou v hlavičce — než klikneš na konkrétní chat, nikam nenaviguje ---------- */
+function toggleMsgPreview(){
+  const existing=document.getElementById('msgPreviewList');
+  if(existing){existing.remove();return;}
+  const wrap=document.getElementById('msgBtnWrap');
+  if(!wrap)return;
+  const panel=document.createElement('div');
+  panel.className='msg-preview-list';
+  panel.id='msgPreviewList';
+  const items=CONVERSATIONS.filter(c=>c.id!==-1||broadcastsFor().length);
+  panel.innerHTML=items.length?items.map(c=>{
+    const last=c.msgs[c.msgs.length-1];
+    const preview=last?esc((last.me?'Vy: ':'')+(last.text||(last.image?'📷 Obrázek':''))):'Nová konverzace';
+    return `<button type="button" class="msg-preview-item" data-cid="${c.id}">
+      <span class="msg-preview-ava">${convoPhoto(c)?`<img src="${esc(convoPhoto(c))}" alt="">`:esc(c.init||'')}</span>
+      <span class="msg-preview-ci"><b>${esc(c.name)}</b><span>${preview}</span></span>
+      ${c.unread>0?`<span class="msg-preview-unread">${c.unread>9?'9+':c.unread}</span>`:''}
+    </button>`;
+  }).join(''):`<div class="msg-preview-empty">Zatím žádné konverzace.</div>`;
+  panel.querySelectorAll('.msg-preview-item').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const id=Number(el.dataset.cid);
+      panel.remove();
+      openChatFromPreview(id);
+    });
+  });
+  wrap.appendChild(panel);
+  setTimeout(()=>document.addEventListener('mousedown',closeMsgPreviewOnce),0);
+}
+function closeMsgPreviewOnce(e){
+  const panel=document.getElementById('msgPreviewList');
+  if(!panel)return;
+  if(!panel.contains(e.target)&&e.target.id!=='msgBtn'&&!e.target.closest('#msgBtn')){
+    panel.remove();
+    document.removeEventListener('mousedown',closeMsgPreviewOnce);
+  }
+}
+async function openChatFromPreview(id){
+  activeChat=id;
+  await go('chat');
+  if(id>0)await loadMessages(id);
+  renderChat();
+}
 async function openChat(caregiverId,name,init,role,email){
   if(!auth.loggedIn){toast('Pro poslání zprávy se prosím přihlaste.');go('login');return;}
   const body={};
@@ -5770,10 +5814,16 @@ function renderChat(){
   const lastEl=msgEls.length?msgEls[msgEls.length-1]:null;
   if(lastEl&&c.msgs.length>(c._lastRenderedCount||0))lastEl.classList.add('msg-enter');
   c._lastRenderedCount=c.msgs.length;
-  if(!query){
+  if(!query&&!c.readonly&&c.id>0){
     const lastMine=c.msgs.slice().reverse().find(m=>m.me&&!m.deletedAt);
-    if(lastMine&&c.otherReadAt&&Date.parse(c.otherReadAt)>=Date.parse(lastMine.createdAt)){
-      body.insertAdjacentHTML('beforeend','<div class="msg-seen">Přečteno</div>');
+    if(lastMine){
+      // stav poslední vlastní zprávy (jako u Messengeru) — jen na poslední, ne u každé zprávy zvlášť:
+      // "Odesíláno…" dokud čekáme na potvrzení ze serveru, "Doručeno" jakmile je uložená, "Přečteno" jakmile ji druhá strana otevřela
+      let statusLabel;
+      if(lastMine.pending)statusLabel='Odesíláno…';
+      else if(c.otherReadAt&&lastMine.createdAt&&Date.parse(c.otherReadAt)>=Date.parse(lastMine.createdAt))statusLabel='Přečteno';
+      else statusLabel='Doručeno';
+      body.insertAdjacentHTML('beforeend',`<div class="msg-seen">${statusLabel}</div>`);
     }
   }
   const replyBanner=document.getElementById('chatReplyBanner');
