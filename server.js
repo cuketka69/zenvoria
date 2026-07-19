@@ -3074,6 +3074,27 @@ app.post('/api/orders/:oid/restore', requireRole('caregiver', 'admin'), h(async 
   res.json({ ok: true });
 }));
 
+// pečovatelka odmítne už dřív potvrzenou objednávku (couvne z přijaté) → mizí z rozvrhu, objednávka declined
+app.post('/api/orders/:oid/decline', requireRole('caregiver', 'admin'), h(async (req, res) => {
+  const oid = Number(req.params.oid);
+  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).json({ error: 'Neplatné ID objednávky.' });
+  const rows = await restSelect(T.orders, `oid=eq.${oid}&limit=1`);
+  const order = rows && rows[0];
+  if (!order) return res.status(404).json({ error: 'Objednávka nenalezena.' });
+  if (order.status !== 'confirmed') return res.status(400).json({ error: 'Odmítnout lze jen potvrzenou objednávku.' });
+  if (req.session.role !== 'admin') {
+    const ownCaregiver = await currentCaregiverRow(req);
+    if (!ownCaregiver || Number(order.cid) !== Number(ownCaregiver.id)) {
+      return res.status(403).json({ error: 'Tuto objednávku nemůžete odmítnout.' });
+    }
+  }
+  await restDelete(T.schedule, `oid=eq.${oid}`, { prefer: 'return=minimal' });
+  await restUpdate(T.orders, `oid=eq.${oid}`, { status: 'declined' }, { prefer: 'return=minimal' });
+  const r = { oid, cid: order.cid, fam: order.fam_name, service: order.service, date: order.date, time: order.time };
+  await notifyOrderStatus(r, false);
+  res.json({ ok: true });
+}));
+
 /* ---------------- OVĚŘENÍ ---------------- */
 // pečovatelka podá žádost o ověření
 app.post('/api/verifications', requireRole('caregiver', 'admin'), requireVerifiedEmail, rateLimit('verifications', RATE_LIMITS.verifications), h(async (req, res) => {

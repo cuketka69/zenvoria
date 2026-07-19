@@ -5420,6 +5420,21 @@ function openCgDeclinedOrder(oid){
     back:'cg-requests',backLabel:'Zpět na poptávky'};
   renderOrderDetail();go('order-detail');
 }
+function declineConfirmedOrder(oid){
+  askConfirm({title:'Odmítnout tuto službu?',icon:warnSVG(),danger:true,
+    message:'Služba bude zrušena a rodina dostane e-mail, že ji nemůžete zajistit. Najdete ji pak v historii odmítnutých poptávek.',
+    confirmLabel:'Odmítnout',onConfirm:()=>{
+      api('/orders/'+oid+'/decline',{method:'POST'}).then(()=>{
+        const i=CG_SCHEDULE.findIndex(x=>x.oid===oid);
+        if(i>=0){
+          const j=CG_SCHEDULE.splice(i,1)[0];
+          ORDERS.unshift({oid:j.oid,cid:j.cid,service:j.service,hours:j.hours,date:j.date,time:j.time,addr:'',note:'',km:0,status:'declined',familyEmail:'',famName:j.fam,rated:false,famPhoto:j.photo||null});
+        }
+        toast('Objednávka byla odmítnuta.','info');
+        go('cg-requests');refreshCg();
+      }).catch(e=>{toast('Odmítnutí se nepodařilo: '+(e.message||''),'declined');});
+    }});
+}
 function restoreAndAcceptOrder(oid){
   askConfirm({title:'Obnovit a přijmout?',icon:checkCircleSVG(),
     message:'Poptávka bude znovu potvrzena a přidána do vašeho kalendáře.',
@@ -5475,7 +5490,9 @@ function renderOrderDetail(){
   if(declined)tl+=`<div class="tl-step active" style="padding-top:6px"><div class="tl-dot" style="border-color:#B23A2E;background:#FBF3F1"></div><div class="tl-tx"><b style="color:#B23A2E">${st.label}</b><span>Objednávka neproběhne</span></div></div>`;
   let action;
   if(o.viewer==='caregiver'){
-    action=declined?`<button class="btn btn-accept btn-block" style="margin-top:10px" onclick="restoreAndAcceptOrder(${o.oid})">Obnovit a přijmout</button>`:'';
+    action=declined
+      ?`<button class="btn btn-accept btn-block" style="margin-top:10px" onclick="restoreAndAcceptOrder(${o.oid})">Obnovit a přijmout</button>`
+      :(o.oid?`<button class="btn btn-decline btn-block" style="margin-top:10px" onclick="declineConfirmedOrder(${o.oid})">Odmítnout službu</button>`:'');
   }
   else if(o.status==='done'){
     action=o.rated
