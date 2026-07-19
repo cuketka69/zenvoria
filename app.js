@@ -155,12 +155,32 @@ function parseAccountToken(deep){
 function hashForView(v){
   if(v==='legal'&&legalCurrentKey)return legalHash(legalCurrentKey);
   if(v==='profile'&&state.profileToken)return accountHash(state.profileToken);
+  if(v==='order-detail'&&curOrder&&curOrder.oid!=null)return 'order-detail-'+curOrder.oid;
   return v;
 }
 function stateForView(v){
   if(v==='legal')return {view:v,legalKey:legalCurrentKey};
   if(v==='profile')return {view:v,caregiverId:state.caregiverId,token:state.profileToken,kind:state.profileKind};
+  if(v==='order-detail')return {view:v,oid:curOrder&&curOrder.oid||null};
   return {view:v};
+}
+/* znovu sestaví curOrder podle oid (po F5 na #order-detail curOrder v paměti neexistuje) */
+async function openOrderDetailByOid(oid){
+  if(oid==null)return false;
+  if(!document.getElementById('orderDetailGrid')&&isDeferredView('order-detail')){
+    try{await ensureDeferredViewsLoaded();}catch(e){return false;}
+  }
+  if(auth.role==='family'){
+    if(!ORDERS.some(o=>o.oid===oid))return false;
+    openFamilyOrder(oid);return true;
+  }
+  if(auth.role==='caregiver'){
+    const o=ORDERS.find(x=>x.oid===oid);
+    if(o&&o.status==='declined'){openCgDeclinedOrder(oid);return true;}
+    const i=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date)).findIndex(x=>x.oid===oid);
+    if(i>=0){openCgOrder(i);return true;}
+  }
+  return false;
 }
 /* pro pár veřejných stránek má appka i reálnou (SEO) URL — server pro ně umí vrátit
    indexovatelný obsah bez JS (viz server.js). Ostatní views zůstávají čistě na hashi. */
@@ -286,7 +306,8 @@ async function go(v,fromPop){
       const cur=history.state&&history.state.view;
       const changed=cur!==v
         ||(v==='legal'&&history.state&&history.state.legalKey!==legalCurrentKey)
-        ||(v==='profile'&&history.state&&history.state.token!==state.profileToken);
+        ||(v==='profile'&&history.state&&history.state.token!==state.profileToken)
+        ||(v==='order-detail'&&history.state&&history.state.oid!==(curOrder&&curOrder.oid||null));
       if(changed){
         const p=pathForView(v);
         history.pushState(stateForView(v),'',(p||'/')+(p?'':'#'+hashForView(v)));
@@ -307,6 +328,10 @@ window.addEventListener('popstate',function(e){
     if(e.state.kind==='account'&&e.state.token){openProfileByToken(e.state.token,true);return;}
     if(e.state.caregiverId!=null&&cg(e.state.caregiverId)){openProfile(e.state.caregiverId,true);return;}
     if(e.state.token){openProfileByToken(e.state.token,true);return;}
+  }
+  if(v==='order-detail'&&e.state&&e.state.oid!=null){
+    openOrderDetailByOid(e.state.oid).then(ok=>{if(!ok)go(landingView(),true);});
+    return;
   }
   if(document.getElementById('view-'+v)||isDeferredView(v))go(v,true);
 });
@@ -6719,6 +6744,10 @@ async function initApp(){
   else if(!resetPwToken&&!changeEmailToken&&pathView){await go(pathView);}
   else if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('legal-')===0&&LEGAL[deep.slice(6)])openLegal(deep.slice(6),{direct:true});
   else if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('u-')===0){await openProfileByToken(parseAccountToken(deep));}
+  else if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('order-detail-')===0&&auth.loggedIn){
+    const oid=Number(deep.slice('order-detail-'.length));
+    if(!(await openOrderDetailByOid(oid)))await go(landingView());
+  }
   else if(!resetPwToken&&!changeEmailToken&&deep&&(document.getElementById('view-'+deep)||isDeferredView(deep)))await go(deep);
   else if(!resetPwToken&&!changeEmailToken&&auth.loggedIn)await go(landingView());
   // návrat ze Stripe Checkout (#pricing?paid=1 / ?canceled=1)
