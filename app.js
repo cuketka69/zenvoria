@@ -837,7 +837,10 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved,mapMode='bu
     else if(e.key==='Escape'){wrap.classList.remove('open');}
   });
   input.addEventListener('blur',()=>setTimeout(()=>wrap.classList.remove('open'),120));
-  return {pick};
+  return {pick,ensureMap(){
+    if(mapId&&mapMode==='inline'&&!mapCtl)mapCtl=renderAddressMap(mapId,{onChange:onMapChange});
+    return mapCtl;
+  }};
 }
 
 /* ---------- MODAL „Najít na mapě" — velká mapa na vyžádání, sdílená pro všechna adresní pole ---------- */
@@ -887,14 +890,20 @@ function openMapPickerModal({initialQuery='',scope='address',onConfirm,targetInp
     const liveInput=document.getElementById('mapPickerInput');
     if(liveInput&&liveInput.value!==item.label)liveInput.value=item.label;
   }});
-  if(initialQuery){
-    fetchAddressMatches(initialQuery,{scope}).then(items=>{
-      const best=items&&items[0];
-      if(best&&ctl)ctl.pick(best);
-    });
-  }
   mapPickerModalEl.classList.add('open');
   document.body.style.overflow='hidden';
+  /* mapa se musí vytvořit až po zviditelnění modalu (jinak má kontejner nulovou velikost) —
+     vykreslí se vždy, i bez zadaného textu, ať jde rovnou kliknout přímo na mapu */
+  requestAnimationFrame(()=>{
+    if(!ctl)return;
+    ctl.ensureMap();
+    if(initialQuery){
+      fetchAddressMatches(initialQuery,{scope}).then(items=>{
+        const best=items&&items[0];
+        if(best)ctl.pick(best);
+      });
+    }
+  });
 }
 function closeMapPickerModal(){
   if(!mapPickerModalEl)return;
