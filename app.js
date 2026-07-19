@@ -1741,6 +1741,8 @@ async function renderPublicAccount(p,token,fromPop){
       ${(p.reviews&&p.reviews.length)?`<div class="pdiv"></div>
         <h3>Hodnocení (${p.reviews.length})</h3>
         ${p.reviews.map(r=>`<div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join('')}`:''}
+      ${(auth.loggedIn&&p.email&&((p.role==='family'&&auth.role==='caregiver')||(p.role==='caregiver'&&auth.role==='family')))?`<div class="pdiv"></div>
+        <button class="btn btn-gold" onclick="openChat(null,${jsq(p.name)},${jsq(p.init||initials(p.name))},${jsq(p.role)},${jsq(p.email)})">Napsat zprávu</button>`:''}
     </div>`;
   go('profile',fromPop);
 }

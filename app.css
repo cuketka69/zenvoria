@@ -760,7 +760,8 @@
   footer{position:relative;background:var(--navy-900);color:#A2B0A6;padding:60px 0 34px;margin-top:40px}
   footer::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
     background:linear-gradient(90deg,transparent,rgba(201,162,51,.7),transparent)}
-  .foot-grid{display:grid;grid-template-columns:1fr;margin-bottom:40px}
+  .foot-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:32px;margin-bottom:40px}
+  .foot-grid h5{margin-top:0}
   footer .word{font-family:'Playfair Display',serif;font-weight:700;font-size:22px;letter-spacing:.16em;color:var(--cream)}
   footer h5{color:var(--cream);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px;font-weight:600}
   footer a{display:block;color:#A2B0A6;text-decoration:none;font-size:14px;padding:5px 0;cursor:pointer;transition:.16s}
@@ -773,8 +774,6 @@
   footer .soc-btn{color:#A2B0A6;border-color:rgba(255,255,255,.18)}
   footer .soc-btn:hover{color:var(--gold);border-color:var(--gold)}
   .foot-bottom{border-top:1px solid rgba(255,255,255,.08);padding-top:24px;display:flex;justify-content:space-between;align-items:center;font-size:13px;flex-wrap:wrap;gap:12px}
-  .foot-legal{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:20px}
-  .foot-legal a{display:inline;padding:0;font-size:13.5px}
 
   /* ---------- NASTAVENÍ ---------- */
   .set-wrap{max-width:760px;margin:0 auto;padding-bottom:60px}
@@ -1621,7 +1620,7 @@
     .hero{min-height:0;padding:120px 0 56px}
     .serv-grid,.stat-grid{grid-template-columns:repeat(2,1fr)}
     .care-grid{grid-template-columns:repeat(2,1fr)}
-    .foot-grid{grid-template-columns:1fr 1fr}
+    .foot-grid{grid-template-columns:1fr 1fr;gap:24px}
     .book-aside,.summary-card,.book-aside.book-aside{position:static}
   }
   /* ≤1115px: role položky se nevejdou do lišty → sbalit je do burger menu */
@@ -1660,7 +1659,6 @@
     .flow .fl-step{padding:5px 10px;white-space:nowrap}
     .aud{padding:30px 24px}
     .legal{padding:38px 18px 60px}
-    .foot-legal{gap:14px}
     /* dashboard pečovatelky */
     .dash-head{padding:22px 20px;margin:20px 0 22px}
     .dash-head>div:first-child{gap:13px}
@@ -1694,7 +1692,6 @@
     footer p{margin-left:auto;margin-right:auto}
     footer h5{margin-bottom:12px}
     footer a{font-size:15px;padding:7px 0}
-    .foot-legal{justify-content:center;gap:10px 18px;margin:6px 0 18px;text-align:center}
     .foot-bottom{flex-direction:column;align-items:center;text-align:center;gap:16px}
     .foot-bottom>span:last-child{justify-content:center;flex-wrap:wrap}
   }
