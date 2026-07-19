@@ -275,6 +275,7 @@ async function go(v,fromPop){
   if(v==='admin-services')renderAdminServices();
   if(v==='admin-payments')renderAdminPayments();
   if(v==='admin-invoices')renderAdminInvoices();
+  if(v==='admin-reports')renderAdminReports();
   if(v==='admin-helpchat')renderAdminOpenAi();
   if(v==='admin-plans')renderAdminPlans();
   if(v==='admin-social')renderAdminSocial();
@@ -1646,7 +1647,8 @@ function reviewRowHTML(r,c){
         <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('revEditForm${r.id}').hidden=true">Zrušit</button>
       </div>
     </div>`:'';
-  return `<div class="rev"><div class="ava">${esc(r.init)}</div><div><div class="rb">${esc(r.name)} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div>${extra}${mineBlock}</div></div>`;
+  const reportBlock=(auth.loggedIn&&r.id&&!r.mine)?`<button type="button" class="lnk" style="margin-top:8px" onclick="openReportReview(${r.id},'review')">Nahlásit</button>`:'';
+  return `<div class="rev"><div class="ava">${esc(r.init)}</div><div><div class="rb">${esc(r.name)} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div>${extra}${mineBlock}${reportBlock}</div></div>`;
 }
 function openReviewEditBox(id){
   const box=document.getElementById('revEditForm'+id);if(!box)return;
@@ -1803,7 +1805,8 @@ function familyReviewRowHTML(r){
         <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('famRevEditForm${r.id}').hidden=true">Zrušit</button>
       </div>
     </div>`:'';
-  return `<div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div>${mineBlock}</div></div>`;
+  const reportBlock=(auth.loggedIn&&r.id&&!r.mine)?`<button type="button" class="lnk" style="margin-top:8px" onclick="openReportReview(${r.id},'family_review')">Nahlásit</button>`:'';
+  return `<div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div>${mineBlock}${reportBlock}</div></div>`;
 }
 function openFamilyReviewEditBox(id){
   const box=document.getElementById('famRevEditForm'+id);if(!box)return;
@@ -1825,6 +1828,19 @@ function deleteMyFamilyReview(id){
       apiSync(api('/family-reviews/'+id,{method:'DELETE'}).then(()=>{
         toast('Recenze byla smazána.');
         if(state.profileKind==='account'&&state.profileToken)openProfileByToken(state.profileToken);
+      }));
+    }});
+}
+function openReportReview(id,reviewType){
+  if(!auth.loggedIn){toast('Pro nahlášení se prosím přihlaste.');go('login');return;}
+  askConfirm({title:'Nahlásit recenzi',icon:warnSVG(),
+    message:'Popište stručně, proč je tato recenze nevhodná. Uvidí to jen tým ZENVORIA.',
+    input:{label:'Důvod nahlášení',placeholder:'Např. recenze je urážlivá nebo zjevně nepravdivá…'},
+    confirmLabel:'Nahlásit',onConfirm:(reason)=>{
+      reason=(reason||'').trim();
+      if(reason.length<5){toast('Popište prosím stručně důvod nahlášení.','declined');return;}
+      apiSync(api('/reports',{method:'POST',body:{reviewType,targetId:id,reason}}).then(()=>{
+        toast('Nahlášení bylo odesláno. Děkujeme.','success');
       }));
     }});
 }
@@ -1958,7 +1974,7 @@ const DEFERRED_VIEW_IDS=new Set([
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
   'chat',
   'order-detail','login','forgot','reset-password','change-email','register',
-  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-payments','admin-invoices','admin-helpchat',
+  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-payments','admin-invoices','admin-reports','admin-helpchat',
   'pricing','settings'
 ]);
 let deferredViewsLoaded=false;
@@ -2417,6 +2433,7 @@ function updateAuthUI(){
         +mi("go('admin-contact')",'Kontaktní údaje','<path d="M4 4h16v14H8l-4 4V4Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 9h8M8 12.5h5" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-payments')",'Platby (Stripe)','<rect x="3" y="5.5" width="18" height="13" rx="2.3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 10h18" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-invoices')",'Faktury','<path d="M7 3h10v18l-3-2-2 2-2-2-3 2V3Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 8h6M9 11.5h6" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
+        +mi("go('admin-reports')",'Nahlášení'+(REPORTS.length?` <span class="nav-badge">${REPORTS.length}</span>`:''),'<path d="M12 3.5 21 19H3L12 3.5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1" fill="#7A736A"/>')
         +mi("go('admin-helpchat')",'Nápovědný chat (AI)','<path d="M4 5h16v11H9l-5 4V5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
@@ -4554,6 +4571,50 @@ async function renderAdminPayments(){
     banner.innerHTML=`<div class="verify-banner ok"><span class="vb-ic">${checkCircleSVG(26)}</span><div class="vb-t"><b>Stripe nakonfigurován (${esc(s.secretKeyMasked)})</b><span>${esc(modeLabel)}${s.webhookConfigured?' · webhook nastaven':' · webhook NENÍ nastaven — platby se aktivují se zpožděním'}</span></div></div>`;
   }
 }
+function findReportedReviewSnippet(rep){
+  if(rep.reviewType==='family_review'){
+    const r=FAMILY_REVIEWS.find(x=>x.id===rep.targetId);
+    return r?{author:r.caregiverName||'Pečovatelka',stars:r.stars,text:r.text}:null;
+  }
+  for(const cid in cgReviews){const r=(cgReviews[cid]||[]).find(x=>x.id===rep.targetId);if(r)return{author:r.name,stars:r.stars,text:r.text};}
+  const gr=(typeof generalReviews!=='undefined'?generalReviews:[]).find(x=>x.id===rep.targetId);
+  return gr?{author:gr.name,stars:gr.stars,text:gr.text}:null;
+}
+function renderAdminReports(){
+  document.getElementById('admRepCount').textContent=REPORTS.length;
+  document.getElementById('admRepBody').innerHTML=REPORTS.length?REPORTS.map(rep=>{
+    const snip=findReportedReviewSnippet(rep);
+    return `<div class="pcard" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div><b>${rep.reviewType==='family_review'?'Recenze na rodinu':'Recenze na pečovatelku'}</b>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">Nahlásil: ${esc(rep.reporterEmail)} (${esc(rep.reporterRole||'')}) · ${fmtDate(rep.createdAt)}</div>
+        </div>
+      </div>
+      <div class="set-err" style="color:var(--navy-800);margin-top:8px"><b>Důvod:</b> ${esc(rep.reason)}</div>
+      ${snip
+        ?`<div class="rev" style="margin-top:10px"><div class="ava">${esc(initials(snip.author||'?'))}</div><div><div class="rb">${esc(snip.author||'—')} <span class="stars" style="font-size:12px">${starsRow(snip.stars,12)}</span></div><div class="rt">${esc(snip.text)}</div></div></div>`
+        :'<div class="empty" style="margin-top:10px">Recenze už byla mezitím smazána.</div>'}
+      <div style="display:flex;gap:10px;margin-top:14px">
+        ${snip?`<button class="btn btn-decline btn-sm" onclick="resolveReport(${rep.id},'delete_review')">Smazat recenzi</button>`:''}
+        <button class="btn btn-ghost btn-sm" onclick="resolveReport(${rep.id},'dismiss')">Zamítnout nahlášení</button>
+      </div>
+    </div>`;
+  }).join(''):'<div class="empty">Žádná čekající nahlášení.</div>';
+}
+function resolveReport(id,action){
+  const doIt=()=>{
+    apiSync(api('/reports/'+id,{method:'PATCH',body:{action}}).then(()=>{
+      REPORTS=REPORTS.filter(r=>r.id!==id);
+      renderAdminReports();updateAuthUI();
+      toast(action==='delete_review'?'Recenze byla smazána.':'Nahlášení bylo zamítnuto.');
+    }));
+  };
+  if(action==='delete_review'){
+    askConfirm({title:'Smazat recenzi?',icon:trashSVG(),danger:true,
+      message:'Recenze bude trvale odstraněna a nahlášení se označí jako vyřešené.',
+      confirmLabel:'Smazat',onConfirm:doIt});
+  }else doIt();
+}
 function renderAdminInvoices(){
   document.getElementById('admInvCount').textContent=INVOICES.length;
   document.getElementById('admInvBody').innerHTML=INVOICES.length?INVOICES.map(i=>`
@@ -4951,6 +5012,7 @@ const langAbbr=l=>LANG_ABBR[l]||String(l||'').slice(0,2).toUpperCase();
 let CG_REQUESTS=[];
 let FAMILY_REVIEWS=[];
 let INVOICES=[];
+let REPORTS=[];
 let reqSeq=0;
 let AUDIT_LOGS=[];
 let FILTERED_AUDIT_LOGS=[];
@@ -6656,6 +6718,7 @@ async function bootstrap(){
   cgReviews=d.cgReviews||{};
   FAMILY_REVIEWS=d.familyReviews||[];
   INVOICES=d.invoices||[];
+  REPORTS=d.reports||[];
   // konverzace se načítají zvlášť přes /api/conversations (ne z bootstrapu) —
   // bootstrap je NESMÍ přepsat na prázdno, jinak by zmizely načtené konverzace
   BROADCASTS=d.broadcasts||[];

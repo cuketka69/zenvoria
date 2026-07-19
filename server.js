@@ -516,6 +516,7 @@ const T = {
   settings:      process.env.TBL_SETTINGS      || 'zenvoria_settings',
   auditLogs:     process.env.TBL_AUDIT_LOGS    || 'zenvoria_audit_logs',
   helpChats:     process.env.TBL_HELP_CHATS    || 'zenvoria_help_chats',
+  reports:       process.env.TBL_REPORTS       || 'zenvoria_reports',
   invoices:      process.env.TBL_INVOICES      || 'zenvoria_invoices',
 };
 
@@ -2557,7 +2558,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     ? 'guest'
     : (req.session.role === 'admin' ? 'admin' : (req.session.role === 'caregiver' ? 'caregiver' : 'family'));
   const ownCaregiver = viewer === 'caregiver' ? await currentCaregiverRow(req) : null;
-  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows] =
+  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows, reportRows] =
     await Promise.all([
       viewer === 'guest'
         ? restSelect(T.caregivers, 'select=*&verified=eq.true&suspended=eq.false&order=id.asc')
@@ -2606,6 +2607,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
         : (viewer === 'caregiver' && ownCaregiver
           ? restSelect(T.invoices, `caregiver_id=eq.${Number(ownCaregiver.id)}&select=*&order=id.desc`)
           : []),
+      viewer === 'admin' ? restSelect(T.reports, `status=eq.pending&order=id.desc`) : [],
     ]);
 
   // cgReviews: { [caregiverId]: [{init,name,stars,text}] } + obecné recenze (caregiver_id null)
@@ -2685,6 +2687,9 @@ app.get('/api/bootstrap', h(async (req, res) => {
       : [],
     invoices: (viewer === 'admin' || viewer === 'caregiver')
       ? (invoiceRows || []).map((i) => ({ id: Number(i.id), number: i.number, caregiverId: i.caregiver_id != null ? Number(i.caregiver_id) : null, email: i.email, name: i.name, plan: i.plan, amountCzk: i.amount_czk, currency: i.currency, issuedAt: i.issued_at }))
+      : [],
+    reports: viewer === 'admin'
+      ? (reportRows || []).map((r) => ({ id: Number(r.id), reviewType: r.review_type, targetId: Number(r.target_id), reporterEmail: r.reporter_email, reporterRole: r.reporter_role, reason: r.reason, status: r.status, createdAt: r.created_at }))
       : [],
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
@@ -3486,6 +3491,47 @@ app.delete('/api/family-reviews/:id', requireRole('caregiver'), h(async (req, re
     return res.status(403).json({ error: 'Tuto recenzi nemůžete smazat.' });
   }
   await restDelete(T.familyReviews, `id=eq.${id}`, { prefer: 'return=minimal' });
+  res.json({ ok: true });
+}));
+
+/* ---------------- NAHLÁŠENÍ RECENZÍ ---------------- */
+// nahlásit nevhodnou recenzi (v obou směrech) — jen admin ji uvidí, řeší se ručně
+app.post('/api/reports', requireAuth, rateLimit('reports', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho nahlášení. Zkuste to prosím později.' }), h(async (req, res) => {
+  const b = req.body || {};
+  const reviewType = b.reviewType === 'family_review' ? 'family_review' : (b.reviewType === 'review' ? 'review' : null);
+  const targetId = Number(b.targetId);
+  const reason = trimmedString(b.reason, 500);
+  if (!reviewType) return res.status(400).json({ error: 'Neplatný typ nahlášení.' });
+  if (!Number.isInteger(targetId) || targetId <= 0) return res.status(400).json({ error: 'Neplatná recenze.' });
+  if (reason.length < 5) return res.status(400).json({ error: 'Popište prosím stručně důvod nahlášení.' });
+  const table = reviewType === 'family_review' ? T.familyReviews : T.reviews;
+  const targetRows = await restSelect(table, `id=eq.${targetId}&limit=1`);
+  if (!targetRows || !targetRows[0]) return res.status(404).json({ error: 'Recenze nenalezena.' });
+  await restInsert(T.reports, {
+    review_type: reviewType, target_id: targetId, reporter_email: req.session.email, reporter_role: req.session.role, reason,
+  }, { prefer: 'return=minimal' });
+  res.json({ ok: true });
+}));
+// admin: vyřeší nahlášení — buď smaže dotčenou recenzi (a u recenze na pečovatelku přepočítá rating), nebo jen zamítne nahlášení
+app.patch('/api/reports/:id', requireRole('admin'), h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID nahlášení.' });
+  const action = req.body && req.body.action;
+  if (action !== 'delete_review' && action !== 'dismiss') return res.status(400).json({ error: 'Neplatná akce.' });
+  const rows = await restSelect(T.reports, `id=eq.${id}&limit=1`);
+  const report = rows && rows[0];
+  if (!report) return res.status(404).json({ error: 'Nahlášení nenalezeno.' });
+  if (action === 'delete_review') {
+    const table = report.review_type === 'family_review' ? T.familyReviews : T.reviews;
+    const targetRows = await restSelect(table, `id=eq.${report.target_id}&limit=1`);
+    const target = targetRows && targetRows[0];
+    if (target) {
+      await restDelete(table, `id=eq.${report.target_id}`, { prefer: 'return=minimal' });
+      if (report.review_type === 'review') await recalcCaregiverRating(target.caregiver_id);
+    }
+  }
+  await restUpdate(T.reports, `id=eq.${id}`, { status: action === 'delete_review' ? 'resolved' : 'dismissed' }, { prefer: 'return=minimal' });
+  fireAudit('admin.report.resolve', { req, actor: auditActor(req), targetType: 'report', targetId: id, status: 'success', metadata: { action } });
   res.json({ ok: true });
 }));
 
