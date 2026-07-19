@@ -503,8 +503,10 @@
     font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;transition:.15s}
   .loc-ac-mapbtn:hover{background:var(--cream-2);border-color:var(--gold);color:var(--navy-900)}
   .loc-ac-mapbtn svg{flex:none;color:var(--gold-deep)}
-  .map-picker-card{width:min(760px,94vw)}
-  .map-picker-map{height:min(58vh,480px);margin-top:14px}
+  .map-picker-card{width:min(1180px,96vw);max-height:94vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--gold) transparent}
+  .map-picker-card::-webkit-scrollbar{width:8px}
+  .map-picker-card::-webkit-scrollbar-thumb{background:var(--gold);border-radius:8px}
+  .map-picker-map{height:min(70vh,720px);margin-top:14px}
   .map-picker-result{min-height:20px;margin-top:10px;font-size:13.5px;color:var(--navy-800);font-weight:600}
   @media(max-width:560px){
     .loc-ac-row{flex-direction:column}
