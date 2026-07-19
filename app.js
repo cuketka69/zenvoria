@@ -5615,8 +5615,10 @@ function closeFamilyRating(){
 function setFamilyStars(n){familyRatingTarget.stars=n;renderFamilyStars();}
 function renderFamilyStars(){
   document.getElementById('familyRatingStars').innerHTML=
-    `<span class="rr-stars" role="group" aria-label="Hodnocení">${[1,2,3,4,5].map(n=>
-      `<button type="button" class="${n<=familyRatingTarget.stars?'on':''}" aria-label="${n} z 5" onclick="setFamilyStars(${n})">${starFillSVG(26)}</button>`).join('')}</span>`;
+    `<div class="rate-row" style="border-bottom:none;padding:0">
+      <span class="rr-stars" role="group" aria-label="Hodnocení">${[1,2,3,4,5].map(n=>
+        `<button type="button" class="${n<=familyRatingTarget.stars?'on':''}" aria-label="${n} z 5" onclick="setFamilyStars(${n})">${starFillSVG(22)}</button>`).join('')}</span>
+    </div>`;
 }
 function submitFamilyRating(){
   const {oid,stars}=familyRatingTarget;
