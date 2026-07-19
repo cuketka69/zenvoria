@@ -2521,6 +2521,9 @@ app.patch('/api/users/me/profile', requireAuth, h(async (req, res) => {
   if (req.session.role === 'caregiver' && req.session.email) {
     try { await restUpdate(T.caregivers, `email=eq.${encodeURIComponent(req.session.email)}`, { name, titul }, { prefer: 'return=minimal' }); } catch (e) { /* nekritické */ }
   }
+  // session cookie nese jméno jako otisk z přihlášení — bez obnovení by ho zbytek session
+  // (např. jméno rodiny na nově vytvořené objednávce) dál viděl staré, dokud by se uživatel znovu nepřihlásil
+  setSession(res, { id: req.session.uid, email: req.session.email, name, role: req.session.role, email_verified: req.session.emailVerified, csrf: req.session.csrf });
   fireAudit('users.me.profile.update', { req, actor: auditActor(req), targetType: 'user', targetId: req.session.uid, status: 'success' });
   res.json({ ok: true, name, titul });
 }));
