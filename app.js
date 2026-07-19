@@ -789,7 +789,7 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved,mapMode='bu
     btn.className='loc-ac-mapbtn';
     btn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-4.5-7-10a7 7 0 0 1 14 0c0 5.5-7 10-7 10Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="11" r="2.4" stroke="currentColor" stroke-width="1.8"/></svg><span>Najít na mapě</span>`;
     btn.addEventListener('click',()=>{
-      openMapPickerModal({initialQuery:input.value.trim(),scope,onConfirm:(item)=>{pick(item);}});
+      openMapPickerModal({initialQuery:input.value.trim(),scope,targetInputId:inputId,onConfirm:(item)=>{pick(item);}});
     });
     outer.appendChild(btn);
   }
@@ -841,7 +841,7 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved,mapMode='bu
 }
 
 /* ---------- MODAL „Najít na mapě" — velká mapa na vyžádání, sdílená pro všechna adresní pole ---------- */
-let mapPickerModalEl=null,mapPickerOnConfirm=null,mapPickerItem=null;
+let mapPickerModalEl=null,mapPickerOnConfirm=null,mapPickerItem=null,mapPickerTargetId=null,mapPickerScope='address';
 function ensureMapPickerModal(){
   if(mapPickerModalEl)return mapPickerModalEl;
   const el=document.createElement('div');
@@ -867,10 +867,12 @@ function ensureMapPickerModal(){
   mapPickerModalEl=el;
   return el;
 }
-function openMapPickerModal({initialQuery='',scope='address',onConfirm}={}){
+function openMapPickerModal({initialQuery='',scope='address',onConfirm,targetInputId=null}={}){
   ensureMapPickerModal();
   mapPickerOnConfirm=onConfirm||null;
   mapPickerItem=null;
+  mapPickerTargetId=targetInputId;
+  mapPickerScope=scope;
   document.getElementById('mapPickerConfirmBtn').disabled=true;
   document.getElementById('mapPickerResult').textContent='';
   const host=document.getElementById('mapPickerAcHost');
@@ -904,7 +906,16 @@ function confirmMapPicker(){
   if(!mapPickerItem)return;
   const cb=mapPickerOnConfirm;
   const item=mapPickerItem;
+  const targetId=mapPickerTargetId;
+  const scope=mapPickerScope;
   closeMapPickerModal();
+  // přímý, na ničem jiném nezávislý zápis do cílového pole — hlavní cesta, ne jen spoléhání na callback
+  if(targetId){
+    const targetEl=document.getElementById(targetId);
+    if(targetEl){
+      targetEl.value=(scope==='municipality'?item.municipality:item.label)||item.label||targetEl.value;
+    }
+  }
   if(cb)cb(item);
 }
 
