@@ -1978,7 +1978,7 @@ app.get('/api/u/:token', h(async (req, res) => {
     return res.json({ kind: 'caregiver', id: Number(c.id) });
   }
   // 2) rodina / uživatelský účet — minimální veřejná vizitka + pár neosobních statistik
-  const users = await restSelect(T.users, `public_id=eq.${encodeURIComponent(token)}&select=id,email,name,titul,init,photo,role,joined,status&limit=1`);
+  const users = await restSelect(T.users, `public_id=eq.${encodeURIComponent(token)}&select=id,email,phone,name,titul,init,photo,role,joined,status&limit=1`);
   const u = users && users[0];
   if (u && u.status !== 'suspended' && u.role !== 'admin') {
     let ordersCount = 0;
@@ -2000,7 +2000,7 @@ app.get('/api/u/:token', h(async (req, res) => {
     }
     return res.json({ kind: 'account', profile: {
       name: u.name || '', titul: u.titul || null, init: u.init || '', photo: u.photo || null,
-      role: u.role || 'family', memberSince: u.joined || null,
+      role: u.role || 'family', memberSince: u.joined || null, email: u.email || null, phone: u.phone || null,
       ordersCount, rating, reviewsCount, reviews,
     } });
   }
@@ -2200,10 +2200,11 @@ async function findUserByEmail(email) {
 }
 
 app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(async (req, res) => {
-  const { name, titul, email, password, role } = req.body || {};
+  const { name, titul, email, password, role, phone } = req.body || {};
   const safeName = trimmedString(name, 120);
   const safeTitul = trimmedString(titul, 20) || null;
   const em = trimmedString(email, 320).toLowerCase();
+  const safePhone = trimmedString(phone, 30) || null;
   if (!isStrongPassword(password)) return res.status(400).json({ error: PASSWORD_RULE_HINT });
   if (!safeName || !em || !password) return res.status(400).json({ error: 'Vyplňte jméno, e-mail i heslo.' });
   if (!isEmail(em)) return res.status(400).json({ error: 'Zadejte platný e-mail.' });
@@ -2212,7 +2213,7 @@ app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(as
   if (await findUserByEmail(em)) return res.status(409).json({ error: 'Tento e-mail je už zaregistrovaný.' });
   const init = (safeName.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
   const password_hash = bcrypt.hashSync(String(password), 10);
-  const user = await restInsert(T.users, { email: em, password_hash, name: safeName, titul: safeTitul, role: r, init, public_id: genPublicId() });
+  const user = await restInsert(T.users, { email: em, password_hash, name: safeName, titul: safeTitul, role: r, init, public_id: genPublicId(), phone: safePhone });
   const welcomeMail = registrationMail(user);
   await sendMailSafe({ to: user.email, ...welcomeMail });
   const code = createEmailVerificationCode();
