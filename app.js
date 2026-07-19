@@ -2782,6 +2782,21 @@ function renderPricing(){
     </div>`;}).join('');
   const pm=document.getElementById('planPayInfo');
   if(pm)pm.textContent='';
+  const invPanel=document.getElementById('myInvoicesPanel');
+  if(invPanel){
+    invPanel.hidden=!(isCg&&INVOICES.length);
+    if(isCg&&INVOICES.length){
+      document.getElementById('myInvCount').textContent=INVOICES.length;
+      document.getElementById('myInvBody').innerHTML=INVOICES.map(i=>`
+        <tr>
+          <td>${esc(i.number)}</td>
+          <td>${i.plan==='premium'?'PREMIUM':'START'}</td>
+          <td>${Number(i.amountCzk||0).toLocaleString('cs-CZ')} ${esc(i.currency||'CZK')}</td>
+          <td>${fmtDate(i.issuedAt)}</td>
+          <td><a class="btn btn-ghost btn-sm" href="/api/invoices/${i.id}/pdf">Stáhnout PDF</a></td>
+        </tr>`).join('');
+    }
+  }
 }
 /* aktivace tarifu po (skutečném nebo mock) zaplacení */
 function setPlan(key){

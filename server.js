@@ -2597,7 +2597,11 @@ app.get('/api/bootstrap', h(async (req, res) => {
           : (viewer === 'admin'
             ? restSelect(T.familyReviews, 'select=*&order=id.desc')
             : [])),
-      viewer === 'admin' ? restSelect(T.invoices, 'select=*&order=id.desc&limit=200') : [],
+      viewer === 'admin'
+        ? restSelect(T.invoices, 'select=*&order=id.desc&limit=200')
+        : (viewer === 'caregiver' && ownCaregiver
+          ? restSelect(T.invoices, `caregiver_id=eq.${Number(ownCaregiver.id)}&select=*&order=id.desc`)
+          : []),
     ]);
 
   // cgReviews: { [caregiverId]: [{init,name,stars,text}] } + obecné recenze (caregiver_id null)
@@ -2674,7 +2678,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     familyReviews: (viewer === 'family' || viewer === 'admin')
       ? (familyReviewsRows || []).map((r) => ({ id: Number(r.id), caregiverName: r.caregiver_name, caregiverId: r.caregiver_id != null ? Number(r.caregiver_id) : null, familyEmail: r.family_email || null, familyName: r.family_name || null, stars: r.stars, text: r.text, createdAt: r.created_at }))
       : [],
-    invoices: viewer === 'admin'
+    invoices: (viewer === 'admin' || viewer === 'caregiver')
       ? (invoiceRows || []).map((i) => ({ id: Number(i.id), number: i.number, caregiverId: i.caregiver_id != null ? Number(i.caregiver_id) : null, email: i.email, name: i.name, plan: i.plan, amountCzk: i.amount_czk, currency: i.currency, issuedAt: i.issued_at }))
       : [],
     conversations: [],
@@ -4327,6 +4331,33 @@ function buildInvoicePdf({ number, issuedAt, seller, buyer, plan, amountCzk }) {
     } catch (err) { reject(err); }
   });
 }
+
+// znovu-stažení dřív vystavené faktury — PDF se neukládá, přegeneruje se ze stejných dat co při vystavení
+app.get('/api/invoices/:id/pdf', requireAuth, h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).send('Neplatné ID faktury.');
+  const rows = await restSelect(T.invoices, `id=eq.${id}&limit=1`);
+  const inv = rows && rows[0];
+  if (!inv) return res.status(404).send('Faktura nenalezena.');
+  const isAdmin = req.session.role === 'admin';
+  let isOwner = false;
+  if (!isAdmin && req.session.role === 'caregiver' && inv.caregiver_id != null) {
+    const own = await currentCaregiverRow(req);
+    isOwner = !!(own && Number(own.id) === Number(inv.caregiver_id));
+  }
+  if (!isAdmin && !isOwner) return res.status(403).send('K této faktuře nemáte přístup.');
+  const pdfBuffer = await buildInvoicePdf({
+    number: inv.number,
+    issuedAt: new Date(inv.issued_at),
+    seller: { name: contactInfo.name, ico: contactInfo.ico, address: contactInfo.address },
+    buyer: { name: inv.name, email: inv.email },
+    plan: inv.plan,
+    amountCzk: inv.amount_czk,
+  });
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Disposition', `attachment; filename="${inv.number}.pdf"`);
+  res.type('pdf').send(pdfBuffer);
+}));
 
 // ---- e-mail: faktura k předplatnému (PDF v příloze) ----
 function invoiceMail({ name, number, amountCzk, plan }) {
