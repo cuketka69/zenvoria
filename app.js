@@ -1342,7 +1342,7 @@ async function openProfile(id,fromPop){
     api('/caregivers/'+id+'/view',{method:'POST'}).catch(()=>{});
   }
   const revs=[...(cgReviews[id]||[]),...REVIEWS];
-  const revCount=c.reviews+((cgReviews[id]||[]).length);
+  const revCount=revs.length;
   grid.innerHTML=`
     <div class="pcard">
       <div class="phead">
