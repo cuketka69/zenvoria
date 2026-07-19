@@ -1736,6 +1736,9 @@ async function renderPublicAccount(p,token,fromPop){
       ${p.role==='family'?`<div class="pchips" style="margin-top:18px">
         <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 2v4M16 2v4M4 9h16M4 5h16v15H4z" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>${p.ordersCount} dokončených objednávek</div>
       </div>`:''}
+      ${(p.reviews&&p.reviews.length)?`<div class="pdiv"></div>
+        <h3>Hodnocení (${p.reviews.length})</h3>
+        ${p.reviews.map(r=>`<div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join('')}`:''}
     </div>`;
   go('profile',fromPop);
 }

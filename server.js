@@ -1984,22 +1984,24 @@ app.get('/api/u/:token', h(async (req, res) => {
     let ordersCount = 0;
     let rating = 0;
     let reviewsCount = 0;
+    let reviews = [];
     if (u.role === 'family' && u.email) {
       try {
         const doneOrders = await restSelect(T.orders, `family_email=eq.${encodeURIComponent(u.email)}&status=eq.done&select=oid`);
         ordersCount = (doneOrders || []).length;
       } catch (e) { /* statistiky nejsou kritické */ }
       try {
-        const revs = await restSelect(T.familyReviews, `family_email=eq.${encodeURIComponent(u.email)}&select=stars`);
+        const revs = await restSelect(T.familyReviews, `family_email=eq.${encodeURIComponent(u.email)}&select=caregiver_name,stars,text,created_at&order=id.desc`);
         const stars = (revs || []).map((r) => Number(r.stars)).filter((n) => Number.isFinite(n));
         reviewsCount = stars.length;
         rating = reviewsCount ? Math.round((stars.reduce((a, b) => a + b, 0) / reviewsCount) * 10) / 10 : 0;
+        reviews = (revs || []).map((r) => ({ caregiverName: r.caregiver_name, stars: r.stars, text: r.text, createdAt: r.created_at }));
       } catch (e) { /* statistiky nejsou kritické */ }
     }
     return res.json({ kind: 'account', profile: {
       name: u.name || '', titul: u.titul || null, init: u.init || '', photo: u.photo || null,
       role: u.role || 'family', memberSince: u.joined || null,
-      ordersCount, rating, reviewsCount,
+      ordersCount, rating, reviewsCount, reviews,
     } });
   }
   return res.status(404).json({ error: 'Profil nenalezen.' });
