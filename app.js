@@ -881,6 +881,9 @@ function openMapPickerModal({initialQuery='',scope='address',onConfirm}={}){
     mapPickerItem=item;
     document.getElementById('mapPickerConfirmBtn').disabled=false;
     document.getElementById('mapPickerResult').textContent=item.label;
+    // jistota navíc: zapsat i přímo do aktuálně zobrazeného pole (kdyby si onMapChange držel zastaralý odkaz)
+    const liveInput=document.getElementById('mapPickerInput');
+    if(liveInput&&liveInput.value!==item.label)liveInput.value=item.label;
   }});
   if(initialQuery){
     fetchAddressMatches(initialQuery,{scope}).then(items=>{
