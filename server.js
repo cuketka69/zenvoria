@@ -2470,7 +2470,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
           ? restSelect(T.verifications, `email=eq.${encodeURIComponent(req.session.email)}&order=id.asc`)
           : []),
       viewer === 'admin'
-        ? restSelect(T.users, 'select=id,email,name,titul,role,status,init,joined,orders_count,photo&order=joined.asc')
+        ? restSelect(T.users, 'select=id,email,name,titul,role,status,init,joined,orders_count,photo,last_seen&order=joined.asc')
         : [],
       restSelect(T.reviews, 'select=*&order=id.asc'),
       viewer === 'admin'
@@ -2539,7 +2539,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
     schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null })),
     verifications: (verifications || []).map(mapVerification),
-    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null })),
+    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null })),
     cgReviews, generalReviews,
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),

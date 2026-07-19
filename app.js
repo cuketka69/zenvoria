@@ -1411,6 +1411,13 @@ function agoTextCz(sec){
   return 'před delší dobou';
 }
 function presenceAgo(p){return agoTextCz(p&&p.secondsAgo!=null?p.secondsAgo:0);}
+/* pro admin přehledy: "naposledy online" rovnou z uloženého timestampu (last_seen), bez volání presence API */
+function lastSeenText(iso){
+  if(!iso)return '—';
+  const sec=(Date.now()-Date.parse(iso))/1000;
+  if(sec<120)return 'Právě teď';
+  return agoTextCz(sec);
+}
 /* naplní element {.pres-dot,.pres-txt}; vrátí false, když stav neznáme */
 function applyPresence(el,p){
   if(!el)return false;
@@ -3981,7 +3988,7 @@ function renderAdminUsers(){
     const badge=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
     return `<tr>
       <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))}</b><span>${esc(u.email)}</span></div></div></td>
-      <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${badge}</td>
+      <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${esc(lastSeenText(u.lastSeen))}</td><td>${badge}</td>
       <td><div class="adm-actions" style="justify-content:flex-end">
         <button class="btn btn-sm btn-gold" onclick="openFamilyAdmin(${u.id})">Zobrazit</button>
       </div></td>
