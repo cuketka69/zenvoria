@@ -763,10 +763,12 @@ function bindAddressPicker(inputId,mapId,{scope='address',onResolved,mapMode='bu
   menu.className='loc-ac-menu';
   wrap.appendChild(menu);
   let active=-1,current=[],timer=null;
+  /* kliknutí/tažení špendlíku na mapě vždy vypíše přesnou nalezenou adresu daného bodu — na rozdíl od výběru
+     z nabídky (ta pro pole typu 'municipality' zjednodušuje jen na název obce) je klik cílený na konkrétní místo */
   const onMapChange=(ev)=>{
     if(ev.loading)return;
     if(ev.item){
-      input.value=(scope==='municipality'?ev.item.municipality:ev.item.label)||ev.item.label;
+      input.value=ev.item.label;
       if(onResolved)onResolved(ev.item);
     }
   };
