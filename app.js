@@ -5436,6 +5436,18 @@ function openCgDeclinedOrder(oid){
     back:'cg-requests',backLabel:'Zpět na poptávky'};
   renderOrderDetail();go('order-detail');
 }
+function completeOrderAsCaregiver(oid){
+  askConfirm({title:'Označit jako dokončené?',icon:checkCircleSVG(),
+    message:'Potvrďte, že jste službu odvedli. Odemkne se vám tím možnost ohodnotit rodinu.',
+    confirmLabel:'Dokončit',onConfirm:()=>{
+      api('/orders/'+oid+'/complete',{method:'POST'}).then(()=>{
+        const o=ORDERS.find(x=>x.oid===oid);if(o)o.status='done';
+        if(curOrder&&curOrder.oid===oid){curOrder.status='done';renderOrderDetail();}
+        toast('Služba byla označena jako dokončená.','success');
+        refreshCg();
+      }).catch(e=>{toast('Označení se nepodařilo: '+(e.message||''),'declined');});
+    }});
+}
 function declineConfirmedOrder(oid){
   askConfirm({title:'Odmítnout tuto službu?',icon:warnSVG(),danger:true,
     message:'Služba bude zrušena a rodina dostane e-mail, že ji nemůžete zajistit. Najdete ji pak v historii odmítnutých poptávek.',
@@ -5513,7 +5525,10 @@ function renderOrderDetail(){
         ?`<button class="btn btn-ghost btn-block" style="margin-top:10px" disabled>Hodnocení odesláno ${checkSVG(13)}</button>`
         :(o.oid?`<button class="btn btn-navy btn-block" style="margin-top:10px" onclick="openFamilyRating(${o.oid},${jsq(o.cpName)})">Ohodnotit rodinu</button>`:'');
     }else{
-      action=o.oid?`<button class="btn btn-decline btn-block" style="margin-top:10px" onclick="declineConfirmedOrder(${o.oid})">Odmítnout službu</button>`:'';
+      action=o.oid
+        ?`<button class="btn btn-navy btn-block" style="margin-top:10px" onclick="completeOrderAsCaregiver(${o.oid})">Označit jako dokončené</button>
+          <button class="btn btn-decline btn-block" style="margin-top:10px" onclick="declineConfirmedOrder(${o.oid})">Odmítnout službu</button>`
+        :'';
     }
   }
   else if(o.status==='done'){

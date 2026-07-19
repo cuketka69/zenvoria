@@ -3131,6 +3131,25 @@ app.post('/api/orders/:oid/decline', requireRole('caregiver', 'admin'), h(async 
   res.json({ ok: true });
 }));
 
+// pečovatelka označí potvrzenou objednávku jako dokončenou — stejné oprávnění jako rodina má na své straně
+// (PATCH /api/orders/:oid), ať se nečeká jen na jednu stranu; kdo potvrdí dřív, ten stav nastaví
+app.post('/api/orders/:oid/complete', requireRole('caregiver', 'admin'), h(async (req, res) => {
+  const oid = Number(req.params.oid);
+  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).json({ error: 'Neplatné ID objednávky.' });
+  const rows = await restSelect(T.orders, `oid=eq.${oid}&limit=1`);
+  const order = rows && rows[0];
+  if (!order) return res.status(404).json({ error: 'Objednávka nenalezena.' });
+  if (order.status !== 'confirmed') return res.status(400).json({ error: 'Dokončit lze jen potvrzenou objednávku.' });
+  if (req.session.role !== 'admin') {
+    const ownCaregiver = await currentCaregiverRow(req);
+    if (!ownCaregiver || Number(order.cid) !== Number(ownCaregiver.id)) {
+      return res.status(403).json({ error: 'Tuto objednávku nemůžete označit jako dokončenou.' });
+    }
+  }
+  await restUpdate(T.orders, `oid=eq.${oid}`, { status: 'done' }, { prefer: 'return=minimal' });
+  res.json({ ok: true });
+}));
+
 /* ---------------- OVĚŘENÍ ---------------- */
 // pečovatelka podá žádost o ověření
 app.post('/api/verifications', requireRole('caregiver', 'admin'), requireVerifiedEmail, rateLimit('verifications', RATE_LIMITS.verifications), h(async (req, res) => {
