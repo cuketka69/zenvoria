@@ -509,6 +509,7 @@ const T = {
   requests:      process.env.TBL_REQUESTS      || 'zenvoria_requests',
   schedule:      process.env.TBL_SCHEDULE      || 'zenvoria_schedule',
   reviews:       process.env.TBL_REVIEWS       || 'zenvoria_reviews',
+  familyReviews: process.env.TBL_FAMILY_REVIEWS || 'zenvoria_family_reviews',
   conversations: process.env.TBL_CONVERSATIONS || 'zenvoria_conversations',
   messages:      process.env.TBL_MESSAGES      || 'zenvoria_messages',
   broadcasts:    process.env.TBL_BROADCASTS    || 'zenvoria_broadcasts',
@@ -2523,7 +2524,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     ? 'guest'
     : (req.session.role === 'admin' ? 'admin' : (req.session.role === 'caregiver' ? 'caregiver' : 'family'));
   const ownCaregiver = viewer === 'caregiver' ? await currentCaregiverRow(req) : null;
-  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings] =
+  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows] =
     await Promise.all([
       viewer === 'guest'
         ? restSelect(T.caregivers, 'select=*&verified=eq.true&suspended=eq.false&order=id.asc')
@@ -2533,7 +2534,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
         : (viewer === 'family'
           ? restSelect(T.orders, `family_email=eq.${encodeURIComponent(req.session.email)}&order=oid.desc`)
           : (viewer === 'caregiver' && ownCaregiver
-            ? restSelect(T.orders, `cid=eq.${Number(ownCaregiver.id)}&status=eq.declined&order=oid.desc&limit=50`)
+            ? restSelect(T.orders, `cid=eq.${Number(ownCaregiver.id)}&order=oid.desc&limit=200`)
             : [])),
       viewer === 'admin'
         ? restSelect(T.requests, 'select=*&order=id.desc')
@@ -2560,6 +2561,11 @@ app.get('/api/bootstrap', h(async (req, res) => {
           ? restSelect(T.broadcasts, 'select=*&order=id.asc')
           : []),
       loadPublicSettings(),
+      viewer === 'caregiver' && ownCaregiver
+        ? restSelect(T.familyReviews, `caregiver_id=eq.${Number(ownCaregiver.id)}&select=order_oid`)
+        : (viewer === 'family'
+          ? restSelect(T.familyReviews, `family_email=eq.${encodeURIComponent(req.session.email)}&order=id.desc`)
+          : []),
     ]);
 
   // cgReviews: { [caregiverId]: [{init,name,stars,text}] } + obecné recenze (caregiver_id null)
@@ -2614,14 +2620,26 @@ app.get('/api/bootstrap', h(async (req, res) => {
   (orders || []).forEach((o) => { const p = o.family_email && famPhotoByEmail[o.family_email]; if (p && o.fam_name) famPhotoByName[o.fam_name] = p; });
 
   const reviewedOids = new Set((reviews || []).map((r) => r.order_oid).filter((x) => x != null).map(Number));
+  const ratedFamilyOids = viewer === 'caregiver'
+    ? new Set((familyReviewsRows || []).map((r) => r.order_oid).filter((x) => x != null).map(Number))
+    : null;
   res.json({
     caregivers: caregiversForViewer,
-    orders: (orders || []).map((o) => ({ ...mapOrder(o), rated: reviewedOids.has(Number(o.oid)), cgPhoto: cgPhotoById[o.cid] || null, famPhoto: famPhotoByEmail[o.family_email] || null })),
+    orders: (orders || []).map((o) => ({
+      ...mapOrder(o),
+      rated: reviewedOids.has(Number(o.oid)),
+      ratedFamily: ratedFamilyOids ? ratedFamilyOids.has(Number(o.oid)) : undefined,
+      cgPhoto: cgPhotoById[o.cid] || null,
+      famPhoto: famPhotoByEmail[o.family_email] || null,
+    })),
     requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
     schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null })),
     verifications: (verifications || []).map(mapVerification),
     users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null })),
     cgReviews, generalReviews,
+    familyReviews: viewer === 'family'
+      ? (familyReviewsRows || []).map((r) => ({ id: Number(r.id), caregiverName: r.caregiver_name, stars: r.stars, text: r.text, createdAt: r.created_at }))
+      : [],
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
     planPrices: settings.planPrices || { start: 190, premium: 390 },
@@ -3299,6 +3317,33 @@ app.post('/api/reviews', requireRole('family'), requireVerifiedEmail, rateLimit(
   const reviewPerms = permsForPlan(caregiverRows[0].plan, await getPlanPermissions());
   if (!reviewPerms.reviews) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá hodnocení.' });
   await restInsert(T.reviews, { caregiver_id: caregiverId, order_oid: oid, family_email: req.session.email, init, name, stars, text }, { prefer: 'return=minimal' });
+  res.json({ ok: true });
+}));
+
+// recenzi na rodinu smí napsat jen pečovatelka, a jen k VLASTNÍ dokončené objednávce s tou rodinou —
+// stejná ochrana proti zneužití jako u recenzí na pečovatelku výše
+app.post('/api/family-reviews', requireRole('caregiver'), requireVerifiedEmail, rateLimit('reviews', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho recenzí. Zkuste to prosím později.' }), h(async (req, res) => {
+  const b = req.body || {};
+  const oid = Number(b.oid);
+  const stars = Number(b.stars);
+  const text = trimmedString(b.text, 2000);
+  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).json({ error: 'Recenzi lze napsat jen k dokončené objednávce.' });
+  if (!Number.isInteger(stars) || stars < 1 || stars > 5) return res.status(400).json({ error: 'Neplatné hodnocení.' });
+  if (text.length < 3) return res.status(400).json({ error: 'Recenze je příliš krátká.' });
+  const ownCaregiver = await currentCaregiverRow(req);
+  if (!ownCaregiver) return res.status(403).json({ error: 'Účet pečovatelky nenalezen.' });
+  const orderRows = await restSelect(T.orders, `oid=eq.${oid}&select=oid,cid,family_email,fam_name,status&limit=1`);
+  const order = orderRows && orderRows[0];
+  if (!order || Number(order.cid) !== Number(ownCaregiver.id)) {
+    return res.status(403).json({ error: 'K této objednávce nemáte oprávnění napsat recenzi.' });
+  }
+  if (order.status !== 'done') return res.status(400).json({ error: 'Recenzi lze napsat až po dokončení péče.' });
+  const existing = await restSelect(T.familyReviews, `order_oid=eq.${oid}&limit=1`);
+  if (existing && existing[0]) return res.status(400).json({ error: 'Tuto rodinu už jste u této objednávky ohodnotili.' });
+  await restInsert(T.familyReviews, {
+    order_oid: oid, caregiver_id: ownCaregiver.id, caregiver_name: ownCaregiver.name,
+    family_email: order.family_email, family_name: order.fam_name, stars, text,
+  }, { prefer: 'return=minimal' });
   res.json({ ok: true });
 }));
 

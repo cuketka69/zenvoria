@@ -429,6 +429,21 @@
   </div>
 </div>
 
+<!-- ============ RATING MODAL (pečovatelka → rodina) ============ -->
+<div class="modal" id="familyRatingModal" role="dialog" aria-modal="true" aria-labelledby="familyRatingTitle">
+  <div class="modal-scrim" onclick="closeFamilyRating()"></div>
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeFamilyRating()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <h3 id="familyRatingTitle">Ohodnotit rodinu</h3>
+    <p class="msub">Jak probíhala spolupráce s touto rodinou? Hodnocení vidí jen tým ZENVORIA a rodina sama.</p>
+    <div id="familyRatingStars" style="margin-top:6px"></div>
+    <textarea class="inp" id="familyRatingText" placeholder="Napište pár slov o spolupráci…" style="margin-top:14px"></textarea>
+    <button class="btn btn-gold btn-block" onclick="submitFamilyRating()" style="margin-top:14px">Odeslat hodnocení</button>
+  </div>
+</div>
+
 <!-- ============ POTVRZOVACÍ MODAL ============ -->
 <div class="modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
   <div class="modal-scrim" onclick="closeConfirm()"></div>

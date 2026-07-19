@@ -2649,6 +2649,12 @@ function renderFamilyDash(){
         <button class="qa-item" onclick="go('bookings')"><span class="qa-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#C9A233" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="qa-l">Historie péče (${done} dokončených)</span><span class="qa-ar">›</span></button>
       </div>`;
   }
+  const reviewsPanel=document.getElementById('famReviewsPanel');
+  if(reviewsPanel){
+    reviewsPanel.hidden=!FAMILY_REVIEWS.length;
+    if(FAMILY_REVIEWS.length)document.getElementById('famReviewsList').innerHTML=FAMILY_REVIEWS.map(r=>`
+      <div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join('');
+  }
   const rec=CAREGIVERS.slice().filter(c=>c.verified&&!c.suspended&&hasPerm(c,'publishServices')).sort((a,b)=>(hasPerm(b,'priorityRanking')?1:0)-(hasPerm(a,'priorityRanking')?1:0)||b.rating-a.rating).slice(0,3);
   document.getElementById('famRecommended').innerHTML=rec.map(c=>`
     <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openProfile(${c.id})">
@@ -4789,6 +4795,7 @@ const LANGUAGES=['Čeština','Slovenština','Angličtina','Němčina','Ukrajinš
 const LANG_ABBR={'Čeština':'CZ','Slovenština':'SK','Angličtina':'EN','Němčina':'DE','Ukrajinština':'UA','Ruština':'RU','Polština':'PL','Vietnamština':'VN'};
 const langAbbr=l=>LANG_ABBR[l]||String(l||'').slice(0,2).toUpperCase();
 let CG_REQUESTS=[];
+let FAMILY_REVIEWS=[];
 let reqSeq=0;
 let AUDIT_LOGS=[];
 let FILTERED_AUDIT_LOGS=[];
@@ -4911,7 +4918,10 @@ function renderCgRequests(){
   document.getElementById('cgReqFull').innerHTML=CG_REQUESTS.length?CG_REQUESTS.map(reqCardHTML).join(''):'<div class="empty">'+clockSVG(15)+' Žádné nové poptávky.</div>';
   document.getElementById('cgConfirmed').innerHTML=cgScheduleHTML();
   const declinedEl=document.getElementById('cgDeclined');
-  if(declinedEl)declinedEl.innerHTML=ORDERS.length?ORDERS.map(declinedCardHTML).join(''):'<div class="empty">'+clockSVG(15)+' Zatím jste žádnou poptávku neodmítli.</div>';
+  if(declinedEl){
+    const declinedList=ORDERS.filter(o=>o.status==='declined');
+    declinedEl.innerHTML=declinedList.length?declinedList.map(declinedCardHTML).join(''):'<div class="empty">'+clockSVG(15)+' Zatím jste žádnou poptávku neodmítli.</div>';
+  }
 }
 function acceptRequest(id){
   const i=CG_REQUESTS.findIndex(r=>r.id===id);if(i<0)return;
@@ -5403,7 +5413,9 @@ function openFamilyOrder(oid){
 }
 function openCgOrder(i){
   const j=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date))[i];if(!j)return;
-  curOrder={oid:j.oid||null,cid:j.cid||null,viewer:'caregiver',title:sNames(j.service),status:'confirmed',
+  const o=j.oid?ORDERS.find(x=>x.oid===j.oid):null;
+  curOrder={oid:j.oid||null,cid:j.cid||null,viewer:'caregiver',title:sNames(j.service),status:(o&&o.status)||'confirmed',
+    ratedFamily:!!(o&&o.ratedFamily),
     cpName:j.fam,cpInit:j.init,cpPhoto:j.photo||null,cpRole:'Klient',cpChatRole:'family',
     dateLabel:fmtDate(j.date),timeLabel:timeRange(j.time,j.hours),hours:j.hours,price:j.hours*cgProfile.rate,
     rate:cgProfile.rate,transport:0,addr:'Adresa bude sdílena před službou',note:'',
@@ -5490,9 +5502,15 @@ function renderOrderDetail(){
   if(declined)tl+=`<div class="tl-step active" style="padding-top:6px"><div class="tl-dot" style="border-color:#B23A2E;background:#FBF3F1"></div><div class="tl-tx"><b style="color:#B23A2E">${st.label}</b><span>Objednávka neproběhne</span></div></div>`;
   let action;
   if(o.viewer==='caregiver'){
-    action=declined
-      ?`<button class="btn btn-accept btn-block" style="margin-top:10px" onclick="restoreAndAcceptOrder(${o.oid})">Obnovit a přijmout</button>`
-      :(o.oid?`<button class="btn btn-decline btn-block" style="margin-top:10px" onclick="declineConfirmedOrder(${o.oid})">Odmítnout službu</button>`:'');
+    if(declined){
+      action=`<button class="btn btn-accept btn-block" style="margin-top:10px" onclick="restoreAndAcceptOrder(${o.oid})">Obnovit a přijmout</button>`;
+    }else if(o.status==='done'){
+      action=o.ratedFamily
+        ?`<button class="btn btn-ghost btn-block" style="margin-top:10px" disabled>Hodnocení odesláno ${checkSVG(13)}</button>`
+        :(o.oid?`<button class="btn btn-navy btn-block" style="margin-top:10px" onclick="openFamilyRating(${o.oid},${jsq(o.cpName)})">Ohodnotit rodinu</button>`:'');
+    }else{
+      action=o.oid?`<button class="btn btn-decline btn-block" style="margin-top:10px" onclick="declineConfirmedOrder(${o.oid})">Odmítnout službu</button>`:'';
+    }
   }
   else if(o.status==='done'){
     action=o.rated
@@ -5560,6 +5578,36 @@ function openRating(cid,oid){
 function closeRating(){
   const m=document.getElementById('ratingModal');
   if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
+}
+/* ---------- HODNOCENÍ RODINY (pečovatelka → rodina, jedno celkové skóre) ---------- */
+let familyRatingTarget={oid:null,stars:5};
+function openFamilyRating(oid,famName){
+  familyRatingTarget={oid,stars:5};
+  document.getElementById('familyRatingTitle').textContent='Ohodnotit: '+famName;
+  document.getElementById('familyRatingText').value='';
+  renderFamilyStars();
+  document.getElementById('familyRatingModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeFamilyRating(){
+  const m=document.getElementById('familyRatingModal');
+  if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
+}
+function setFamilyStars(n){familyRatingTarget.stars=n;renderFamilyStars();}
+function renderFamilyStars(){
+  document.getElementById('familyRatingStars').innerHTML=
+    `<span class="rr-stars" role="group" aria-label="Hodnocení">${[1,2,3,4,5].map(n=>
+      `<button type="button" class="${n<=familyRatingTarget.stars?'on':''}" aria-label="${n} z 5" onclick="setFamilyStars(${n})">${starFillSVG(26)}</button>`).join('')}</span>`;
+}
+function submitFamilyRating(){
+  const {oid,stars}=familyRatingTarget;
+  const text=document.getElementById('familyRatingText').value.trim()||'Bezproblémová spolupráce.';
+  closeFamilyRating();
+  apiSync(api('/family-reviews',{method:'POST',body:{oid,stars,text}}).then(()=>{
+    const o=ORDERS.find(x=>x.oid===oid);if(o)o.ratedFamily=true;
+    if(curOrder&&curOrder.oid===oid){curOrder.ratedFamily=true;renderOrderDetail();}
+    toast('Hodnocení rodiny bylo odesláno.','success');
+  }));
 }
 /* ---------- POTVRZOVACÍ MODAL ---------- */
 let confirmCb=null;
@@ -6434,6 +6482,7 @@ async function bootstrap(){
   VERIFICATIONS=d.verifications||[];
   USERS=d.users||[];
   cgReviews=d.cgReviews||{};
+  FAMILY_REVIEWS=d.familyReviews||[];
   // konverzace se načítají zvlášť přes /api/conversations (ne z bootstrapu) —
   // bootstrap je NESMÍ přepsat na prázdno, jinak by zmizely načtené konverzace
   BROADCASTS=d.broadcasts||[];
