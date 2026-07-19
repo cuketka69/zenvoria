@@ -2756,12 +2756,13 @@ app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, ra
 
 // změna stavu objednávky (rodina ruší / obecná aktualizace stavu)
 // doklad o objednané péči — tisknutelná stránka (rodina si ji uloží jako PDF přes tisk prohlížeče)
-app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
-  const oid = Number(req.params.oid);
-  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).send('Neplatné ID objednávky.');
+const ORDER_RECEIPT_STATUS_LABELS = { pending: 'Čeká na potvrzení', confirmed: 'Potvrzeno', done: 'Dokončeno', declined: 'Zamítnuto', cancelled: 'Zrušeno' };
+// společné načtení + kontrola přístupu pro doklad o objednané péči (HTML i PDF verze) — vrací {error,status} nebo hotová data
+async function loadOrderReceiptData(req, oid) {
+  if (!Number.isInteger(oid) || oid <= 0) return { error: 'Neplatné ID objednávky.', status: 400 };
   const rows = await restSelect(T.orders, `oid=eq.${oid}&limit=1`);
   const o = rows && rows[0];
-  if (!o) return res.status(404).send('Objednávka nenalezena.');
+  if (!o) return { error: 'Objednávka nenalezena.', status: 404 };
   const isAdmin = req.session.role === 'admin';
   const isFamily = req.session.email && o.family_email && req.session.email.toLowerCase() === o.family_email.toLowerCase();
   let isCaregiver = false;
@@ -2769,7 +2770,7 @@ app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
     const own = await currentCaregiverRow(req);
     isCaregiver = !!(own && Number(own.id) === Number(o.cid));
   }
-  if (!isAdmin && !isFamily && !isCaregiver) return res.status(403).send('K tomuto dokladu nemáte přístup.');
+  if (!isAdmin && !isFamily && !isCaregiver) return { error: 'K tomuto dokladu nemáte přístup.', status: 403 };
   let caregiverName = '', rate = 0, kmPrice = 0;
   if (o.cid != null) {
     const cgs = await restSelect(T.caregivers, `id=eq.${o.cid}&select=name,rate,km_price&limit=1`);
@@ -2781,7 +2782,84 @@ app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
   const serviceName = String(o.service || '').split(',').map((id) => (serviceList.find((s) => s.id === id.trim()) || {}).name || id.trim()).filter(Boolean).join(', ');
   const transport = kmPrice && o.km ? kmPrice * Number(o.km) : 0;
   const total = rate * Number(o.hours) + transport;
-  const statusLabels = { pending: 'Čeká na potvrzení', confirmed: 'Potvrzeno', done: 'Dokončeno', declined: 'Zamítnuto', cancelled: 'Zrušeno' };
+  return {
+    oid, status: o.status, famName: o.fam_name || '', caregiverName, serviceName,
+    date: o.date, time: o.time, hours: Number(o.hours), addr: o.addr || '',
+    rate, km: Number(o.km) || 0, transport, total,
+  };
+}
+// vygeneruje doklad o objednané péči jako PDF (pdfkit + vložené Noto Sans fonty kvůli diakritice)
+function buildOrderReceiptPdf(d) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 56 });
+      const chunks = [];
+      doc.on('data', (c) => chunks.push(c));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+      doc.registerFont('Regular', path.join(ROOT, 'fonts', 'NotoSans-Regular.ttf'));
+      doc.registerFont('Bold', path.join(ROOT, 'fonts', 'NotoSans-Bold.ttf'));
+
+      const gold = '#C9A233';
+      const navy = '#0A5A34';
+      const muted = '#6C786C';
+
+      doc.fillColor(navy).fontSize(22).font('Bold').text('ZENVORIA');
+      doc.moveDown(0.2);
+      doc.fillColor(muted).fontSize(11).font('Regular').text(`Doklad o objednané péči č. ${d.oid}`, { continued: true });
+      doc.text('   ' + (ORDER_RECEIPT_STATUS_LABELS[d.status] || d.status), { align: 'left' });
+      doc.moveDown(1.2);
+      doc.strokeColor(gold).lineWidth(1.5).moveTo(56, doc.y).lineTo(539, doc.y).stroke();
+      doc.moveDown(1);
+
+      const rows = [
+        ['Rodina', d.famName],
+        ['Pečovatelka', d.caregiverName],
+        ['Služba', d.serviceName],
+        ['Datum a čas', `${d.date} v ${d.time}`],
+        ['Délka péče', `${d.hours} h`],
+        ['Adresa', d.addr],
+        ['Sazba', `${d.rate} Kč/hod`],
+      ];
+      if (d.transport) rows.push([`Doprava (${d.km} km)`, `${d.transport.toLocaleString('cs-CZ')} Kč`]);
+      rows.forEach(([label, value]) => {
+        const y = doc.y;
+        doc.fillColor(muted).fontSize(11).font('Regular').text(label, 56, y, { width: 220 });
+        doc.fillColor('#1E2A22').fontSize(11).font('Bold').text(value || '', 300, y, { width: 239, align: 'right' });
+        doc.moveDown(0.55);
+        doc.strokeColor('#E4EDE2').lineWidth(1).moveTo(56, doc.y).lineTo(539, doc.y).stroke();
+        doc.moveDown(0.4);
+      });
+      doc.moveDown(0.3);
+      doc.fillColor(navy).fontSize(15).font('Bold')
+        .text('Celkem', 56, doc.y, { width: 220 });
+      doc.fillColor(navy).fontSize(15).font('Bold')
+        .text(`${d.total.toLocaleString('cs-CZ')} Kč`, 300, doc.y - 18, { width: 239, align: 'right' });
+
+      doc.fontSize(9).fillColor(muted).text(
+        `Vygenerováno ${new Date().toLocaleDateString('cs-CZ')} na ZENVORIA (${APP_URL}). Nejde o daňový doklad — ZENVORIA pouze zprostředkovává kontakt mezi rodinou a pečovatelkou, platba probíhá přímo mezi nimi.`,
+        56, 740, { width: 483, align: 'center' },
+      );
+      doc.end();
+    } catch (err) { reject(err); }
+  });
+}
+app.get('/api/orders/:oid/receipt.pdf', requireAuth, h(async (req, res) => {
+  const oid = Number(req.params.oid);
+  const d = await loadOrderReceiptData(req, oid);
+  if (d.error) return res.status(d.status).send(d.error);
+  const pdfBuffer = await buildOrderReceiptPdf(d);
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Disposition', `attachment; filename="doklad-${oid}.pdf"`);
+  res.type('pdf').send(pdfBuffer);
+}));
+app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
+  const oid = Number(req.params.oid);
+  const d = await loadOrderReceiptData(req, oid);
+  if (d.error) return res.status(d.status).send(d.error);
+  const { famName, caregiverName, serviceName, date, time, hours, addr, rate, km, transport, total, status } = d;
+  const o = { fam_name: famName, date, time, hours, addr, km, status };
+  const statusLabels = ORDER_RECEIPT_STATUS_LABELS;
   const html = `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Doklad #${oid} — ZENVORIA</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
@@ -2796,8 +2874,9 @@ app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
   .total{font-size:19px;font-weight:700;color:#0A5A34}
   .status{display:inline-block;padding:4px 12px;border-radius:20px;background:#EEF3EC;font-size:13px;font-weight:600}
   .footer{margin-top:36px;font-size:12px;color:#6C786C}
-  .print-btn{margin-top:24px;padding:10px 20px;background:#C9A233;color:#1A1005;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px}
-  @media print{.print-btn{display:none}}
+  .print-btn{margin-top:24px;margin-right:10px;padding:10px 20px;background:#C9A233;color:#1A1005;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px}
+  .pdf-btn{margin-top:24px;padding:10px 20px;background:#fff;color:#0A5A34;border:2px solid #0A5A34;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;text-decoration:none;display:inline-block}
+  @media print{.print-btn,.pdf-btn{display:none}}
 </style></head><body>
   <div class="head"><div><div class="brand">ZENVORIA</div><div class="doc-title">Doklad o objednané péči č. ${oid}</div></div><span class="status">${statusLabels[o.status] || o.status}</span></div>
   <table>
@@ -2812,7 +2891,8 @@ app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
     <tr><td class="l total">Celkem</td><td class="v total">${total.toLocaleString('cs-CZ')} Kč</td></tr>
   </table>
   <div class="footer">Vygenerováno ${new Date().toLocaleDateString('cs-CZ')} na ZENVORIA (${APP_URL}). Nejde o daňový doklad — ZENVORIA pouze zprostředkovává kontakt mezi rodinou a pečovatelkou, platba probíhá přímo mezi nimi.</div>
-  <button class="print-btn" onclick="window.print()">Vytisknout / uložit jako PDF</button>
+  <button class="print-btn" onclick="window.print()">Vytisknout</button>
+  <a class="pdf-btn" href="/api/orders/${oid}/receipt.pdf">Stáhnout PDF</a>
 </body></html>`;
   res.setHeader('Cache-Control', 'no-store');
   res.type('html').send(html);
