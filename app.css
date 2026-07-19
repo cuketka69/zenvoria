@@ -105,7 +105,7 @@
   /* střední šířky (např. admin s mnoha položkami) — zhustit, ať se vše vejde a pilulka účtu nepřetéká */
   @media(max-width:1240px){
     .nav-inner{gap:14px}
-    .nav-links{gap:2px;justify-content:flex-start}
+    .nav-links{gap:2px}
     .nav-links a{padding:8px 11px;font-size:13.5px}
     #avatarName{display:none}
     .avatar-pill{padding:5px 9px 5px 5px}
