@@ -20,6 +20,7 @@
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "express": "^4.21.2",
+    "pdfkit": "^0.19.1",
     "stripe": "^17.7.0",
     "terser": "^5.49.0"
   }

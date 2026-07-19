@@ -14,6 +14,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const compression = require('compression');
+const PDFDocument = require('pdfkit');
 
 // --- pojistka proti tichému pádu procesu ---
 // bez tohohle by nezachycená chyba (typicky v na pozadí běžící úloze, ne v HTTP requestu — ty
@@ -514,6 +515,7 @@ const T = {
   settings:      process.env.TBL_SETTINGS      || 'zenvoria_settings',
   auditLogs:     process.env.TBL_AUDIT_LOGS    || 'zenvoria_audit_logs',
   helpChats:     process.env.TBL_HELP_CHATS    || 'zenvoria_help_chats',
+  invoices:      process.env.TBL_INVOICES      || 'zenvoria_invoices',
 };
 
 if (!REST_ENABLED) {
@@ -545,22 +547,30 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-async function sendMailSafe({ to, subject, text, html }) {
+async function sendMailSafe({ to, subject, text, html, attachments }) {
   if (!MAIL_ENABLED || !RESEND_API_KEY || !to) return false;
   try {
+    const body = {
+      from: MAIL_FROM,
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      text,
+      html,
+    };
+    // attachments: [{ filename, content: Buffer|base64 string }] — Resend čeká content jako base64 text
+    if (Array.isArray(attachments) && attachments.length) {
+      body.attachments = attachments.map((a) => ({
+        filename: a.filename,
+        content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : a.content,
+      }));
+    }
     const res = await fetchWithTimeout('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: MAIL_FROM,
-        to: Array.isArray(to) ? to : [to],
-        subject,
-        text,
-        html,
-      }),
+      body: JSON.stringify(body),
     }, SUPABASE_REST_TIMEOUT_MS);
     if (!res.ok) {
       const body = await res.text();
@@ -1835,6 +1845,42 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
         const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: null, status: 'canceled' });
         if (r && r.prevPlan && r.row.email) {
           await sendMailSafe({ to: r.row.email, ...planEndedMail({ name: r.row.name, plan: r.prevPlan }) });
+        }
+        break;
+      }
+      // vlastní faktura (PDF) ke KAŽDÉ úspěšné platbě — první i každé měsíční obnovení (na rozdíl od
+      // checkout.session.completed, který pokrývá jen tu úplně první platbu při Checkoutu)
+      case 'invoice.payment_succeeded': {
+        const customerId = o.customer;
+        const amountCzk = Math.round((o.amount_paid || 0) / 100);
+        if (!customerId || amountCzk <= 0) break; // bez zákazníka nebo nulová (např. čistě zkušební) faktura se nevystavuje
+        const cgRows = await restSelect(T.caregivers, `stripe_customer_id=eq.${encodeURIComponent(customerId)}&limit=1`);
+        const cg = cgRows && cgRows[0];
+        if (!cg) { console.warn('[stripe] faktura: pečovatelka nenalezena pro customer', customerId); break; }
+        const lineItem = o.lines && o.lines.data && o.lines.data[0];
+        const planFromLine = lineItem && lineItem.price && lineItem.price.metadata && lineItem.price.metadata.plan;
+        const plan = planFromLine === 'start' ? 'start' : (cg.plan === 'start' ? 'start' : 'premium');
+        const number = await nextInvoiceNumber();
+        const issuedAt = new Date();
+        const pdfBuffer = await buildInvoicePdf({
+          number,
+          issuedAt,
+          seller: { name: contactInfo.name, ico: contactInfo.ico, address: contactInfo.address },
+          buyer: { name: cg.name, email: cg.email },
+          plan,
+          amountCzk,
+        });
+        await restInsert(T.invoices, {
+          number, caregiver_id: cg.id, email: cg.email, name: cg.name, plan,
+          amount_czk: amountCzk, currency: (o.currency || 'czk').toUpperCase(),
+          stripe_invoice_id: o.id, issued_at: issuedAt.toISOString(),
+        }, { prefer: 'return=minimal' });
+        if (cg.email) {
+          await sendMailSafe({
+            to: cg.email,
+            ...invoiceMail({ name: cg.name, number, amountCzk, plan }),
+            attachments: [{ filename: `${number}.pdf`, content: pdfBuffer }],
+          });
         }
         break;
       }
@@ -3901,6 +3947,119 @@ async function planPriceCZK(plan) {
     if (p && p > 0) return Math.round(p);
   } catch (e) { console.warn('[stripe] nelze načíst cenu z nastavení:', e.message); }
   return fallback;
+}
+
+/* ---------------- VLASTNÍ FAKTURY K PŘEDPLATNÉMU ---------------- */
+// navazující číslování bez děr, formát FA-{rok}-{pořadí na 4 místa}; reset pořadí na 1 při přechodu do nového roku.
+// (stejné omezení jako u nextId() jinde v souboru — bez DB transakce, u nízkého objemu plateb v praxi bezpečné)
+async function nextInvoiceNumber() {
+  const year = new Date().getFullYear();
+  const rows = await restSelect(T.settings, `key=eq.invoiceSeq&limit=1`);
+  const cur = rows && rows[0] && rows[0].value;
+  const next = (cur && cur.year === year) ? (Number(cur.next) || 1) : 1;
+  const record = { key: 'invoiceSeq', value: { year, next: next + 1 } };
+  if (rows && rows[0]) await restUpdate(T.settings, `key=eq.invoiceSeq`, { value: record.value }, { prefer: 'return=minimal' });
+  else await restInsert(T.settings, record, { prefer: 'return=minimal' });
+  return `FA-${year}-${String(next).padStart(4, '0')}`;
+}
+
+// vygeneruje PDF faktury do Bufferu (v paměti, nic se neukládá na disk)
+function buildInvoicePdf({ number, issuedAt, seller, buyer, plan, amountCzk }) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 56 });
+      const chunks = [];
+      doc.on('data', (c) => chunks.push(c));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+      // výchozí PDF fonty (Helvetica) neumí českou diakritiku (č,ř,ě,ů...) — vložený Noto Sans ano
+      doc.registerFont('Regular', path.join(ROOT, 'fonts', 'NotoSans-Regular.ttf'));
+      doc.registerFont('Bold', path.join(ROOT, 'fonts', 'NotoSans-Bold.ttf'));
+
+      const gold = '#C9A233';
+      const navy = '#0A5A34';
+      const muted = '#6C786C';
+      const planName = plan === 'start' ? 'START' : 'PREMIUM';
+      const dateStr = issuedAt.toLocaleDateString('cs-CZ');
+
+      doc.fillColor(navy).fontSize(22).font('Bold').text('ZENVORIA', { continued: false });
+      doc.moveDown(0.2);
+      doc.fillColor(muted).fontSize(11).font('Regular').text(`Faktura č. ${number}`);
+      doc.moveDown(1.2);
+      doc.strokeColor(gold).lineWidth(1.5).moveTo(56, doc.y).lineTo(539, doc.y).stroke();
+      doc.moveDown(1);
+
+      const colTop = doc.y;
+      doc.fillColor(muted).fontSize(9).font('Bold').text('DODAVATEL', 56, colTop);
+      doc.fillColor('#1E2A22').fontSize(11).font('Regular').text(seller.name || 'ZENVORIA', 56, colTop + 14);
+      if (seller.ico) doc.text(`IČO: ${seller.ico}`, 56);
+      if (seller.address) doc.text(seller.address, 56);
+      doc.text('Neplátce DPH', 56);
+
+      doc.fillColor(muted).fontSize(9).font('Bold').text('ODBĚRATEL', 300, colTop);
+      doc.fillColor('#1E2A22').fontSize(11).font('Regular').text(buyer.name || buyer.email || '', 300, colTop + 14);
+      if (buyer.email) doc.text(buyer.email, 300);
+
+      doc.moveDown(2);
+      const metaY = doc.y + 10;
+      doc.fillColor(muted).fontSize(9).font('Bold').text('DATUM VYSTAVENÍ', 56, metaY);
+      doc.fillColor('#1E2A22').fontSize(11).font('Regular').text(dateStr, 56, metaY + 14);
+      doc.fillColor(muted).fontSize(9).font('Bold').text('ZPŮSOB ÚHRADY', 300, metaY);
+      doc.fillColor('#1E2A22').fontSize(11).font('Regular').text('Platební kartou (Stripe)', 300, metaY + 14);
+
+      doc.moveDown(3);
+      const tableY = doc.y;
+      doc.rect(56, tableY, 483, 28).fill('#EEF3EC');
+      doc.fillColor(navy).fontSize(10).font('Bold')
+        .text('Popis', 66, tableY + 9)
+        .text('Cena', 470, tableY + 9, { width: 60, align: 'right' });
+      const rowY = tableY + 40;
+      doc.fillColor('#1E2A22').fontSize(11).font('Regular')
+        .text(`Předplatné ZENVORIA ${planName} — měsíční poplatek`, 66, rowY, { width: 380 })
+        .text(`${amountCzk.toLocaleString('cs-CZ')} Kč`, 470, rowY, { width: 60, align: 'right' });
+      doc.moveDown(2);
+      doc.strokeColor('#E4EDE2').lineWidth(1).moveTo(56, doc.y).lineTo(539, doc.y).stroke();
+      doc.moveDown(0.6);
+      doc.fillColor(navy).fontSize(14).font('Bold')
+        .text('Celkem k úhradě', 66, doc.y, { continued: true })
+        .text(`${amountCzk.toLocaleString('cs-CZ')} Kč`, { align: 'right' });
+      doc.moveDown(0.3);
+      doc.fillColor(muted).fontSize(10).font('Regular').text('Uhrazeno kartou přes Stripe dne ' + dateStr + '.', 66);
+
+      doc.fontSize(9).fillColor(muted).text(
+        'Tento doklad slouží jako potvrzení platby za předplatné. Dodavatel není plátcem DPH, doklad proto neobsahuje DPH.',
+        56, 740, { width: 483, align: 'center' },
+      );
+      doc.end();
+    } catch (err) { reject(err); }
+  });
+}
+
+// ---- e-mail: faktura k předplatnému (PDF v příloze) ----
+function invoiceMail({ name, number, amountCzk, plan }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  const planName = plan === 'start' ? 'START' : 'PREMIUM';
+  return {
+    subject: `Faktura ${number} — ZENVORIA ${planName}`,
+    text:
+      `Dobrý den, ${name || firstName},\n\n` +
+      `v příloze najdete fakturu ${number} za předplatné ZENVORIA ${planName} (${amountCzk} Kč).\n\n` +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: `Faktura ${number} k vašemu předplatnému ${planName}.`,
+      title: 'Vaše faktura',
+      intro: `Dobrý den, ${firstName}. V příloze tohoto e-mailu najdete fakturu k právě uhrazenému předplatnému ZENVORIA ${planName}.`,
+      bodyHtml: '<p style="margin:0;">Fakturu si můžete kdykoli otevřít nebo vytisknout z přiloženého PDF souboru.</p>',
+      facts: [
+        { label: 'Číslo faktury', value: number },
+        { label: 'Tarif', value: planName },
+        { label: 'Částka', value: `${amountCzk.toLocaleString('cs-CZ')} Kč` },
+      ],
+      closingTitle: 'Děkujeme za důvěru.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail byl odeslán automaticky po úspěšné platbě předplatného.',
+    }),
+  };
 }
 
 // 1) Vytvoří Stripe Checkout Session (předplatné START nebo PREMIUM) a vrátí URL k přesměrování
