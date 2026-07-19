@@ -902,6 +902,105 @@ function confirmMapPicker(){
   if(cb)cb(mapPickerItem);
 }
 
+/* ---------- MODAL „Dojezdová vzdálenost na mapě" — kruh o poloměru X km kolem lokality pečovatelky ---------- */
+/* bod na kružnici o poloměru km kolem [lat,lng], bearing ve stupních (0=sever) — pro vykreslení kruhu jako GeoJSON polygon */
+function destPoint(lat,lng,km,bearingDeg){
+  const R=6371,d=km/R;
+  const lat1=lat*Math.PI/180,lon1=lng*Math.PI/180,brng=bearingDeg*Math.PI/180;
+  const lat2=Math.asin(Math.sin(lat1)*Math.cos(d)+Math.cos(lat1)*Math.sin(d)*Math.cos(brng));
+  const lon2=lon1+Math.atan2(Math.sin(brng)*Math.sin(d)*Math.cos(lat1),Math.cos(d)-Math.sin(lat1)*Math.sin(lat2));
+  return [lon2*180/Math.PI,lat2*180/Math.PI];
+}
+function circleGeoJSON(lat,lng,km){
+  const steps=72,coords=[];
+  for(let i=0;i<=steps;i++)coords.push(destPoint(lat,lng,Math.max(km,0.05),(i/steps)*360));
+  return {type:'Feature',geometry:{type:'Polygon',coordinates:[coords]},properties:{}};
+}
+let radiusPickerMap=null,radiusPickerMarker=null,radiusPickerCenter=null;
+function renderRadiusMap(containerId,lat,lng,km){
+  const el=document.getElementById(containerId);
+  if(!el||typeof maplibregl==='undefined')return;
+  if(el._zvMap){try{el._zvMap.remove();}catch(e){}el._zvMap=null;}
+  el.classList.add('addr-map');
+  const map=new maplibregl.Map({container:el,style:'/map-style.json',center:[lng,lat],zoom:9,attributionControl:{compact:true}});
+  map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+  map.on('load',()=>{
+    map.addSource('radiusCircle',{type:'geojson',data:circleGeoJSON(lat,lng,km)});
+    map.addLayer({id:'radiusCircleFill',type:'fill',source:'radiusCircle',paint:{'fill-color':'#C9A233','fill-opacity':.18}});
+    map.addLayer({id:'radiusCircleLine',type:'line',source:'radiusCircle',paint:{'line-color':'#A98821','line-width':2.4}});
+    fitRadiusMapToCircle(lat,lng,km);
+  });
+  radiusPickerMarker=new maplibregl.Marker({color:'#0A5A34'}).setLngLat([lng,lat]).addTo(map);
+  radiusPickerMap=map;
+  radiusPickerCenter={lat,lng};
+}
+function fitRadiusMapToCircle(lat,lng,km){
+  if(!radiusPickerMap)return;
+  const ne=destPoint(lat,lng,km*1.15,45),sw=destPoint(lat,lng,km*1.15,225);
+  radiusPickerMap.fitBounds([[sw[0],sw[1]],[ne[0],ne[1]]],{padding:24,duration:400});
+}
+function updateRadiusCircle(km){
+  if(!radiusPickerMap||!radiusPickerCenter)return;
+  const src=radiusPickerMap.getSource('radiusCircle');
+  if(!src)return;
+  src.setData(circleGeoJSON(radiusPickerCenter.lat,radiusPickerCenter.lng,km));
+  fitRadiusMapToCircle(radiusPickerCenter.lat,radiusPickerCenter.lng,km);
+}
+async function resolveCaregiverCenter(){
+  if(cpLocGeo&&cpLocGeo.lat!=null&&cpLocGeo.lng!=null)return cpLocGeo;
+  const loc=(document.getElementById('cpLoc')||{}).value||cgProfile.loc||'';
+  if(!loc.trim())return null;
+  const items=await fetchAddressMatches(loc.trim(),{scope:'municipality'});
+  const best=items&&items[0];
+  return best?{lat:best.lat,lng:best.lng}:null;
+}
+async function openRadiusPickerModal(){
+  const center=await resolveCaregiverCenter();
+  if(!center){toast('Nejdřív prosím vyplňte lokalitu, ať víme, odkud dojezd počítat.','declined');return;}
+  let el=document.getElementById('radiusPickerModal');
+  if(!el){
+    el=document.createElement('div');
+    el.className='modal';
+    el.id='radiusPickerModal';
+    el.innerHTML=`
+      <div class="modal-scrim" onclick="closeRadiusPickerModal()"></div>
+      <div class="modal-card map-picker-card">
+        <button type="button" class="modal-x" aria-label="Zavřít" onclick="closeRadiusPickerModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+        <h3>Dojezdová vzdálenost na mapě</h3>
+        <p class="msub">Kruh ukazuje oblast, do které podle nastavené vzdálenosti dojedete.</p>
+        <div style="max-width:220px"><label class="lbl">Dojezdová vzdálenost (km)</label>
+          <input class="inp" type="number" id="radiusPickerInput" min="1" max="5000" step="1">
+        </div>
+        <div id="radiusPickerMap" class="addr-map map-picker-map"></div>
+        <div class="date-modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeRadiusPickerModal()">Zrušit</button>
+          <button type="button" class="btn btn-gold" onclick="confirmRadiusPicker()">Potvrdit</button>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+  }
+  const km=Math.max(1,+((document.getElementById('cpRadius')||{}).value)||10);
+  const kmInput=document.getElementById('radiusPickerInput');
+  kmInput.value=km;
+  kmInput.oninput=()=>{const v=Math.max(1,+kmInput.value||1);updateRadiusCircle(v);};
+  renderRadiusMap('radiusPickerMap',center.lat,center.lng,km);
+  el.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeRadiusPickerModal(){
+  const el=document.getElementById('radiusPickerModal');
+  if(el)el.classList.remove('open');
+  document.body.style.overflow='';
+}
+function confirmRadiusPicker(){
+  const v=Math.max(1,+((document.getElementById('radiusPickerInput')||{}).value)||10);
+  const cpRadiusEl=document.getElementById('cpRadius');
+  if(cpRadiusEl){cpRadiusEl.value=v;syncCgPreview();}
+  closeRadiusPickerModal();
+}
+
 /* ---------- SCROLL REVEAL ANIMACE (stejné jako patrikzdercik.cz) ---------- */
 let revealIO=null;
 function initReveal(){
