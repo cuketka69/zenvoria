@@ -2718,7 +2718,7 @@ app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, ra
   const oid = await nextId(T.orders, 'oid');
   const famName = trimmedString(req.session.name || b.famName || 'Rodina', 120) || 'Rodina';
   let caregiverName = '';
-  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended,plan,avail,blocked_dates,avail_overrides&limit=1`);
+  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended,plan,avail,blocked_dates,avail_overrides,user_id&limit=1`);
   if (caregiverRows && caregiverRows[0]) caregiverName = caregiverRows[0].name || '';
   const caregiver = caregiverRows && caregiverRows[0];
   if (!caregiver) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
@@ -2743,13 +2743,12 @@ app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, ra
   });
   const reqId = await nextId(T.requests, 'id');
   const init = (famName.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
-  await restInsert(T.requests, {
-    id: reqId, oid, cid, fam: famName, init,
-    service, date, time, hours, addr,
-  }, { prefer: 'return=minimal' });
+  const newRequest = { id: reqId, oid, cid, fam: famName, init, service, date, time, hours, addr };
+  await restInsert(T.requests, newRequest, { prefer: 'return=minimal' });
   const orderView = mapOrder(order);
   const confirmationMail = reservationMail({ user: req.session, order: orderView, caregiverName });
   await sendMailSafe({ to: req.session.email, ...confirmationMail });
+  if (caregiver.user_id != null) emitToUser(caregiver.user_id, { type: 'new-request', request: mapRequest(newRequest) });
   res.json({ order: orderView });
 }));
 

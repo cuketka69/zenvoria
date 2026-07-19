@@ -1527,6 +1527,16 @@ function handleRealtime(msg){
     if(activeView()==='chat')renderChat();else updateAuthUI();
     return;
   }
+  if(msg.type==='new-request'){
+    if(!CG_REQUESTS.some(r=>r.id===msg.request.id)){
+      CG_REQUESTS.unshift(msg.request);
+      toast(`Nová poptávka od <b>${esc(msg.request.fam)}</b>`,'success');
+      if(activeView()==='cg-requests')renderCgRequests();
+      else if(activeView()==='cg-dashboard')renderCgDashboard();
+      updateAuthUI();
+    }
+    return;
+  }
   if(msg.type==='typing'){
     if(msg.conversationId!==activeChat)return;
     chatTyping.cid=msg.conversationId;chatTyping.on=!!msg.on;
