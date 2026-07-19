@@ -1633,7 +1633,48 @@ function reviewRowHTML(r,c){
         </div>
       </div>`;
   }
-  return `<div class="rev"><div class="ava">${esc(r.init)}</div><div><div class="rb">${esc(r.name)} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div>${extra}</div></div>`;
+  const mineBlock=(r.mine&&r.id)?`
+    <div style="display:flex;gap:14px;margin-top:8px">
+      <button type="button" class="lnk" onclick="openReviewEditBox(${r.id})">Upravit</button>
+      <button type="button" class="lnk" onclick="deleteMyReview(${r.id})">Smazat</button>
+    </div>
+    <div class="rev-reply-form" id="revEditForm${r.id}" hidden>
+      <select class="inp" id="revEditStars${r.id}" style="max-width:110px">${[5,4,3,2,1].map(n=>`<option value="${n}" ${n===r.stars?'selected':''}>${n} ★</option>`).join('')}</select>
+      <textarea class="inp" id="revEditText${r.id}" maxlength="2000" style="margin-top:8px">${esc(r.text)}</textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button type="button" class="btn btn-gold btn-sm" onclick="submitReviewEdit(${r.id})">Uložit</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('revEditForm${r.id}').hidden=true">Zrušit</button>
+      </div>
+    </div>`:'';
+  return `<div class="rev"><div class="ava">${esc(r.init)}</div><div><div class="rb">${esc(r.name)} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div>${extra}${mineBlock}</div></div>`;
+}
+function openReviewEditBox(id){
+  const box=document.getElementById('revEditForm'+id);if(!box)return;
+  box.hidden=!box.hidden;
+  if(!box.hidden){const inp=document.getElementById('revEditText'+id);if(inp)setTimeout(()=>inp.focus(),30);}
+}
+function submitReviewEdit(id){
+  const stars=Number(document.getElementById('revEditStars'+id).value);
+  const text=(document.getElementById('revEditText'+id).value||'').trim();
+  if(text.length<3){toast('Recenze je příliš krátká.','declined');return;}
+  apiSync(api('/reviews/'+id,{method:'PATCH',body:{stars,text}}).then(()=>{
+    Object.keys(cgReviews).forEach(cid=>{
+      const rev=(cgReviews[cid]||[]).find(x=>x.id===id);
+      if(rev){rev.stars=stars;rev.text=text;}
+    });
+    toast('Recenze byla upravena.','success');
+    if(state.profileKind==='caregiver'&&state.caregiverId!=null)openProfile(state.caregiverId);
+  }));
+}
+function deleteMyReview(id){
+  askConfirm({title:'Smazat recenzi?',icon:trashSVG(),danger:true,
+    message:'Vaše recenze bude trvale odstraněna.',confirmLabel:'Smazat',onConfirm:()=>{
+      apiSync(api('/reviews/'+id,{method:'DELETE'}).then(()=>{
+        Object.keys(cgReviews).forEach(cid=>{cgReviews[cid]=(cgReviews[cid]||[]).filter(x=>x.id!==id);});
+        toast('Recenze byla smazána.');
+        if(state.profileKind==='caregiver'&&state.caregiverId!=null)openProfile(state.caregiverId);
+      }));
+    }});
 }
 function openReviewReplyBox(id){
   const box=document.getElementById('revReplyForm'+id);if(!box)return;
@@ -1741,13 +1782,52 @@ async function renderPublicAccount(p,token,fromPop){
       </div>`:''}
       ${(p.reviews&&p.reviews.length)?`<div class="pdiv"></div>
         <h3>Hodnocení (${p.reviews.length})</h3>
-        ${p.reviews.map(r=>`<div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join('')}`:''}
+        ${p.reviews.map(r=>familyReviewRowHTML(r)).join('')}`:''}
       ${(auth.loggedIn&&p.email&&((p.role==='family'&&auth.role==='caregiver')||(p.role==='caregiver'&&auth.role==='family')))?`<div class="pdiv"></div>
         <button class="btn btn-gold" onclick="openChat(null,${jsq(p.name)},${jsq(p.init||initials(p.name))},${jsq(p.role)},${jsq(p.email)})">Napsat zprávu</button>`:''}
     </div>`;
   go('profile',fromPop);
 }
 
+function familyReviewRowHTML(r){
+  const mineBlock=(r.mine&&r.id)?`
+    <div style="display:flex;gap:14px;margin-top:8px">
+      <button type="button" class="lnk" onclick="openFamilyReviewEditBox(${r.id})">Upravit</button>
+      <button type="button" class="lnk" onclick="deleteMyFamilyReview(${r.id})">Smazat</button>
+    </div>
+    <div class="rev-reply-form" id="famRevEditForm${r.id}" hidden>
+      <select class="inp" id="famRevEditStars${r.id}" style="max-width:110px">${[5,4,3,2,1].map(n=>`<option value="${n}" ${n===r.stars?'selected':''}>${n} ★</option>`).join('')}</select>
+      <textarea class="inp" id="famRevEditText${r.id}" maxlength="2000" style="margin-top:8px">${esc(r.text)}</textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button type="button" class="btn btn-gold btn-sm" onclick="submitFamilyReviewEdit(${r.id})">Uložit</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('famRevEditForm${r.id}').hidden=true">Zrušit</button>
+      </div>
+    </div>`:'';
+  return `<div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div>${mineBlock}</div></div>`;
+}
+function openFamilyReviewEditBox(id){
+  const box=document.getElementById('famRevEditForm'+id);if(!box)return;
+  box.hidden=!box.hidden;
+  if(!box.hidden){const inp=document.getElementById('famRevEditText'+id);if(inp)setTimeout(()=>inp.focus(),30);}
+}
+function submitFamilyReviewEdit(id){
+  const stars=Number(document.getElementById('famRevEditStars'+id).value);
+  const text=(document.getElementById('famRevEditText'+id).value||'').trim();
+  if(text.length<3){toast('Recenze je příliš krátká.','declined');return;}
+  apiSync(api('/family-reviews/'+id,{method:'PATCH',body:{stars,text}}).then(()=>{
+    toast('Recenze byla upravena.','success');
+    if(state.profileKind==='account'&&state.profileToken)openProfileByToken(state.profileToken);
+  }));
+}
+function deleteMyFamilyReview(id){
+  askConfirm({title:'Smazat recenzi?',icon:trashSVG(),danger:true,
+    message:'Vaše recenze bude trvale odstraněna.',confirmLabel:'Smazat',onConfirm:()=>{
+      apiSync(api('/family-reviews/'+id,{method:'DELETE'}).then(()=>{
+        toast('Recenze byla smazána.');
+        if(state.profileKind==='account'&&state.profileToken)openProfileByToken(state.profileToken);
+      }));
+    }});
+}
 /* ---------- BOOKING ---------- */
 let pendingBookingId=null;
 /* po přihlášení/registraci dokonči odloženou objednávku; vrací true, pokud něco čekalo */

@@ -1991,11 +1991,15 @@ app.get('/api/u/:token', h(async (req, res) => {
         ordersCount = (doneOrders || []).length;
       } catch (e) { /* statistiky nejsou kritické */ }
       try {
-        const revs = await restSelect(T.familyReviews, `family_email=eq.${encodeURIComponent(u.email)}&select=caregiver_name,stars,text,created_at&order=id.desc`);
+        const revs = await restSelect(T.familyReviews, `family_email=eq.${encodeURIComponent(u.email)}&select=id,caregiver_id,caregiver_name,stars,text,created_at&order=id.desc`);
         const stars = (revs || []).map((r) => Number(r.stars)).filter((n) => Number.isFinite(n));
         reviewsCount = stars.length;
         rating = reviewsCount ? Math.round((stars.reduce((a, b) => a + b, 0) / reviewsCount) * 10) / 10 : 0;
-        reviews = (revs || []).map((r) => ({ caregiverName: r.caregiver_name, stars: r.stars, text: r.text, createdAt: r.created_at }));
+        const ownCg = req.session && req.session.role === 'caregiver' ? await currentCaregiverRow(req) : null;
+        reviews = (revs || []).map((r) => ({
+          id: Number(r.id), caregiverName: r.caregiver_name, stars: r.stars, text: r.text, createdAt: r.created_at,
+          mine: !!(ownCg && Number(ownCg.id) === Number(r.caregiver_id)),
+        }));
       } catch (e) { /* statistiky nejsou kritické */ }
     }
     return res.json({ kind: 'account', profile: {
@@ -2608,7 +2612,8 @@ app.get('/api/bootstrap', h(async (req, res) => {
   const cgReviews = {};
   const generalReviews = [];
   (reviews || []).forEach((r) => {
-    const row = { id: Number(r.id), init: r.init, name: r.name, stars: r.stars, text: r.text, reply: r.reply || null, replyAt: r.reply_at || null };
+    const mine = viewer === 'family' && req.session && String(r.family_email || '').toLowerCase() === String(req.session.email || '').toLowerCase();
+    const row = { id: Number(r.id), init: r.init, name: r.name, stars: r.stars, text: r.text, reply: r.reply || null, replyAt: r.reply_at || null, mine };
     if (r.caregiver_id == null) generalReviews.push(row);
     else (cgReviews[r.caregiver_id] = cgReviews[r.caregiver_id] || []).push(row);
   });
@@ -3390,6 +3395,43 @@ app.post('/api/reviews', requireRole('family'), requireVerifiedEmail, rateLimit(
   res.json({ ok: true });
 }));
 
+// rodina smí upravit/smazat jen svou vlastní recenzi na pečovatelku
+function validateReviewBody(b) {
+  const stars = Number(b.stars);
+  const text = trimmedString(b.text, 2000);
+  if (!Number.isInteger(stars) || stars < 1 || stars > 5) return { error: 'Neplatné hodnocení.' };
+  if (text.length < 3) return { error: 'Recenze je příliš krátká.' };
+  return { stars, text };
+}
+app.patch('/api/reviews/:id', requireRole('family'), h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID recenze.' });
+  const rows = await restSelect(T.reviews, `id=eq.${id}&limit=1`);
+  const review = rows && rows[0];
+  if (!review) return res.status(404).json({ error: 'Recenze nenalezena.' });
+  if (String(review.family_email || '').toLowerCase() !== String(req.session.email || '').toLowerCase()) {
+    return res.status(403).json({ error: 'Tuto recenzi nemůžete upravit.' });
+  }
+  const v = validateReviewBody(req.body || {});
+  if (v.error) return res.status(400).json({ error: v.error });
+  await restUpdate(T.reviews, `id=eq.${id}`, { stars: v.stars, text: v.text }, { prefer: 'return=minimal' });
+  await recalcCaregiverRating(review.caregiver_id);
+  res.json({ ok: true });
+}));
+app.delete('/api/reviews/:id', requireRole('family'), h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID recenze.' });
+  const rows = await restSelect(T.reviews, `id=eq.${id}&limit=1`);
+  const review = rows && rows[0];
+  if (!review) return res.status(404).json({ error: 'Recenze nenalezena.' });
+  if (String(review.family_email || '').toLowerCase() !== String(req.session.email || '').toLowerCase()) {
+    return res.status(403).json({ error: 'Tuto recenzi nemůžete smazat.' });
+  }
+  await restDelete(T.reviews, `id=eq.${id}`, { prefer: 'return=minimal' });
+  await recalcCaregiverRating(review.caregiver_id);
+  res.json({ ok: true });
+}));
+
 // recenzi na rodinu smí napsat jen pečovatelka, a jen k VLASTNÍ dokončené objednávce s tou rodinou —
 // stejná ochrana proti zneužití jako u recenzí na pečovatelku výše
 app.post('/api/family-reviews', requireRole('caregiver'), requireVerifiedEmail, rateLimit('reviews', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho recenzí. Zkuste to prosím později.' }), h(async (req, res) => {
@@ -3414,6 +3456,36 @@ app.post('/api/family-reviews', requireRole('caregiver'), requireVerifiedEmail, 
     order_oid: oid, caregiver_id: ownCaregiver.id, caregiver_name: ownCaregiver.name,
     family_email: order.family_email, family_name: order.fam_name, stars, text,
   }, { prefer: 'return=minimal' });
+  res.json({ ok: true });
+}));
+
+// pečovatelka smí upravit/smazat jen svou vlastní recenzi na rodinu
+app.patch('/api/family-reviews/:id', requireRole('caregiver'), h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID recenze.' });
+  const rows = await restSelect(T.familyReviews, `id=eq.${id}&limit=1`);
+  const review = rows && rows[0];
+  if (!review) return res.status(404).json({ error: 'Recenze nenalezena.' });
+  const ownCaregiver = await currentCaregiverRow(req);
+  if (!ownCaregiver || Number(ownCaregiver.id) !== Number(review.caregiver_id)) {
+    return res.status(403).json({ error: 'Tuto recenzi nemůžete upravit.' });
+  }
+  const v = validateReviewBody(req.body || {});
+  if (v.error) return res.status(400).json({ error: v.error });
+  await restUpdate(T.familyReviews, `id=eq.${id}`, { stars: v.stars, text: v.text }, { prefer: 'return=minimal' });
+  res.json({ ok: true });
+}));
+app.delete('/api/family-reviews/:id', requireRole('caregiver'), h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID recenze.' });
+  const rows = await restSelect(T.familyReviews, `id=eq.${id}&limit=1`);
+  const review = rows && rows[0];
+  if (!review) return res.status(404).json({ error: 'Recenze nenalezena.' });
+  const ownCaregiver = await currentCaregiverRow(req);
+  if (!ownCaregiver || Number(ownCaregiver.id) !== Number(review.caregiver_id)) {
+    return res.status(403).json({ error: 'Tuto recenzi nemůžete smazat.' });
+  }
+  await restDelete(T.familyReviews, `id=eq.${id}`, { prefer: 'return=minimal' });
   res.json({ ok: true });
 }));
 
