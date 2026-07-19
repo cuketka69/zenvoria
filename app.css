@@ -431,9 +431,10 @@
     border:1px solid var(--line);border-radius:11px;padding:11px 14px}
   .field input,.field select{border:none;background:none;outline:none;font-family:inherit;font-size:14.5px;width:100%;color:var(--ink)}
   .loc-browse-field{position:relative}
-  .loc-browse-btn{flex:none;background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;
-    display:flex;align-items:center;transition:.15s}
-  .loc-browse-btn:hover{color:var(--navy-900)}
+  .loc-browse-btn{flex:none;background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.35);
+    border-radius:9px;cursor:pointer;color:var(--gold-deep);padding:5px;display:flex;align-items:center;
+    transition:.15s}
+  .loc-browse-btn:hover{background:rgba(201,162,51,.26);border-color:var(--gold);color:var(--gold-deep);transform:translateY(-1px)}
   .loc-browse-list{position:absolute;top:calc(100% + 8px);left:0;right:0;background:var(--white);
     border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;z-index:200;
     max-height:280px;overflow:auto;display:none}
