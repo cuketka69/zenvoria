@@ -1741,7 +1741,7 @@ function requireConversationParticipant(req, res, next) {
     if (!req.session) return res.status(401).json({ error: 'Nepřihlášen' });
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID konverzace.' });
-    const rows = await restSelect(T.conversations, `id=eq.${id}&select=id,user_a,user_b,a_read_at,b_read_at,a_deleted_at,b_deleted_at,pinned_message_id&limit=1`);
+    const rows = await restSelect(T.conversations, `id=eq.${id}&select=id,user_a,user_b,a_read_at,b_read_at,a_deleted_at,b_deleted_at,pinned_message_id,blocked_by&limit=1`);
     const conv = rows && rows[0];
     if (!conv) return res.status(404).json({ error: 'Konverzace nenalezena.' });
     const me = String(req.session.uid || '');
@@ -3705,6 +3705,8 @@ async function mapConversationForViewer(conv, me) {
     id: Number(conv.id), name: u.name || 'Smazaný účet', init: u.init || '', photo: u.photo || null,
     role: u.role || 'family', profileToken, last: conv.last_text || '', lastAt: conv.last_at || null,
     unread, otherReadAt: otherReadAt || null, pinnedMessage,
+    blockedByMe: conv.blocked_by != null && String(conv.blocked_by) === String(me),
+    blockedByOther: conv.blocked_by != null && String(conv.blocked_by) !== String(me),
   };
 }
 async function resolveCounterpartUserId(b) {
@@ -3803,6 +3805,7 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   const b = req.body || {};
   const me = String(req.session.uid || '');
   const conv = req.conversation;
+  if (conv.blocked_by != null && req.session.role !== 'admin') return res.status(403).json({ error: 'Tato konverzace je blokovaná — nelze v ní posílat zprávy.' });
   const text = String(b.text || '').trim();
   const image = sanitizeChatImage(b.image);
   if (b.image && !image) return res.status(400).json({ error: 'Neplatný nebo příliš velký obrázek.' });
@@ -4038,6 +4041,28 @@ app.post('/api/conversations/:id/pin', requireAuth, requireConversationParticipa
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
   emitToUser(other, { type: 'pin', conversationId: Number(conv.id), messageId: nextPinned });
   res.json({ ok: true, pinnedMessageId: nextPinned });
+}));
+
+// zablokuje konverzaci — dokud ji nezablokuje ten samý uživatel, nikdo v ní nemůže psát (admin výjimka)
+app.post('/api/conversations/:id/block', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const conv = req.conversation;
+  const me = String(req.session.uid || '');
+  if (conv.blocked_by != null) return res.status(400).json({ error: 'Konverzace je už blokovaná.' });
+  await restUpdate(T.conversations, `id=eq.${conv.id}`, { blocked_by: me }, { prefer: 'return=minimal' });
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  emitToUser(other, { type: 'conversation-block', conversationId: Number(conv.id), blockedByMe: false, blockedByOther: true });
+  res.json({ ok: true });
+}));
+// odblokuje konverzaci — smí jen ten, kdo ji zablokoval
+app.post('/api/conversations/:id/unblock', requireAuth, requireConversationParticipant, h(async (req, res) => {
+  const conv = req.conversation;
+  const me = String(req.session.uid || '');
+  if (conv.blocked_by == null) return res.status(400).json({ error: 'Konverzace není blokovaná.' });
+  if (String(conv.blocked_by) !== me && req.session.role !== 'admin') return res.status(403).json({ error: 'Odblokovat může jen ten, kdo konverzaci zablokoval.' });
+  await restUpdate(T.conversations, `id=eq.${conv.id}`, { blocked_by: null }, { prefer: 'return=minimal' });
+  const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  emitToUser(other, { type: 'conversation-block', conversationId: Number(conv.id), blockedByMe: false, blockedByOther: false });
+  res.json({ ok: true });
 }));
 
 /* ---------------- REALTIME (SSE) ---------------- */

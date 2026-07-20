@@ -1603,6 +1603,12 @@ function handleRealtime(msg){
     if(activeView()==='chat')renderChat();
     return;
   }
+  if(msg.type==='conversation-block'){
+    const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);if(!c)return;
+    c.blockedByMe=!!msg.blockedByMe;c.blockedByOther=!!msg.blockedByOther;
+    if(activeView()==='chat')renderChat();
+    return;
+  }
   if(msg.type==='pin'){
     const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);if(!c)return;
     const m=msg.messageId?c.msgs.find(x=>x.id===msg.messageId):null;
@@ -5970,13 +5976,15 @@ function chatNow(){return new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',
 let chatPollTimer=null;
 function convClient(cv){
   return {id:cv.id,name:cv.name,init:cv.init||initials(cv.name||''),photo:cv.photo||null,
-    role:cv.role||'caregiver',profileToken:cv.profileToken||null,msgs:cv.msgs||[],last:cv.last||'',unread:cv.unread||0,lastAt:cv.lastAt||null};
+    role:cv.role||'caregiver',profileToken:cv.profileToken||null,msgs:cv.msgs||[],last:cv.last||'',unread:cv.unread||0,lastAt:cv.lastAt||null,
+    blockedByMe:!!cv.blockedByMe,blockedByOther:!!cv.blockedByOther};
 }
 function upsertConversation(cv){
   let c=CONVERSATIONS.find(x=>x.id===cv.id);
   if(c){c.name=cv.name;c.init=cv.init||c.init;c.photo=cv.photo||c.photo;c.role=cv.role||c.role;
     if(cv.profileToken)c.profileToken=cv.profileToken;
-    c.last=cv.last!=null?cv.last:c.last;c.unread=cv.unread||0;c.lastAt=cv.lastAt||c.lastAt;if(cv.msgs)c.msgs=cv.msgs;}
+    c.last=cv.last!=null?cv.last:c.last;c.unread=cv.unread||0;c.lastAt=cv.lastAt||c.lastAt;if(cv.msgs)c.msgs=cv.msgs;
+    c.blockedByMe=!!cv.blockedByMe;c.blockedByOther=!!cv.blockedByOther;}
   else{CONVERSATIONS.unshift(convClient(cv));}
   return CONVERSATIONS.find(x=>x.id===cv.id);
 }
@@ -6166,12 +6174,35 @@ function renderChat(){
     searchBtn.onclick=()=>toggleChatSearch();
     head.appendChild(searchBtn);
     if(c.id>0){
+      const blockBtn=document.createElement('button');
+      blockBtn.type='button';blockBtn.className='chat-search-btn chat-search-btn-tight';
+      if(c.blockedByMe){
+        blockBtn.title='Odblokovat uživatele';blockBtn.setAttribute('aria-label','Odblokovat uživatele');
+        blockBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/><path d="m8 8 8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+        blockBtn.onclick=()=>unblockConversation(c.id);
+      }else if(!c.blockedByOther){
+        blockBtn.title='Blokovat uživatele';blockBtn.setAttribute('aria-label','Blokovat uživatele');
+        blockBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/><path d="m8 8 8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+        blockBtn.onclick=()=>blockConversation(c.id);
+      }
+      if(!c.blockedByOther||c.blockedByMe)head.appendChild(blockBtn);
       const delBtn=document.createElement('button');
       delBtn.type='button';delBtn.className='chat-search-btn chat-search-btn-tight';delBtn.title='Smazat konverzaci';delBtn.setAttribute('aria-label','Smazat konverzaci');
       delBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7M6 7l1 13a2 2 0 0 0 2 1.8h6a2 2 0 0 0 2-1.8l1-13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       delBtn.onclick=()=>deleteChatForMe(c.id);
       head.appendChild(delBtn);
     }
+  }
+  const blockBanner=document.getElementById('chatBlockBanner');
+  const chatForm=document.getElementById('chatForm');
+  const isBlocked=!!(c.blockedByMe||c.blockedByOther);
+  if(blockBanner){
+    blockBanner.innerHTML=(!c.readonly&&isBlocked)
+      ?`<div class="chat-pin"><span>${c.blockedByMe?'Tohoto uživatele jste zablokovali. Nemůžete si navzájem psát.':'Konverzace je blokovaná. Nemůžete si navzájem psát.'}</span>${c.blockedByMe?`<button type="button" onclick="unblockConversation(${c.id})">Odblokovat</button>`:''}</div>`
+      :'';
+  }
+  if(chatForm){
+    chatForm.querySelectorAll('input,button').forEach(el=>{el.disabled=!c.readonly&&isBlocked;});
   }
   const pinBanner=document.getElementById('chatPinBanner');
   if(pinBanner)pinBanner.innerHTML=(c.pinnedMessage&&!c.readonly)?`<div class="chat-pin"><span>📌 ${c.pinnedMessage.me?'Vy: ':''}${esc(c.pinnedMessage.text||(c.pinnedMessage.image?'📷 Obrázek':''))}</span><button type="button" onclick="pinMessage(${c.pinnedMessage.id})">Odepnout</button></div>`:'';
@@ -6690,6 +6721,24 @@ function deleteChatForMe(id){
         .catch(e=>toastApiError(e,'Konverzaci se nepodařilo smazat.'));
     }
   });
+}
+function blockConversation(id){
+  const c=CONVERSATIONS.find(x=>x.id===id);if(!c)return;
+  askConfirm({title:'Blokovat uživatele?',icon:warnSVG(),danger:true,
+    message:`Zablokujete ${esc(c.name)}. Ani jeden z vás si pak nebude moct psát, dokud blokaci sami nezrušíte.`,
+    confirmLabel:'Blokovat',onConfirm:()=>{
+      apiSync(api('/conversations/'+id+'/block',{method:'POST'}).then(()=>{
+        c.blockedByMe=true;renderChat();
+        toast('Uživatel byl zablokován.');
+      }));
+    }});
+}
+function unblockConversation(id){
+  const c=CONVERSATIONS.find(x=>x.id===id);if(!c)return;
+  apiSync(api('/conversations/'+id+'/unblock',{method:'POST'}).then(()=>{
+    c.blockedByMe=false;renderChat();
+    toast('Uživatel byl odblokován.','success');
+  }));
 }
 function sendChat(e){
   e.preventDefault();

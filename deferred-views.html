@@ -467,6 +467,7 @@
           <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('chatImgInput').click()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><rect x="3.5" y="5" width="17" height="14" rx="2.3" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="10" r="1.6" stroke="currentColor" stroke-width="1.5"/><path d="m4 17 5-4.5 4 3 3-2.5 4 3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Přiložit obrázek</button>
           <input type="file" id="chatImgInput" accept="image/*" style="display:none" onchange="onChatImage(this)">
         </div>
+        <div id="chatBlockBanner"></div>
         <form class="chat-input" id="chatForm" onsubmit="return sendChat(event)">
           <div class="emoji-picker" id="emojiPicker" role="listbox" aria-label="Emoji"></div>
           <button type="button" class="chat-emoji" id="chatEmojiBtn" onclick="toggleEmojiPicker(event)" aria-label="Emoji">😊</button>
