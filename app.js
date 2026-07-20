@@ -4572,6 +4572,9 @@ async function renderAdminPayments(){
   }
 }
 function findReportedReviewSnippet(rep){
+  if(rep.reviewType==='message'){
+    return rep.messageText!=null?{author:rep.messageSender||'Uživatel',stars:null,text:rep.messageText}:null;
+  }
   if(rep.reviewType==='family_review'){
     const r=FAMILY_REVIEWS.find(x=>x.id===rep.targetId);
     return r?{author:r.caregiverName||'Pečovatelka',stars:r.stars,text:r.text}:null;
@@ -4584,34 +4587,38 @@ function renderAdminReports(){
   document.getElementById('admRepCount').textContent=REPORTS.length;
   document.getElementById('admRepBody').innerHTML=REPORTS.length?REPORTS.map(rep=>{
     const snip=findReportedReviewSnippet(rep);
+    const typeLabel=rep.reviewType==='message'?'Zpráva v chatu':(rep.reviewType==='family_review'?'Recenze na rodinu':'Recenze na pečovatelku');
+    const deleteLabel=rep.reviewType==='message'?'Smazat zprávu':'Smazat recenzi';
     return `<div class="pcard" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div><b>${rep.reviewType==='family_review'?'Recenze na rodinu':'Recenze na pečovatelku'}</b>
+        <div><b>${typeLabel}</b>
           <div style="font-size:13px;color:var(--muted);margin-top:2px">Nahlásil: ${esc(rep.reporterEmail)} (${esc(rep.reporterRole||'')}) · ${fmtDate(rep.createdAt)}</div>
         </div>
       </div>
       <div class="set-err" style="color:var(--navy-800);margin-top:8px"><b>Důvod:</b> ${esc(rep.reason)}</div>
       ${snip
-        ?`<div class="rev" style="margin-top:10px"><div class="ava">${esc(initials(snip.author||'?'))}</div><div><div class="rb">${esc(snip.author||'—')} <span class="stars" style="font-size:12px">${starsRow(snip.stars,12)}</span></div><div class="rt">${esc(snip.text)}</div></div></div>`
-        :'<div class="empty" style="margin-top:10px">Recenze už byla mezitím smazána.</div>'}
+        ?`<div class="rev" style="margin-top:10px"><div class="ava">${esc(initials(snip.author||'?'))}</div><div><div class="rb">${esc(snip.author||'—')}${snip.stars!=null?` <span class="stars" style="font-size:12px">${starsRow(snip.stars,12)}</span>`:''}</div><div class="rt">${esc(snip.text)}</div></div></div>`
+        :`<div class="empty" style="margin-top:10px">${rep.reviewType==='message'?'Zpráva':'Recenze'} už byla mezitím smazána.</div>`}
       <div style="display:flex;gap:10px;margin-top:14px">
-        ${snip?`<button class="btn btn-decline btn-sm" onclick="resolveReport(${rep.id},'delete_review')">Smazat recenzi</button>`:''}
+        ${snip?`<button class="btn btn-decline btn-sm" onclick="resolveReport(${rep.id},'delete_review')">${deleteLabel}</button>`:''}
         <button class="btn btn-ghost btn-sm" onclick="resolveReport(${rep.id},'dismiss')">Zamítnout nahlášení</button>
       </div>
     </div>`;
   }).join(''):'<div class="empty">Žádná čekající nahlášení.</div>';
 }
 function resolveReport(id,action){
+  const rep=REPORTS.find(r=>r.id===id);
+  const isMsg=rep&&rep.reviewType==='message';
   const doIt=()=>{
     apiSync(api('/reports/'+id,{method:'PATCH',body:{action}}).then(()=>{
       REPORTS=REPORTS.filter(r=>r.id!==id);
       renderAdminReports();updateAuthUI();
-      toast(action==='delete_review'?'Recenze byla smazána.':'Nahlášení bylo zamítnuto.');
+      toast(action==='delete_review'?(isMsg?'Zpráva byla smazána.':'Recenze byla smazána.'):'Nahlášení bylo zamítnuto.');
     }));
   };
   if(action==='delete_review'){
-    askConfirm({title:'Smazat recenzi?',icon:trashSVG(),danger:true,
-      message:'Recenze bude trvale odstraněna a nahlášení se označí jako vyřešené.',
+    askConfirm({title:isMsg?'Smazat zprávu?':'Smazat recenzi?',icon:trashSVG(),danger:true,
+      message:(isMsg?'Zpráva':'Recenze')+' bude trvale odstraněna a nahlášení se označí jako vyřešené.',
       confirmLabel:'Smazat',onConfirm:doIt});
   }else doIt();
 }
@@ -6553,7 +6560,7 @@ function openMsgTools(ev,mid){
     <button type="button" onclick="closeFloatingMenus();openForwardModal(${mid})">Přeposlat</button>
     ${(m.me&&m.text)?`<button type="button" onclick="closeFloatingMenus();startEditMessage(${mid})">Upravit</button>`:''}
     <button type="button" onclick="closeFloatingMenus();pinMessage(${mid})">${isPinned?'Odepnout':'Připnout'}</button>
-    ${m.me?`<button type="button" onclick="closeFloatingMenus();deleteMessageConfirm(${mid})">Smazat</button>`:''}
+    ${m.me?`<button type="button" onclick="closeFloatingMenus();deleteMessageConfirm(${mid})">Smazat</button>`:`<button type="button" onclick="closeFloatingMenus();openReportMessage(${mid})">Nahlásit</button>`}
   `;
   document.body.appendChild(menu);
   positionFloatingMenu(menu,anchorEl,m.me);
@@ -6619,6 +6626,19 @@ async function deleteMessage(mid){
     const m=c.msgs.find(x=>x.id===mid);if(m){m.deletedAt=new Date().toISOString();m.text='';m.image=null;m.reactions={};}
     renderChat();
   }catch(e){toast(e.message||'Zprávu se nepodařilo smazat.','declined');}
+}
+function openReportMessage(mid){
+  const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
+  askConfirm({title:'Nahlásit zprávu',icon:warnSVG(),
+    message:'Popište stručně, proč je tato zpráva nevhodná. Uvidí to jen tým ZENVORIA.',
+    input:{label:'Důvod nahlášení',placeholder:'Např. zpráva je urážlivá nebo obtěžující…'},
+    confirmLabel:'Nahlásit',onConfirm:(reason)=>{
+      reason=(reason||'').trim();
+      if(reason.length<5){toast('Popište prosím stručně důvod nahlášení.','declined');return;}
+      apiSync(api('/conversations/'+c.id+'/messages/'+mid+'/report',{method:'POST',body:{reason}}).then(()=>{
+        toast('Nahlášení bylo odesláno. Děkujeme.','success');
+      }));
+    }});
 }
 function openImgLightbox(src){
   let ov=document.getElementById('imgLightbox');

@@ -2688,9 +2688,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     invoices: (viewer === 'admin' || viewer === 'caregiver')
       ? (invoiceRows || []).map((i) => ({ id: Number(i.id), number: i.number, caregiverId: i.caregiver_id != null ? Number(i.caregiver_id) : null, email: i.email, name: i.name, plan: i.plan, amountCzk: i.amount_czk, currency: i.currency, issuedAt: i.issued_at }))
       : [],
-    reports: viewer === 'admin'
-      ? (reportRows || []).map((r) => ({ id: Number(r.id), reviewType: r.review_type, targetId: Number(r.target_id), reporterEmail: r.reporter_email, reporterRole: r.reporter_role, reason: r.reason, status: r.status, createdAt: r.created_at }))
-      : [],
+    reports: viewer === 'admin' ? await mapReportsForAdmin(reportRows) : [],
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
     planPrices: settings.planPrices || { start: 190, premium: 390 },
@@ -3369,6 +3367,33 @@ async function recalcCaregiverRating(caregiverId) {
   const avg = count ? Math.round((stars.reduce((a, b) => a + b, 0) / count) * 10) / 10 : 0;
   await restUpdate(T.caregivers, `id=eq.${caregiverId}`, { rating: avg, reviews: count }, { prefer: 'return=minimal' });
 }
+// obohatí nahlášené zprávy o kontext (odesílatel, text, id konverzace), ať je admin nemusí dohledávat ručně
+async function mapReportsForAdmin(reportRows) {
+  const base = (reportRows || []).map((r) => ({ id: Number(r.id), reviewType: r.review_type, targetId: Number(r.target_id), reporterEmail: r.reporter_email, reporterRole: r.reporter_role, reason: r.reason, status: r.status, createdAt: r.created_at }));
+  const messageReports = base.filter((r) => r.reviewType === 'message');
+  if (!messageReports.length) return base;
+  const ids = messageReports.map((r) => r.targetId);
+  const msgRows = await restSelect(T.messages, `id=in.(${ids.join(',')})&select=id,conversation_id,sender_id,text,deleted_at`);
+  const msgById = {};
+  (msgRows || []).forEach((m) => { msgById[m.id] = m; });
+  const senderIds = [...new Set((msgRows || []).map((m) => m.sender_id).filter(Boolean))];
+  const senderById = {};
+  if (senderIds.length) {
+    const users = await restSelect(T.users, `id=in.(${senderIds.map((id) => encodeURIComponent(id)).join(',')})&select=id,name,email`);
+    (users || []).forEach((u) => { senderById[u.id] = u; });
+  }
+  return base.map((r) => {
+    if (r.reviewType !== 'message') return r;
+    const msg = msgById[r.targetId];
+    const sender = msg && senderById[msg.sender_id];
+    return {
+      ...r,
+      conversationId: msg ? Number(msg.conversation_id) : null,
+      messageText: msg ? (msg.deleted_at ? null : msg.text) : null,
+      messageSender: sender ? (sender.name || sender.email) : null,
+    };
+  });
+}
 // recenzi smí napsat jen rodina, a jen k VLASTNÍ dokončené objednávce u té pečovatelky — jinak by šlo
 // napsat libovolné množství falešných recenzí komukoli bez jakéhokoli vztahu k pečovatelce
 app.post('/api/reviews', requireRole('family'), requireVerifiedEmail, rateLimit('reviews', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho recenzí. Zkuste to prosím později.' }), h(async (req, res) => {
@@ -3522,12 +3547,26 @@ app.patch('/api/reports/:id', requireRole('admin'), h(async (req, res) => {
   const report = rows && rows[0];
   if (!report) return res.status(404).json({ error: 'Nahlášení nenalezeno.' });
   if (action === 'delete_review') {
-    const table = report.review_type === 'family_review' ? T.familyReviews : T.reviews;
-    const targetRows = await restSelect(table, `id=eq.${report.target_id}&limit=1`);
-    const target = targetRows && targetRows[0];
-    if (target) {
-      await restDelete(table, `id=eq.${report.target_id}`, { prefer: 'return=minimal' });
-      if (report.review_type === 'review') await recalcCaregiverRating(target.caregiver_id);
+    if (report.review_type === 'message') {
+      const msgRows = await restSelect(T.messages, `id=eq.${report.target_id}&select=id,conversation_id,deleted_at&limit=1`);
+      const msg = msgRows && msgRows[0];
+      if (msg && !msg.deleted_at) {
+        await restUpdate(T.messages, `id=eq.${report.target_id}`, { deleted_at: new Date().toISOString(), text: '', image: null, reactions: {} }, { prefer: 'return=minimal' });
+        const convRows = await restSelect(T.conversations, `id=eq.${msg.conversation_id}&select=user_a,user_b&limit=1`);
+        const conv = convRows && convRows[0];
+        if (conv) {
+          emitToUser(conv.user_a, { type: 'message-delete', conversationId: Number(msg.conversation_id), messageId: report.target_id });
+          emitToUser(conv.user_b, { type: 'message-delete', conversationId: Number(msg.conversation_id), messageId: report.target_id });
+        }
+      }
+    } else {
+      const table = report.review_type === 'family_review' ? T.familyReviews : T.reviews;
+      const targetRows = await restSelect(table, `id=eq.${report.target_id}&limit=1`);
+      const target = targetRows && targetRows[0];
+      if (target) {
+        await restDelete(table, `id=eq.${report.target_id}`, { prefer: 'return=minimal' });
+        if (report.review_type === 'review') await recalcCaregiverRating(target.caregiver_id);
+      }
     }
   }
   await restUpdate(T.reports, `id=eq.${id}`, { status: action === 'delete_review' ? 'resolved' : 'dismissed' }, { prefer: 'return=minimal' });
@@ -3907,6 +3946,24 @@ app.delete('/api/conversations/:id/messages/:mid', requireAuth, requireConversat
   await restUpdate(T.messages, `id=eq.${mid}`, { deleted_at: deletedAt, text: '', image: null, reactions: {} }, { prefer: 'return=minimal' });
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
   emitToUser(other, { type: 'message-delete', conversationId: Number(conv.id), messageId: mid });
+  res.json({ ok: true });
+}));
+
+// nahlásit nevhodnou zprávu v chatu — jen účastník konverzace, a ne svou vlastní zprávu
+app.post('/api/conversations/:id/messages/:mid/report', requireAuth, requireConversationParticipant, rateLimit('reports', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho nahlášení. Zkuste to prosím později.' }), h(async (req, res) => {
+  const conv = req.conversation;
+  const me = String(req.session.uid || '');
+  const mid = Number(req.params.mid);
+  if (!Number.isInteger(mid) || mid <= 0) return res.status(400).json({ error: 'Neplatné ID zprávy.' });
+  const reason = trimmedString((req.body || {}).reason, 500);
+  if (reason.length < 5) return res.status(400).json({ error: 'Popište prosím stručně důvod nahlášení.' });
+  const rows = await restSelect(T.messages, `id=eq.${mid}&conversation_id=eq.${conv.id}&select=id,sender_id,deleted_at&limit=1`);
+  const row = rows && rows[0];
+  if (!row || row.deleted_at) return res.status(404).json({ error: 'Zpráva nenalezena.' });
+  if (String(row.sender_id) === me) return res.status(400).json({ error: 'Vlastní zprávu nemůžete nahlásit.' });
+  await restInsert(T.reports, {
+    review_type: 'message', target_id: mid, reporter_email: req.session.email, reporter_role: req.session.role, reason,
+  }, { prefer: 'return=minimal' });
   res.json({ ok: true });
 }));
 
