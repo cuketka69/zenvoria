@@ -2335,7 +2335,8 @@ function deleteAccount(){
 const NAV_GUEST=[
   {v:'home',label:'Domů',fn:"go('home')"},
   {v:'search',label:'Hledat péči',fn:"go('search')"},
-  {v:'howto',label:'Jak to funguje',fn:"go('howto')"}
+  {v:'howto',label:'Jak to funguje',fn:"go('howto')"},
+  {v:'pricing',label:'Ceník',fn:"go('pricing')"}
 ];
 const NAV_CAREGIVER=[
   {v:'cg-dashboard',label:'Přehled',fn:"go('cg-dashboard')"},
