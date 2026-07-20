@@ -4584,28 +4584,47 @@ function findReportedReviewSnippet(rep){
   const gr=(typeof generalReviews!=='undefined'?generalReviews:[]).find(x=>x.id===rep.targetId);
   return gr?{author:gr.name,stars:gr.stars,text:gr.text}:null;
 }
+function reportRowHTML(rep,{actionable}){
+  const snip=findReportedReviewSnippet(rep);
+  const typeLabel=rep.reviewType==='message'?'Zpráva v chatu':(rep.reviewType==='family_review'?'Recenze na rodinu':'Recenze na pečovatelku');
+  const deleteLabel=rep.reviewType==='message'?'Smazat zprávu':'Smazat recenzi';
+  const statusLabel=rep.status==='resolved'?'<span class="status declined">Recenze smazána</span>':(rep.status==='dismissed'?'<span class="status done">Zamítnuto</span>':'');
+  return `<div class="pcard" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div><b>${typeLabel}</b>
+        <div style="font-size:13px;color:var(--muted);margin-top:2px">Nahlásil: ${esc(rep.reporterEmail)} (${esc(rep.reporterRole||'')}) · ${fmtDate(rep.createdAt)}</div>
+      </div>
+      ${statusLabel}
+    </div>
+    <div class="set-err" style="color:var(--navy-800);margin-top:8px"><b>Důvod:</b> ${esc(rep.reason)}</div>
+    ${snip
+      ?`<div class="rev" style="margin-top:10px"><div class="ava">${esc(initials(snip.author||'?'))}</div><div><div class="rb">${esc(snip.author||'—')}${snip.stars!=null?` <span class="stars" style="font-size:12px">${starsRow(snip.stars,12)}</span>`:''}</div><div class="rt">${esc(snip.text)}</div></div></div>`
+      :`<div class="empty" style="margin-top:10px">${rep.reviewType==='message'?'Zpráva':'Recenze'} už byla mezitím smazána.</div>`}
+    ${actionable?`<div style="display:flex;gap:10px;margin-top:14px">
+      ${snip?`<button class="btn btn-decline btn-sm" onclick="resolveReport(${rep.id},'delete_review')">${deleteLabel}</button>`:''}
+      <button class="btn btn-ghost btn-sm" onclick="resolveReport(${rep.id},'dismiss')">Zamítnout nahlášení</button>
+    </div>`:''}
+  </div>`;
+}
 function renderAdminReports(){
   document.getElementById('admRepCount').textContent=REPORTS.length;
-  document.getElementById('admRepBody').innerHTML=REPORTS.length?REPORTS.map(rep=>{
-    const snip=findReportedReviewSnippet(rep);
-    const typeLabel=rep.reviewType==='message'?'Zpráva v chatu':(rep.reviewType==='family_review'?'Recenze na rodinu':'Recenze na pečovatelku');
-    const deleteLabel=rep.reviewType==='message'?'Smazat zprávu':'Smazat recenzi';
-    return `<div class="pcard" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div><b>${typeLabel}</b>
-          <div style="font-size:13px;color:var(--muted);margin-top:2px">Nahlásil: ${esc(rep.reporterEmail)} (${esc(rep.reporterRole||'')}) · ${fmtDate(rep.createdAt)}</div>
-        </div>
-      </div>
-      <div class="set-err" style="color:var(--navy-800);margin-top:8px"><b>Důvod:</b> ${esc(rep.reason)}</div>
-      ${snip
-        ?`<div class="rev" style="margin-top:10px"><div class="ava">${esc(initials(snip.author||'?'))}</div><div><div class="rb">${esc(snip.author||'—')}${snip.stars!=null?` <span class="stars" style="font-size:12px">${starsRow(snip.stars,12)}</span>`:''}</div><div class="rt">${esc(snip.text)}</div></div></div>`
-        :`<div class="empty" style="margin-top:10px">${rep.reviewType==='message'?'Zpráva':'Recenze'} už byla mezitím smazána.</div>`}
-      <div style="display:flex;gap:10px;margin-top:14px">
-        ${snip?`<button class="btn btn-decline btn-sm" onclick="resolveReport(${rep.id},'delete_review')">${deleteLabel}</button>`:''}
-        <button class="btn btn-ghost btn-sm" onclick="resolveReport(${rep.id},'dismiss')">Zamítnout nahlášení</button>
-      </div>
-    </div>`;
-  }).join(''):'<div class="empty">Žádná čekající nahlášení.</div>';
+  document.getElementById('admRepBody').innerHTML=REPORTS.length?REPORTS.map(rep=>reportRowHTML(rep,{actionable:true})).join(''):'<div class="empty">Žádná čekající nahlášení.</div>';
+}
+let adminReportHistoryLoaded=false;
+async function toggleAdminReportHistory(){
+  const body=document.getElementById('admRepHistBody');
+  const btn=document.getElementById('admRepHistToggle');
+  if(!body||!btn)return;
+  if(!body.hidden){body.hidden=true;btn.textContent='Zobrazit historii';return;}
+  body.hidden=false;btn.textContent='Skrýt historii';
+  if(adminReportHistoryLoaded)return;
+  body.innerHTML='<div class="empty">Načítám…</div>';
+  try{
+    const r=await api('/admin/reports?status=all');
+    const resolved=r.reports.filter(x=>x.status!=='pending');
+    body.innerHTML=resolved.length?resolved.map(rep=>reportRowHTML(rep,{actionable:false})).join(''):'<div class="empty">Zatím žádná vyřešená nahlášení.</div>';
+    adminReportHistoryLoaded=true;
+  }catch(e){body.innerHTML='<div class="empty">Historii se nepodařilo načíst.</div>';}
 }
 function resolveReport(id,action){
   const rep=REPORTS.find(r=>r.id===id);
@@ -4613,6 +4632,7 @@ function resolveReport(id,action){
   const doIt=()=>{
     apiSync(api('/reports/'+id,{method:'PATCH',body:{action}}).then(()=>{
       REPORTS=REPORTS.filter(r=>r.id!==id);
+      adminReportHistoryLoaded=false;
       renderAdminReports();updateAuthUI();
       toast(action==='delete_review'?(isMsg?'Zpráva byla smazána.':'Recenze byla smazána.'):'Nahlášení bylo zamítnuto.');
     }));

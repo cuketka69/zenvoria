@@ -3520,6 +3520,13 @@ app.delete('/api/family-reviews/:id', requireRole('caregiver'), h(async (req, re
 }));
 
 /* ---------------- NAHLÁŠENÍ RECENZÍ ---------------- */
+// admin: historie vyřešených/zamítnutých nahlášení (bootstrap posílá jen pending, ať se nenačítá zbytečně při každém startu appky)
+app.get('/api/admin/reports', requireRole('admin'), h(async (req, res) => {
+  const status = req.query.status === 'dismissed' ? 'dismissed' : (req.query.status === 'all' ? null : 'resolved');
+  const query = status ? `status=eq.${status}&order=id.desc&limit=200` : `status=in.(resolved,dismissed)&order=id.desc&limit=200`;
+  const rows = await restSelect(T.reports, query);
+  res.json({ reports: await mapReportsForAdmin(rows) });
+}));
 // nahlásit nevhodnou recenzi (v obou směrech) — jen admin ji uvidí, řeší se ručně
 app.post('/api/reports', requireAuth, rateLimit('reports', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho nahlášení. Zkuste to prosím později.' }), h(async (req, res) => {
   const b = req.body || {};
