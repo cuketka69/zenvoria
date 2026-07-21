@@ -30,14 +30,15 @@ const PLANS={
 let socialLinks={facebook:'',instagram:''};
 /* centrální kontaktní údaje (jméno/název provozovatele, telefon, IČO, sídlo) — nastavuje admin v sekci Kontaktní údaje, zobrazují se v patičce i na právních stránkách */
 const DEFAULT_CONTACT_NAME='PaedDr. Iveta Miklášová';
-let contactInfo={name:'',phone:'',ico:'',address:''};
+let contactInfo={name:'',phone:'',email:'',ico:'',address:''};
 /* patička: zobrazí telefon/sídlo, pokud je admin vyplnil */
 function renderFooterContact(){
   const el=document.getElementById('footContact');if(!el)return;
   const parts=[];
   if(contactInfo.phone)parts.push('Tel.: '+contactInfo.phone);
+  if(contactInfo.email)parts.push(contactInfo.email);
   if(contactInfo.address)parts.push(contactInfo.address);
-  el.textContent=parts.join(' · ');
+  el.innerHTML=(contactInfo.name?`<b>${esc(contactInfo.name)}</b><br>`:'')+esc(parts.join(' · '));
 }
 /* otevře nastavený profil sítě v nové záložce; když není nastaven, upozorní */
 function openSocial(net){
@@ -5027,6 +5028,7 @@ function renderAdminContact(){
   if(!(auth.loggedIn&&auth.role==='admin')){go(auth.loggedIn?landingView():'home');return;}
   document.getElementById('acName').value=contactInfo.name||DEFAULT_CONTACT_NAME;
   document.getElementById('acPhone').value=contactInfo.phone||'';
+  document.getElementById('acEmail').value=contactInfo.email||'';
   document.getElementById('acIco').value=contactInfo.ico||'';
   document.getElementById('acAddress').value=contactInfo.address||'';
   document.getElementById('acErr').textContent='';
@@ -5036,12 +5038,14 @@ function saveAdminContact(e){
   const err=document.getElementById('acErr');err.textContent='';
   const name=document.getElementById('acName').value.trim();
   const phone=document.getElementById('acPhone').value.trim();
+  const email=document.getElementById('acEmail').value.trim();
   const ico=document.getElementById('acIco').value.trim();
   const address=document.getElementById('acAddress').value.trim();
   if(!name){err.textContent='Zadejte jméno nebo název provozovatele.';return false;}
   if(phone&&!/^[+\d][\d\s()-]{5,30}$/.test(phone)){err.textContent='Zadejte platné telefonní číslo.';return false;}
+  if(email&&!isEmail(email)){err.textContent='Zadejte platný e-mail.';return false;}
   if(ico&&!/^\d{6,12}$/.test(ico)){err.textContent='IČO zadejte jako číslo (6–12 číslic).';return false;}
-  contactInfo.name=name;contactInfo.phone=phone;contactInfo.ico=ico;contactInfo.address=address;
+  contactInfo.name=name;contactInfo.phone=phone;contactInfo.email=email;contactInfo.ico=ico;contactInfo.address=address;
   apiSync(api('/settings/contactInfo',{method:'PUT',body:{value:contactInfo}}));
   renderFooterContact();
   toast('Kontaktní údaje byly uloženy.','success');
