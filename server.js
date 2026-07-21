@@ -584,6 +584,29 @@ async function sendMailSafe({ to, subject, text, html, attachments }) {
     return false;
   }
 }
+// respektuje uživatelské přepínače notifikací (Nastavení). Opt-out model: chybějící klíč = zapnuto.
+// Hlavní přepínač `email` vypne všechny nekritické notifikace; podkategorie (requests/chat/reminders) jen svůj druh.
+// Bezpečnostní/transakční e-maily (ověření e-mailu, reset hesla, změna e-mailu, faktura) volají sendMailSafe napřímo a přepínače ignorují.
+function mailAllowed(settings, category) {
+  const s = settings && typeof settings === 'object' ? settings : {};
+  if (s.email === false) return false;              // hlavní vypínač
+  if (category && s[category] === false) return false; // konkrétní kategorie
+  return true;
+}
+// jako sendMailSafe, ale nejdřív ověří přepínače příjemce podle kategorie ('requests' | 'chat' | 'reminders' | 'email').
+// settings lze předat (když je volající má), jinak se dohledají podle e-mailu.
+async function notifyMail({ to, settings, category, ...mail }) {
+  if (!to) return false;
+  let s = settings;
+  if (s === undefined) {
+    try {
+      const rows = await restSelect(T.users, `email=eq.${encodeURIComponent(String(to).toLowerCase())}&select=settings&limit=1`);
+      s = rows && rows[0] ? rows[0].settings : null;
+    } catch (e) { s = null; }
+  }
+  if (!mailAllowed(s, category)) return false;
+  return sendMailSafe({ to, ...mail });
+}
 
 /* odkazy na sociální sítě pro e-maily — drženo v cache, aktualizováno z DB
    (při startu a po každém admin uložení), ať šablona zůstane synchronní */
@@ -1860,7 +1883,7 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
         // e-mail o aktivaci jen při skutečném přechodu na tento tarif
         if (r && r.prevPlan !== plan && r.row.email) {
           const priceCzk = await planPriceCZK(plan);
-          await sendMailSafe({ to: r.row.email, ...planActiveMail({ name: r.row.name, email: r.row.email, priceCzk, plan }) });
+          await notifyMail({ to: r.row.email, category: 'email', ...planActiveMail({ name: r.row.name, email: r.row.email, priceCzk, plan }) });
         }
         break;
       }
@@ -1872,14 +1895,14 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
         const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: active ? plan : null, status: o.status, trialUntil });
         // upozornění na problém s platbou (jen při přechodu do past_due/unpaid)
         if (r && r.row.email && ['past_due', 'unpaid'].includes(o.status) && !['past_due', 'unpaid'].includes(r.prevStatus || '')) {
-          await sendMailSafe({ to: r.row.email, ...planPaymentIssueMail({ name: r.row.name, plan }) });
+          await notifyMail({ to: r.row.email, category: 'email', ...planPaymentIssueMail({ name: r.row.name, plan }) });
         }
         break;
       }
       case 'customer.subscription.deleted': {
         const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: null, status: 'canceled' });
         if (r && r.prevPlan && r.row.email) {
-          await sendMailSafe({ to: r.row.email, ...planEndedMail({ name: r.row.name, plan: r.prevPlan }) });
+          await notifyMail({ to: r.row.email, category: 'email', ...planEndedMail({ name: r.row.name, plan: r.prevPlan }) });
         }
         break;
       }
@@ -2792,6 +2815,12 @@ app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, ra
   const caregiver = caregiverRows && caregiverRows[0];
   if (!caregiver) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
   if (caregiver.suspended || caregiver.verified === false) return res.status(400).json({ error: 'Pečovatelka není aktuálně dostupná.' });
+  // blokace v chatu platí i na objednávky — zablokovaná strana nesmí obejít blok novou objednávkou
+  if (caregiver.user_id != null && req.session.role !== 'admin') {
+    const block = await conversationBlockBetween(req.session.uid, caregiver.user_id);
+    if (block === 'other') return res.status(403).json({ error: 'Tato pečovatelka není aktuálně k dispozici pro objednávky.' });
+    if (block === 'me') return res.status(403).json({ error: 'Máte tuto pečovatelku zablokovanou. Nejdřív ji prosím v chatu odblokujte.' });
+  }
   const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
   if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
   const availCheck = checkAvailabilityFor(caregiver, date, time, hours);
@@ -2816,7 +2845,7 @@ app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, ra
   await restInsert(T.requests, newRequest, { prefer: 'return=minimal' });
   const orderView = mapOrder(order);
   const confirmationMail = reservationMail({ user: req.session, order: orderView, caregiverName });
-  await sendMailSafe({ to: req.session.email, ...confirmationMail });
+  await notifyMail({ to: req.session.email, category: 'requests', ...confirmationMail });
   if (caregiver.user_id != null) emitToUser(caregiver.user_id, { type: 'new-request', request: mapRequest(newRequest) });
   res.json({ order: orderView });
 }));
@@ -3059,7 +3088,7 @@ async function notifyOrderStatus(r, accepted) {
       caregiverName = (cgs && cgs[0] && cgs[0].name) || '';
     }
     const order = { service: r.service || ord.service, date: r.date || ord.date, time: r.time || ord.time };
-    await sendMailSafe({ to: ord.family_email, ...orderStatusMail({ familyName: ord.fam_name, order, caregiverName, accepted }) });
+    await notifyMail({ to: ord.family_email, category: 'requests', ...orderStatusMail({ familyName: ord.fam_name, order, caregiverName, accepted }) });
   } catch (e) { console.error('[mail] notifyOrderStatus:', e.message); }
 }
 
@@ -3071,7 +3100,7 @@ async function notifyCaregiverOrderConfirm(r) {
     const cg = cgs && cgs[0];
     if (!cg || !cg.email) return;
     const order = { service: r.service, date: r.date, time: r.time };
-    await sendMailSafe({ to: cg.email, ...caregiverOrderConfirmMail({ name: cg.name, order, familyName: r.fam }) });
+    await notifyMail({ to: cg.email, category: 'requests', ...caregiverOrderConfirmMail({ name: cg.name, order, familyName: r.fam }) });
   } catch (e) { console.error('[mail] notifyCaregiverOrderConfirm:', e.message); }
 }
 
@@ -3338,7 +3367,7 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
     await restInsert(T.caregivers, { id: newId, user_id: userId, public_id: genPublicId(), slug, ...data, rating: 0, reviews: 0, plan, plan_status, trial_until, langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
   }
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'approved' }, { prefer: 'return=minimal' });
-  if (v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: true }) });
+  if (v.email) await notifyMail({ to: v.email, category: 'email', ...verificationResultMail({ name: v.name, approved: true }) });
   fireAudit('admin.verification.approve', { req, actor: auditActor(req), targetType: 'verification', targetId: id, status: 'success', metadata: { email: v.email || null, caregiverExists: !!cg } });
   res.json({ ok: true });
 }));
@@ -3352,7 +3381,7 @@ app.post('/api/verifications/:id/reject', requireRole('admin'), h(async (req, re
   const v = rows && rows[0];
   if (!v) return res.status(404).json({ error: 'Žádost nenalezena.' });
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'rejected', reason: reason || null }, { prefer: 'return=minimal' });
-  if (v && v.email) await sendMailSafe({ to: v.email, ...verificationResultMail({ name: v.name, approved: false, reason }) });
+  if (v && v.email) await notifyMail({ to: v.email, category: 'email', ...verificationResultMail({ name: v.name, approved: false, reason }) });
   fireAudit('admin.verification.reject', { req, actor: auditActor(req), targetType: 'verification', targetId: id, status: 'success', metadata: { email: v && v.email || null, reason: reason ? 'provided' : 'empty' } });
   res.json({ ok: true });
 }));
@@ -3621,6 +3650,17 @@ app.delete('/api/reviews/:id/reply', requireRole('caregiver', 'admin'), h(async 
 
 /* ---------------- CHAT (reálný oboustranný) ---------------- */
 function conversationPairKey(a, b) { return [String(a), String(b)].sort().join('|'); }
+// stav blokace mezi dvěma uživateli: 'me' (blokoval jsem já = meId), 'other' (blokoval ten druhý), nebo null
+async function conversationBlockBetween(meId, otherId) {
+  if (meId == null || otherId == null) return null;
+  try {
+    const key = conversationPairKey(meId, otherId);
+    const rows = await restSelect(T.conversations, `pair_key=eq.${encodeURIComponent(key)}&select=blocked_by&limit=1`);
+    const conv = rows && rows[0];
+    if (!conv || conv.blocked_by == null) return null;
+    return String(conv.blocked_by) === String(meId) ? 'me' : 'other';
+  } catch (e) { return null; }
+}
 
 // obrázek v chatu jako data URL (jen obrázky, s limitem velikosti)
 function sanitizeChatImage(v) {
@@ -3866,6 +3906,7 @@ app.post('/api/conversations/:id/messages/:mid/term/accept', requireAuth, requir
   if (!row || !row.term) return res.status(404).json({ error: 'Návrh termínu nenalezen.' });
   if (row.term.status !== 'proposed') return res.status(400).json({ error: 'Návrh už byl vyřízen.' });
   if (String(row.sender_id) === me) return res.status(403).json({ error: 'Vlastní návrh nemůžete přijmout.' });
+  if (conv.blocked_by != null) return res.status(403).json({ error: 'Konverzace je blokovaná — návrh termínu nelze přijmout.' });
   const { family, caregiver } = await resolveConversationParties(conv);
   if (!family || !caregiver) return res.status(400).json({ error: 'Návrh termínu funguje jen mezi rodinou a pečovatelkou.' });
   if (caregiver.suspended || caregiver.verified === false) return res.status(400).json({ error: 'Pečovatelka není aktuálně dostupná.' });
@@ -4077,20 +4118,20 @@ async function notifyOfflineMessage({ conversationId, recipientId, senderName, p
     const key = `${conversationId}:${recipientId}`;
     const last = chatMailDebounce.get(key) || 0;
     if (Date.now() - last < 30 * 60 * 1000) return;
-    const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(recipientId)}&select=name,email&limit=1`);
+    const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(recipientId)}&select=name,email,settings&limit=1`);
     const u = rows && rows[0];
     if (!u || !u.email) return;
     chatMailDebounce.set(key, Date.now());
-    await sendMailSafe({ to: u.email, ...newChatMessageMail({ name: u.name, senderName, preview: preview.slice(0, 200) }) });
+    await notifyMail({ to: u.email, settings: u.settings, category: 'chat', ...newChatMessageMail({ name: u.name, senderName, preview: preview.slice(0, 200) }) });
   } catch (e) { console.warn('[mail] notifyOfflineMessage failed:', e.message); }
 }
 // e-mail odesílateli návrhu termínu, jakmile je přijat/odmítnut
 async function notifyTermDecision(proposerId, accepted, term) {
   try {
-    const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(proposerId)}&select=name,email&limit=1`);
+    const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(proposerId)}&select=name,email,settings&limit=1`);
     const u = rows && rows[0];
     if (!u || !u.email) return;
-    await sendMailSafe({ to: u.email, ...termDecisionMail({ name: u.name, accepted, term }) });
+    await notifyMail({ to: u.email, settings: u.settings, category: 'chat', ...termDecisionMail({ name: u.name, accepted, term }) });
   } catch (e) { console.warn('[mail] notifyTermDecision failed:', e.message); }
 }
 function sseSend(userId, payload) {
@@ -4218,7 +4259,7 @@ app.post('/api/broadcasts', requireRole('admin'), h(async (req, res) => {
   try {
     if (audience === 'specific') {
       const list = emails.map((e) => `"${e}"`).join(',');
-      recipients = list ? (await restSelect(T.users, `email=in.(${list})&select=name,email`)) || [] : [];
+      recipients = list ? (await restSelect(T.users, `email=in.(${list})&select=name,email,settings`)) || [] : [];
     } else {
       let filter = 'select=name,email';
       if (audience === 'caregivers') filter += '&role=eq.caregiver';
@@ -4226,7 +4267,7 @@ app.post('/api/broadcasts', requireRole('admin'), h(async (req, res) => {
       recipients = (await restSelect(T.users, filter)) || [];
     }
     for (const u of recipients) {
-      if (u && u.email) sendMailSafe({ to: u.email, ...broadcastMail({ name: u.name, text }) });
+      if (u && u.email) notifyMail({ to: u.email, settings: u.settings, category: 'email', ...broadcastMail({ name: u.name, text }) });
     }
   } catch (e) { console.warn('[mail] broadcast send failed:', e.message); }
   res.json({ broadcast: { id: row.id, audience: row.audience, emails: row.emails || [], text: row.text, date: row.date, t: row.t }, emailsSent: recipients.length });
@@ -5370,7 +5411,7 @@ async function checkFinishedServices() {
         caregiverName = (cgs && cgs[0] && cgs[0].name) || '';
       }
       if (o.family_email) {
-        await sendMailSafe({ to: o.family_email, ...serviceDoneCheckMail({ familyName: o.fam_name, order: o, caregiverName }) });
+        await notifyMail({ to: o.family_email, category: 'reminders', ...serviceDoneCheckMail({ familyName: o.fam_name, order: o, caregiverName }) });
       }
       await restUpdate(T.orders, `oid=eq.${o.oid}`, { done_prompt_sent_at: nowIso }, { prefer: 'return=minimal' });
     }
@@ -5398,10 +5439,10 @@ async function sendUpcomingReminders() {
         caregiverEmail = (cg && cg.email) || '';
       }
       if (o.family_email) {
-        await sendMailSafe({ to: o.family_email, ...upcomingOrderReminderMail({ name: o.fam_name, order: o, counterpartName: caregiverName, forCaregiver: false }) });
+        await notifyMail({ to: o.family_email, category: 'reminders', ...upcomingOrderReminderMail({ name: o.fam_name, order: o, counterpartName: caregiverName, forCaregiver: false }) });
       }
       if (caregiverEmail) {
-        await sendMailSafe({ to: caregiverEmail, ...upcomingOrderReminderMail({ name: caregiverName, order: o, counterpartName: o.fam_name, forCaregiver: true }) });
+        await notifyMail({ to: caregiverEmail, category: 'reminders', ...upcomingOrderReminderMail({ name: caregiverName, order: o, counterpartName: o.fam_name, forCaregiver: true }) });
       }
       await restUpdate(T.orders, `oid=eq.${o.oid}`, { reminder_sent_at: nowIso }, { prefer: 'return=minimal' });
     }
@@ -5427,7 +5468,7 @@ async function sendCertExpiryReminders() {
         return Number.isFinite(t) && t - todayMs <= windowMs;
       });
       if (!expiring.length) continue;
-      await sendMailSafe({ to: v.email, ...certExpiryReminderMail({ name: v.name, certs: expiring }) });
+      await notifyMail({ to: v.email, category: 'reminders', ...certExpiryReminderMail({ name: v.name, certs: expiring }) });
       await restUpdate(T.verifications, `id=eq.${v.id}`, { cert_reminder_sent_at: nowIso }, { prefer: 'return=minimal' });
     }
   } catch (e) { console.warn('[jobs] sendCertExpiryReminders failed:', e.message); }
