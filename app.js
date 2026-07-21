@@ -1285,18 +1285,49 @@ function renderFilters(){
   const all=[{id:'',name:'Vše'},...SERVICES];
   document.getElementById('servFilters').innerHTML=all.map(s=>
     `<button class="fbtn ${activeFilter===s.id?'on':''}" onclick="setFilter('${s.id}')">${s.name}</button>`).join('');
+  const favWrap=document.getElementById('favOnlyWrap');
+  if(favWrap){
+    const showFav=auth.loggedIn&&auth.role==='family';
+    favWrap.hidden=!showFav;
+    if(!showFav){const cb=document.getElementById('favOnly');if(cb)cb.checked=false;}
+  }
 }
 function setFilter(id){activeFilter=id;renderFilters();renderCare();}
 function filterByService(id){activeFilter=id;go('search');renderFilters();renderCare();}
 
+/* ---------- OBLÍBENÉ PEČOVATELKY (rodina) ---------- */
+function isFavorite(id){return FAVORITES.includes(Number(id));}
+/* srdíčko pro kartu/profil — jen pro přihlášenou rodinu */
+function favHeartHTML(id,cls){
+  if(!(auth.loggedIn&&auth.role==='family'))return '';
+  const on=isFavorite(id);
+  const idAttr=(cls&&cls.indexOf('fav-heart-lg')>=0)?' id="profileFavBtn"':'';
+  return `<button type="button"${idAttr} class="fav-heart${on?' on':''} ${cls||''}" aria-label="${on?'Odebrat z oblíbených':'Přidat do oblíbených'}" title="${on?'Odebrat z oblíbených':'Přidat do oblíbených'}" onclick="event.stopPropagation();toggleFavorite(${id})">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="${on?'currentColor':'none'}"><path d="M12 20s-6.5-4.2-9-8.2C1.2 8.9 2.3 5.5 5.5 5.5c1.9 0 3.2 1.1 4 2.3.8-1.2 2.1-2.3 4-2.3 3.2 0 4.3 3.4 2.5 6.3-2.5 4-9 8.2-9 8.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+  </button>`;
+}
+function toggleFavorite(id){
+  id=Number(id);
+  if(!(auth.loggedIn&&auth.role==='family')){toast('Pro uložení oblíbených se prosím přihlaste.');go('login');return;}
+  const on=isFavorite(id);
+  if(on)FAVORITES=FAVORITES.filter(x=>x!==id);else FAVORITES.push(id);
+  // překresli tam, kde se srdíčka zobrazují
+  if(activeView()==='search')renderCare();
+  if(state.profileKind==='caregiver'&&state.caregiverId===id){const el=document.getElementById('profileFavBtn');if(el)el.outerHTML=favHeartHTML(id,'fav-heart-lg');}
+  if(activeView()==='fam-dash')renderFamilyDash();
+  apiSync(on?api('/favorites/'+id,{method:'DELETE'}):api('/favorites',{method:'POST',body:{caregiverId:id}}));
+  toast(on?'Odebráno z oblíbených.':'Přidáno do oblíbených.','success');
+}
 function renderCare(){
   const q=(document.getElementById('q').value||'').toLowerCase();
   const locRaw=(document.getElementById('loc').value||'').trim();
   const priceMax=+((document.getElementById('priceMax')||{}).value||999);
   const sortBy=(document.getElementById('sortBy')||{}).value||'rec';
   const distanceMode=!!searchLocCoords&&Object.keys(searchDistances).length>0;
+  const favOnly=!!(document.getElementById('favOnly')&&document.getElementById('favOnly').checked);
   let list=CAREGIVERS.filter(c=>{
     if(!c.verified||c.suspended||!hasPerm(c,'publishServices'))return false; // rodiny vidí jen ověřené, aktivní a zveřejněné pečovatelky
+    if(favOnly&&!isFavorite(c.id))return false;
     const matchF=!activeFilter||c.services.includes(activeFilter);
     // v režimu vzdálenosti (vybraná lokalita se souřadnicemi) nefiltrujeme podle přesného textu lokality — řadíme podle skutečné vzdálenosti
     const matchL=!locRaw||distanceMode||locNorm(c.loc).includes(locNorm(locRaw));
@@ -1323,12 +1354,13 @@ function renderCare(){
   const cnt=document.getElementById('careCount');
   if(cnt){const n=list.length;cnt.textContent=n+' '+(n===1?'pečovatelka':(n>=2&&n<=4?'pečovatelky':'pečovatelek'));}
   const g=document.getElementById('careGrid');
-  if(!list.length){g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted)">Žádná pečovatelka neodpovídá filtru.</div>`;return;}
+  if(!list.length){g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted)">${favOnly?'Zatím nemáte žádné oblíbené pečovatelky. Přidejte si je srdíčkem na jejich kartě.':'Žádná pečovatelka neodpovídá filtru.'}</div>`;return;}
   g.innerHTML=list.map(c=>{
     const oor=outOfRange(c);
     return `
     <div class="care-card ${hasPerm(c,'highlightedProfile')?'is-premium':''} ${oor?'is-out-of-range':''}" onclick="openProfile(${c.id})">
       ${hasPerm(c,'highlightedProfile')?`<span class="prem-ribbon">${diamondSVG(13)}PREMIUM</span>`:''}
+      ${favHeartHTML(c.id,'fav-heart-card')}
       <div class="care-top">
         ${avaHtml(c.init,c.photo)}
         <div style="flex:1">
@@ -1386,6 +1418,7 @@ async function openProfile(id,fromPop){
             ${(c.langs||[]).map(l=>`<span class="chip plang">${speechSVG()} <span class="plang-full">${esc(l)}</span><span class="plang-short">${esc(langAbbr(l))}</span></span>`).join('')}
           </div>
         </div>
+        ${favHeartHTML(c.id,'fav-heart-lg')}
       </div>
       <div class="pchips">
         <div class="pchip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#C9A233" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#C9A233" stroke-width="1.6"/></svg>${esc(c.loc)} · dojezd do ${c.radius} km</div>
@@ -2398,6 +2431,8 @@ function updateAuthUI(){
   const inn=auth.loggedIn;
   ensureBroadcastConvo();
   renderNav();
+  const favWrap=document.getElementById('favOnlyWrap');
+  if(favWrap){const showFav=inn&&auth.role==='family';favWrap.hidden=!showFav;if(!showFav){const cb=document.getElementById('favOnly');if(cb)cb.checked=false;}}
   document.getElementById('accountWrap').hidden=!inn;
   document.getElementById('loginBtn').hidden=inn;
   // obálka zpráv v headeru — jen pro přihlášené rodiny/pečovatelky (admin nemá chat)
@@ -2803,13 +2838,23 @@ function renderFamilyDash(){
     if(FAMILY_REVIEWS.length)document.getElementById('famReviewsList').innerHTML=FAMILY_REVIEWS.map(r=>`
       <div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join('');
   }
-  const rec=CAREGIVERS.slice().filter(c=>c.verified&&!c.suspended&&hasPerm(c,'publishServices')).sort((a,b)=>(hasPerm(b,'priorityRanking')?1:0)-(hasPerm(a,'priorityRanking')?1:0)||b.rating-a.rating).slice(0,3);
-  document.getElementById('famRecommended').innerHTML=rec.map(c=>`
+  const cgRow=c=>`
     <div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openProfile(${c.id})">
       ${avaHtml(c.init,c.photo)}
       <div class="od"><b>${esc(c.name)}</b><div class="det">${esc(c.loc)} · ${c.exp} let praxe</div></div>
       <div class="ost"><span class="status ok">${starFillSVG(11)} ${c.rating}</span><div class="pr">${c.rate} Kč</div></div>
-    </div>`).join('');
+    </div>`;
+  const favPanel=document.getElementById('famFavPanel');
+  if(favPanel){
+    const favs=FAVORITES.map(id=>CAREGIVERS.find(c=>c.id===id)).filter(Boolean);
+    favPanel.hidden=!favs.length;
+    if(favs.length){
+      document.getElementById('famFavCount').textContent=favs.length;
+      document.getElementById('famFavorites').innerHTML=favs.map(cgRow).join('');
+    }
+  }
+  const rec=CAREGIVERS.slice().filter(c=>c.verified&&!c.suspended&&hasPerm(c,'publishServices')).sort((a,b)=>(hasPerm(b,'priorityRanking')?1:0)-(hasPerm(a,'priorityRanking')?1:0)||b.rating-a.rating).slice(0,3);
+  document.getElementById('famRecommended').innerHTML=rec.map(cgRow).join('');
 }
 
 /* ====================================================================
@@ -5047,6 +5092,7 @@ let CG_REQUESTS=[];
 let FAMILY_REVIEWS=[];
 let INVOICES=[];
 let REPORTS=[];
+let FAVORITES=[];
 let reqSeq=0;
 let AUDIT_LOGS=[];
 let FILTERED_AUDIT_LOGS=[];
@@ -6809,6 +6855,7 @@ async function bootstrap(){
   FAMILY_REVIEWS=d.familyReviews||[];
   INVOICES=d.invoices||[];
   REPORTS=d.reports||[];
+  FAVORITES=d.favorites||[];
   // konverzace se načítají zvlášť přes /api/conversations (ne z bootstrapu) —
   // bootstrap je NESMÍ přepsat na prázdno, jinak by zmizely načtené konverzace
   BROADCASTS=d.broadcasts||[];

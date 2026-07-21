@@ -517,6 +517,7 @@ const T = {
   auditLogs:     process.env.TBL_AUDIT_LOGS    || 'zenvoria_audit_logs',
   helpChats:     process.env.TBL_HELP_CHATS    || 'zenvoria_help_chats',
   reports:       process.env.TBL_REPORTS       || 'zenvoria_reports',
+  favorites:     process.env.TBL_FAVORITES     || 'zenvoria_favorites',
   invoices:      process.env.TBL_INVOICES      || 'zenvoria_invoices',
 };
 
@@ -2581,7 +2582,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     ? 'guest'
     : (req.session.role === 'admin' ? 'admin' : (req.session.role === 'caregiver' ? 'caregiver' : 'family'));
   const ownCaregiver = viewer === 'caregiver' ? await currentCaregiverRow(req) : null;
-  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows, reportRows] =
+  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows, reportRows, favoriteRows] =
     await Promise.all([
       viewer === 'guest'
         ? restSelect(T.caregivers, 'select=*&verified=eq.true&suspended=eq.false&order=id.asc')
@@ -2631,6 +2632,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
           ? restSelect(T.invoices, `caregiver_id=eq.${Number(ownCaregiver.id)}&select=*&order=id.desc`)
           : []),
       viewer === 'admin' ? restSelect(T.reports, `status=eq.pending&order=id.desc`) : [],
+      viewer === 'family' ? restSelect(T.favorites, `family_email=eq.${encodeURIComponent(req.session.email)}&select=caregiver_id`) : [],
     ]);
 
   // cgReviews: { [caregiverId]: [{init,name,stars,text}] } + obecné recenze (caregiver_id null)
@@ -2712,6 +2714,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
       ? (invoiceRows || []).map((i) => ({ id: Number(i.id), number: i.number, caregiverId: i.caregiver_id != null ? Number(i.caregiver_id) : null, email: i.email, name: i.name, plan: i.plan, amountCzk: i.amount_czk, currency: i.currency, issuedAt: i.issued_at }))
       : [],
     reports: viewer === 'admin' ? await mapReportsForAdmin(reportRows) : [],
+    favorites: viewer === 'family' ? (favoriteRows || []).map((f) => Number(f.caregiver_id)) : [],
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
     planPrices: settings.planPrices || { start: 190, premium: 390 },
@@ -3555,6 +3558,29 @@ app.get('/api/admin/reports', requireRole('admin'), h(async (req, res) => {
   const query = status ? `status=eq.${status}&order=id.desc&limit=200` : `status=in.(resolved,dismissed)&order=id.desc&limit=200`;
   const rows = await restSelect(T.reports, query);
   res.json({ reports: await mapReportsForAdmin(rows) });
+}));
+
+/* ---------------- OBLÍBENÉ PEČOVATELKY (rodina) ---------------- */
+// přidat pečovatelku mezi oblíbené
+app.post('/api/favorites', requireRole('family'), h(async (req, res) => {
+  const caregiverId = Number((req.body || {}).caregiverId);
+  if (!Number.isInteger(caregiverId) || caregiverId <= 0) return res.status(400).json({ error: 'Neplatné ID pečovatelky.' });
+  const cg = await restSelect(T.caregivers, `id=eq.${caregiverId}&select=id&limit=1`);
+  if (!cg || !cg[0]) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
+  const email = String(req.session.email || '').toLowerCase();
+  const existing = await restSelect(T.favorites, `family_email=eq.${encodeURIComponent(email)}&caregiver_id=eq.${caregiverId}&limit=1`);
+  if (!existing || !existing[0]) {
+    await restInsert(T.favorites, { family_email: email, caregiver_id: caregiverId }, { prefer: 'return=minimal' });
+  }
+  res.json({ ok: true });
+}));
+// odebrat z oblíbených
+app.delete('/api/favorites/:caregiverId', requireRole('family'), h(async (req, res) => {
+  const caregiverId = Number(req.params.caregiverId);
+  if (!Number.isInteger(caregiverId) || caregiverId <= 0) return res.status(400).json({ error: 'Neplatné ID pečovatelky.' });
+  const email = String(req.session.email || '').toLowerCase();
+  await restDelete(T.favorites, `family_email=eq.${encodeURIComponent(email)}&caregiver_id=eq.${caregiverId}`, { prefer: 'return=minimal' });
+  res.json({ ok: true });
 }));
 // nahlásit nevhodnou recenzi (v obou směrech) — jen admin ji uvidí, řeší se ručně
 app.post('/api/reports', requireAuth, rateLimit('reports', { windowMs: 60 * 60 * 1000, max: 20, message: 'Příliš mnoho nahlášení. Zkuste to prosím později.' }), h(async (req, res) => {
