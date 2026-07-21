@@ -925,6 +925,23 @@
   .msg-preview-unread{flex:0 0 auto;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#D9534F;
     color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
   .msg-preview-empty{padding:16px 10px;font-size:13px;color:var(--muted);text-align:center}
+  /* oznámení (zvonek) */
+  .notif-panel{position:absolute;top:calc(100% + 10px);right:0;width:min(360px,92vw);background:var(--white);
+    border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:8px;z-index:300;
+    max-height:440px;overflow:auto}
+  .notif-panel-head{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 10px;gap:10px}
+  .notif-panel-head b{font-size:14px;color:var(--navy-900)}
+  .notif-panel-head .lnk{font-size:12.5px;white-space:nowrap}
+  .notif-item{display:flex;gap:10px;align-items:flex-start;width:100%;padding:10px 8px;border-radius:11px;
+    border:none;background:none;cursor:pointer;text-align:left;transition:.12s;font-family:inherit}
+  .notif-item:hover{background:rgba(201,162,51,.14)}
+  .notif-item.unread{background:rgba(201,162,51,.08)}
+  .notif-dot-ind{flex:0 0 auto;width:8px;height:8px;border-radius:50%;margin-top:6px;background:var(--gold-deep)}
+  .notif-item.read .notif-dot-ind{background:transparent}
+  .notif-item-body{flex:1;min-width:0}
+  .notif-item-body b{display:block;font-size:13.5px;color:var(--navy-900)}
+  .notif-item-body span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+  .notif-item-time{font-size:11px;color:var(--muted);margin-top:4px;display:block}
   .msg-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:10px;
     background:#D9534F;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;
     border:2px solid var(--white);line-height:1}

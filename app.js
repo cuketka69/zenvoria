@@ -276,6 +276,7 @@ async function go(v,fromPop){
   if(v==='admin-payments')renderAdminPayments();
   if(v==='admin-invoices')renderAdminInvoices();
   if(v==='admin-reports')renderAdminReports();
+  if(v==='admin-trust')renderAdminTrustSignals();
   if(v==='admin-helpchat')renderAdminOpenAi();
   if(v==='admin-plans')renderAdminPlans();
   if(v==='admin-social')renderAdminSocial();
@@ -1636,6 +1637,15 @@ function handleRealtime(msg){
     if(activeView()==='chat')renderChat();
     return;
   }
+  if(msg.type==='app-notification'){
+    NOTIFICATIONS.unshift(msg.notification);
+    unreadNotifCount+=1;
+    renderNotifBadge();
+    const panel=document.getElementById('notifPanel');
+    if(panel&&!panel.hidden)renderNotifPanel();
+    toast(esc(msg.notification.title));
+    return;
+  }
   if(msg.type==='conversation-block'){
     const c=CONVERSATIONS.find(x=>x.id===msg.conversationId);if(!c)return;
     c.blockedByMe=!!msg.blockedByMe;c.blockedByOther=!!msg.blockedByOther;
@@ -2013,7 +2023,7 @@ const DEFERRED_VIEW_IDS=new Set([
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
   'chat',
   'order-detail','login','forgot','reset-password','change-email','register',
-  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-payments','admin-invoices','admin-reports','admin-helpchat',
+  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-payments','admin-invoices','admin-reports','admin-trust','admin-helpchat',
   'pricing','settings'
 ]);
 let deferredViewsLoaded=false;
@@ -2433,6 +2443,7 @@ function updateAuthUI(){
   renderNav();
   const favWrap=document.getElementById('favOnlyWrap');
   if(favWrap){const showFav=inn&&auth.role==='family';favWrap.hidden=!showFav;if(!showFav){const cb=document.getElementById('favOnly');if(cb)cb.checked=false;}}
+  renderNotifBadge();
   document.getElementById('accountWrap').hidden=!inn;
   document.getElementById('loginBtn').hidden=inn;
   // obálka zpráv v headeru — jen pro přihlášené rodiny/pečovatelky (admin nemá chat)
@@ -2476,6 +2487,7 @@ function updateAuthUI(){
         +mi("go('admin-payments')",'Platby (Stripe)','<rect x="3" y="5.5" width="18" height="13" rx="2.3" stroke="#7A736A" stroke-width="1.6"/><path d="M3 10h18" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('admin-invoices')",'Faktury','<path d="M7 3h10v18l-3-2-2 2-2-2-3 2V3Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 8h6M9 11.5h6" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('admin-reports')",'Nahlášení'+(REPORTS.length?` <span class="nav-badge">${REPORTS.length}</span>`:''),'<path d="M12 3.5 21 19H3L12 3.5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1" fill="#7A736A"/>')
+        +mi("go('admin-trust')",'Důvěryhodnost účtů','<path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#7A736A" stroke-width="1.6"/><path d="M9 12l2 2 4-4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>')
         +mi("go('admin-helpchat')",'Nápovědný chat (AI)','<path d="M4 5h16v11H9l-5 4V5Z" stroke="#7A736A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
       : auth.role==='caregiver'
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
@@ -4677,6 +4689,27 @@ async function toggleAdminReportHistory(){
     adminReportHistoryLoaded=true;
   }catch(e){body.innerHTML='<div class="empty">Historii se nepodařilo načíst.</div>';}
 }
+async function renderAdminTrustSignals(){
+  const body=document.getElementById('admTrustBody');
+  const cntEl=document.getElementById('admTrustCount');
+  if(!body)return;
+  body.innerHTML='<tr><td colspan="4"><div class="empty">Načítám…</div></td></tr>';
+  try{
+    const r=await api('/admin/trust-signals');
+    const signals=r.signals||[];
+    if(cntEl)cntEl.textContent=signals.length;
+    body.innerHTML=signals.length?signals.map(s=>{
+      const roleLabel=s.role==='caregiver'?'Pečovatelka':(s.role==='family'?'Rodina':(s.role||'—'));
+      const statusBadge=s.accountStatus==='suspended'?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
+      return `<tr>
+        <td><b>${esc(s.name||s.email)}</b><div style="font-size:12px;color:var(--muted)">${esc(s.email)} · ${esc(roleLabel)}</div></td>
+        <td>${s.reportsResolved} / ${s.reportsDismissed} / ${s.reportsPending}</td>
+        <td>${s.timesBlocked}</td>
+        <td>${s.role?statusBadge:'—'}</td>
+      </tr>`;
+    }).join(''):'<tr><td colspan="4"><div class="empty">Zatím žádný účet nemá nahlášení ani blokaci.</div></td></tr>';
+  }catch(e){body.innerHTML='<tr><td colspan="4"><div class="empty">Přehled se nepodařilo načíst.</div></td></tr>';}
+}
 function resolveReport(id,action){
   const rep=REPORTS.find(r=>r.id===id);
   const isMsg=rep&&rep.reviewType==='message';
@@ -5093,6 +5126,9 @@ let FAMILY_REVIEWS=[];
 let INVOICES=[];
 let REPORTS=[];
 let FAVORITES=[];
+let NOTIFICATIONS=[];
+let unreadNotifCount=0;
+let notifLoaded=false;
 let reqSeq=0;
 let AUDIT_LOGS=[];
 let FILTERED_AUDIT_LOGS=[];
@@ -6128,6 +6164,76 @@ async function openChatFromPreview(id){
   if(id>0)await loadMessages(id);
   renderChat();
 }
+/* ---------- OZNÁMENÍ (zvonek) ---------- */
+function notifTimeAgo(iso){
+  const t=Date.parse(iso);if(!Number.isFinite(t))return'';
+  const s=Math.max(0,Math.floor((Date.now()-t)/1000));
+  if(s<60)return'právě teď';
+  const m=Math.floor(s/60);if(m<60)return m+' min';
+  const h=Math.floor(m/60);if(h<24)return h+' h';
+  const d=Math.floor(h/24);if(d<30)return d+' d';
+  return fmtDate(iso);
+}
+function renderNotifBadge(){
+  const wrap=document.getElementById('notifBtnWrap');
+  const badge=document.getElementById('notifBadge');
+  if(wrap)wrap.hidden=!auth.loggedIn;
+  if(badge){badge.hidden=unreadNotifCount<=0;badge.textContent=unreadNotifCount>9?'9+':unreadNotifCount;}
+}
+function renderNotifPanel(){
+  const body=document.getElementById('notifPanelBody');
+  if(!body)return;
+  body.innerHTML=NOTIFICATIONS.length?NOTIFICATIONS.map(n=>`
+    <button type="button" class="notif-item ${n.readAt?'read':'unread'}" data-id="${n.id}" data-link="${esc(n.link||'')}">
+      <span class="notif-dot-ind"></span>
+      <span class="notif-item-body"><b>${esc(n.title)}</b>${n.body?`<span>${esc(n.body)}</span>`:''}<span class="notif-item-time">${notifTimeAgo(n.createdAt)}</span></span>
+    </button>`).join(''):'<div class="msg-preview-empty">Zatím žádná oznámení.</div>';
+  body.querySelectorAll('.notif-item').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const id=Number(el.dataset.id);
+      const link=el.dataset.link;
+      openNotifLink(link);
+      markNotificationRead(id);
+      const panel=document.getElementById('notifPanel');if(panel)panel.hidden=true;
+    });
+  });
+}
+async function toggleNotifPanel(){
+  const panel=document.getElementById('notifPanel');
+  if(!panel)return;
+  if(!panel.hidden){panel.hidden=true;return;}
+  panel.hidden=false;
+  setTimeout(()=>document.addEventListener('mousedown',closeNotifPanelOnce),0);
+  if(!notifLoaded){
+    try{const r=await api('/notifications');NOTIFICATIONS=r.notifications||[];notifLoaded=true;}catch(e){}
+  }
+  renderNotifPanel();
+}
+function closeNotifPanelOnce(e){
+  const panel=document.getElementById('notifPanel');
+  if(!panel||panel.hidden)return;
+  if(!panel.contains(e.target)&&e.target.id!=='notifBtn'&&!e.target.closest('#notifBtn')){
+    panel.hidden=true;
+    document.removeEventListener('mousedown',closeNotifPanelOnce);
+  }
+}
+function markNotificationRead(id){
+  const n=NOTIFICATIONS.find(x=>x.id===id);
+  if(n&&!n.readAt){n.readAt=new Date().toISOString();unreadNotifCount=Math.max(0,unreadNotifCount-1);renderNotifBadge();}
+  apiSync(api('/notifications/read',{method:'POST',body:{id}}));
+}
+function markAllNotificationsRead(){
+  NOTIFICATIONS.forEach(n=>{if(!n.readAt)n.readAt=new Date().toISOString();});
+  unreadNotifCount=0;renderNotifBadge();renderNotifPanel();
+  apiSync(api('/notifications/read',{method:'POST',body:{}}));
+}
+/* naviguje podle link pole oznámení, např. "order-detail:12" nebo prostý název pohledu jako "cg-requests" */
+function openNotifLink(link){
+  if(!link)return;
+  const [view,arg]=link.split(':');
+  if(view==='order-detail'&&arg){openOrderDetailByOid(Number(arg));return;}
+  go(view);
+}
 async function openChat(caregiverId,name,init,role,email){
   if(!auth.loggedIn){toast('Pro poslání zprávy se prosím přihlaste.');go('login');return;}
   const body={};
@@ -6856,6 +6962,7 @@ async function bootstrap(){
   INVOICES=d.invoices||[];
   REPORTS=d.reports||[];
   FAVORITES=d.favorites||[];
+  unreadNotifCount=Number(d.unreadNotifCount)||0;
   // konverzace se načítají zvlášť přes /api/conversations (ne z bootstrapu) —
   // bootstrap je NESMÍ přepsat na prázdno, jinak by zmizely načtené konverzace
   BROADCASTS=d.broadcasts||[];
