@@ -34,11 +34,12 @@ let contactInfo={name:'',phone:'',email:'',ico:'',address:''};
 /* patička: zobrazí telefon/sídlo, pokud je admin vyplnil */
 function renderFooterContact(){
   const el=document.getElementById('footContact');if(!el)return;
-  const parts=[];
-  if(contactInfo.phone)parts.push('Tel.: '+contactInfo.phone);
-  if(contactInfo.email)parts.push(contactInfo.email);
-  if(contactInfo.address)parts.push(contactInfo.address);
-  el.innerHTML=(contactInfo.name?`<b>${esc(contactInfo.name)}</b><br>`:'')+esc(parts.join(' · '));
+  const lines=[];
+  if(contactInfo.name)lines.push(`<b>${esc(contactInfo.name)}</b>`);
+  if(contactInfo.address)lines.push(esc(contactInfo.address));
+  if(contactInfo.email)lines.push(esc(contactInfo.email));
+  if(contactInfo.phone)lines.push('Tel.: '+esc(contactInfo.phone));
+  el.innerHTML=lines.join('<br>');
 }
 /* otevře nastavený profil sítě v nové záložce; když není nastaven, upozorní */
 function openSocial(net){
