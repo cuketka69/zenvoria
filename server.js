@@ -156,6 +156,15 @@ const MAIL_ENABLED = String(process.env.MAIL_ENABLED || 'true').toLowerCase() !=
 const MAIL_FROM = process.env.MAIL_FROM || 'ZENVORIA <no-reply@zenvoria.cz>';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const APP_URL = process.env.APP_URL || 'https://www.zenvoria.cz';
+const DEFAULT_COUNTRY = (process.env.DEFAULT_COUNTRY || 'cz').toLowerCase() === 'sk' ? 'sk' : 'cz';
+
+// rozpozná zemi (cz/sk) podle domény requestu — zenvoria.sk (a subdomény) → 'sk', jinak výchozí (cz)
+function countryForReq(req) {
+  const host = String((req && req.hostname) || '').toLowerCase();
+  if (host.endsWith('zenvoria.sk')) return 'sk';
+  if (host.endsWith('zenvoria.cz')) return 'cz';
+  return DEFAULT_COUNTRY;
+}
 
 // --- Stripe (předplatné PREMIUM pro pečovatelky) ---
 // klíče lze nastavit přes proměnné prostředí (Railway) NEBO za běhu přes admin panel (Nastavení > Platby) —
@@ -266,13 +275,24 @@ function normalizeEmailList(list, { maxItems = 200 } = {}) {
   return out;
 }
 
+// ceny tarifů podle země: { cz: {start,premium} (Kč), sk: {start,premium} (EUR) } —
+// zpětně kompatibilní se starou plochou podobou { start, premium }, která se brala jako CZ
 function sanitizePlanPrices(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const start = Number(value.start);
-  const premium = Number(value.premium);
-  if (!Number.isFinite(start) || !Number.isFinite(premium)) return null;
-  if (start < 0 || premium < 0 || start > 100000 || premium > 100000) return null;
-  return { start: Math.round(start), premium: Math.round(premium) };
+  const parseOne = (v) => {
+    if (!v || typeof v !== 'object') return null;
+    const start = Number(v.start);
+    const premium = Number(v.premium);
+    if (!Number.isFinite(start) || !Number.isFinite(premium)) return null;
+    if (start < 0 || premium < 0 || start > 100000 || premium > 100000) return null;
+    return { start: Math.round(start), premium: Math.round(premium) };
+  };
+  if (value.cz || value.sk) {
+    return { cz: parseOne(value.cz) || { start: 190, premium: 390 }, sk: parseOne(value.sk) || { start: 8, premium: 16 } };
+  }
+  const flat = parseOne(value);
+  if (!flat) return null;
+  return { cz: flat, sk: { start: 8, premium: 16 } };
 }
 
 /* URL nebo prázdný řetězec; bez schématu doplní https:// */
@@ -1076,8 +1096,13 @@ function emailVerifyMail({ user, code }) {
   };
 }
 
+// částka + měnová zkratka podle země (Kč pro cz, € pro sk) — používá se v e-mailech, dokud nemají vlastní SK znění
+function fmtMoney(amount, country) {
+  if (!amount) return '';
+  return country === 'sk' ? `${amount} €` : `${amount} Kč`;
+}
 // ---- e-mail: aktivace předplatného PREMIUM (pečovatelce) ----
-function planActiveMail({ name, email, priceCzk, plan }) {
+function planActiveMail({ name, email, price, country, plan }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
   const planName = plan === 'start' ? 'START' : 'PREMIUM';
   const benefit = plan === 'start'
@@ -1102,7 +1127,7 @@ function planActiveMail({ name, email, priceCzk, plan }) {
       ctaNote: 'Účtenku k platbě vám zasílá platební brána Stripe samostatně.',
       facts: [
         { label: 'Tarif', value: planName },
-        { label: 'Cena', value: (priceCzk ? `${priceCzk} Kč / měsíc` : '') },
+        { label: 'Cena', value: (price ? `${fmtMoney(price, country)} / měsíc` : '') },
         { label: 'Stav', value: 'Aktivní' },
       ],
       closingTitle: 'Děkujeme za důvěru.',
@@ -1880,7 +1905,7 @@ function withTitul(name, titul) {
 }
 function publicUser(u) {
   if (!u) return null;
-  return { id: u.id, email: u.email, name: u.name, titul: u.titul || null, phone: u.phone || null, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null, emailVerified: !!u.email_verified };
+  return { id: u.id, email: u.email, name: u.name, titul: u.titul || null, phone: u.phone || null, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null, emailVerified: !!u.email_verified, country: u.country || 'cz' };
 }
 function mapCaregiver(c, permsSetting) {
   return {
@@ -1894,6 +1919,7 @@ function mapCaregiver(c, permsSetting) {
     photo: c.photo || null, email: c.email || null, avail: c.avail || null, blockedDates: c.blocked_dates || [],
     availOverrides: c.avail_overrides || {}, hasStripeSubscription: !!c.stripe_customer_id,
     views: Number(c.views || 0), perms: permsForPlan(c.plan, permsSetting),
+    country: c.country || 'cz',
   };
 }
 function mapCaregiverForViewer(c, opts = {}) {
@@ -1978,8 +2004,8 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
         const r = await setCaregiverPlan({ email, customerId: o.customer, subscriptionId: o.subscription, plan, status: 'active' });
         // e-mail o aktivaci jen při skutečném přechodu na tento tarif
         if (r && r.prevPlan !== plan && r.row.email) {
-          const priceCzk = await planPriceCZK(plan);
-          await notifyMail({ to: r.row.email, category: 'email', ...planActiveMail({ name: r.row.name, email: r.row.email, priceCzk, plan }) });
+          const price = await planPrice(plan, r.row.country);
+          await notifyMail({ to: r.row.email, category: 'email', ...planActiveMail({ name: r.row.name, email: r.row.email, price, country: r.row.country, plan }) });
         }
         if (r && !r.prevPlan) notifyFavoritersCaregiverAvailable(r.row.id, r.row.name).catch(() => {});
         break;
@@ -2207,16 +2233,109 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
 // odkazy MUSÍ být absolutní (od kořene) — na vnořených cestách jako /pecovatelka/:slug by relativní
 // "app.css" prohlížeč vyhodnotil vůči aktuální cestě (tj. jako /pecovatelka/app.css), což by spadlo
 // na stejnou route a vrátilo HTML místo CSS/JS (stránka by se pak načetla úplně bez stylů)
-function buildIndexHtml(cssRef, jsRef) {
+// slovenský překlad hlavičky <head> (SEO meta), navigace, domovské stránky a patičky —
+// zbytek appky (deferred-views.html, app.js) čeká na další fázi lokalizace (viz plán SK verze);
+// jde o doslovná nahrazení celých frází v rámci index.html, ne o obecnou i18n vrstvu
+const HOME_SK_TRANSLATIONS = [
+  // <head> SEO
+  ['ZENVORIA — Péče s lidskostí | Ověřené pečovatelky pro seniory', 'ZENVORIA — Starostlivosť s ľudskosťou | Overené opatrovateľky pre seniorov'],
+  ['ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Najděte ověřenou pečovatelku pro své blízké — jednoduše, bezpečně a s lidským přístupem.', 'ZENVORIA prepája rodiny s preverenými a certifikovanými opatrovateľkami. Nájdite overenú opatrovateľku pre svojich blízkych — jednoducho, bezpečne a s ľudským prístupom.'],
+  ['pečovatelka, péče o seniory, domácí péče, doprovod k lékaři, Praha, ověřené pečovatelky', 'opatrovateľka, starostlivosť o seniorov, domáca starostlivosť, sprievod k lekárovi, Bratislava, overené opatrovateľky'],
+  ['content="cs_CZ"', 'content="sk_SK"'],
+  ['ZENVORIA — Péče s lidskostí', 'ZENVORIA — Starostlivosť s ľudskosťou'],
+  ['Ověřené pečovatelky na dosah. Klid pro seniory i rodiny. Jednoduše, bezpečně a s lidským přístupem.', 'Overené opatrovateľky na dosah. Pokoj pre seniorov aj rodiny. Jednoducho, bezpečne a s ľudským prístupom.'],
+  ['Ověřené pečovatelky na dosah. Klid pro seniory i rodiny.', 'Overené opatrovateľky na dosah. Pokoj pre seniorov aj rodiny.'],
+  // loader / skip-link
+  ['Načítání…', 'Načítava sa…'],
+  ['Přeskočit na obsah', 'Preskočiť na obsah'],
+  // navigace (deska i mobilní menu)
+  ['ZENVORIA — domů', 'ZENVORIA — domov'],
+  ['>Domů<', '>Domov<'],
+  ['>Hledat péči<', '>Hľadať starostlivosť<'],
+  ['>Jak to funguje<', '>Ako to funguje<'],
+  ['aria-label="Zprávy"', 'aria-label="Správy"'],
+  ['aria-label="Oznámení"', 'aria-label="Oznámenia"'],
+  ['<b>Oznámení</b>', '<b>Oznámenia</b>'],
+  ['Označit vše jako přečtené', 'Označiť všetko ako prečítané'],
+  ['>Přihlásit se<', '>Prihlásiť sa<'],
+  ['>Najít pečovatelku<', '>Nájsť opatrovateľku<'],
+  ['aria-label="Můj účet"', 'aria-label="Môj účet"'],
+  ['>Nastavení<', '>Nastavenia<'],
+  ['>Odhlásit se<', '>Odhlásiť sa<'],
+  ['aria-label="Otevřít menu"', 'aria-label="Otvoriť menu"'],
+  ['aria-label="Zavřít menu"', 'aria-label="Zatvoriť menu"'],
+  ['>Registrace<', '>Registrácia<'],
+  // hero
+  ['Péče s lidskostí', 'Starostlivosť s ľudskosťou'],
+  ['Ověřené pečovatelky <em>na dosah.</em> Klid pro seniory i rodiny.', 'Overené opatrovateľky <em>na dosah.</em> Pokoj pre seniorov aj rodiny.'],
+  ['ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Jednoduše, bezpečně a s lidským přístupem.', 'ZENVORIA prepája rodiny s preverenými a certifikovanými opatrovateľkami. Jednoducho, bezpečne a s ľudským prístupom.'],
+  // trust band
+  ['<b>Ověřené pečovatelky</b><span>Doklady i reference</span>', '<b>Overené opatrovateľky</b><span>Doklady aj referencie</span>'],
+  ['<b>Bezpečná péče</b><span>Pojištění i platby</span>', '<b>Bezpečná starostlivosť</b><span>Poistenie aj platby</span>'],
+  ['<b>Klid pro blízké</b><span>Přehled 24/7</span>', '<b>Pokoj pre blízkych</b><span>Prehľad 24/7</span>'],
+  // o nás
+  ['Péče s lidským přístupem od roku 2026.', 'Starostlivosť s ľudským prístupom od roku 2026.'],
+  ['ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Věříme, že kvalitní péče o seniory\n        stojí na <b style="color:var(--navy-900)">důvěře, lidskosti a bezpečí</b> — proto každou pečovatelku pečlivě\n        ověřujeme, kontrolujeme doklady i reference a stojíme při vás na každém kroku.',
+    'ZENVORIA prepája rodiny s preverenými a certifikovanými opatrovateľkami. Veríme, že kvalitná starostlivosť o seniorov\n        stojí na <b style="color:var(--navy-900)">dôvere, ľudskosti a bezpečí</b> — preto každú opatrovateľku dôkladne\n        overujeme, kontrolujeme doklady aj referencie a stojíme pri vás na každom kroku.'],
+  // audience
+  ['Pro koho je aplikace', 'Pre koho je aplikácia'],
+  ['Spojujeme dvě strany jedné péče', 'Spájame dve strany jednej starostlivosti'],
+  ['>Pro rodiny<', '>Pre rodiny<'],
+  ['Najděte ověřenou péči pro své blízké.', 'Nájdite overenú starostlivosť pre svojich blízkych.'],
+  ['{c} Hledání ověřených pečovatelek', '{c} Hľadanie overených opatrovateliek'],
+  ['{c} Hodnocení a recenze', '{c} Hodnotenia a recenzie'],
+  ['{c} Online rezervace služeb', '{c} Online rezervácia služieb'],
+  ['{c} Chat a videohovor', '{c} Chat a videohovor'],
+  ['{c} SOS kontakt 24/7', '{c} SOS kontakt 24/7'],
+  ['{c} Přehled objednávek a plateb', '{c} Prehľad objednávok a platieb'],
+  ['>Najít péči<', '>Nájsť starostlivosť<'],
+  ['>Pro pečovatelky<', '>Pre opatrovateľky<'],
+  ['Pomáhejte a vydělávejte s důvěrou.', 'Pomáhajte a zarábajte s dôverou.'],
+  ['{cg} Rychlá registrace a ověření', '{cg} Rýchla registrácia a overenie'],
+  ['{cg} Nabídka služeb', '{cg} Ponuka služieb'],
+  ['{cg} Kalendář dostupnosti', '{cg} Kalendár dostupnosti'],
+  ['{cg} Bezpečné platby', '{cg} Bezpečné platby'],
+  ['{cg} Hodnocení a recenze', '{cg} Hodnotenia a recenzie'],
+  ['{cg} Podpora a vzdělávání', '{cg} Podpora a vzdelávanie'],
+  ['>Stát se pečovatelkou<', '>Staňte sa opatrovateľkou<'],
+  // služby
+  ['Služby v aplikaci', 'Služby v aplikácii'],
+  ['Vše, co vaši blízcí potřebují', 'Všetko, čo vaši blízki potrebujú'],
+  ['Od osobní péče po doprovod k lékaři — vyberte si přesně to, co je třeba.', 'Od osobnej starostlivosti po sprievod k lekárovi — vyberte si presne to, čo je potrebné.'],
+  ['>Všechny služby <', '>Všetky služby <'],
+  // hodnoty
+  ['Péčí s lidskostí.', 'Starostlivosťou s ľudskosťou.'],
+  // patička
+  ['Péče s lidskostí. Ověřené pečovatelky pro vaše blízké — bezpečně, rychle a s důvěrou.', 'Starostlivosť s ľudskosťou. Overené opatrovateľky pre vašich blízkych — bezpečne, rýchlo a s dôverou.'],
+  ['<h5>Odkazy</h5>', '<h5>Odkazy</h5>'],
+  ['>Obchodní údaje<', '>Obchodné údaje<'],
+  ['>Ochrana osobních údajů<', '>Ochrana osobných údajov<'],
+  ['>Obchodní podmínky<', '>Obchodné podmienky<'],
+  ['ZENVORIA · Péče s lidskostí.', 'ZENVORIA · Starostlivosť s ľudskosťou.'],
+  ['<span class="chip gold">Lidskost</span>', '<span class="chip gold">Ľudskosť</span>'],
+  ['<span class="chip gold">Důvěra</span>', '<span class="chip gold">Dôvera</span>'],
+  ['<span class="chip gold">Bezpečí</span>', '<span class="chip gold">Bezpečie</span>'],
+];
+function translateHomeToSk(html) {
+  let out = html.replace('<html lang="cs">', '<html lang="sk">');
+  for (const [cz, sk] of HOME_SK_TRANSLATIONS) out = out.split(cz).join(sk);
+  return out;
+}
+function buildIndexHtml(cssRef, jsRef, country) {
   try {
-    return fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8')
+    let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8')
       .replace(/(href=")\/app\.css(")/g, `$1/${cssRef}?v=${APP_VERSION}$2`)
       .replace(/(src=")\/app\.js(")/g, `$1/${jsRef}?v=${APP_VERSION}$2`);
+    if (country === 'sk') html = translateHomeToSk(html);
+    html = html.replace('<script>document.documentElement.classList.add(\'js\');</script>',
+      `<script>document.documentElement.classList.add('js');window.APP_COUNTRY='${country === 'sk' ? 'sk' : 'cz'}';</script>`);
+    return html;
   } catch (e) {
     return null;
   }
 }
-let INDEX_HTML = buildIndexHtml('app.css', 'app.js');
+let INDEX_HTML = buildIndexHtml('app.css', 'app.js', 'cz');
+let INDEX_HTML_SK = buildIndexHtml('app.css', 'app.js', 'sk');
 async function minifyAssets() {
   try {
     const { minify } = require('terser');
@@ -2230,15 +2349,17 @@ async function minifyAssets() {
     if (!jsOut.code || cssOut.errors.length) throw new Error('minifikace vrátila prázdný výstup nebo chybu');
     fs.writeFileSync(path.join(__dirname, 'app.min.js'), jsOut.code);
     fs.writeFileSync(path.join(__dirname, 'app.min.css'), cssOut.styles);
-    INDEX_HTML = buildIndexHtml('app.min.css', 'app.min.js');
+    INDEX_HTML = buildIndexHtml('app.min.css', 'app.min.js', 'cz');
+    INDEX_HTML_SK = buildIndexHtml('app.min.css', 'app.min.js', 'sk');
     console.log(`[zenvoria] assety minifikovány (app.js ${jsSrc.length}→${jsOut.code.length} B, app.css ${cssSrc.length}→${cssOut.styles.length} B)`);
   } catch (e) {
     console.warn('[zenvoria] minifikace assetů selhala, používám nezmenšený zdroj:', e.message);
   }
 }
-function sendIndex(res) {
+function sendIndex(req, res) {
   res.setHeader('Cache-Control', 'no-cache');
-  if (INDEX_HTML) return res.type('html').send(INDEX_HTML);
+  const html = countryForReq(req) === 'sk' ? (INDEX_HTML_SK || INDEX_HTML) : INDEX_HTML;
+  if (html) return res.type('html').send(html);
   return res.sendFile(path.join(ROOT, 'index.html'));
 }
 
@@ -2255,7 +2376,7 @@ app.get('/api/caregivers/distances', h(async (req, res) => {
   const lat = Number(req.query.lat);
   const lng = Number(req.query.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Neplatné souřadnice.' });
-  const rows = await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&lat=not.is.null&lng=not.is.null&select=id,lat,lng`);
+  const rows = await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&lat=not.is.null&lng=not.is.null&country=eq.${countryForReq(req)}&select=id,lat,lng`);
   const distances = (rows || []).map((c) => ({ id: Number(c.id), km: Math.round(haversineKm(lat, lng, c.lat, c.lng) * 10) / 10 }));
   distances.sort((a, b) => a.km - b.km);
   res.json({ distances });
@@ -2343,7 +2464,8 @@ app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(as
   if (await findUserByEmail(em)) return res.status(409).json({ error: 'Tento e-mail je už zaregistrovaný.' });
   const init = (safeName.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
   const password_hash = bcrypt.hashSync(String(password), 10);
-  const user = await restInsert(T.users, { email: em, password_hash, name: safeName, titul: safeTitul, role: r, init, public_id: genPublicId(), phone: safePhone });
+  const country = countryForReq(req);
+  const user = await restInsert(T.users, { email: em, password_hash, name: safeName, titul: safeTitul, role: r, init, public_id: genPublicId(), phone: safePhone, country });
   const welcomeMail = registrationMail(user);
   await sendMailSafe({ to: user.email, ...welcomeMail });
   const code = createEmailVerificationCode();
@@ -2695,8 +2817,10 @@ app.get('/api/bootstrap', h(async (req, res) => {
   const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows, reportRows, favoriteRows, unreadNotifRows, recurringRows] =
     await Promise.all([
       viewer === 'guest'
-        ? restSelect(T.caregivers, 'select=*&verified=eq.true&suspended=eq.false&order=id.asc')
-        : restSelect(T.caregivers, 'select=*&order=id.asc'),
+        ? restSelect(T.caregivers, `select=*&verified=eq.true&suspended=eq.false&country=eq.${countryForReq(req)}&order=id.asc`)
+        : (viewer === 'family'
+          ? restSelect(T.caregivers, `select=*&country=eq.${countryForReq(req)}&order=id.asc`)
+          : restSelect(T.caregivers, 'select=*&order=id.asc')),
       viewer === 'admin'
         ? restSelect(T.orders, 'select=*&order=oid.desc')
         : (viewer === 'family'
@@ -2720,7 +2844,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
           ? restSelect(T.verifications, `email=eq.${encodeURIComponent(req.session.email)}&order=id.asc`)
           : []),
       viewer === 'admin'
-        ? restSelect(T.users, 'select=id,email,name,titul,role,status,init,joined,orders_count,photo,last_seen&order=joined.asc')
+        ? restSelect(T.users, 'select=id,email,name,titul,role,status,init,joined,orders_count,photo,last_seen,country&order=joined.asc')
         : [],
       restSelect(T.reviews, 'select=*&order=id.asc'),
       viewer === 'admin'
@@ -2817,7 +2941,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
     schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null, famPublicId: (oidToEmail[s.oid] && famPublicIdByEmail[oidToEmail[s.oid]]) || null })),
     verifications: (verifications || []).map(mapVerification),
-    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null })),
+    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null, country: u.country || 'cz' })),
     cgReviews, generalReviews,
     familyReviews: (viewer === 'family' || viewer === 'admin')
       ? (familyReviewsRows || []).map((r) => ({ id: Number(r.id), caregiverName: r.caregiver_name, caregiverId: r.caregiver_id != null ? Number(r.caregiver_id) : null, familyEmail: r.family_email || null, familyName: r.family_name || null, stars: r.stars, text: r.text, createdAt: r.created_at }))
@@ -2904,7 +3028,7 @@ app.get('/api/caregivers/availability', rateLimit('locations', RATE_LIMITS.locat
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Neplatné datum.' });
   if (!/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Neplatný čas.' });
   if (!Number.isInteger(hours) || hours < 1 || hours > 24) return res.status(400).json({ error: 'Neplatná délka péče.' });
-  const rows = await restSelect(T.caregivers, 'verified=eq.true&suspended=eq.false&select=id,avail,blocked_dates,avail_overrides');
+  const rows = await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&country=eq.${countryForReq(req)}&select=id,avail,blocked_dates,avail_overrides`);
   const ids = (rows || []).filter((c) => checkAvailabilityFor(c, date, time, hours).ok).map((c) => Number(c.id));
   res.json({ ids });
 }));
@@ -3587,8 +3711,8 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
   // existuje už pečovatelka s tímto e-mailem? + profilová fotka z uživatele
   let cg = null;
   if (v.email) { const ex = await restSelect(T.caregivers, `email=eq.${encodeURIComponent(v.email)}&limit=1`); cg = ex && ex[0]; }
-  let userId = null, userPhoto = null;
-  if (v.email) { const uref = await restSelect(T.users, `email=eq.${encodeURIComponent(v.email)}&limit=1`); if (uref && uref[0]) { userId = uref[0].id; userPhoto = uref[0].photo || null; } }
+  let userId = null, userPhoto = null, userCountry = null;
+  if (v.email) { const uref = await restSelect(T.users, `email=eq.${encodeURIComponent(v.email)}&limit=1`); if (uref && uref[0]) { userId = uref[0].id; userPhoto = uref[0].photo || null; userCountry = uref[0].country || null; } }
   const data = {
     email: v.email, name: v.name, init: v.init, loc: v.loc, rate: v.rate, exp: v.exp,
     services: v.services || [], verified: true, id_verified: true, status: 'verified', suspended: false,
@@ -3615,7 +3739,7 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
       }
     } catch (e) { /* ponech bez plánu */ }
     const slug = await slugFor(v.name, v.loc);
-    await restInsert(T.caregivers, { id: newId, user_id: userId, public_id: genPublicId(), slug, ...data, rating: 0, reviews: 0, plan, plan_status, trial_until, langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0 }, { prefer: 'return=minimal' });
+    await restInsert(T.caregivers, { id: newId, user_id: userId, public_id: genPublicId(), slug, ...data, rating: 0, reviews: 0, plan, plan_status, trial_until, langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0, country: userCountry || countryForReq(req) }, { prefer: 'return=minimal' });
   }
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'approved' }, { prefer: 'return=minimal' });
   if (v.email) await notifyMail({ to: v.email, category: 'email', ...verificationResultMail({ name: v.name, approved: true }) });
@@ -4924,13 +5048,16 @@ async function setCaregiverPlan({ email, customerId, subscriptionId, plan, statu
   return { row, prevPlan, prevStatus };
 }
 
-// cena tarifu (Kč/měsíc) ze serverových nastavení — nikdy se nevěří částce z prohlížeče
-async function planPriceCZK(plan) {
-  const fallback = plan === 'start' ? 190 : 390;
+// cena tarifu (Kč pro cz / EUR pro sk, za měsíc) ze serverových nastavení — nikdy se nevěří částce z prohlížeče
+async function planPrice(plan, country) {
+  const c = country === 'sk' ? 'sk' : 'cz';
+  const fallback = c === 'sk' ? (plan === 'start' ? 8 : 16) : (plan === 'start' ? 190 : 390);
   try {
     const rows = await restSelect(T.settings, `key=eq.planPrices&limit=1`);
-    const v = rows && rows[0] && rows[0].value;
-    const p = v && Number(v[plan]);
+    const raw = rows && rows[0] && rows[0].value;
+    // stará plochá podoba (bez cz/sk klíčů) se bere jako CZ, ať zůstane zpětně kompatibilní
+    const scoped = raw && (raw[c] || (c === 'cz' && !raw.sk ? raw : null));
+    const p = scoped && Number(scoped[plan]);
     if (p && p > 0) return Math.round(p);
   } catch (e) { console.warn('[stripe] nelze načíst cenu z nastavení:', e.message); }
   return fallback;
@@ -5262,7 +5389,9 @@ app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) =
   }
 
   // dynamická cena z aplikace (admin → Tarify) — žádný předem vytvořený produkt ve Stripe není potřeba
-  const priceCzk = await planPriceCZK(plan);
+  const cgCountry = cg.country === 'sk' ? 'sk' : 'cz';
+  const price = await planPrice(plan, cgCountry);
+  const currency = cgCountry === 'sk' ? 'eur' : STRIPE_CURRENCY;
   const planName = plan === 'start' ? 'START' : 'PREMIUM';
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -5271,8 +5400,8 @@ app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) =
     line_items: [{
       quantity: 1,
       price_data: {
-        currency: STRIPE_CURRENCY,
-        unit_amount: priceCzk * 100, // v haléřích
+        currency,
+        unit_amount: price * 100, // v haléřích/centech
         recurring: { interval: 'month' },
         product_data: {
           name: `ZENVORIA ${planName}`,
@@ -5764,9 +5893,10 @@ function extractViewHtml(html, viewId) {
 }
 // vloží per-route title/description/canonical/OG/JSON-LD/SSR obsah do už připraveného INDEX_HTML
 // (ten už má správné app.min.js/app.min.css odkazy z minifyAssets() — nečteme index.html znovu z disku)
-function renderSeoPage({ title, description, canonical, ogTitle, ogDescription, jsonLd, ssrHtml }) {
-  if (!INDEX_HTML) return null;
-  let html = INDEX_HTML;
+function renderSeoPage({ title, description, canonical, ogTitle, ogDescription, jsonLd, ssrHtml, country }) {
+  const base = country === 'sk' ? (INDEX_HTML_SK || INDEX_HTML) : INDEX_HTML;
+  if (!base) return null;
+  let html = base;
   if (title) html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
   if (description) html = html.replace(/(<meta name="description" content=")[^"]*(")/, (_all, a, b) => a + escapeHtml(description) + b);
   const ogT = ogTitle || title, ogD = ogDescription || description;
@@ -5784,17 +5914,17 @@ function renderSeoPage({ title, description, canonical, ogTitle, ogDescription, 
   if (ssrHtml) html = html.replace('<!--SSR_CONTENT-->', ssrHtml);
   return html;
 }
-function sendSeoPage(res, opts) {
+function sendSeoPage(req, res, opts) {
   res.setHeader('Cache-Control', 'no-cache');
-  const html = renderSeoPage(opts);
+  const html = renderSeoPage({ ...opts, country: countryForReq(req) });
   if (html) return res.type('html').send(html);
-  return sendIndex(res);
+  return sendIndex(req, res);
 }
-async function getPublicCaregivers() {
+async function getPublicCaregivers(country) {
   // veřejné SEO cesty (sitemap, vyhledávací stránka) musí zůstat dostupné i při výpadku DB —
   // radši prázdný seznam než 500 chyba pro crawler/vyhledávač
   try {
-    return (await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&select=id,slug,name,titul,loc,rate,bio,services,rating,reviews,exp&order=rating.desc&limit=500`)) || [];
+    return (await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&country=eq.${country}&select=id,slug,name,titul,loc,rate,bio,services,rating,reviews,exp&order=rating.desc&limit=500`)) || [];
   } catch (e) {
     console.warn('[seo] nelze načíst veřejné pečovatelky:', e.message);
     return [];
@@ -5810,13 +5940,14 @@ function caregiverCardHtml(c) {
 }
 
 app.get('/hledat-peci', h(async (req, res) => {
-  const cgs = await getPublicCaregivers();
-  const shell = extractViewHtml(INDEX_HTML || '', 'view-search');
+  const country = countryForReq(req);
+  const cgs = await getPublicCaregivers(country);
+  const shell = extractViewHtml((country === 'sk' ? INDEX_HTML_SK : INDEX_HTML) || '', 'view-search');
   const list = cgs.map(caregiverCardHtml).join('');
   const ssrHtml = shell
     ? shell.replace('<div class="care-grid" id="careGrid"></div>', `<div class="care-grid" id="careGrid">${list}</div>`)
     : list;
-  sendSeoPage(res, {
+  sendSeoPage(req, res, {
     title: 'Hledat pečovatelku — ZENVORIA',
     description: `Najděte ověřenou pečovatelku ve svém okolí. Aktuálně ${cgs.length} ověřených pečovatelek v ZENVORIA.`,
     canonical: `${APP_ORIGIN}/hledat-peci`,
@@ -5826,7 +5957,7 @@ app.get('/hledat-peci', h(async (req, res) => {
 }));
 
 app.get('/jak-to-funguje', h(async (req, res) => {
-  sendSeoPage(res, {
+  sendSeoPage(req, res, {
     title: 'Jak to funguje — ZENVORIA',
     description: 'Od vyhledání ověřené pečovatelky až po klidnou péči — ve čtyřech jednoduchých krocích.',
     canonical: `${APP_ORIGIN}/jak-to-funguje`,
@@ -5838,7 +5969,7 @@ app.get('/jak-to-funguje', h(async (req, res) => {
 app.get('/cenik', h(async (req, res) => {
   let devHtml = '';
   try { devHtml = fs.readFileSync(path.join(__dirname, 'deferred-views.html'), 'utf8'); } catch (e) { /* ignore */ }
-  sendSeoPage(res, {
+  sendSeoPage(req, res, {
     title: 'Ceník — ZENVORIA',
     description: 'Přehled tarifů pro pečovatelky v ZENVORIA.',
     canonical: `${APP_ORIGIN}/cenik`,
@@ -5868,7 +5999,7 @@ const STATIC_LEGAL_PAGES = {
 };
 app.get(Object.keys(STATIC_LEGAL_PAGES), h(async (req, res) => {
   let html = '';
-  try { html = fs.readFileSync(path.join(ROOT, STATIC_LEGAL_PAGES[req.path]), 'utf8'); } catch (e) { return sendIndex(res); }
+  try { html = fs.readFileSync(path.join(ROOT, STATIC_LEGAL_PAGES[req.path]), 'utf8'); } catch (e) { return sendIndex(req, res); }
   res.set('Cache-Control', 'no-cache').type('html').send(fillContactPlaceholders(html, contactInfo));
 }));
 
@@ -5879,7 +6010,7 @@ app.get('/pecovatelka/:slug', h(async (req, res) => {
     const rows = await restSelect(T.caregivers, `slug=eq.${encodeURIComponent(slug)}&verified=eq.true&suspended=eq.false&select=id,slug,name,titul,loc,rate,bio,services,rating,reviews,exp&limit=1`);
     c = rows && rows[0];
   } catch (e) { console.warn('[seo] nelze načíst profil pečovatelky:', e.message); }
-  if (!c) return sendIndex(res); // neexistuje/neověřená/výpadek DB → SPA dovyrenderuje "nenalezeno"
+  if (!c) return sendIndex(req, res); // neexistuje/neověřená/výpadek DB → SPA dovyrenderuje "nenalezeno"
   const servicesTxt = (c.services || []).join(', ');
   const bioSnippet = String(c.bio || '').slice(0, 140);
   const jsonLd = {
@@ -5897,7 +6028,7 @@ app.get('/pecovatelka/:slug', h(async (req, res) => {
     <p>${escapeHtml(c.bio || '')}</p>
     ${servicesTxt ? `<p><b>Nabízené služby:</b> ${escapeHtml(servicesTxt)}</p>` : ''}
     </div>`;
-  sendSeoPage(res, {
+  sendSeoPage(req, res, {
     title: `${displayName} — pečovatelka, ${c.loc || 'Česko'} | ZENVORIA`,
     description: `${displayName}, ${c.loc || ''}. ${bioSnippet}`.trim(),
     canonical: `${APP_ORIGIN}/pecovatelka/${encodeURIComponent(c.slug)}`,
@@ -5940,7 +6071,7 @@ Sitemap: ${APP_ORIGIN}/sitemap.xml
 
 app.get('/sitemap.xml', h(async (req, res) => {
   const staticPaths = ['/', '/hledat-peci', '/jak-to-funguje', '/cenik', '/obchodni-podminky', '/zasady-cookies'];
-  const cgs = await getPublicCaregivers();
+  const cgs = await getPublicCaregivers(countryForReq(req));
   const urls = [
     ...staticPaths.map((p) => `<url><loc>${APP_ORIGIN}${p}</loc></url>`),
     ...cgs.filter((c) => c.slug).map((c) => `<url><loc>${APP_ORIGIN}/pecovatelka/${encodeURIComponent(c.slug)}</loc></url>`),
@@ -5971,7 +6102,7 @@ const IMMUTABLE_ASSET_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$/i;
    reload stáhl novou verzi; statická média (obrázky/fonty) zůstanou immutable. */
 const REVALIDATE_ASSET_RE = /(?:\.html?|app(?:\.min)?\.js|app(?:\.min)?\.css|deferred-views\.html)$/i;
 /* index.html vždy s otiskem verze (musí být PŘED express.static) */
-app.get(['/', '/index.html'], (_req, res) => sendSeoPage(res, { canonical: `${APP_ORIGIN}/`, jsonLd: ORG_JSON_LD }));
+app.get(['/', '/index.html'], (req, res) => sendSeoPage(req, res, { canonical: `${APP_ORIGIN}/`, jsonLd: ORG_JSON_LD }));
 app.use(express.static(ROOT, {
   extensions: ['html'],
   index: 'index.html',
@@ -5997,7 +6128,7 @@ app.use(express.static(ROOT, {
 }));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
-  sendIndex(res);
+  sendIndex(req, res);
 });
 
 /* vypršelé zkušební PREMIUM (trial_until v minulosti) → zpět na START */

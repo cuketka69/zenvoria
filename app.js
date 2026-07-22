@@ -4165,6 +4165,8 @@ function doRejectVerification(id,reason){
 }
 
 /* ---- ADMIN: pečovatelky ---- */
+/* vlaječka země u admin řádků (CZ/SK) — appka běží na sdílené DB pro obě země */
+function countryFlag(country){return country==='sk'?'<span class="badge" title="Slovensko">🇸🇰 SK</span>':'<span class="badge" title="Česko">🇨🇿 CZ</span>';}
 let cgUpsellSelected=new Set();
 function renderAdminCaregivers(){
   document.getElementById('admCgCount').textContent=CAREGIVERS.length;
@@ -4178,7 +4180,7 @@ function renderAdminCaregivers(){
     const chk=!c.plan?`<input type="checkbox" class="cg-upsell-chk" data-id="${c.id}" ${cgUpsellSelected.has(c.id)?'checked':''} onchange="toggleCgUpsell(${c.id},this.checked)">`:'';
     return `<tr>
       <td>${chk}</td>
-      <td><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(dispName(c))}</b><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
+      <td><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(dispName(c))} ${countryFlag(c.country)}</b><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
       <td>${esc(c.loc)}</td><td>${c.rate} Kč</td><td>${badge}</td>
       <td>${planBadge}${(isPrem&&c.trialUntil)?`<div style="font-size:11.5px;color:var(--muted);margin-top:3px">do ${fmtDate(c.trialUntil)}</div>`:''}</td>
       <td><div class="adm-actions" style="justify-content:flex-end">
@@ -4380,7 +4382,7 @@ function renderAdminUsers(){
     const suspended=isUserEffectivelySuspended(u);
     const badge=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
     return `<tr>
-      <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))}</b><span>${esc(u.email)}</span></div></div></td>
+      <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))} ${countryFlag(u.country)}</b><span>${esc(u.email)}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${esc(lastSeenText(u.lastSeen))}</td><td>${badge}</td>
       <td><div class="adm-actions" style="justify-content:flex-end">
         <button class="btn btn-sm btn-gold" onclick="openFamilyAdmin(${u.id})">Zobrazit</button>
@@ -5449,6 +5451,11 @@ function normalizeAvailDay(day){
 
 function cgFirstName(){return (auth.role==='caregiver'&&auth.name)?auth.name:cgProfile.name;}
 function fmtDate(iso){return new Date(iso).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'});}
+/* částka s měnovou zkratkou podle země webu (Kč pro cz, € pro sk) — jediné místo, které o měně rozhoduje */
+function fmtMoney(amount){
+  const n=Number(amount||0);
+  return (window.APP_COUNTRY==='sk')?(n.toLocaleString('sk-SK')+' €'):(n.toLocaleString('cs-CZ')+' Kč');
+}
 function timeRange(start,hours){
   const [h,m]=start.split(':').map(Number);const end=new Date(2000,0,1,h+hours,m);const pad=n=>String(n).padStart(2,'0');
   return `${start} – ${pad(end.getHours())}:${pad(end.getMinutes())}`;
