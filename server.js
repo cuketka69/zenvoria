@@ -2378,7 +2378,7 @@ function buildIndexHtml(cssRef, jsRef, country) {
   }
 }
 let INDEX_HTML = buildIndexHtml('app.css', 'app.js', 'cz');
-let INDEX_HTML_SK = buildIndexHtml('app.css', 'app.js', 'sk');
+let INDEX_HTML_SK = buildIndexHtml('app.css', 'app.sk.js', 'sk');
 
 // slovenský překlad dílčích view bloků z deferred-views.html — zatím přihlášení/registrace
 // (view-login, view-register); zbytek (dashboardy, chat, admin…) čeká na další fázi lokalizace
@@ -2669,6 +2669,63 @@ function buildDeferredViewsHtml(country) {
 }
 let DEFERRED_VIEWS_HTML = buildDeferredViewsHtml('cz');
 let DEFERRED_VIEWS_HTML_SK = buildDeferredViewsHtml('sk');
+
+// slovenský překlad textů generovaných přímo v app.js (karty ve vyhledávání, odznaky, ceník…) —
+// stejná technika jako u HTML view: doslovná nahrazení frází v celém zdrojovém textu app.js,
+// výstup se uloží jako samostatný soubor app.sk.js/app.sk.min.js a slouží se ho jen na zenvoria.sk
+const JS_SK_TRANSLATIONS = [
+  // priceLabel / priceShort / kmLabel — cena pečovatelky ve vyhledávání a profilu
+  ["if(c.priceType==='indiv')return 'Individuální nabídka';", "if(c.priceType==='indiv')return 'Individuálna ponuka';"],
+  ["if(c.priceType==='den')return `${(c.dayRate||c.rate*8).toLocaleString('cs-CZ')} Kč / den`;", "if(c.priceType==='den')return `${(c.dayRate||c.rate*8).toLocaleString('cs-CZ')} Kč / deň`;"],
+  ["if(c.priceType==='indiv')return '<b>Individuální</b>';", "if(c.priceType==='indiv')return '<b>Individuálna</b>';"],
+  ["if(c.priceType==='den')return `<b>${(c.dayRate||c.rate*8).toLocaleString('cs-CZ')} Kč</b> <span>/ den</span>`;", "if(c.priceType==='den')return `<b>${(c.dayRate||c.rate*8).toLocaleString('cs-CZ')} Kč</b> <span>/ deň</span>`;"],
+  ["function kmLabel(c){return (c.kmPrice&&c.kmPrice>0)?`${c.kmPrice} Kč / km`:'V ceně';}", "function kmLabel(c){return (c.kmPrice&&c.kmPrice>0)?`${c.kmPrice} Kč / km`:'V cene';}"],
+  // cgBadges — odznaky na kartách a profilu
+  ["Ověřená identita</span>');", "Overená identita</span>');"],
+  ["Top hodnocení</span>`);", "Top hodnotenie</span>`);"],
+  // renderCare — prázdné výsledky, počet pečovatelek, karty
+  ["cnt.textContent=n+' '+(n===1?'pečovatelka':(n>=2&&n<=4?'pečovatelky':'pečovatelek'));", "cnt.textContent=n+' '+(n===1?'opatrovateľka':(n>=2&&n<=4?'opatrovateľky':'opatrovateliek'));"],
+  ["const emptyMsg=favOnly?'Zatím nemáte žádné oblíbené pečovatelky. Přidejte si je srdíčkem na jejich kartě.'\r\n      :(availabilityFilterIds?'V tomto termínu nemá volno žádná pečovatelka. Zkuste jiný den nebo čas.':'Žádná pečovatelka neodpovídá filtru.');",
+    "const emptyMsg=favOnly?'Zatiaľ nemáte žiadne obľúbené opatrovateľky. Pridajte si ich srdiečkom na ich karte.'\r\n      :(availabilityFilterIds?'V tomto termíne nemá voľno žiadna opatrovateľka. Skúste iný deň alebo čas.':'Žiadna opatrovateľka nezodpovedá filtru.');"],
+  ["<span class=\"chip chip-warn\">Mimo dojezd (do ${c.radius} km)</span>", "<span class=\"chip chip-warn\">Mimo dojazd (do ${c.radius} km)</span>"],
+  [">Zobrazit profil</button>", ">Zobraziť profil</button>"],
+  // renderPricing — bannery a tlačítka na Ceníku
+  ["const validTxt=me&&me.trialUntil?('platí do '+fmtDate(me.trialUntil)):'platí neomezeně';", "const validTxt=me&&me.trialUntil?('platí do '+fmtDate(me.trialUntil)):'platí neobmedzene';"],
+  ["const cardNote=hasCard?'':' Zatím nemáte uloženou platební kartu — bez ní tarif po skončení zkušební doby skončí.';",
+    "const cardNote=hasCard?'':' Zatiaľ nemáte uloženú platobnú kartu — bez nej tarif po skončení skúšobnej doby skončí.';"],
+  ["<b>Váš aktuální tarif: ${PLANS[cur].name}</b>", "<b>Váš aktuálny tarif: ${PLANS[cur].name}</b>"],
+  ["<b>Nemáte aktivní tarif</b><span>Bez tarifu vás rodiny neuvidí ve vyhledávání. Vyberte si START nebo PREMIUM.</span>",
+    "<b>Nemáte aktívny tarif</b><span>Bez tarifu vás rodiny neuvidia vo vyhľadávaní. Vyberte si START alebo PREMIUM.</span>"],
+  ["<b>Jste pečovatelka?</b><span>Zaregistrujte se a vyberte si tarif. Ceník je informativní.</span>",
+    "<b>Ste opatrovateľka?</b><span>Zaregistrujte sa a vyberte si tarif. Cenník je informatívny.</span>"],
+  ["'<div class=\"plan-current\">'+checkSVG()+' Váš aktuální tarif</div>'", "'<div class=\"plan-current\">'+checkSVG()+' Váš aktuálny tarif</div>'"],
+  ["? '<button class=\"btn btn-ghost btn-block\" style=\"margin-top:10px\" onclick=\"openBillingPortal(this)\">Spravovat předplatné</button>'",
+    "? '<button class=\"btn btn-ghost btn-block\" style=\"margin-top:10px\" onclick=\"openBillingPortal(this)\">Spravovať predplatné</button>'"],
+  [": `<button class=\"btn btn-gold btn-block\" style=\"margin-top:10px\" onclick=\"startPlanCheckout(this,'${key}')\">Přidat platební kartu a prodloužit</button>`)",
+    ": `<button class=\"btn btn-gold btn-block\" style=\"margin-top:10px\" onclick=\"startPlanCheckout(this,'${key}')\">Pridať platobnú kartu a predĺžiť</button>`)"],
+  ["? `<button class=\"btn btn-gold btn-block\" onclick=\"switchToPlan(this,'premium')\">Vyzkoušet PREMIUM zdarma na 3 měsíce</button>`",
+    "? `<button class=\"btn btn-gold btn-block\" onclick=\"switchToPlan(this,'premium')\">Vyskúšať PREMIUM zdarma na 3 mesiace</button>`"],
+  [": `<button class=\"btn btn-ghost btn-block\" onclick=\"switchToPlan(this,'start')\">Přejít na START zdarma na 3 měsíce</button>`);}",
+    ": `<button class=\"btn btn-ghost btn-block\" onclick=\"switchToPlan(this,'start')\">Prejsť na START zdarma na 3 mesiace</button>`);}"],
+  ["else{action=`<button class=\"btn ${featured?'btn-gold':'btn-ghost'} btn-block\" onclick=\"go('register');pickRole('caregiver')\">Vyzkoušet ${p.name} zdarma</button>`;}",
+    "else{action=`<button class=\"btn ${featured?'btn-gold':'btn-ghost'} btn-block\" onclick=\"go('register');pickRole('caregiver')\">Vyskúšať ${p.name} zdarma</button>`;}"],
+  ["${featured?'<span class=\"pl-tag\">NEJOBLÍBENĚJŠÍ</span>':''}", "${featured?'<span class=\"pl-tag\">NAJOBĽÚBENEJŠIE</span>':''}"],
+  ["${planPrice(key)>0?planPrice(key).toLocaleString('cs-CZ')+' Kč <span>/ měsíc</span>':'Zdarma'}", "${planPrice(key)>0?planPrice(key).toLocaleString('cs-CZ')+' Kč <span>/ mesiac</span>':'Zdarma'}"],
+  ["'<div class=\"pl-trial\">'+checkSVG()+' Prvních 3 měsíce zdarma</div>':''}", "'<div class=\"pl-trial\">'+checkSVG()+' Prvé 3 mesiace zdarma</div>':''}"],
+  ["<div class=\"pl-sub\">${featured?'Pro pečovatelky, které chtějí být více vidět.':(planPrice('start')>0?'Pro pečovatelky, které začínají.':'Základní tarif zdarma — automaticky po ověření.')}</div>",
+    "<div class=\"pl-sub\">${featured?'Pre opatrovateľky, ktoré chcú byť viac vidieť.':(planPrice('start')>0?'Pre opatrovateľky, ktoré začínajú.':'Základný tarif zdarma — automaticky po overení.')}</div>"],
+  ["<td>${Number(i.amountCzk||0).toLocaleString('cs-CZ')} ${esc(i.currency||'CZK')}</td>", "<td>${Number(i.amountCzk||0).toLocaleString('sk-SK')} ${esc(i.currency||'CZK')}</td>"],
+  [">Stáhnout PDF</a>", ">Stiahnuť PDF</a>"],
+];
+function translateAppJsToSk(src) {
+  let out = src;
+  for (const [cz, sk] of JS_SK_TRANSLATIONS) out = out.split(cz).join(sk);
+  return out;
+}
+function writeAppJsSk(src) {
+  try { fs.writeFileSync(path.join(__dirname, 'app.sk.js'), translateAppJsToSk(src)); } catch (e) { console.warn('[zenvoria] nelze zapsat app.sk.js:', e.message); }
+}
+try { writeAppJsSk(fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8')); } catch (e) { /* ponech bez SK varianty */ }
 async function minifyAssets() {
   try {
     const { minify } = require('terser');
@@ -2676,14 +2733,16 @@ async function minifyAssets() {
     const jsSrc = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
     const cssSrc = fs.readFileSync(path.join(__dirname, 'app.css'), 'utf8');
     const jsOut = await minify(jsSrc, { compress: true, mangle: true });
+    const jsSkOut = await minify(translateAppJsToSk(jsSrc), { compress: true, mangle: true });
     // level 2 slučuje/přeuspořádává pravidla a v testu poškodil tmavý režim (selektory [data-theme] zmizely) —
     // level 1 dělá jen bezpečné úpravy (mezery, komentáře, zkrácení hodnot) beze změny pořadí/skládání pravidel
     const cssOut = new CleanCSS({ level: 1 }).minify(cssSrc);
-    if (!jsOut.code || cssOut.errors.length) throw new Error('minifikace vrátila prázdný výstup nebo chybu');
+    if (!jsOut.code || !jsSkOut.code || cssOut.errors.length) throw new Error('minifikace vrátila prázdný výstup nebo chybu');
     fs.writeFileSync(path.join(__dirname, 'app.min.js'), jsOut.code);
+    fs.writeFileSync(path.join(__dirname, 'app.sk.min.js'), jsSkOut.code);
     fs.writeFileSync(path.join(__dirname, 'app.min.css'), cssOut.styles);
     INDEX_HTML = buildIndexHtml('app.min.css', 'app.min.js', 'cz');
-    INDEX_HTML_SK = buildIndexHtml('app.min.css', 'app.min.js', 'sk');
+    INDEX_HTML_SK = buildIndexHtml('app.min.css', 'app.sk.min.js', 'sk');
     console.log(`[zenvoria] assety minifikovány (app.js ${jsSrc.length}→${jsOut.code.length} B, app.css ${cssSrc.length}→${cssOut.styles.length} B)`);
   } catch (e) {
     console.warn('[zenvoria] minifikace assetů selhala, používám nezmenšený zdroj:', e.message);

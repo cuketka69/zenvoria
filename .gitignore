@@ -1,6 +1,8 @@
 # Vygenerované minifikované assety (vytvoří se automaticky při startu serveru)
 app.min.js
 app.min.css
+app.sk.js
+app.sk.min.js
 
 # Logs
 logs
