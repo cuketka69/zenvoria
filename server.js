@@ -2955,6 +2955,53 @@ const JS_SK_TRANSLATIONS = [
   // cgCalendar — kalendář dostupnosti pečovatelky
   ["const action=has?`toast('Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:(clickable?`openDayOverride('${iso}')`:'');",
     "const action=has?`toast('Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:(clickable?`openDayOverride('${iso}')`:'');"],
+  // oblíbené pečovatelky (srdíčko na kartě/profilu)
+  ["aria-label=\"${on?'Odebrat z oblíbených':'Přidat do oblíbených'}\" title=\"${on?'Odebrat z oblíbených':'Přidat do oblíbených'}\"",
+    "aria-label=\"${on?'Odobrať z obľúbených':'Pridať do obľúbených'}\" title=\"${on?'Odobrať z obľúbených':'Pridať do obľúbených'}\""],
+  ["if(!(auth.loggedIn&&auth.role==='family')){toast('Pro uložení oblíbených se prosím přihlaste.');go('login');return;}",
+    "if(!(auth.loggedIn&&auth.role==='family')){toast('Pre uloženie obľúbených sa prosím prihláste.');go('login');return;}"],
+  ["toast(on?'Odebráno z oblíbených.':'Přidáno do oblíbených.','success');", "toast(on?'Odobrané z obľúbených.':'Pridané do obľúbených.','success');"],
+  // filtr dostupnosti (konkrétní datum/čas) ve vyhledávání
+  ["catch(e){availabilityFilterIds=new Set();toast('Dostupnost se nepodařilo ověřit.','declined');}", "catch(e){availabilityFilterIds=new Set();toast('Dostupnosť sa nepodarilo overiť.','declined');}"],
+  // submitVerify — validace formuláře ověření pečovatelky
+  ["if(name.split(/\\s+/).filter(Boolean).length<2){verifyError(err,'Zadejte celé jméno a příjmení.');return false;}",
+    "if(name.split(/\\s+/).filter(Boolean).length<2){verifyError(err,'Zadajte celé meno a priezvisko.');return false;}"],
+  ["if(!g('vfLoc')){verifyError(err,'Zadejte lokalitu (město nebo okres).');return false;}", "if(!g('vfLoc')){verifyError(err,'Zadajte lokalitu (mesto alebo okres).');return false;}"],
+  ["if(!rate||rate<150){verifyError(err,'Zadejte platnou hodinovou sazbu (min. 150 Kč).');return false;}", "if(!rate||rate<150){verifyError(err,'Zadajte platnú hodinovú sadzbu (min. 150 Kč).');return false;}"],
+  ["if(!isPhone(phone)){verifyError(err,'Zadejte platné telefonní číslo.');return false;}", "if(!isPhone(phone)){verifyError(err,'Zadajte platné telefónne číslo.');return false;}"],
+  ["if(!docNum){verifyError(err,'Zadejte číslo dokladu totožnosti.');return false;}", "if(!docNum){verifyError(err,'Zadajte číslo dokladu totožnosti.');return false;}"],
+  ["if(!verifyIdFrontName){verifyError(err,'Nahrajte prosím přední stranu dokladu totožnosti.');return false;}", "if(!verifyIdFrontName){verifyError(err,'Nahrajte prosím prednú stranu dokladu totožnosti.');return false;}"],
+  ["if(!verifyIdBackName){verifyError(err,'Nahrajte prosím zadní stranu dokladu totožnosti.');return false;}", "if(!verifyIdBackName){verifyError(err,'Nahrajte prosím zadnú stranu dokladu totožnosti.');return false;}"],
+  ["if(!verifySelfieName){verifyError(err,'Nahrajte prosím selfie pro ověření totožnosti.');return false;}", "if(!verifySelfieName){verifyError(err,'Nahrajte prosím selfie na overenie totožnosti.');return false;}"],
+  ["if(!certifications.length){verifyError(err,'Uveďte alespoň jedno osvědčení nebo kurz.');return false;}", "if(!certifications.length){verifyError(err,'Uveďte aspoň jedno osvedčenie alebo kurz.');return false;}"],
+  ["if(certifications.some(item=>!item.name)){verifyError(err,'Doplňte název u každého osvědčení.');return false;}", "if(certifications.some(item=>!item.name)){verifyError(err,'Doplňte názov pri každom osvedčení.');return false;}"],
+  ["if(certifications.some(item=>!item.issuer)){verifyError(err,'Doplňte instituci u každého osvědčení.');return false;}", "if(certifications.some(item=>!item.issuer)){verifyError(err,'Doplňte inštitúciu pri každom osvedčení.');return false;}"],
+  ["if(certifications.some(item=>!item.fileName)){verifyError(err,'Nahrajte doklad u každého osvědčení.');return false;}", "if(certifications.some(item=>!item.fileName)){verifyError(err,'Nahrajte doklad pri každom osvedčení.');return false;}"],
+  ["if(!services.length){verifyError(err,'Vyberte alespoň jednu nabízenou službu.');return false;}", "if(!services.length){verifyError(err,'Vyberte aspoň jednu ponúkanú službu.');return false;}"],
+  ["if(!document.getElementById('vfRules').checked){verifyError(err,'Potvrďte prosím pravdivost údajů a souhlas s pravidly.');return false;}",
+    "if(!document.getElementById('vfRules').checked){verifyError(err,'Potvrďte prosím pravdivosť údajov a súhlas s pravidlami.');return false;}"],
+  ["if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){verifyError(err,'Už máte žádost čekající na schválení.');return false;}",
+    "if(VERIFICATIONS.some(v=>v.email===auth.email&&v.status==='submitted')){verifyError(err,'Už máte žiadosť čakajúcu na schválenie.');return false;}"],
+  ["if(btn){btn.disabled=true;btn.dataset.label=btn.textContent;btn.textContent='Odesílám...';}", "if(btn){btn.disabled=true;btn.dataset.label=btn.textContent;btn.textContent='Odosielam...';}"],
+  ["toast('Děkujeme! Vaši žádost jsme odeslali ke schválení.','success');", "toast('Ďakujeme! Vašu žiadosť sme odoslali na schválenie.','success');"],
+  ["verifyError(err,(ex&&ex.message)?ex.message:'Žádost se nepodařilo odeslat. Zkuste to prosím znovu.');",
+    "verifyError(err,(ex&&ex.message)?ex.message:'Žiadosť sa nepodarilo odoslať. Skúste to prosím znova.');"],
+  // nahlášení recenze / zprávy
+  ["if(!auth.loggedIn){toast('Pro nahlášení se prosím přihlaste.');go('login');return;}", "if(!auth.loggedIn){toast('Pre nahlásenie sa prosím prihláste.');go('login');return;}"],
+  ["askConfirm({title:'Nahlásit recenzi',icon:warnSVG(),", "askConfirm({title:'Nahlásiť recenziu',icon:warnSVG(),"],
+  ["message:'Popište stručně, proč je tato recenze nevhodná. Uvidí to jen tým ZENVORIA.',", "message:'Popíšte stručne, prečo je táto recenzia nevhodná. Uvidí to len tím ZENVORIA.',"],
+  ["input:{label:'Důvod nahlášení',placeholder:'Např. recenze je urážlivá nebo zjevně nepravdivá…'},", "input:{label:'Dôvod nahlásenia',placeholder:'Napr. recenzia je urážlivá alebo zjavne nepravdivá…'},"],
+  ["confirmLabel:'Nahlásit',onConfirm:(reason)=>{\r\n      reason=(reason||'').trim();\r\n      if(reason.length<5){toast('Popište prosím stručně důvod nahlášení.','declined');return;}\r\n      apiSync(api('/reports',{method:'POST',body:{reviewType,targetId:id,reason}}).then(()=>{",
+    "confirmLabel:'Nahlásiť',onConfirm:(reason)=>{\r\n      reason=(reason||'').trim();\r\n      if(reason.length<5){toast('Popíšte prosím stručne dôvod nahlásenia.','declined');return;}\r\n      apiSync(api('/reports',{method:'POST',body:{reviewType,targetId:id,reason}}).then(()=>{"],
+  ["toast('Nahlášení bylo odesláno. Děkujeme.','success');", "toast('Nahlásenie bolo odoslané. Ďakujeme.','success');"],
+  ["toast('Hotovo! Teď můžete dokončit objednávku.');", "toast('Hotovo! Teraz môžete dokončiť objednávku.');"],
+  ["toast('Pro objednání služby se prosím přihlaste.');", "toast('Pre objednanie služby sa prosím prihláste.');"],
+  // nahlášení zprávy (chat)
+  ["askConfirm({title:'Nahlásit zprávu',icon:warnSVG(),", "askConfirm({title:'Nahlásiť správu',icon:warnSVG(),"],
+  ["message:'Popište stručně, proč je tato zpráva nevhodná. Uvidí to jen tým ZENVORIA.',", "message:'Popíšte stručne, prečo je táto správa nevhodná. Uvidí to len tím ZENVORIA.',"],
+  ["input:{label:'Důvod nahlášení',placeholder:'Např. zpráva je urážlivá nebo obtěžující…'},", "input:{label:'Dôvod nahlásenia',placeholder:'Napr. správa je urážlivá alebo obťažujúca…'},"],
+  ["confirmLabel:'Nahlásit',onConfirm:(reason)=>{\r\n      reason=(reason||'').trim();\r\n      if(reason.length<5){toast('Popište prosím stručně důvod nahlášení.','declined');return;}\r\n      apiSync(api('/conversations/'+c.id+'/messages/'+mid+'/report',{method:'POST',body:{reason}}).then(()=>{",
+    "confirmLabel:'Nahlásiť',onConfirm:(reason)=>{\r\n      reason=(reason||'').trim();\r\n      if(reason.length<5){toast('Popíšte prosím stručne dôvod nahlásenia.','declined');return;}\r\n      apiSync(api('/conversations/'+c.id+'/messages/'+mid+'/report',{method:'POST',body:{reason}}).then(()=>{"],
 ];
 function translateAppJsToSk(src) {
   let out = src;
