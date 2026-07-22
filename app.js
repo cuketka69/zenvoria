@@ -1,3 +1,27 @@
+/* ---------- MAPLIBRE (lazy-load) ----------
+   MapLibre (~800 KB JS + CSS) se dřív načítal staticky na KAŽDÉ stránce, i když mapu potřebují
+   jen dva konkrétní vstupy (adresní picker přes tlačítko "Najít na mapě" a picker dojezdové
+   vzdálenosti) — oba jedou přes modální okno, takže stačí načíst knihovnu těsně předtím, než se
+   dané okno otevře poprvé. renderAddressMap/renderRadiusMap se samy bezpečně nezavolají, pokud
+   maplibregl ještě není definované, takže i selhání načtení jen znamená "bez mapy", ne pád appky. */
+let mapLibreLoadPromise=null;
+function ensureMapLibreLoaded(){
+  if(typeof maplibregl!=='undefined')return Promise.resolve();
+  if(mapLibreLoadPromise)return mapLibreLoadPromise;
+  mapLibreLoadPromise=new Promise((resolve,reject)=>{
+    if(!document.getElementById('maplibreCss')){
+      const link=document.createElement('link');
+      link.id='maplibreCss';link.rel='stylesheet';link.href='/maplibre-gl.css';
+      document.head.appendChild(link);
+    }
+    const script=document.createElement('script');
+    script.src='/maplibre-gl.js';
+    script.onload=()=>resolve();
+    script.onerror=()=>{mapLibreLoadPromise=null;reject(new Error('Mapu se nepodařilo načíst.'));};
+    document.body.appendChild(script);
+  });
+  return mapLibreLoadPromise;
+}
 /* ---------- DATA ---------- */
 /* výchozí nabízené služby — admin je může upravit v sekci Nastavení > Správa služeb; při načtení se přepíšou daty ze serveru */
 let SERVICES=[
@@ -900,7 +924,8 @@ function ensureMapPickerModal(){
   mapPickerModalEl=el;
   return el;
 }
-function openMapPickerModal({initialQuery='',scope='address',onConfirm,targetInputId=null}={}){
+async function openMapPickerModal({initialQuery='',scope='address',onConfirm,targetInputId=null}={}){
+  const mapLibReady=ensureMapLibreLoaded().catch(()=>{});
   ensureMapPickerModal();
   mapPickerOnConfirm=onConfirm||null;
   mapPickerItem=null;
@@ -924,6 +949,7 @@ function openMapPickerModal({initialQuery='',scope='address',onConfirm,targetInp
   document.body.style.overflow='hidden';
   /* mapa se musí vytvořit až po zviditelnění modalu (jinak má kontejner nulovou velikost) —
      vykreslí se vždy, i bez zadaného textu, ať jde rovnou kliknout přímo na mapu */
+  await mapLibReady;
   requestAnimationFrame(()=>{
     if(!ctl)return;
     ctl.ensureMap();
@@ -1011,6 +1037,7 @@ async function resolveCaregiverCenter(){
   return best?{lat:best.lat,lng:best.lng}:null;
 }
 async function openRadiusPickerModal(){
+  const mapLibReady=ensureMapLibreLoaded().catch(()=>{});
   const center=await resolveCaregiverCenter();
   if(!center){toast('Nejdřív prosím vyplňte lokalitu, ať víme, odkud dojezd počítat.','declined');return;}
   let el=document.getElementById('radiusPickerModal');
@@ -1045,6 +1072,7 @@ async function openRadiusPickerModal(){
   document.body.style.overflow='hidden';
   /* mapu vytvoř až AŽ PO zviditelnění modalu — MapLibre si při vzniku změří rozměry kontejneru,
      a dokud měl display:none, byly nulové (proto se mapa vykreslila maličká) */
+  await mapLibReady;
   requestAnimationFrame(()=>renderRadiusMap('radiusPickerMap',center.lat,center.lng,km));
 }
 function closeRadiusPickerModal(){

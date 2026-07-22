@@ -5846,6 +5846,14 @@ app.use(express.static(ROOT, {
   etag: true,
   lastModified: true,
   setHeaders(res, filePath) {
+    // app.js/app.css (a jejich .min varianty) nese odkaz z index.html vždy s "?v=<otisk>" (viz buildIndexHtml) —
+    // obsah pod konkrétním otiskem se už nikdy nezmění (nový deploy = nový otisk = nová URL), takže se dá bezpečně
+    // cachovat natrvalo, MÍSTO no-cache revalidace při každém požadavku. Bez "?v=" (např. přímý ruční dotaz na
+    // /app.js) zůstává bezpečný no-cache fallback, ať se nikdy neschová stará verze pod holou cestou.
+    if (/\bapp(?:\.min)?\.(?:js|css)$/i.test(filePath) && res.req && typeof res.req.url === 'string' && res.req.url.includes('?v=')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return;
+    }
     if (REVALIDATE_ASSET_RE.test(filePath)) {
       res.setHeader('Cache-Control', 'no-cache');
       return;
