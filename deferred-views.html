@@ -965,8 +965,8 @@
   <div class="wrap">
     <div class="page-head"><h1>Pečovatelky</h1><p>Spravujte ověřené pečovatelky. Pozastavená pečovatelka se nezobrazuje rodinám.</p></div>
     <div class="panel">
-      <div class="panel-h"><b>Všechny pečovatelky</b><span class="count" id="admCgCount">0</span></div>
-      <div class="table-scroll"><table class="adm-table"><thead><tr><th>Pečovatelka</th><th>Lokalita</th><th>Sazba</th><th>Stav</th><th>Předplatné</th><th style="text-align:right">Akce</th></tr></thead><tbody id="admCgBody"></tbody></table></div>
+      <div class="panel-h"><b>Všechny pečovatelky</b><span class="count" id="admCgCount">0</span><button type="button" class="btn btn-sm btn-gold" id="admCgUpsellBtn" style="margin-left:auto" onclick="sendCgPlanUpsell()" disabled>Poslat upozornění na tarif (<span id="admCgUpsellCount">0</span>)</button></div>
+      <div class="table-scroll"><table class="adm-table"><thead><tr><th style="width:36px"><input type="checkbox" id="admCgSelectAll" onchange="toggleAllCgUpsell(this.checked)"></th><th>Pečovatelka</th><th>Lokalita</th><th>Sazba</th><th>Stav</th><th>Předplatné</th><th style="text-align:right">Akce</th></tr></thead><tbody id="admCgBody"></tbody></table></div>
     </div>
   </div>
 </div>

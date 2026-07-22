@@ -4165,13 +4165,19 @@ function doRejectVerification(id,reason){
 }
 
 /* ---- ADMIN: pečovatelky ---- */
+let cgUpsellSelected=new Set();
 function renderAdminCaregivers(){
   document.getElementById('admCgCount').textContent=CAREGIVERS.length;
+  // odeber z výběru pečovatelky, které mezitím zmizely nebo už mají tarif
+  const noPlanIds=new Set(CAREGIVERS.filter(c=>!c.plan).map(c=>c.id));
+  Array.from(cgUpsellSelected).forEach(id=>{if(!noPlanIds.has(id))cgUpsellSelected.delete(id);});
   document.getElementById('admCgBody').innerHTML=CAREGIVERS.map(c=>{
     const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge gold">'+checkSVG(12)+' Ověřená</span>':'<span class="badge wait">Neověřená</span>');
     const isPrem=c.plan==='premium';
     const planBadge=isPrem?`<span class="badge gold">${diamondSVG(11)} PREMIUM</span>`:(c.plan==='start'?'<span class="badge">START</span>':'<span class="badge off">Bez plánu</span>');
+    const chk=!c.plan?`<input type="checkbox" class="cg-upsell-chk" data-id="${c.id}" ${cgUpsellSelected.has(c.id)?'checked':''} onchange="toggleCgUpsell(${c.id},this.checked)">`:'';
     return `<tr>
+      <td>${chk}</td>
       <td><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(dispName(c))}</b><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
       <td>${esc(c.loc)}</td><td>${c.rate} Kč</td><td>${badge}</td>
       <td>${planBadge}${(isPrem&&c.trialUntil)?`<div style="font-size:11.5px;color:var(--muted);margin-top:3px">do ${fmtDate(c.trialUntil)}</div>`:''}</td>
@@ -4179,6 +4185,36 @@ function renderAdminCaregivers(){
         <button class="btn btn-sm btn-gold" onclick="openCgAdmin(${c.id})">Zobrazit</button>
       </div></td>
     </tr>`;}).join('');
+  const selectAll=document.getElementById('admCgSelectAll');
+  if(selectAll)selectAll.checked=noPlanIds.size>0&&cgUpsellSelected.size===noPlanIds.size;
+  updateCgUpsellBtn();
+}
+function toggleCgUpsell(id,checked){
+  if(checked)cgUpsellSelected.add(id);else cgUpsellSelected.delete(id);
+  const selectAll=document.getElementById('admCgSelectAll');
+  const noPlanCount=CAREGIVERS.filter(c=>!c.plan).length;
+  if(selectAll)selectAll.checked=noPlanCount>0&&cgUpsellSelected.size===noPlanCount;
+  updateCgUpsellBtn();
+}
+function toggleAllCgUpsell(checked){
+  CAREGIVERS.forEach(c=>{if(!c.plan){if(checked)cgUpsellSelected.add(c.id);else cgUpsellSelected.delete(c.id);}});
+  renderAdminCaregivers();
+}
+function updateCgUpsellBtn(){
+  const btn=document.getElementById('admCgUpsellBtn');
+  const cnt=document.getElementById('admCgUpsellCount');
+  if(cnt)cnt.textContent=cgUpsellSelected.size;
+  if(btn)btn.disabled=cgUpsellSelected.size===0;
+}
+async function sendCgPlanUpsell(){
+  if(!cgUpsellSelected.size)return;
+  const ids=Array.from(cgUpsellSelected);
+  try{
+    const r=await api('/admin/caregivers/notify-upsell',{method:'POST',body:{ids}});
+    toast(`Upozornění na tarif odesláno (${r.sent!=null?r.sent:ids.length}).`,'success');
+    cgUpsellSelected.clear();
+    renderAdminCaregivers();
+  }catch(e){toastApiError(e,'Nepodařilo se odeslat upozornění.');}
 }
 /* admin: ruční nastavení předplatného pečovatelky (PREMIUM / START) */
 function setCgPlan(id,plan){

@@ -840,6 +840,34 @@ function registrationMail(user) {
   };
 }
 
+// ---- e-mail: pečovatelka bez tarifu — vyzva ke koupi předplatného, ať se zobrazí v hledání ----
+function caregiverPlanUpsellMail(user) {
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+  return {
+    subject: 'Vaše nabídka ještě není vidět rodinám',
+    text:
+      `Dobrý den, ${user.name},\n\n` +
+      'váš účet pečovatelky je vytvořen, ale profil se rodinám na stránce "Hledat péči" zatím nezobrazuje.\n\n' +
+      'Stačí zvolit tarif START nebo PREMIUM na Ceníku a od té chvíle vás rodiny ve vyhledávání uvidí.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: 'Bez tarifu vás rodiny ve vyhledávání neuvidí.',
+      title: 'Zviditelněte svůj profil rodinám',
+      intro: `${firstName}, váš účet pečovatelky je vytvořen, ale dokud nemáte aktivní tarif, profil se na stránce „Hledat péči“ rodinám nezobrazuje.`,
+      bodyHtml:
+        '<p style="margin:0 0 14px 0;">Stačí zvolit tarif START nebo PREMIUM na Ceníku a od té chvíle vás rodiny v seznamu pečovatelek uvidí a mohou vás kontaktovat.</p>' +
+        '<p style="margin:0;">Tarif můžete kdykoli zvolit ve svém účtu.</p>',
+      ctaLabel: 'Vybrat tarif',
+      ctaUrl: `${APP_URL}/#pricing`,
+      ctaNote: '',
+      facts: [{ label: 'Aktuální tarif', value: 'Bez plánu' }, { label: 'Viditelnost v hledání', value: 'Skryto' }],
+      closingTitle: 'Budeme se těšit, až vás rodiny najdou.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail byl odeslán automaticky po registraci účtu pečovatelky.',
+    }),
+  };
+}
+
 function reservationMail({ user, order, caregiverName }) {
   const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
   const when = [order.date, order.time].filter(Boolean).join(' v ');
@@ -2321,6 +2349,15 @@ app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(as
   const code = createEmailVerificationCode();
   await saveEmailVerifyCode(user.id, user.email, code);
   await sendMailSafe({ to: user.email, ...emailVerifyMail({ user, code }) });
+  if (r === 'caregiver') {
+    await createNotification(user.id, {
+      type: 'plan-upsell',
+      title: 'Zviditelněte svůj profil rodinám',
+      body: 'Bez tarifu vás rodiny na stránce Hledat péči neuvidí. Vyberte si tarif START nebo PREMIUM.',
+      link: 'pricing',
+    });
+    await notifyMail({ to: user.email, category: 'email', ...caregiverPlanUpsellMail(user) });
+  }
   fireAudit('auth.register', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success' });
   setSession(res, user);
   res.json({ user: publicUser(user) });
@@ -4648,6 +4685,29 @@ app.post('/api/broadcasts', requireRole('admin'), h(async (req, res) => {
 }));
 
 /* ---------------- PEČOVATELKA: profil / tarif / pozastavení ---------------- */
+// admin ručně upozorní vybrané pečovatelky bez tarifu, ať si koupí předplatné (zvoneček + e-mail)
+app.post('/api/admin/caregivers/notify-upsell', requireRole('admin'), h(async (req, res) => {
+  const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(Number).filter((n) => Number.isInteger(n) && n > 0) : [];
+  if (!ids.length) return res.status(400).json({ error: 'Vyberte alespoň jednu pečovatelku.' });
+  const rows = await restSelect(T.caregivers, `id=in.(${ids.join(',')})&select=id,name,email,user_id,plan`);
+  const targets = (rows || []).filter((c) => !c.plan && c.email);
+  let sent = 0;
+  for (const c of targets) {
+    if (c.user_id != null) {
+      await createNotification(c.user_id, {
+        type: 'plan-upsell',
+        title: 'Zviditelněte svůj profil rodinám',
+        body: 'Bez tarifu vás rodiny na stránce Hledat péči neuvidí. Vyberte si tarif START nebo PREMIUM.',
+        link: 'pricing',
+      });
+    }
+    await notifyMail({ to: c.email, category: 'email', ...caregiverPlanUpsellMail({ name: c.name }) });
+    sent += 1;
+  }
+  fireAudit('admin.caregivers.notifyUpsell', { req, actor: auditActor(req), targetType: 'caregiver', targetId: ids.join(','), status: 'success', metadata: { requested: ids.length, sent } });
+  res.json({ ok: true, sent });
+}));
+
 app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   const id = Number(req.params.id);
   const b = req.body || {};
