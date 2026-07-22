@@ -2466,6 +2466,33 @@ const DEFERRED_SK_TRANSLATIONS = [
   ['<span class="qa-l">Zprávy</span>', '<span class="qa-l">Správy</span>'],
   ['<b>Oblíbené pečovatelky</b>', '<b>Obľúbené opatrovateľky</b>'],
   ['<b>Doporučené pečovatelky</b>', '<b>Odporúčané opatrovateľky</b>'],
+  // view-cg-dashboard (Pečovatelka · přehled)
+  ['Dobrý den, <span id="cgFirst">Jano</span>', 'Dobrý deň, <span id="cgFirst">Jana</span>'],
+  ['<p id="cgIntro">Tady je přehled vaší péče.</p>', '<p id="cgIntro">Tu je prehľad vašej starostlivosti.</p>'],
+  ['>Upravit profil<', '>Upraviť profil<'],
+  ['<b>Výdělky (posledních 6 měsíců)</b>', '<b>Zárobky (posledných 6 mesiacov)</b>'],
+  ['<b>Nadcházející služby</b>', '<b>Nadchádzajúce služby</b>'],
+  ['<b>Nové poptávky</b>', '<b>Nové dopyty</b>'],
+  ['>Zobrazit všechny poptávky<', '>Zobraziť všetky dopyty<'],
+  ['<span class="qa-l">Nastavit dostupnost</span>', '<span class="qa-l">Nastaviť dostupnosť</span>'],
+  ['<span class="qa-l">Upravit veřejný profil</span>', '<span class="qa-l">Upraviť verejný profil</span>'],
+  ['<span class="qa-l">Předplatné a tarify</span>', '<span class="qa-l">Predplatné a tarify</span>'],
+  ['<span class="qa-l">Zákaznická podpora</span>', '<span class="qa-l">Zákaznícka podpora</span>'],
+  // view-order-detail
+  ['<span id="odBackLabel">Zpět na objednávky</span>', '<span id="odBackLabel">Späť na objednávky</span>'],
+  ['<h1>Detail objednávky</h1>', '<h1>Detail objednávky</h1>'],
+  // view-chat (Zprávy)
+  ['<h1>Zprávy</h1><p>Komunikujte přímo a domluvte se na detailech péče.</p>', '<h1>Správy</h1><p>Komunikujte priamo a dohodnite sa na detailoch starostlivosti.</p>'],
+  ['placeholder="Hledat ve zprávách…"', 'placeholder="Hľadať v správach…"'],
+  ['aria-label="Předchozí výsledek" title="Předchozí výsledek"', 'aria-label="Predchádzajúci výsledok" title="Predchádzajúci výsledok"'],
+  ['aria-label="Další výsledek" title="Další výsledek"', 'aria-label="Ďalší výsledok" title="Ďalší výsledok"'],
+  ['aria-label="Zavřít hledání"', 'aria-label="Zatvoriť hľadanie"'],
+  ['>Poslat termín<', '>Poslať termín<'],
+  ['>Přiložit obrázek<', '>Priložiť obrázok<'],
+  ['placeholder="Napište zprávu…" autocomplete="off" aria-label="Napsat zprávu"', 'placeholder="Napíšte správu…" autocomplete="off" aria-label="Napísať správu"'],
+  ['aria-label="Odeslat">', 'aria-label="Odoslať">'],
+  ['<h3 id="forwardTitle">Přeposlat zprávu</h3>', '<h3 id="forwardTitle">Preposlať správu</h3>'],
+  ['Vyberte konverzaci, do které chcete zprávu přeposlat.', 'Vyberte konverzáciu, do ktorej chcete správu preposlať.'],
 ];
 function translateDeferredToSk(html) {
   let out = html;
