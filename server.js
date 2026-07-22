@@ -521,6 +521,7 @@ const T = {
   favorites:     process.env.TBL_FAVORITES     || 'zenvoria_favorites',
   blockEvents:   process.env.TBL_BLOCK_EVENTS  || 'zenvoria_block_events',
   notifications: process.env.TBL_NOTIFICATIONS || 'zenvoria_notifications',
+  recurringBookings: process.env.TBL_RECURRING_BOOKINGS || 'zenvoria_recurring_bookings',
   invoices:      process.env.TBL_INVOICES      || 'zenvoria_invoices',
 };
 
@@ -879,6 +880,44 @@ function reservationMail({ user, order, caregiverName }) {
       closingTitle: 'Děkujeme za vaši důvěru.',
       closingSubtitle: 'Tým Zenvoria',
       footerNote: 'Tento e-mail slouží jako potvrzení právě vytvořené rezervace v ZENVORIA.',
+    }),
+  };
+}
+// ---- e-mail: souhrn opakované objednávky (jeden e-mail za celou sérii, ne jeden na termín) ----
+function recurringBookingMail({ user, caregiverName, service, time, created, skipped }) {
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
+  const datesText = created.map((o) => o.date).join(', ');
+  const facts = [
+    { label: 'Služba', value: service || '' },
+    { label: 'Čas', value: time || '' },
+    { label: 'Pečovatelka', value: caregiverName || '' },
+    { label: 'Počet vytvořených termínů', value: String(created.length) },
+  ];
+  if (skipped.length) facts.push({ label: 'Vynechané termíny', value: skipped.map((s) => s.date).join(', ') });
+  return {
+    subject: `Opakovaná objednávka vytvořena (${created.length} termínů)`,
+    text:
+      `Dobrý den, ${user.name},\n\n` +
+      `vytvořili jsme vám ${created.length} opakovaných objednávek u pečovatelky ${caregiverName || ''} (${service}, ${time}):\n` +
+      `${datesText}\n` +
+      (skipped.length ? `\nNěkteré termíny se nepodařilo vytvořit (pečovatelka je má obsazené nebo blokované): ${skipped.map((s) => s.date).join(', ')}\n` : '') +
+      '\nKaždou objednávku musí pečovatelka zvlášť potvrdit.\n\n' +
+      'S pozdravem,\nTým ZENVORIA',
+    html: renderEmailLayout({
+      preheader: `Vytvořili jsme ${created.length} opakovaných objednávek.`,
+      title: 'Opakovaná objednávka vytvořena',
+      intro: `Dobrý den, ${firstName}. Vytvořili jsme vám ${created.length} opakovaných objednávek u pečovatelky ${caregiverName || ''}.`,
+      bodyHtml:
+        `<p style="margin:0 0 10px 0;"><b>Termíny:</b> ${escapeHtml(datesText)}</p>` +
+        (skipped.length ? `<p style="margin:0 0 10px 0;color:#B23A2E;"><b>Nepodařilo se vytvořit:</b> ${escapeHtml(skipped.map((s) => s.date).join(', '))} (pečovatelka je má obsazené nebo blokované)</p>` : '') +
+        '<p style="margin:0;">Každou objednávku musí pečovatelka zvlášť potvrdit, stejně jako u jednorázové rezervace.</p>',
+      ctaLabel: 'Zobrazit moje objednávky',
+      ctaUrl: `${APP_URL}/#bookings`,
+      ctaNote: '',
+      facts,
+      closingTitle: 'Děkujeme za vaši důvěru.',
+      closingSubtitle: 'Tým Zenvoria',
+      footerNote: 'Tento e-mail slouží jako potvrzení právě vytvořené opakované objednávky v ZENVORIA.',
     }),
   };
 }
@@ -1846,11 +1885,12 @@ function mapCaregiverForViewer(c, opts = {}) {
 function mapOrder(o) {
   return { oid: Number(o.oid), cid: o.cid != null ? Number(o.cid) : null, service: o.service, hours: o.hours,
     date: o.date, time: o.time, addr: o.addr, note: o.note, km: o.km || 0, status: o.status,
-    familyEmail: o.family_email, famName: o.fam_name };
+    familyEmail: o.family_email, famName: o.fam_name, recurringId: o.recurring_id != null ? Number(o.recurring_id) : null };
 }
 function mapRequest(r) {
   return { id: Number(r.id), oid: r.oid != null ? Number(r.oid) : null, cid: r.cid != null ? Number(r.cid) : null,
-    fam: r.fam, init: r.init, service: r.service, date: r.date, time: r.time, hours: r.hours, addr: r.addr };
+    fam: r.fam, init: r.init, service: r.service, date: r.date, time: r.time, hours: r.hours, addr: r.addr,
+    recurringId: r.recurring_id != null ? Number(r.recurring_id) : null };
 }
 const VERIFY_CERTS_MARKER = '[[CERTS]]';
 function decodeVerificationNote(note) {
@@ -2615,7 +2655,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     ? 'guest'
     : (req.session.role === 'admin' ? 'admin' : (req.session.role === 'caregiver' ? 'caregiver' : 'family'));
   const ownCaregiver = viewer === 'caregiver' ? await currentCaregiverRow(req) : null;
-  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows, reportRows, favoriteRows, unreadNotifRows] =
+  const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows, reportRows, favoriteRows, unreadNotifRows, recurringRows] =
     await Promise.all([
       viewer === 'guest'
         ? restSelect(T.caregivers, 'select=*&verified=eq.true&suspended=eq.false&order=id.asc')
@@ -2667,6 +2707,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
       viewer === 'admin' ? restSelect(T.reports, `status=eq.pending&order=id.desc`) : [],
       viewer === 'family' ? restSelect(T.favorites, `family_email=eq.${encodeURIComponent(req.session.email)}&select=caregiver_id`) : [],
       req.session ? restSelect(T.notifications, `user_id=eq.${encodeURIComponent(req.session.uid)}&read_at=is.null&select=id`) : [],
+      viewer === 'family' ? restSelect(T.recurringBookings, `family_email=eq.${encodeURIComponent(req.session.email)}&status=eq.active&order=id.desc`) : [],
     ]);
 
   // cgReviews: { [caregiverId]: [{init,name,stars,text}] } + obecné recenze (caregiver_id null)
@@ -2750,6 +2791,9 @@ app.get('/api/bootstrap', h(async (req, res) => {
     reports: viewer === 'admin' ? await mapReportsForAdmin(reportRows) : [],
     favorites: viewer === 'family' ? (favoriteRows || []).map((f) => Number(f.caregiver_id)) : [],
     unreadNotifCount: req.session ? (unreadNotifRows || []).length : 0,
+    recurringBookings: viewer === 'family'
+      ? (recurringRows || []).map((r) => ({ id: Number(r.id), cid: Number(r.cid), service: r.service, hours: r.hours, addr: r.addr, weekday: r.weekday, time: r.time, occurrences: r.occurrences, createdAt: r.created_at }))
+      : [],
     conversations: [],
     broadcasts: broadcastsForViewer.map((b) => ({ id: b.id, audience: b.audience, emails: viewer === 'admin' ? (b.emails || []) : [], text: b.text, date: b.date, t: b.t })),
     planPrices: settings.planPrices || { start: 190, premium: 390 },
@@ -2822,6 +2866,34 @@ async function findScheduleConflict(cid, date, time, hours, excludeOid) {
   const rows = await restSelect(T.orders, `cid=eq.${cid}&date=eq.${encodeURIComponent(date)}&status=eq.confirmed&select=oid,time,hours`);
   return (rows || []).find((o) => Number(o.oid) !== Number(excludeOid || -1) && timeRangesOverlap(time, hours, o.time, o.hours)) || null;
 }
+// vytvoří jednu konkrétní objednávku (a k ní poptávku) — sdíleno mezi jednorázovou objednávkou a jednotlivými
+// termíny opakované objednávky; volající si předem ověří pečovatelku (existence/pozastavení/blokace/oprávnění),
+// tahle funkce řeší jen to, co se liší den od dne: dostupnost a kolizi s jinou potvrzenou objednávkou
+async function createOrderOccurrence({ req, caregiver, cid, famName, service, hours, date, time, addr, note, km, lat, lng, postalCode, recurringId }) {
+  const availCheck = checkAvailabilityFor(caregiver, date, time, hours);
+  if (!availCheck.ok) {
+    const msg = availCheck.reason === 'blocked'
+      ? 'Pečovatelka má tento den blokovaný (dovolená).'
+      : availCheck.reason === 'override'
+        ? `Pečovatelka má pro tento den výjimku z rozvrhu (${availCheck.override.from}–${availCheck.override.to}).`
+        : 'Zvolený čas je mimo dostupnost pečovatelky. Zkontrolujte prosím její kalendář dostupnosti.';
+    return { ok: false, status: 400, reason: msg };
+  }
+  const conflict = await findScheduleConflict(cid, date, time, hours);
+  if (conflict) return { ok: false, status: 409, reason: 'Pečovatelka má na tento termín už potvrzenou jinou objednávku.' };
+  const oid = await nextId(T.orders, 'oid');
+  const order = await restInsert(T.orders, {
+    oid, cid, family_email: req.session.email, fam_name: famName,
+    service, hours, date, time, addr,
+    note, km, status: 'pending', lat, lng, postal_code: postalCode,
+    recurring_id: recurringId || null,
+  });
+  const reqId = await nextId(T.requests, 'id');
+  const init = (famName.trim().split(/\s+/).map((p) => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
+  const newRequest = { id: reqId, oid, cid, fam: famName, init, service, date, time, hours, addr, recurring_id: recurringId || null };
+  await restInsert(T.requests, newRequest, { prefer: 'return=minimal' });
+  return { ok: true, order, request: newRequest };
+}
 
 app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, rateLimit('orders', RATE_LIMITS.orders), h(async (req, res) => {
   const b = req.body || {};
@@ -2861,31 +2933,103 @@ app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, ra
   }
   const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
   if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
-  const availCheck = checkAvailabilityFor(caregiver, date, time, hours);
-  if (!availCheck.ok) {
-    const msg = availCheck.reason === 'blocked'
-      ? 'Pečovatelka má tento den blokovaný (dovolená).'
-      : availCheck.reason === 'override'
-        ? `Pečovatelka má pro tento den výjimku z rozvrhu (${availCheck.override.from}–${availCheck.override.to}).`
-        : 'Zvolený čas je mimo dostupnost pečovatelky. Zkontrolujte prosím její kalendář dostupnosti.';
-    return res.status(400).json({ error: msg });
-  }
-  const conflict = await findScheduleConflict(cid, date, time, hours);
-  if (conflict) return res.status(409).json({ error: 'Pečovatelka má na tento termín už potvrzenou jinou objednávku.' });
-  const order = await restInsert(T.orders, {
-    oid, cid, family_email: req.session.email, fam_name: famName,
-    service, hours, date, time, addr,
-    note, km, status: 'pending', lat, lng, postal_code: postalCode,
-  });
-  const reqId = await nextId(T.requests, 'id');
-  const init = (famName.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2) || 'Z').toUpperCase();
-  const newRequest = { id: reqId, oid, cid, fam: famName, init, service, date, time, hours, addr };
-  await restInsert(T.requests, newRequest, { prefer: 'return=minimal' });
-  const orderView = mapOrder(order);
+  const result = await createOrderOccurrence({ req, caregiver, cid, famName, service, hours, date, time, addr, note, km, lat, lng, postalCode });
+  if (!result.ok) return res.status(result.status).json({ error: result.reason });
+  const orderView = mapOrder(result.order);
   const confirmationMail = reservationMail({ user: req.session, order: orderView, caregiverName });
   await notifyMail({ to: req.session.email, category: 'requests', ...confirmationMail });
-  if (caregiver.user_id != null) emitToUser(caregiver.user_id, { type: 'new-request', request: mapRequest(newRequest) });
+  if (caregiver.user_id != null) emitToUser(caregiver.user_id, { type: 'new-request', request: mapRequest(result.request) });
   res.json({ order: orderView });
+}));
+
+// opakovaná objednávka: každý týden ve stejný den/čas po zadaný počet opakování — ostatní validace (existence
+// pečovatelky, pozastavení, blokace, oprávnění tarifu) je stejná jako u jednorázové objednávky, jen se
+// dostupnost/kolize kontroluje zvlášť pro každé konkrétní datum (blocked_dates i konflikty jsou datumově specifické)
+app.post('/api/recurring-bookings', requireRole('family', 'admin'), requireVerifiedEmail, rateLimit('orders', RATE_LIMITS.orders), h(async (req, res) => {
+  const b = req.body || {};
+  const cid = Number(b.cid);
+  const serviceIds = trimmedString(b.service, 240).split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
+  const service = serviceIds.join(',');
+  const startDate = trimmedString(b.date, 10);
+  const time = trimmedString(b.time, 5);
+  const addr = trimmedString(b.addr, 250);
+  const note = trimmedString(b.note, 2000);
+  const hours = Number(b.hours == null ? 1 : b.hours);
+  const km = Number(b.km == null ? 0 : b.km);
+  const lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
+  const lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
+  const postalCode = trimmedString(b.postal_code, 10) || null;
+  const occurrences = Number(b.occurrences);
+  if (!Number.isInteger(cid) || cid <= 0 || !service || !startDate || !time || !addr) {
+    return res.status(400).json({ error: 'Neúplná objednávka.' });
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return res.status(400).json({ error: 'Neplatné datum objednávky.' });
+  if (!/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Neplatný čas objednávky.' });
+  if (!Number.isInteger(hours) || hours < 1 || hours > 24) return res.status(400).json({ error: 'Neplatná délka péče.' });
+  if (!Number.isFinite(km) || km < 0 || km > 1000) return res.status(400).json({ error: 'Neplatná vzdálenost.' });
+  if (!Number.isInteger(occurrences) || occurrences < 2 || occurrences > 26) {
+    return res.status(400).json({ error: 'Počet opakování musí být 2 až 26 týdnů.' });
+  }
+  const famName = trimmedString(req.session.name || b.famName || 'Rodina', 120) || 'Rodina';
+  const caregiverRows = await restSelect(T.caregivers, `id=eq.${cid}&select=id,name,verified,suspended,plan,avail,blocked_dates,avail_overrides,user_id&limit=1`);
+  const caregiver = caregiverRows && caregiverRows[0];
+  if (!caregiver) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
+  const caregiverName = caregiver.name || '';
+  if (caregiver.suspended || caregiver.verified === false) return res.status(400).json({ error: 'Pečovatelka není aktuálně dostupná.' });
+  if (caregiver.user_id != null && req.session.role !== 'admin') {
+    const block = await conversationBlockBetween(req.session.uid, caregiver.user_id);
+    if (block === 'other') return res.status(403).json({ error: 'Tato pečovatelka není aktuálně k dispozici pro objednávky.' });
+    if (block === 'me') return res.status(403).json({ error: 'Máte tuto pečovatelku zablokovanou. Nejdřív ji prosím v chatu odblokujte.' });
+  }
+  const orderPerms = permsForPlan(caregiver.plan, await getPlanPermissions());
+  if (!orderPerms.receiveRequests) return res.status(400).json({ error: 'Tato pečovatelka aktuálně nepřijímá nové poptávky.' });
+  const weekday = weekdayIndexMon0(startDate);
+  const recurring = await restInsert(T.recurringBookings, {
+    family_email: req.session.email, fam_name: famName, cid, service, hours, addr, note, km, lat, lng, postal_code: postalCode,
+    weekday, time, occurrences, status: 'active',
+  });
+  const created = [];
+  const skipped = [];
+  for (let i = 0; i < occurrences; i += 1) {
+    const d = new Date(startDate + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + i * 7);
+    const date = d.toISOString().slice(0, 10);
+    const result = await createOrderOccurrence({ req, caregiver, cid, famName, service, hours, date, time, addr, note, km, lat, lng, postalCode, recurringId: recurring.id });
+    if (result.ok) {
+      created.push(mapOrder(result.order));
+      if (caregiver.user_id != null) emitToUser(caregiver.user_id, { type: 'new-request', request: mapRequest(result.request) });
+    } else {
+      skipped.push({ date, reason: result.reason });
+    }
+  }
+  if (!created.length) {
+    await restDelete(T.recurringBookings, `id=eq.${recurring.id}`, { prefer: 'return=minimal' });
+    return res.status(409).json({ error: 'Ani jeden termín se nepodařilo vytvořit.', skipped });
+  }
+  const summaryMail = recurringBookingMail({ user: req.session, caregiverName, service, time, created, skipped });
+  await notifyMail({ to: req.session.email, category: 'requests', ...summaryMail });
+  res.json({ recurringId: recurring.id, created, skipped });
+}));
+
+// zruší budoucí (dosud nedokončené) termíny opakované objednávky; už dokončené necháváme jak jsou
+app.delete('/api/recurring-bookings/:id', requireAuth, h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID série.' });
+  const rows = await restSelect(T.recurringBookings, `id=eq.${id}&limit=1`);
+  const rb = rows && rows[0];
+  if (!rb) return res.status(404).json({ error: 'Opakovaná objednávka nenalezena.' });
+  const isAdmin = req.session.role === 'admin';
+  if (!isAdmin && String(rb.family_email || '').toLowerCase() !== String(req.session.email || '').toLowerCase()) {
+    return res.status(403).json({ error: 'Tuto sérii nemůžete zrušit.' });
+  }
+  const orders = await restSelect(T.orders, `recurring_id=eq.${id}&status=in.(pending,confirmed)&select=oid,cid`);
+  for (const o of orders || []) {
+    await restUpdate(T.orders, `oid=eq.${o.oid}`, { status: 'cancelled' }, { prefer: 'return=minimal' });
+    await restDelete(T.requests, `oid=eq.${o.oid}`, { prefer: 'return=minimal' });
+    await restDelete(T.schedule, `oid=eq.${o.oid}`, { prefer: 'return=minimal' });
+  }
+  await restUpdate(T.recurringBookings, `id=eq.${id}`, { status: 'cancelled' }, { prefer: 'return=minimal' });
+  res.json({ ok: true, cancelledCount: (orders || []).length });
 }));
 
 // změna stavu objednávky (rodina ruší / obecná aktualizace stavu)

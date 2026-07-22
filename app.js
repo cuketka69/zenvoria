@@ -1954,13 +1954,23 @@ function pickService(s){
 }
 function pickHours(h){state.bkHours=h;
   document.querySelectorAll('#bkHours .opt').forEach(o=>o.classList.toggle('on',o.textContent===h+' hodin'));updateSummary();}
+function toggleBkRecurring(){
+  const wrap=document.getElementById('bkRecurringWrap');
+  const cb=document.getElementById('bkRecurring');
+  if(wrap)wrap.hidden=!(cb&&cb.checked);
+  updateSummary();
+}
 function updateSummary(){
   const c=cg(state.caregiverId);const sub=c.rate*state.bkHours;
   const km=Math.max(0,+(document.getElementById('bkKm')||{}).value||0);
   const transport=(c.kmPrice&&c.kmPrice>0)?km*c.kmPrice:0;
-  const total=sub+transport;
+  const isRecurring=!!(document.getElementById('bkRecurring')&&document.getElementById('bkRecurring').checked);
+  const occurrences=isRecurring?Number((document.getElementById('bkOccurrences')||{}).value)||8:1;
+  const total=(sub+transport)*occurrences;
   const d=document.getElementById('bkDate').value;const t=document.getElementById('bkTime').value;
   const dateStr=d?new Date(d).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'}):'—';
+  const recNote=document.getElementById('bkRecurringNote');
+  if(recNote)recNote.textContent=`Vytvoří se ${occurrences} samostatných objednávek — pečovatelka musí každou zvlášť potvrdit. Termíny, kde má obsazeno nebo blokováno, se přeskočí.`;
   document.getElementById('summaryCard').innerHTML=`
     <h3>Souhrn objednávky</h3>
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
@@ -1969,12 +1979,13 @@ function updateSummary(){
       <div style="font-size:12.5px;color:#A2B0A6">${esc(c.loc)} · ${starFillSVG(11)} ${c.rating}</div></div>
     </div>
     <div class="row"><span class="l">Služba</span><span class="r">${state.bkServices.map(sName).join(', ')}</span></div>
-    <div class="row"><span class="l">Datum</span><span class="r">${dateStr}</span></div>
+    <div class="row"><span class="l">${isRecurring?'První termín':'Datum'}</span><span class="r">${dateStr}</span></div>
     <div class="row"><span class="l">Čas</span><span class="r">${t} (${state.bkHours} h)</span></div>
-    <div class="row"><span class="l">Péče</span><span class="r">${sub.toLocaleString('cs-CZ')} Kč (${c.rate} Kč/hod)</span></div>
-    ${transport>0?`<div class="row"><span class="l">Doprava</span><span class="r">${transport.toLocaleString('cs-CZ')} Kč (${km} km × ${c.kmPrice} Kč)</span></div>`:''}
-    <div class="grand"><span class="l" style="font-size:15px;color:#fff">Celkem</span><span class="big">${total.toLocaleString('cs-CZ')} Kč</span></div>
-    <button class="btn btn-gold btn-block" style="margin-top:22px" onclick="confirmBooking()">Potvrdit objednávku</button>
+    ${isRecurring?`<div class="row"><span class="l">Opakování</span><span class="r">${occurrences}× každý týden</span></div>`:''}
+    <div class="row"><span class="l">Péče${isRecurring?' (za termín)':''}</span><span class="r">${sub.toLocaleString('cs-CZ')} Kč (${c.rate} Kč/hod)</span></div>
+    ${transport>0?`<div class="row"><span class="l">Doprava${isRecurring?' (za termín)':''}</span><span class="r">${transport.toLocaleString('cs-CZ')} Kč (${km} km × ${c.kmPrice} Kč)</span></div>`:''}
+    <div class="grand"><span class="l" style="font-size:15px;color:#fff">Celkem${isRecurring?' (za všechny termíny)':''}</span><span class="big">${total.toLocaleString('cs-CZ')} Kč</span></div>
+    <button class="btn btn-gold btn-block" style="margin-top:22px" onclick="confirmBooking()">${isRecurring?'Potvrdit opakovanou objednávku':'Potvrdit objednávku'}</button>
     <p style="font-size:11.5px;color:#8E9A8F;text-align:center;margin-top:12px">Platba proběhne až po potvrzení pečovatelkou.</p>`;
 }
 let bookingInFlight=false;
@@ -1993,10 +2004,28 @@ function confirmBooking(){
   const km=Math.max(0,+document.getElementById('bkKm').value||0);
   if(!auth.loggedIn){toast('Pro objednávku se prosím přihlaste.');go('login');return;}
   const serviceCsv=state.bkServices.join(',');
+  const isRecurring=!!(document.getElementById('bkRecurring')&&document.getElementById('bkRecurring').checked);
+  const occurrences=isRecurring?Number((document.getElementById('bkOccurrences')||{}).value)||8:null;
   const btn=document.querySelector('#summaryCard .btn-gold');
   bookingInFlight=true;
+  const origLabel=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Odesílám…';}
   const geo=bkAddrGeo||{};
+  if(isRecurring){
+    api('/recurring-bookings',{method:'POST',body:{cid:c.id,service:serviceCsv,hours,date,time,addr,note,km,lat:geo.lat,lng:geo.lng,postal_code:geo.postal_code,occurrences}})
+      .then(r=>{
+        r.created.forEach(o=>{ORDERS.unshift(o);orderSeq=Math.max(orderSeq,o.oid);});
+        const skippedNote=r.skipped.length?` (${r.skipped.length} termínů se nepodařilo vytvořit — pečovatelka je má obsazené)`:'';
+        toast(`Vytvořeno ${r.created.length} objednávek u <b>${esc(c.name)}</b>${skippedNote}`,'success');
+        setTimeout(()=>go('bookings'),900);
+      })
+      .catch(e=>{
+        toastApiError(e,'Opakovanou objednávku se nepodařilo odeslat.');
+        bookingInFlight=false;
+        if(btn){btn.disabled=false;btn.textContent=origLabel;}
+      });
+    return;
+  }
   api('/orders',{method:'POST',body:{cid:c.id,service:serviceCsv,hours,date,time,addr,note,km,lat:geo.lat,lng:geo.lng,postal_code:geo.postal_code}})
     .then(r=>{const o=r.order;
       ORDERS.unshift({oid:o.oid,cid:c.id,service:serviceCsv,hours,date,time,addr,note,km,status:'pending'});
@@ -2007,7 +2036,7 @@ function confirmBooking(){
     .catch(e=>{
       toastApiError(e,'Objednávku se nepodařilo odeslat.');
       bookingInFlight=false;
-      if(btn){btn.disabled=false;btn.textContent='Potvrdit objednávku';}
+      if(btn){btn.disabled=false;btn.textContent=origLabel;}
     });
 }
 
@@ -2778,6 +2807,35 @@ function renderCalendar(){
   }
   document.getElementById('calDays').innerHTML=html;
   renderOrders('up');
+  renderRecurringBookings();
+}
+const RB_WEEKDAY_NAMES=['pondělí','úterý','středu','čtvrtek','pátek','sobotu','neděli'];
+function renderRecurringBookings(){
+  const panel=document.getElementById('recurringPanel');
+  if(!panel)return;
+  panel.hidden=!RECURRING_BOOKINGS.length;
+  if(!RECURRING_BOOKINGS.length)return;
+  document.getElementById('recurringCount').textContent=RECURRING_BOOKINGS.length;
+  document.getElementById('recurringList').innerHTML=RECURRING_BOOKINGS.map(r=>{
+    const c=cg(r.cid);
+    return `<div class="order">
+      ${c?avaHtml(c.init,c.photo):''}
+      <div class="od"><b>${c?esc(c.name):'Pečovatelka'}</b><div class="det">${sNames(r.service)} · Každou ${RB_WEEKDAY_NAMES[r.weekday]||''} v ${esc(r.time)} (${r.occurrences}×)</div></div>
+      <div class="ost"><button class="btn btn-decline btn-sm" onclick="cancelRecurringBooking(${r.id})">Zrušit sérii</button></div>
+    </div>`;
+  }).join('');
+}
+function cancelRecurringBooking(id){
+  askConfirm({title:'Zrušit opakovanou objednávku?',icon:warnSVG(),danger:true,
+    message:'Všechny dosud nepotvrzené i potvrzené (ale ještě neproběhlé) termíny této série budou zrušeny.',
+    confirmLabel:'Zrušit sérii',onConfirm:()=>{
+      apiSync(api('/recurring-bookings/'+id,{method:'DELETE'}).then(r=>{
+        RECURRING_BOOKINGS=RECURRING_BOOKINGS.filter(x=>x.id!==id);
+        ORDERS.forEach(o=>{if(o.recurringId===id&&(o.status==='pending'||o.status==='confirmed'))o.status='cancelled';});
+        renderRecurringBookings();renderOrders(document.querySelector('.tab.on')?.textContent==='Minulé'?'past':'up');
+        toast(`Série zrušena (${r.cancelledCount} termínů).`,'success');
+      }));
+    }});
 }
 function calMove(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--}if(calMonth>11){calMonth=0;calYear++}renderCalendar();}
 function setOrderTab(el,tab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');renderOrders(tab);}
@@ -2792,7 +2850,7 @@ function renderOrders(tab){
     return `<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openFamilyOrder(${o.oid})">
       ${avaHtml(c.init,c.photo)}
       <div class="od">
-        <b>${sNames(o.service)}</b>
+        <b>${sNames(o.service)}${o.recurringId?' 🔁':''}</b>
         <div class="det">${esc(c.name)} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div>
       </div>
       <div class="ost">
@@ -5132,6 +5190,7 @@ let INVOICES=[];
 let REPORTS=[];
 let FAVORITES=[];
 let NOTIFICATIONS=[];
+let RECURRING_BOOKINGS=[];
 let unreadNotifCount=0;
 let notifLoaded=false;
 let reqSeq=0;
@@ -5229,7 +5288,7 @@ function reqCardHTML(r){
   return `<div class="req">
     ${avaHtml(r.init,r.photo)}
     <div class="ri">
-      <b>${esc(r.fam)}</b>
+      <b>${esc(r.fam)}${r.recurringId?' <span class="chip" style="font-size:11px;padding:2px 8px">🔁 opakovaná</span>':''}</b>
       <div class="rd">${sNames(r.service)} · ${fmtDate(r.date)} · ${timeRange(r.time,r.hours)}</div>
       <span class="rs">${(r.hours*cgProfile.rate).toLocaleString('cs-CZ')} Kč · ${esc(r.addr)}</span>
     </div>
@@ -6968,6 +7027,7 @@ async function bootstrap(){
   REPORTS=d.reports||[];
   FAVORITES=d.favorites||[];
   unreadNotifCount=Number(d.unreadNotifCount)||0;
+  RECURRING_BOOKINGS=d.recurringBookings||[];
   // konverzace se načítají zvlášť přes /api/conversations (ne z bootstrapu) —
   // bootstrap je NESMÍ přepsat na prázdno, jinak by zmizely načtené konverzace
   BROADCASTS=d.broadcasts||[];

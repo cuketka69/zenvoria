@@ -32,6 +32,19 @@
           <div style="margin-top:14px"><label class="lbl">Délka péče</label>
             <div class="opt-grid" id="bkHours"></div>
           </div>
+          <div style="margin-top:14px">
+            <label class="fav-only-toggle"><input type="checkbox" id="bkRecurring" onchange="toggleBkRecurring()"> Opakovat každý týden ve stejný den a čas</label>
+            <div id="bkRecurringWrap" style="margin-top:10px" hidden>
+              <label class="lbl">Počet opakování</label>
+              <select class="inp" id="bkOccurrences" onchange="updateSummary()">
+                <option value="4">4 týdny</option>
+                <option value="8" selected>8 týdnů</option>
+                <option value="12">12 týdnů</option>
+                <option value="26">26 týdnů</option>
+              </select>
+              <p style="font-size:12px;color:var(--muted);margin-top:6px" id="bkRecurringNote"></p>
+            </div>
+          </div>
         </div>
         <div class="step">
           <div class="step-h"><div class="step-num">3</div><b>Adresa a poznámka</b></div>
@@ -76,6 +89,10 @@
           <div class="tab" onclick="setOrderTab(this,'past')">Minulé</div>
         </div>
         <div id="orderList"></div>
+        <div class="panel" id="recurringPanel" style="margin-top:20px" hidden>
+          <div class="panel-h"><b>Opakované objednávky</b><span class="count" id="recurringCount">0</span></div>
+          <div id="recurringList"></div>
+        </div>
       </div>
     </div>
   </div>
