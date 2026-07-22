@@ -4616,42 +4616,67 @@ function fmtStatsDay(k){
   const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(k||'');if(!m)return k||'';
   return String(Number(m[3]))+'.'+String(Number(m[2]))+'.';
 }
-function buildStatsChartSvg(series,opts){
+/* obecný časový graf s pevnou šířkou na bod — u delších řad (celá historie, dny v měsíci)
+   je tak graf širší než panel a jede se v něm vodorovně, místo aby se body stlačily k sobě */
+function buildTimeSeriesChartSvg(series,opts){
   opts=opts||{};
+  const lines=opts.lines||[{key:'total',color:'var(--navy-700)',label:'Celkem'}];
   const labelFor=opts.labelFor||(m=>fmtStatsMonth(m.month));
+  const valueFmt=opts.valueFmt||(v=>String(v));
+  const ariaLabel=opts.ariaLabel||'Graf v čase';
   if(!series||!series.length)return '<div class="empty">Zatím žádná data.</div>';
-  const W=640,H=220,padL=34,padR=14,padT=14,padB=30;
-  const innerW=W-padL-padR,innerH=H-padT-padB;
   const n=series.length;
-  const maxV=Math.max(1,...series.map(m=>m.total));
+  const H=220,padL=54,padR=16,padT=14,padB=30,pointGap=48,minInnerW=560;
+  const innerH=H-padT-padB;
+  const innerW=n>1?Math.max(minInnerW,(n-1)*pointGap):minInnerW;
+  const W=padL+padR+innerW;
+  const maxV=Math.max(1,...series.flatMap(m=>lines.map(l=>Number(m[l.key])||0)));
   const step=n>1?innerW/(n-1):0;
   const x=i=>padL+(n>1?i*step:innerW/2);
   const y=v=>padT+innerH-(v/maxV)*innerH;
-  const pathFor=key=>series.map((m,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${y(m[key]).toFixed(1)}`).join(' ');
+  const pathFor=key=>series.map((m,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${y(Number(m[key])||0).toFixed(1)}`).join(' ');
   const gridN=4;
   let grid='';
   for(let g=0;g<=gridN;g++){
     const v=Math.round(maxV*g/gridN);
     const gy=y(v);
     grid+=`<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
-    grid+=`<text x="${padL-8}" y="${(gy+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`;
+    grid+=`<text x="${padL-8}" y="${(gy+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${esc(valueFmt(v))}</text>`;
   }
-  const labelStep=Math.max(1,Math.ceil(n/12));
-  const labels=series.map((m,i)=>(i%labelStep!==0&&i!==n-1)?'':`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--muted)">${esc(labelFor(m))}</text>`).join('');
-  const totalPts=series.map((m,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(m.total).toFixed(1)}" r="3.2" fill="var(--navy-700)"><title>${esc(labelFor(m))}: ${m.total} objednávek</title></circle>`).join('');
-  const confPts=series.map((m,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(m.confirmedOrDone).toFixed(1)}" r="3.2" fill="var(--gold)"><title>${esc(labelFor(m))}: ${m.confirmedOrDone} potvrzeno/dokončeno</title></circle>`).join('');
+  const labels=series.map((m,i)=>`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--muted)">${esc(labelFor(m))}</text>`).join('');
+  const linesSvg=lines.map(l=>`<path d="${pathFor(l.key)}" fill="none" stroke="${l.color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+  const ptsSvg=lines.map(l=>series.map((m,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(Number(m[l.key])||0).toFixed(1)}" r="3.2" fill="${l.color}"><title>${esc(labelFor(m))}: ${esc(valueFmt(Number(m[l.key])||0))} — ${esc(l.label)}</title></circle>`).join('')).join('');
+  const legend=lines.map(l=>`<span><i style="background:${l.color}"></i>${esc(l.label)}</span>`).join('');
   return `
-    <svg viewBox="0 0 ${W} ${H}" class="stats-chart-svg" role="img" aria-label="Graf objednávek v čase">
-      ${grid}
-      <path d="${pathFor('total')}" fill="none" stroke="var(--navy-700)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="${pathFor('confirmedOrDone')}" fill="none" stroke="var(--gold)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-      ${totalPts}${confPts}
-      ${labels}
-    </svg>
-    <div class="stats-chart-legend">
-      <span><i style="background:var(--navy-700)"></i>Objednávky celkem</span>
-      <span><i style="background:var(--gold)"></i>Potvrzeno/dokončeno</span>
-    </div>`;
+    <div class="stats-chart-scroll">
+      <svg width="${W}" height="${H}" class="stats-chart-svg" role="img" aria-label="${esc(ariaLabel)}">
+        ${grid}
+        ${linesSvg}
+        ${ptsSvg}
+        ${labels}
+      </svg>
+    </div>
+    <div class="stats-chart-legend">${legend}</div>`;
+}
+function buildStatsChartSvg(series,opts){
+  opts=opts||{};
+  return buildTimeSeriesChartSvg(series,{
+    labelFor:opts.labelFor,
+    ariaLabel:'Graf objednávek v čase',
+    lines:[
+      {key:'total',color:'var(--navy-700)',label:'Objednávky celkem'},
+      {key:'confirmedOrDone',color:'var(--gold)',label:'Potvrzeno/dokončeno'}
+    ]
+  });
+}
+function buildEarningsChartSvg(series,opts){
+  opts=opts||{};
+  return buildTimeSeriesChartSvg(series,{
+    labelFor:opts.labelFor,
+    ariaLabel:'Graf výdělku v čase',
+    valueFmt:v=>Number(v||0).toLocaleString('cs-CZ')+' Kč',
+    lines:[{key:'earnings',color:'var(--gold)',label:'Výdělek'}]
+  });
 }
 async function renderAdminStats(){
   const cardsEl=document.getElementById('admStatsCards');
@@ -5389,14 +5414,16 @@ async function renderCgStats(){
   const tabsEl=document.getElementById('cgStatsTabs');
   const cardsEl=document.getElementById('cgStatsCards');
   const chartEl=document.getElementById('cgStatsChart');
+  const earnEl=document.getElementById('cgStatsEarningsChart');
   const topEl=document.getElementById('cgStatsTopFamilies');
   if(tabsEl)tabsEl.innerHTML=[['month','Měsíc'],['year','Tento rok'],['all','Celou dobu']].map(([k,l])=>
     `<button type="button" class="stats-tab${cgStatsRange===k?' on':''}" onclick="setCgStatsRange('${k}')">${l}</button>`).join('');
   if(cardsEl)cardsEl.innerHTML='<div class="empty">Načítám…</div>';
   if(chartEl)chartEl.innerHTML='<div class="empty">Načítám…</div>';
+  if(earnEl)earnEl.innerHTML='<div class="empty">Načítám…</div>';
   let s;
   try{s=await api('/caregivers/me/stats?range='+cgStatsRange);}
-  catch(e){toast('Statistiky se nepodařilo načíst: '+(e.message||''),'declined');if(cardsEl)cardsEl.innerHTML='';if(chartEl)chartEl.innerHTML='';return;}
+  catch(e){toast('Statistiky se nepodařilo načíst: '+(e.message||''),'declined');if(cardsEl)cardsEl.innerHTML='';if(chartEl)chartEl.innerHTML='';if(earnEl)earnEl.innerHTML='';return;}
   const periodLabel=CG_STATS_RANGE_LABEL[s.range]||'';
   const cards=[
     {l:'Objednávky ('+periodLabel+')',v:s.totalOrders},
@@ -5409,6 +5436,7 @@ async function renderCgStats(){
   if(cardsEl)cardsEl.innerHTML=cards.map(c=>`<div class="stat"><div class="stat-top"><span class="sl">${esc(c.l)}</span></div><div class="sv">${esc(String(c.v))}</div></div>`).join('');
   const labelFor=s.granularity==='day'?(m=>fmtStatsDay(m.key)):(m=>fmtStatsMonth(m.key));
   if(chartEl)chartEl.innerHTML=buildStatsChartSvg(s.series||[],{labelFor});
+  if(earnEl)earnEl.innerHTML=buildEarningsChartSvg(s.series||[],{labelFor});
   if(topEl)topEl.innerHTML=(s.topFamilies||[]).length?s.topFamilies.map(f=>`
     <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px">
       <span>${esc(f.name)}</span><span>${f.count} služeb</span>
