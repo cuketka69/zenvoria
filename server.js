@@ -3743,11 +3743,85 @@ app.get('/api/caregivers/distances', h(async (req, res) => {
   res.json({ distances });
 }));
 
+// --- Slovenské adresy: RÚIAN pokrývá jen ČR, takže pro zenvoria.sk se dotazy přesměrují na
+// veřejný Nominatim (OpenStreetMap) geokodér. POZOR: Nominatim má usage policy zakazující
+// "search-as-you-type"/autocomplete provoz (viz operations.osmfoundation.org/policies/nominatim) —
+// tohle je funkční řešení pro demo provoz, ale při reálném provozu pro SK trh by mělo být
+// nahrazeno buď placeným geokódovacím API s podporou autocomplete (Mapbox/Google Places/LocationIQ),
+// nebo vlastní importovanou slovenskou adresní databází (obdoba dnešní zenvoria_addresses pro ČR).
+const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
+const NOMINATIM_UA = 'ZenvoriaApp/1.0 (+https://www.zenvoria.sk; kontakt: miklasova@zenvoria.cz)';
+// jednoduchá fronta s minimálním odstupem ~1.1 s mezi odchozími požadavky (Nominatim vyžaduje max ~1 dotaz/s)
+let nominatimQueue = Promise.resolve();
+let nominatimLastCall = 0;
+function nominatimFetch(path) {
+  const run = async () => {
+    const wait = Math.max(0, nominatimLastCall + 1100 - Date.now());
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    nominatimLastCall = Date.now();
+    const res = await fetchWithTimeout(`${NOMINATIM_BASE}${path}`, { headers: { 'User-Agent': NOMINATIM_UA, 'Accept-Language': 'sk' } }, 8000);
+    if (!res.ok) throw new Error(`Nominatim ${res.status}`);
+    return res.json();
+  };
+  const p = nominatimQueue.then(run, run);
+  // fronta musí pokračovat i po chybě jednoho požadavku, jinak by zůstala navždy zaseknutá
+  nominatimQueue = p.catch(() => {});
+  return p;
+}
+// sjednotí Nominatim "address" objekt do stejného tvaru, jaký appka čeká od RÚIAN (viz search_addresses)
+function nominatimAddressItem(a) {
+  a = a || {};
+  const street = a.road || a.pedestrian || a.footway || '';
+  const houseNumber = a.house_number || '';
+  const municipality = a.city || a.town || a.village || a.municipality || a.county || '';
+  const partRaw = a.suburb || a.city_district || a.borough || '';
+  const part = partRaw && partRaw !== municipality ? partRaw : null;
+  const postal = (a.postcode || '').replace(/\s+/g, '');
+  return {
+    label: [street ? `${street}${houseNumber ? ' ' + houseNumber : ''}` : (houseNumber || null), part, municipality, a.postcode || null].filter(Boolean).join(', '),
+    municipality: municipality || null,
+    district: a.county || a.state_district || null,
+    part,
+    street: street || null,
+    house_number: houseNumber || null,
+    orientation_number: null, // slovenský systém súpisné/orientačné číslo Nominatim nerozlišuje samostatně
+    postal_code: postal || null,
+  };
+}
+async function searchAddressesSk(q, lim) {
+  const data = await nominatimFetch(`/search?format=jsonv2&countrycodes=sk&addressdetails=1&limit=${encodeURIComponent(lim)}&q=${encodeURIComponent(q)}`);
+  return (Array.isArray(data) ? data : []).map((r) => ({ ...nominatimAddressItem(r.address), lat: Number(r.lat), lng: Number(r.lon) }));
+}
+async function searchMunicipalitiesSk(q, lim) {
+  const data = await nominatimFetch(`/search?format=jsonv2&countrycodes=sk&addressdetails=1&limit=${encodeURIComponent(lim)}&featureType=settlement&q=${encodeURIComponent(q)}`);
+  return (Array.isArray(data) ? data : []).map((r) => {
+    const a = r.address || {};
+    const municipality = a.city || a.town || a.village || a.municipality || r.name || '';
+    return {
+      label: municipality,
+      municipality: municipality || null,
+      district: a.county || a.state_district || null,
+      postal_code: (a.postcode || '').replace(/\s+/g, '') || null,
+      lat: Number(r.lat),
+      lng: Number(r.lon),
+    };
+  });
+}
+async function reverseGeocodeSk(lat, lng) {
+  const data = await nominatimFetch(`/reverse?format=jsonv2&addressdetails=1&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`);
+  if (!data || !data.address) return null;
+  return { ...nominatimAddressItem(data.address), lat: Number(data.lat), lng: Number(data.lon) };
+}
+
 // vlastní adresní databáze (RÚIAN) — vyhledávání a přichycení pinu na mapě, bez závislosti na externí službě
 app.get('/api/locations/search', rateLimit('locations', RATE_LIMITS.locations), h(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const q = trimmedString(req.query.q, 120);
   if (!q || q.length < 2) return res.json({ items: [] });
+  if (countryForReq(req) === 'sk') {
+    try { return res.json({ items: await searchAddressesSk(q, 10) }); }
+    catch (e) { console.warn('[locations] SK vyhledávání adres selhalo:', e.message); return res.json({ items: [] }); }
+  }
   const rows = await supabaseRestRequest('POST', 'rpc/search_addresses', { body: { q, lim: 10 } });
   const items = (Array.isArray(rows) ? rows : []).map((r) => ({
     label: r.label,
@@ -3769,6 +3843,10 @@ app.get('/api/locations/search-municipality', rateLimit('locations', RATE_LIMITS
   res.setHeader('Cache-Control', 'no-store');
   const q = trimmedString(req.query.q, 120);
   if (!q || q.length < 2) return res.json({ items: [] });
+  if (countryForReq(req) === 'sk') {
+    try { return res.json({ items: await searchMunicipalitiesSk(q, 8) }); }
+    catch (e) { console.warn('[locations] SK vyhledávání obcí selhalo:', e.message); return res.json({ items: [] }); }
+  }
   const rows = await supabaseRestRequest('POST', 'rpc/search_municipalities_ranked', { body: { q, lim: 8 } });
   const items = (Array.isArray(rows) ? rows : []).map((r) => ({
     label: r.label,
@@ -3786,6 +3864,10 @@ app.get('/api/locations/reverse', rateLimit('locations', RATE_LIMITS.locations),
   const lat = Number(req.query.lat);
   const lng = Number(req.query.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Neplatné souřadnice.' });
+  if (countryForReq(req) === 'sk') {
+    try { return res.json({ item: await reverseGeocodeSk(lat, lng) }); }
+    catch (e) { console.warn('[locations] SK reverse geocoding selhal:', e.message); return res.json({ item: null }); }
+  }
   const rows = await supabaseRestRequest('POST', 'rpc/nearest_address', { body: { p_lat: lat, p_lng: lng, lim: 1 } });
   const r = Array.isArray(rows) ? rows[0] : null;
   if (!r) return res.json({ item: null });
