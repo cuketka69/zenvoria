@@ -5087,7 +5087,7 @@ app.get('/api/caregivers/me/stats', requireRole('caregiver'), h(async (req, res)
   if (!own) return res.status(404).json({ error: 'Účet pečovatelky nenalezen.' });
   const since = new Date(); since.setMonth(since.getMonth() - 6); since.setDate(1);
   const sinceIso = since.toISOString().slice(0, 10);
-  const list = (await restSelect(T.orders, `cid=eq.${own.id}&date=gte.${sinceIso}&select=oid,status,date,hours,fam_name,rated`)) || [];
+  const list = (await restSelect(T.orders, `cid=eq.${own.id}&date=gte.${sinceIso}&select=oid,status,date,hours,fam_name`)) || [];
   const byMonth = {};
   list.forEach((o) => {
     const k = String(o.date).slice(0, 7);
