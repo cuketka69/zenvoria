@@ -4612,16 +4612,22 @@ function fmtStatsMonth(k){
   const idx=Number(m[2])-1;
   return (STATS_MONTH_ABBR[idx]||m[2])+' '+m[1].slice(2);
 }
-function buildStatsChartSvg(monthly){
-  if(!monthly||!monthly.length)return '<div class="empty">Zatím žádná data.</div>';
+function fmtStatsDay(k){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(k||'');if(!m)return k||'';
+  return String(Number(m[3]))+'.'+String(Number(m[2]))+'.';
+}
+function buildStatsChartSvg(series,opts){
+  opts=opts||{};
+  const labelFor=opts.labelFor||(m=>fmtStatsMonth(m.month));
+  if(!series||!series.length)return '<div class="empty">Zatím žádná data.</div>';
   const W=640,H=220,padL=34,padR=14,padT=14,padB=30;
   const innerW=W-padL-padR,innerH=H-padT-padB;
-  const n=monthly.length;
-  const maxV=Math.max(1,...monthly.map(m=>m.total));
+  const n=series.length;
+  const maxV=Math.max(1,...series.map(m=>m.total));
   const step=n>1?innerW/(n-1):0;
   const x=i=>padL+(n>1?i*step:innerW/2);
   const y=v=>padT+innerH-(v/maxV)*innerH;
-  const pathFor=key=>monthly.map((m,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${y(m[key]).toFixed(1)}`).join(' ');
+  const pathFor=key=>series.map((m,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${y(m[key]).toFixed(1)}`).join(' ');
   const gridN=4;
   let grid='';
   for(let g=0;g<=gridN;g++){
@@ -4630,11 +4636,12 @@ function buildStatsChartSvg(monthly){
     grid+=`<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
     grid+=`<text x="${padL-8}" y="${(gy+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`;
   }
-  const labels=monthly.map((m,i)=>`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--muted)">${esc(fmtStatsMonth(m.month))}</text>`).join('');
-  const totalPts=monthly.map((m,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(m.total).toFixed(1)}" r="3.2" fill="var(--navy-700)"><title>${esc(fmtStatsMonth(m.month))}: ${m.total} objednávek</title></circle>`).join('');
-  const confPts=monthly.map((m,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(m.confirmedOrDone).toFixed(1)}" r="3.2" fill="var(--gold)"><title>${esc(fmtStatsMonth(m.month))}: ${m.confirmedOrDone} potvrzeno/dokončeno</title></circle>`).join('');
+  const labelStep=Math.max(1,Math.ceil(n/12));
+  const labels=series.map((m,i)=>(i%labelStep!==0&&i!==n-1)?'':`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--muted)">${esc(labelFor(m))}</text>`).join('');
+  const totalPts=series.map((m,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(m.total).toFixed(1)}" r="3.2" fill="var(--navy-700)"><title>${esc(labelFor(m))}: ${m.total} objednávek</title></circle>`).join('');
+  const confPts=series.map((m,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(m.confirmedOrDone).toFixed(1)}" r="3.2" fill="var(--gold)"><title>${esc(labelFor(m))}: ${m.confirmedOrDone} potvrzeno/dokončeno</title></circle>`).join('');
   return `
-    <svg viewBox="0 0 ${W} ${H}" class="stats-chart-svg" role="img" aria-label="Graf objednávek podle měsíce">
+    <svg viewBox="0 0 ${W} ${H}" class="stats-chart-svg" role="img" aria-label="Graf objednávek v čase">
       ${grid}
       <path d="${pathFor('total')}" fill="none" stroke="var(--navy-700)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="${pathFor('confirmedOrDone')}" fill="none" stroke="var(--gold)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -5371,17 +5378,28 @@ function renderCgDashboard(){
   document.getElementById('cgReqBadge').textContent=CG_REQUESTS.length;
   document.getElementById('cgReqPreview').innerHTML=prev.length?prev.map(reqCardHTML).join(''):'<div class="empty">Žádné nové poptávky.</div>';
 }
+let cgStatsRange='year';
+const CG_STATS_RANGE_LABEL={month:'tento měsíc',year:'tento rok',all:'celou dobu'};
+function setCgStatsRange(range){
+  if(cgStatsRange===range)return;
+  cgStatsRange=range;
+  renderCgStats();
+}
 async function renderCgStats(){
+  const tabsEl=document.getElementById('cgStatsTabs');
   const cardsEl=document.getElementById('cgStatsCards');
   const chartEl=document.getElementById('cgStatsChart');
   const topEl=document.getElementById('cgStatsTopFamilies');
+  if(tabsEl)tabsEl.innerHTML=[['month','Měsíc'],['year','Tento rok'],['all','Celou dobu']].map(([k,l])=>
+    `<button type="button" class="stats-tab${cgStatsRange===k?' on':''}" onclick="setCgStatsRange('${k}')">${l}</button>`).join('');
   if(cardsEl)cardsEl.innerHTML='<div class="empty">Načítám…</div>';
   if(chartEl)chartEl.innerHTML='<div class="empty">Načítám…</div>';
   let s;
-  try{s=await api('/caregivers/me/stats');}
+  try{s=await api('/caregivers/me/stats?range='+cgStatsRange);}
   catch(e){toast('Statistiky se nepodařilo načíst: '+(e.message||''),'declined');if(cardsEl)cardsEl.innerHTML='';if(chartEl)chartEl.innerHTML='';return;}
+  const periodLabel=CG_STATS_RANGE_LABEL[s.range]||'';
   const cards=[
-    {l:'Objednávky (6 měsíců)',v:s.totalOrders},
+    {l:'Objednávky ('+periodLabel+')',v:s.totalOrders},
     {l:'Potvrzeno/dokončeno',v:s.confirmedOrders},
     {l:'Míra přijetí poptávek',v:s.conversionRate+' %'},
     {l:'Odpracované hodiny',v:s.totalHours},
@@ -5389,7 +5407,8 @@ async function renderCgStats(){
     {l:'Hodnocení',v:(s.rating||0)+' ★ ('+(s.reviews||0)+')'},
   ];
   if(cardsEl)cardsEl.innerHTML=cards.map(c=>`<div class="stat"><div class="stat-top"><span class="sl">${esc(c.l)}</span></div><div class="sv">${esc(String(c.v))}</div></div>`).join('');
-  if(chartEl)chartEl.innerHTML=buildStatsChartSvg(s.monthly||[]);
+  const labelFor=s.granularity==='day'?(m=>fmtStatsDay(m.key)):(m=>fmtStatsMonth(m.key));
+  if(chartEl)chartEl.innerHTML=buildStatsChartSvg(s.series||[],{labelFor});
   if(topEl)topEl.innerHTML=(s.topFamilies||[]).length?s.topFamilies.map(f=>`
     <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px">
       <span>${esc(f.name)}</span><span>${f.count} služeb</span>

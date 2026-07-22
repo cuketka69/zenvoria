@@ -5082,23 +5082,56 @@ app.get('/api/calendar/:token.ics', h(async (req, res) => {
   res.type('text/calendar; charset=utf-8').send(ics);
 }));
 
+// vytvoří prázdné "kbelíky" pro zvolené období — den (aktuální měsíc), měsíc (aktuální rok) nebo
+// měsíc (celá historie od první objednávky) — aby graf ukazoval i nulové dny/měsíce, ne jen ty s daty
+async function statsRangeBuckets(range, cid) {
+  const now = new Date();
+  if (range === 'month') {
+    const y = now.getFullYear(), m = now.getMonth();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const buckets = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      buckets.push(`${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+    }
+    return { sinceIso: buckets[0], granularity: 'day', buckets, keyFor: (dateStr) => String(dateStr).slice(0, 10) };
+  }
+  if (range === 'all') {
+    const earliestRows = await restSelect(T.orders, `cid=eq.${cid}&select=date&order=date.asc&limit=1`);
+    const earliest = earliestRows && earliestRows[0] ? new Date(earliestRows[0].date) : now;
+    let y = earliest.getFullYear(), m = earliest.getMonth();
+    const buckets = [];
+    const maxMonths = 60; // bezpečnostní limit proti extrémně dlouhé historii
+    while ((y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth())) && buckets.length < maxMonths) {
+      buckets.push(`${y}-${String(m + 1).padStart(2, '0')}`);
+      m++; if (m > 11) { m = 0; y++; }
+    }
+    if (!buckets.length) buckets.push(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    return { sinceIso: buckets[0] + '-01', granularity: 'month', buckets, keyFor: (dateStr) => String(dateStr).slice(0, 7) };
+  }
+  // 'year' (výchozí) — leden až aktuální měsíc daného roku
+  const y = now.getFullYear(), curM = now.getMonth();
+  const buckets = [];
+  for (let m = 0; m <= curM; m++) buckets.push(`${y}-${String(m + 1).padStart(2, '0')}`);
+  return { sinceIso: `${y}-01-01`, granularity: 'month', buckets, keyFor: (dateStr) => String(dateStr).slice(0, 7) };
+}
 app.get('/api/caregivers/me/stats', requireRole('caregiver'), h(async (req, res) => {
   const own = await currentCaregiverRow(req);
   if (!own) return res.status(404).json({ error: 'Účet pečovatelky nenalezen.' });
-  const since = new Date(); since.setMonth(since.getMonth() - 6); since.setDate(1);
-  const sinceIso = since.toISOString().slice(0, 10);
+  const range = ['month', 'year', 'all'].includes(req.query.range) ? req.query.range : 'year';
+  const { sinceIso, granularity, buckets, keyFor } = await statsRangeBuckets(range, own.id);
   const list = (await restSelect(T.orders, `cid=eq.${own.id}&date=gte.${sinceIso}&select=oid,status,date,hours,fam_name`)) || [];
-  const byMonth = {};
+  const byKey = {};
+  buckets.forEach((k) => { byKey[k] = { key: k, total: 0, confirmedOrDone: 0, earnings: 0 }; });
   list.forEach((o) => {
-    const k = String(o.date).slice(0, 7);
-    if (!byMonth[k]) byMonth[k] = { month: k, total: 0, confirmedOrDone: 0, earnings: 0 };
-    byMonth[k].total += 1;
+    const k = keyFor(o.date);
+    if (!byKey[k]) return; // mimo aktuální okno kbelíků (nemělo by nastat, ale pro jistotu)
+    byKey[k].total += 1;
     if (o.status === 'confirmed' || o.status === 'done') {
-      byMonth[k].confirmedOrDone += 1;
-      byMonth[k].earnings += Number(o.hours || 0) * Number(own.rate || 0);
+      byKey[k].confirmedOrDone += 1;
+      byKey[k].earnings += Number(o.hours || 0) * Number(own.rate || 0);
     }
   });
-  const monthly = Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month));
+  const series = buckets.map((k) => byKey[k]);
   const doneList = list.filter((o) => o.status === 'done' || o.status === 'confirmed');
   const totalHours = doneList.reduce((s, o) => s + Number(o.hours || 0), 0);
   const totalEarnings = Math.round(doneList.reduce((s, o) => s + Number(o.hours || 0) * Number(own.rate || 0), 0));
@@ -5114,9 +5147,10 @@ app.get('/api/caregivers/me/stats', requireRole('caregiver'), h(async (req, res)
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count).slice(0, 8);
   res.json({
+    range, granularity,
     totalOrders: totalCount, confirmedOrders: doneList.length, conversionRate,
     totalHours, totalEarnings, rating: Number(own.rating || 0), reviews: Number(own.reviews || 0),
-    monthly, topFamilies,
+    series, topFamilies,
   });
 }));
 

@@ -1101,6 +1101,10 @@
   .stats-chart-legend{display:flex;gap:22px;justify-content:center;margin-top:10px;flex-wrap:wrap}
   .stats-chart-legend span{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
   .stats-chart-legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .stats-tabs{display:flex;gap:6px;border-bottom:none;padding-bottom:0;margin-bottom:0}
+  .stats-tab{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:5px 13px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .stats-tab:hover{border-color:var(--gold)}
+  .stats-tab.on{background:var(--gold);border-color:var(--gold);color:var(--navy-900)}
   /* rychlé akce */
   .qa{display:flex;flex-direction:column;gap:10px}
   .qa-item{display:flex;align-items:center;gap:13px;width:100%;text-align:left;cursor:pointer;
