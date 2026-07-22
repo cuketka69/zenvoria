@@ -4604,14 +4604,56 @@ function adminMsgHTML(m,c){
 }
 
 /* ---- ADMIN: statistiky ---- */
+const STATS_MONTH_ABBR=['led','úno','bře','dub','kvě','čvn','čvc','srp','zář','říj','lis','pro'];
+function fmtStatsMonth(k){
+  const m=/^(\d{4})-(\d{2})$/.exec(k||'');if(!m)return k||'';
+  const idx=Number(m[2])-1;
+  return (STATS_MONTH_ABBR[idx]||m[2])+' '+m[1].slice(2);
+}
+function buildStatsChartSvg(monthly){
+  if(!monthly||!monthly.length)return '<div class="empty">Zatím žádná data.</div>';
+  const W=640,H=220,padL=34,padR=14,padT=14,padB=30;
+  const innerW=W-padL-padR,innerH=H-padT-padB;
+  const n=monthly.length;
+  const maxV=Math.max(1,...monthly.map(m=>m.total));
+  const step=n>1?innerW/(n-1):0;
+  const x=i=>padL+(n>1?i*step:innerW/2);
+  const y=v=>padT+innerH-(v/maxV)*innerH;
+  const pathFor=key=>monthly.map((m,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${y(m[key]).toFixed(1)}`).join(' ');
+  const gridN=4;
+  let grid='';
+  for(let g=0;g<=gridN;g++){
+    const v=Math.round(maxV*g/gridN);
+    const gy=y(v);
+    grid+=`<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
+    grid+=`<text x="${padL-8}" y="${(gy+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`;
+  }
+  const labels=monthly.map((m,i)=>`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--muted)">${esc(fmtStatsMonth(m.month))}</text>`).join('');
+  const totalPts=monthly.map((m,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(m.total).toFixed(1)}" r="3.2" fill="var(--navy-700)"><title>${esc(fmtStatsMonth(m.month))}: ${m.total} objednávek</title></circle>`).join('');
+  const confPts=monthly.map((m,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(m.confirmedOrDone).toFixed(1)}" r="3.2" fill="var(--gold)"><title>${esc(fmtStatsMonth(m.month))}: ${m.confirmedOrDone} potvrzeno/dokončeno</title></circle>`).join('');
+  return `
+    <svg viewBox="0 0 ${W} ${H}" class="stats-chart-svg" role="img" aria-label="Graf objednávek podle měsíce">
+      ${grid}
+      <path d="${pathFor('total')}" fill="none" stroke="var(--navy-700)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${pathFor('confirmedOrDone')}" fill="none" stroke="var(--gold)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      ${totalPts}${confPts}
+      ${labels}
+    </svg>
+    <div class="stats-chart-legend">
+      <span><i style="background:var(--navy-700)"></i>Objednávky celkem</span>
+      <span><i style="background:var(--gold)"></i>Potvrzeno/dokončeno</span>
+    </div>`;
+}
 async function renderAdminStats(){
   const cardsEl=document.getElementById('admStatsCards');
+  const chartEl=document.getElementById('admStatsChart');
   const monthlyEl=document.getElementById('admStatsMonthly');
   const topEl=document.getElementById('admStatsTopCaregivers');
   if(cardsEl)cardsEl.innerHTML='<div class="empty">Načítám…</div>';
+  if(chartEl)chartEl.innerHTML='<div class="empty">Načítám…</div>';
   let s;
   try{s=await api('/admin/stats');}
-  catch(e){toast('Statistiky se nepodařilo načíst: '+(e.message||''),'declined');if(cardsEl)cardsEl.innerHTML='';return;}
+  catch(e){toast('Statistiky se nepodařilo načíst: '+(e.message||''),'declined');if(cardsEl)cardsEl.innerHTML='';if(chartEl)chartEl.innerHTML='';return;}
   const cards=[
     {l:'Objednávky (6 měsíců)',v:s.totalOrders},
     {l:'Potvrzeno/dokončeno',v:s.confirmedOrders},
@@ -4620,6 +4662,7 @@ async function renderAdminStats(){
     {l:'Aktivních pečovatelek',v:s.activeCaregiverCount},
   ];
   if(cardsEl)cardsEl.innerHTML=cards.map(c=>`<div class="stat"><div class="stat-top"><span class="sl">${esc(c.l)}</span></div><div class="sv">${esc(String(c.v))}</div></div>`).join('');
+  if(chartEl)chartEl.innerHTML=buildStatsChartSvg(s.monthly||[]);
   if(monthlyEl)monthlyEl.innerHTML=(s.monthly||[]).length?s.monthly.map(m=>`
     <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px">
       <span>${esc(m.month)}</span><span>${m.total} objednávek · ${m.confirmedOrDone} potvrzeno/dokončeno</span>
