@@ -288,6 +288,7 @@ async function go(v,fromPop){
   if(v==='cg-calendar')renderCgCalendar();
   if(v==='cg-profile')renderCgProfile();
   if(v==='cg-verify')renderCgVerify();
+  if(v==='cg-stats')renderCgStats();
   if(v==='chat')enterChat();
   if(v==='fam-dash')renderFamilyDash();
   if(v==='admin-dash')renderAdminDash();
@@ -2110,7 +2111,7 @@ let regRole='family';
 const auth={loggedIn:false,name:'',titul:'',phone:null,email:'',role:'family',photo:null,publicId:null,emailVerified:true};
 const DEFERRED_VIEW_IDS=new Set([
   'profile','booking','bookings',
-  'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify',
+  'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify','cg-stats',
   'chat',
   'order-detail','login','forgot','reset-password','change-email','register',
   'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-payments','admin-invoices','admin-reports','admin-trust','admin-helpchat',
@@ -2583,6 +2584,7 @@ function updateAuthUI(){
       ? mi("go('cg-dashboard')",'Přehled',gridIcon)
         +mi("go('cg-requests')",'Poptávky','<path d="M3 6h18v12H3z" stroke="#7A736A" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#7A736A" stroke-width="1.6"/>')
         +mi("go('chat')",zpr,chatIcon)
+        +mi("go('cg-stats')",'Statistiky','<path d="M4 20V10M11 20V4M18 20v-7" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('cg-profile')",'Můj profil','<circle cx="12" cy="8" r="3.4" stroke="#7A736A" stroke-width="1.6"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#7A736A" stroke-width="1.6"/>')
       : mi("go('bookings')",'Moje objednávky','<rect x="4" y="5" width="16" height="16" rx="2" stroke="#7A736A" stroke-width="1.6"/><path d="M4 9h16M8 3v4M16 3v4" stroke="#7A736A" stroke-width="1.6" stroke-linecap="round"/>')
         +mi("go('chat')",zpr,chatIcon)
@@ -5368,6 +5370,30 @@ function renderCgDashboard(){
   const prev=CG_REQUESTS.slice(0,2);
   document.getElementById('cgReqBadge').textContent=CG_REQUESTS.length;
   document.getElementById('cgReqPreview').innerHTML=prev.length?prev.map(reqCardHTML).join(''):'<div class="empty">Žádné nové poptávky.</div>';
+}
+async function renderCgStats(){
+  const cardsEl=document.getElementById('cgStatsCards');
+  const chartEl=document.getElementById('cgStatsChart');
+  const topEl=document.getElementById('cgStatsTopFamilies');
+  if(cardsEl)cardsEl.innerHTML='<div class="empty">Načítám…</div>';
+  if(chartEl)chartEl.innerHTML='<div class="empty">Načítám…</div>';
+  let s;
+  try{s=await api('/caregivers/me/stats');}
+  catch(e){toast('Statistiky se nepodařilo načíst: '+(e.message||''),'declined');if(cardsEl)cardsEl.innerHTML='';if(chartEl)chartEl.innerHTML='';return;}
+  const cards=[
+    {l:'Objednávky (6 měsíců)',v:s.totalOrders},
+    {l:'Potvrzeno/dokončeno',v:s.confirmedOrders},
+    {l:'Míra přijetí poptávek',v:s.conversionRate+' %'},
+    {l:'Odpracované hodiny',v:s.totalHours},
+    {l:'Výdělek celkem',v:Number(s.totalEarnings||0).toLocaleString('cs-CZ')+' Kč'},
+    {l:'Hodnocení',v:(s.rating||0)+' ★ ('+(s.reviews||0)+')'},
+  ];
+  if(cardsEl)cardsEl.innerHTML=cards.map(c=>`<div class="stat"><div class="stat-top"><span class="sl">${esc(c.l)}</span></div><div class="sv">${esc(String(c.v))}</div></div>`).join('');
+  if(chartEl)chartEl.innerHTML=buildStatsChartSvg(s.monthly||[]);
+  if(topEl)topEl.innerHTML=(s.topFamilies||[]).length?s.topFamilies.map(f=>`
+    <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px">
+      <span>${esc(f.name)}</span><span>${f.count} služeb</span>
+    </div>`).join(''):'<div class="empty">Zatím žádná data.</div>';
 }
 /* zákaznická podpora — reakční doba se liší podle oprávnění "přednostní zákaznická podpora" u tarifu */
 function cgSupportInfo(){

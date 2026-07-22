@@ -5082,6 +5082,44 @@ app.get('/api/calendar/:token.ics', h(async (req, res) => {
   res.type('text/calendar; charset=utf-8').send(ics);
 }));
 
+app.get('/api/caregivers/me/stats', requireRole('caregiver'), h(async (req, res) => {
+  const own = await currentCaregiverRow(req);
+  if (!own) return res.status(404).json({ error: 'Účet pečovatelky nenalezen.' });
+  const since = new Date(); since.setMonth(since.getMonth() - 6); since.setDate(1);
+  const sinceIso = since.toISOString().slice(0, 10);
+  const list = (await restSelect(T.orders, `cid=eq.${own.id}&date=gte.${sinceIso}&select=oid,status,date,hours,fam_name,rated`)) || [];
+  const byMonth = {};
+  list.forEach((o) => {
+    const k = String(o.date).slice(0, 7);
+    if (!byMonth[k]) byMonth[k] = { month: k, total: 0, confirmedOrDone: 0, earnings: 0 };
+    byMonth[k].total += 1;
+    if (o.status === 'confirmed' || o.status === 'done') {
+      byMonth[k].confirmedOrDone += 1;
+      byMonth[k].earnings += Number(o.hours || 0) * Number(own.rate || 0);
+    }
+  });
+  const monthly = Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month));
+  const doneList = list.filter((o) => o.status === 'done' || o.status === 'confirmed');
+  const totalHours = doneList.reduce((s, o) => s + Number(o.hours || 0), 0);
+  const totalEarnings = Math.round(doneList.reduce((s, o) => s + Number(o.hours || 0) * Number(own.rate || 0), 0));
+  const declinedCount = list.filter((o) => o.status === 'declined').length;
+  const totalCount = list.length;
+  const conversionRate = totalCount ? Math.round(((totalCount - declinedCount) / totalCount) * 100) : 0;
+  const perFamily = {};
+  doneList.forEach((o) => {
+    const name = o.fam_name || '—';
+    perFamily[name] = (perFamily[name] || 0) + 1;
+  });
+  const topFamilies = Object.entries(perFamily)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count).slice(0, 8);
+  res.json({
+    totalOrders: totalCount, confirmedOrders: doneList.length, conversionRate,
+    totalHours, totalEarnings, rating: Number(own.rating || 0), reviews: Number(own.reviews || 0),
+    monthly, topFamilies,
+  });
+}));
+
 // ---- e-mail: faktura k předplatnému (PDF v příloze) ----
 function invoiceMail({ name, number, amountCzk, plan }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
