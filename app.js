@@ -1321,6 +1321,32 @@ function toggleFavorite(id){
   apiSync(on?api('/favorites/'+id,{method:'DELETE'}):api('/favorites',{method:'POST',body:{caregiverId:id}}));
   toast(on?'Odebráno z oblíbených.':'Přidáno do oblíbených.','success');
 }
+/* ---------- FILTR DOSTUPNOSTI (konkrétní datum/čas) ---------- */
+let availabilityFilterIds=null; // null = filtr neaktivní, jinak Set povolených id pečovatelek
+function toggleAvailabilityFilter(){
+  const on=!!(document.getElementById('availFilterOn')||{}).checked;
+  const row=document.getElementById('availFilterRow');
+  if(row)row.hidden=!on;
+  if(on){
+    const dateEl=document.getElementById('availDate');
+    if(dateEl){dateEl.min=todayISO();if(!dateEl.value)dateEl.value=todayISO();}
+    applyAvailabilityFilter();
+  }else{
+    availabilityFilterIds=null;
+    renderCare();
+  }
+}
+async function applyAvailabilityFilter(){
+  const date=document.getElementById('availDate').value;
+  const time=document.getElementById('availTime').value;
+  const hours=document.getElementById('availHours').value;
+  if(!date||!time){availabilityFilterIds=null;renderCare();return;}
+  try{
+    const r=await api('/caregivers/availability?date='+encodeURIComponent(date)+'&time='+encodeURIComponent(time)+'&hours='+encodeURIComponent(hours));
+    availabilityFilterIds=new Set(r.ids||[]);
+  }catch(e){availabilityFilterIds=new Set();toast('Dostupnost se nepodařilo ověřit.','declined');}
+  renderCare();
+}
 function renderCare(){
   const q=(document.getElementById('q').value||'').toLowerCase();
   const locRaw=(document.getElementById('loc').value||'').trim();
@@ -1331,6 +1357,7 @@ function renderCare(){
   let list=CAREGIVERS.filter(c=>{
     if(!c.verified||c.suspended||!hasPerm(c,'publishServices'))return false; // rodiny vidí jen ověřené, aktivní a zveřejněné pečovatelky
     if(favOnly&&!isFavorite(c.id))return false;
+    if(availabilityFilterIds&&!availabilityFilterIds.has(c.id))return false;
     const matchF=!activeFilter||c.services.includes(activeFilter);
     // v režimu vzdálenosti (vybraná lokalita se souřadnicemi) nefiltrujeme podle přesného textu lokality — řadíme podle skutečné vzdálenosti
     const matchL=!locRaw||distanceMode||locNorm(c.loc).includes(locNorm(locRaw));
@@ -1357,7 +1384,11 @@ function renderCare(){
   const cnt=document.getElementById('careCount');
   if(cnt){const n=list.length;cnt.textContent=n+' '+(n===1?'pečovatelka':(n>=2&&n<=4?'pečovatelky':'pečovatelek'));}
   const g=document.getElementById('careGrid');
-  if(!list.length){g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted)">${favOnly?'Zatím nemáte žádné oblíbené pečovatelky. Přidejte si je srdíčkem na jejich kartě.':'Žádná pečovatelka neodpovídá filtru.'}</div>`;return;}
+  if(!list.length){
+    const emptyMsg=favOnly?'Zatím nemáte žádné oblíbené pečovatelky. Přidejte si je srdíčkem na jejich kartě.'
+      :(availabilityFilterIds?'V tomto termínu nemá volno žádná pečovatelka. Zkuste jiný den nebo čas.':'Žádná pečovatelka neodpovídá filtru.');
+    g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted)">${emptyMsg}</div>`;return;
+  }
   g.innerHTML=list.map(c=>{
     const oor=outOfRange(c);
     return `

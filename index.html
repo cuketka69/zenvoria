@@ -295,6 +295,14 @@
         </select>
       </label>
       <label class="fav-only-toggle" id="favOnlyWrap" hidden><input type="checkbox" id="favOnly" onchange="renderCare()"> Jen obl&#237;ben&#233;</label>
+      <label class="fav-only-toggle"><input type="checkbox" id="availFilterOn" onchange="toggleAvailabilityFilter()"> Volno v konkr&#233;tn&#237; termín</label>
+    </div>
+    <div class="sort-row" id="availFilterRow" hidden>
+      <label>Datum <input type="date" class="inp" id="availDate" style="max-width:160px" onchange="applyAvailabilityFilter()"></label>
+      <label>Čas <input type="time" class="inp" id="availTime" value="10:00" style="max-width:120px" onchange="applyAvailabilityFilter()"></label>
+      <label>D&#233;lka <select class="inp" id="availHours" style="max-width:110px" onchange="applyAvailabilityFilter()">
+        <option value="2">2 hodiny</option><option value="4">4 hodiny</option><option value="6">6 hodin</option><option value="8">8 hodin</option>
+      </select></label>
     </div>
     <div class="care-grid" id="careGrid"></div>
   </div>

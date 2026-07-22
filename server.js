@@ -2856,6 +2856,21 @@ function checkAvailabilityFor(caregiver, dateStr, timeStr, hours) {
   if (override) return { ok: startH >= timeToHours(override.from) && endH <= timeToHours(override.to), reason: 'override', override };
   return { ok: isWithinAvailability(caregiver.avail, dateStr, timeStr, hours), reason: 'weekly' };
 }
+// vyhledávání: zjistí, které pečovatelky mají v daný den/čas volno — plný rozvrh (avail/blocked_dates/
+// avail_overrides) se rodinám jinak neposílá (mapCaregiverForViewer ho z payloadu maže kvůli velikosti/soukromí),
+// takže se dotaz řeší tady na serveru a klientovi jde jen výsledný seznam id, ne samotný rozvrh
+app.get('/api/caregivers/availability', rateLimit('locations', RATE_LIMITS.locations), h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const date = trimmedString(req.query.date, 10);
+  const time = trimmedString(req.query.time, 5);
+  const hours = Number(req.query.hours || 2);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Neplatné datum.' });
+  if (!/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Neplatný čas.' });
+  if (!Number.isInteger(hours) || hours < 1 || hours > 24) return res.status(400).json({ error: 'Neplatná délka péče.' });
+  const rows = await restSelect(T.caregivers, 'verified=eq.true&suspended=eq.false&select=id,avail,blocked_dates,avail_overrides');
+  const ids = (rows || []).filter((c) => checkAvailabilityFor(c, date, time, hours).ok).map((c) => Number(c.id));
+  res.json({ ids });
+}));
 function timeRangesOverlap(aStart, aHours, bStart, bHours) {
   const aS = timeToHours(aStart), aE = aS + Number(aHours);
   const bS = timeToHours(bStart), bE = bS + Number(bHours);
