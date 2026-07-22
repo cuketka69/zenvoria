@@ -2761,6 +2761,31 @@ const JS_SK_TRANSLATIONS = [
   [">Uložit</button>\r\n        <button type=\"button\" class=\"btn btn-ghost btn-sm\" onclick=\"document.getElementById('revEditForm${r.id}').hidden=true\">Zrušit</button>",
     ">Uložiť</button>\r\n        <button type=\"button\" class=\"btn btn-ghost btn-sm\" onclick=\"document.getElementById('revEditForm${r.id}').hidden=true\">Zrušiť</button>"],
   [">Nahlásit</button>", ">Nahlásiť</button>"],
+  // ORDER_STATUS — stavy objednávek, zobrazují se všude napříč appkou
+  ["pending:{cls:'pending',label:'Čeká na potvrzení'},", "pending:{cls:'pending',label:'Čaká na potvrdenie'},"],
+  ["confirmed:{cls:'ok',label:'Potvrzeno'},", "confirmed:{cls:'ok',label:'Potvrdené'},"],
+  ["done:{cls:'done',label:'Dokončeno'},", "done:{cls:'done',label:'Dokončené'},"],
+  ["declined:{cls:'declined',label:'Zamítnuto'},", "declined:{cls:'declined',label:'Zamietnuté'},"],
+  ["cancelled:{cls:'declined',label:'Zrušeno'}", "cancelled:{cls:'declined',label:'Zrušené'}"],
+  // renderOrders — seznam objednávek rodiny (view-bookings)
+  ["if(!list.length){el.innerHTML=`<div class=\"empty\">${tab==='up'?'Žádné nadcházející objednávky.':'Zatím žádné minulé objednávky.'}</div>`;return;}",
+    "if(!list.length){el.innerHTML=`<div class=\"empty\">${tab==='up'?'Žiadne nadchádzajúce objednávky.':'Zatiaľ žiadne minulé objednávky.'}</div>`;return;}"],
+  // renderFamilyDash — dashboard rodiny
+  ["?`Máte ${up.length} ${up.length===1?'nadcházející objednávku':(up.length<5?'nadcházející objednávky':'nadcházejících objednávek')}.`",
+    "?`Máte ${up.length} ${up.length===1?'nadchádzajúcu objednávku':(up.length<5?'nadchádzajúce objednávky':'nadchádzajúcich objednávok')}.`"],
+  [":'Zatím nemáte žádné objednávky — najděte si pečovatelku.';", ":'Zatiaľ nemáte žiadne objednávky — nájdite si opatrovateľku.';"],
+  ["l:'Nadcházející objednávky'},", "l:'Nadchádzajúce objednávky'},"],
+  ["l:'Čeká na potvrzení'},", "l:'Čaká na potvrdenie'},"],
+  ["l:'Dokončené služby'},", "l:'Dokončené služby'},"],
+  ["l:'Nepřečtené zprávy'}", "l:'Neprečítané správy'}"],
+  ["document.getElementById('famUpcoming').innerHTML=up.length?up.slice(0,4).map(famOrderRow).join(''):'<div class=\"empty\">Žádné nadcházející objednávky.</div>';",
+    "document.getElementById('famUpcoming').innerHTML=up.length?up.slice(0,4).map(famOrderRow).join(''):'<div class=\"empty\">Žiadne nadchádzajúce objednávky.</div>';"],
+  ["<div class=\"od\"><b>Přijde: ${esc(nc.name)}</b><div class=\"det\">${fmtDate(next.date)} · ${next.time} · ${cgBadges(nc,{max:1})||'ověřená'}</div></div>",
+    "<div class=\"od\"><b>Príde: ${esc(nc.name)}</b><div class=\"det\">${fmtDate(next.date)} · ${next.time} · ${cgBadges(nc,{max:1})||'overená'}</div></div>"],
+  ["`:'<div class=\"empty\" style=\"padding:14px\">Zatím nemáte naplánovanou péči.</div>'}", "`:'<div class=\"empty\" style=\"padding:14px\">Zatiaľ nemáte naplánovanú starostlivosť.</div>'}"],
+  ["<span class=\"qa-l\">Historie péče (${done} dokončených)</span>", "<span class=\"qa-l\">História starostlivosti (${done} dokončených)</span>"],
+  ["${esc(r.caregiverName||'Pečovatelka')}", "${esc(r.caregiverName||'Opatrovateľka')}"],
+  ["<div class=\"det\">${esc(c.loc)} · ${c.exp} let praxe</div>", "<div class=\"det\">${esc(c.loc)} · ${c.exp} rokov praxe</div>"],
 ];
 function translateAppJsToSk(src) {
   let out = src;
