@@ -2908,6 +2908,53 @@ const JS_SK_TRANSLATIONS = [
   ["toastApiError(e,'Opakovanou objednávku se nepodařilo odeslat.');", "toastApiError(e,'Opakovanú objednávku sa nepodarilo odoslať.');"],
   ["toast(`Objednávka u <b>${esc(c.name)}</b> odeslána — čeká na potvrzení`,'success');", "toast(`Objednávka u <b>${esc(c.name)}</b> odoslaná — čaká na potvrdenie`,'success');"],
   ["toastApiError(e,'Objednávku se nepodařilo odeslat.');", "toastApiError(e,'Objednávku sa nepodarilo odoslať.');"],
+  // notifikace / náhled zpráv (zvoneček a ikonka obálky v hlavičce)
+  ["const preview=last?esc((last.me?'Vy: ':'')+(last.text||(last.image?'📷 Obrázek':''))):'Nová konverzace';",
+    "const preview=last?esc((last.me?'Vy: ':'')+(last.text||(last.image?'📷 Obrázok':''))):'Nová konverzácia';"],
+  ["}).join(''):`<div class=\"msg-preview-empty\">Zatím žádné konverzace.</div>`;", "}).join(''):`<div class=\"msg-preview-empty\">Zatiaľ žiadne konverzácie.</div>`;"],
+  ["if(s<60)return'právě teď';", "if(s<60)return'práve teraz';"],
+  ["</button>`).join(''):'<div class=\"msg-preview-empty\">Zatím žádná oznámení.</div>';", "</button>`).join(''):'<div class=\"msg-preview-empty\">Zatiaľ žiadne oznámenia.</div>';"],
+  // syncCgPreview — živý náhled profilu pečovatelky při editaci
+  ["const rawName=document.getElementById('cpName').value||'Vaše jméno';", "const rawName=document.getElementById('cpName').value||'Vaše meno';"],
+  ["${loc} · dojezd do ${radius} km", "${loc} · dojazd do ${radius} km"],
+  ["<span>(${cgProfile.reviews}) · ${exp} let praxe</span>", "<span>(${cgProfile.reviews}) · ${exp} rokov praxe</span>"],
+  ["${cgStatus()==='verified'?'<span class=\"chip badge-id\"><img src=\"verify.webp\" alt=\"\" width=\"14\" height=\"17\" style=\"vertical-align:-3px;margin-right:3px\">Ověřená identita</span>':''}${servs}",
+    "${cgStatus()==='verified'?'<span class=\"chip badge-id\"><img src=\"verify.webp\" alt=\"\" width=\"14\" height=\"17\" style=\"vertical-align:-3px;margin-right:3px\">Overená identita</span>':''}${servs}"],
+  ["onclick=\"previewOwnProfile()\">Zobrazit profil</button>", "onclick=\"previewOwnProfile()\">Zobraziť profil</button>"],
+  ["else toast('Vyplňte odkaz do pole výše a uložte změny.');", "else toast('Vyplňte odkaz do poľa vyššie a uložte zmeny.');"],
+  ["else toast('Profil zatím nemá veřejnou kartu — nejdřív uložte změny.','declined');", "else toast('Profil zatiaľ nemá verejnú kartu — najskôr uložte zmeny.','declined');"],
+  // saveCgProfile — validace a uložení
+  ["toast('Zadejte lokalitu (město nebo okres).','declined');", "toast('Zadajte lokalitu (mesto alebo okres).','declined');"],
+  ["if(cgProfile.facebook&&!/^https?:\\/\\/.+/i.test(cgProfile.facebook)){toast('Adresa Facebook profilu musí začínat http:// nebo https://.','declined');cpFbVal.focus();return;}",
+    "if(cgProfile.facebook&&!/^https?:\\/\\/.+/i.test(cgProfile.facebook)){toast('Adresa Facebook profilu musí začínať http:// alebo https://.','declined');cpFbVal.focus();return;}"],
+  ["if(cgProfile.instagram&&!/^https?:\\/\\/.+/i.test(cgProfile.instagram)){toast('Adresa Instagram profilu musí začínat http:// nebo https://.','declined');cpIgVal.focus();return;}",
+    "if(cgProfile.instagram&&!/^https?:\\/\\/.+/i.test(cgProfile.instagram)){toast('Adresa Instagram profilu musí začínať http:// alebo https://.','declined');cpIgVal.focus();return;}"],
+  ["toast('Profil byl uložen a zveřejněn');", "toast('Profil bol uložený a zverejnený');"],
+  // názvy měsíců a dnů v týdnu — používá se ve všech kalendářích a datepickerech napříč appkou
+  ["const DP_MONTHS=['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];",
+    "const DP_MONTHS=['Január','Február','Marec','Apríl','Máj','Jún','Júl','August','September','Október','November','December'];"],
+  ["const DP_DOW=['po','út','st','čt','pá','so','ne'];", "const DP_DOW=['po','ut','st','št','pi','so','ne'];"],
+  ["const MONTHS=['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];",
+    "const MONTHS=['Január','Február','Marec','Apríl','Máj','Jún','Júl','August','September','Október','November','December'];"],
+  // renderCalendar (family bookings) — dny, tooltip naplánované služby
+  ["const lbl=has?`${d}. ${MONTHS[calMonth].toLowerCase()} ${calYear} — naplánovaná služba`:`${d}. ${MONTHS[calMonth].toLowerCase()} ${calYear}`;",
+    "const lbl=has?`${d}. ${MONTHS[calMonth].toLowerCase()} ${calYear} — naplánovaná služba`:`${d}. ${MONTHS[calMonth].toLowerCase()} ${calYear}`;"],
+  ["onclick=\"${has?`toast('Máte naplánovanou službu ${d}. ${MONTHS[calMonth].toLowerCase()}')`:''}\">${d}</div>`;",
+    "onclick=\"${has?`toast('Máte naplánovanú službu ${d}. ${MONTHS[calMonth].toLowerCase()}')`:''}\">${d}</div>`;"],
+  ["const RB_WEEKDAY_NAMES=['pondělí','úterý','středu','čtvrtek','pátek','sobotu','neděli'];",
+    "const RB_WEEKDAY_NAMES=['pondelok','utorok','stredu','štvrtok','piatok','sobotu','nedeľu'];"],
+  ["<div class=\"od\"><b>${c?esc(c.name):'Pečovatelka'}</b><div class=\"det\">${sNames(r.service)} · Každou ${RB_WEEKDAY_NAMES[r.weekday]||''} v ${esc(r.time)} (${r.occurrences}×)</div></div>",
+    "<div class=\"od\"><b>${c?esc(c.name):'Opatrovateľka'}</b><div class=\"det\">${sNames(r.service)} · Každý ${RB_WEEKDAY_NAMES[r.weekday]||''} o ${esc(r.time)} (${r.occurrences}×)</div></div>"],
+  ["<div class=\"ost\"><button class=\"btn btn-decline btn-sm\" onclick=\"cancelRecurringBooking(${r.id})\">Zrušit sérii</button></div>", "<div class=\"ost\"><button class=\"btn btn-decline btn-sm\" onclick=\"cancelRecurringBooking(${r.id})\">Zrušiť sériu</button></div>"],
+  ["askConfirm({title:'Zrušit opakovanou objednávku?',icon:warnSVG(),danger:true,", "askConfirm({title:'Zrušiť opakovanú objednávku?',icon:warnSVG(),danger:true,"],
+  ["message:'Všechny dosud nepotvrzené i potvrzené (ale ještě neproběhlé) termíny této série budou zrušeny.',", "message:'Všetky doteraz nepotvrdené aj potvrdené (ale ešte neuskutočnené) termíny tejto série budú zrušené.',"],
+  ["confirmLabel:'Zrušit sérii',onConfirm:()=>{", "confirmLabel:'Zrušiť sériu',onConfirm:()=>{"],
+  ["renderRecurringBookings();renderOrders(document.querySelector('.tab.on')?.textContent==='Minulé'?'past':'up');",
+    "renderRecurringBookings();renderOrders(document.querySelector('.tab.on')?.textContent==='Minulé'?'past':'up');"],
+  ["toast(`Série zrušena (${r.cancelledCount} termínů).`,'success');", "toast(`Séria zrušená (${r.cancelledCount} termínov).`,'success');"],
+  // cgCalendar — kalendář dostupnosti pečovatelky
+  ["const action=has?`toast('Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:(clickable?`openDayOverride('${iso}')`:'');",
+    "const action=has?`toast('Naplánovaná služba ${d}. ${MONTHS[cgCalMonth].toLowerCase()}')`:(clickable?`openDayOverride('${iso}')`:'');"],
 ];
 function translateAppJsToSk(src) {
   let out = src;
