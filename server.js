@@ -2315,6 +2315,49 @@ const HOME_SK_TRANSLATIONS = [
   ['<span class="chip gold">Lidskost</span>', '<span class="chip gold">Ľudskosť</span>'],
   ['<span class="chip gold">Důvěra</span>', '<span class="chip gold">Dôvera</span>'],
   ['<span class="chip gold">Bezpečí</span>', '<span class="chip gold">Bezpečie</span>'],
+  // view-search (Hledat pečovatelku)
+  ['<h1>Hledat pečovatelku</h1>', '<h1>Hľadať opatrovateľku</h1>'],
+  ['<p>Najděte ověřenou pečovatelku ve svém okolí.</p>', '<p>Nájdite overenú opatrovateľku vo svojom okolí.</p>'],
+  ['placeholder="Hledat p&#233;&#269;e / lokalitu"', 'placeholder="Hľadať starostlivosť / lokalitu"'],
+  ['aria-label="Zobrazit všechny lokality" title="Zobrazit všechny lokality"', 'aria-label="Zobraziť všetky lokality" title="Zobraziť všetky lokality"'],
+  ['&#344;adit:', 'Zoradiť:'],
+  ['Doporu&#269;en&#233;', 'Odporúčané'],
+  ['Nejbl&#237;&#382;e', 'Najbližšie'],
+  ['Cena: nejlevn&#283;j&#353;&#237;', 'Cena: najlacnejšie'],
+  ['Cena: nejdra&#382;&#353;&#237;', 'Cena: najdrahšie'],
+  ['Nejl&#233;pe hodnocen&#233;', 'Najlepšie hodnotené'],
+  ['Nejv&#237;c praxe', 'Najviac praxe'],
+  ['Jen obl&#237;ben&#233;', 'Len obľúbené'],
+  ['Volno v konkr&#233;tn&#237; termín', 'Voľno v konkrétny termín'],
+  ['<label>Datum ', '<label>Dátum '],
+  ['<label>D&#233;lka ', '<label>Dĺžka '],
+  ['<option value="2">2 hodiny</option><option value="4">4 hodiny</option><option value="6">6 hodin</option><option value="8">8 hodin</option>',
+    '<option value="2">2 hodiny</option><option value="4">4 hodiny</option><option value="6">6 hodín</option><option value="8">8 hodín</option>'],
+  // view-howto (Jak to funguje) — h1/nav už přeloženo výše; zbytek obsahu
+  ['Od vyhledání ověřené pečovatelky až po klidnou péči — ve čtyřech jednoduchých krocích.', 'Od vyhľadania overenej opatrovateľky až po pokojnú starostlivosť — v štyroch jednoduchých krokoch.'],
+  ['Proveďte mě krok za krokem', 'Prevediem vás krok za krokom'],
+  ['Ukážeme vám přímo v aplikaci, kam kliknout. Kdykoli můžete průvodce ukončit.', 'Ukážeme vám priamo v aplikácii, kam kliknúť. Kedykoľvek môžete sprievodcu ukončiť.'],
+  ['Ukážeme vám, jak se zaregistrovat a začít pomáhat. Kdykoli můžete průvodce ukončit.', 'Ukážeme vám, ako sa zaregistrovať a začať pomáhať. Kedykoľvek môžete sprievodcu ukončiť.'],
+  ['Najděte péči ve čtyřech krocích', 'Nájdite starostlivosť v štyroch krokoch'],
+  ['Začněte pomáhat ve třech krocích', 'Začnite pomáhať v troch krokoch'],
+  ['<h3>Vyhledejte pečovatelku</h3>', '<h3>Vyhľadajte opatrovateľku</h3>'],
+  ['Nahoře klikněte na žluté tlačítko <b>„Najít pečovatelku"</b>. Pak můžete napsat své město — nebo nepište nic a uvidíte všechny pečovatelky ve svém okolí.',
+    'Hore kliknite na žlté tlačidlo <b>„Nájsť opatrovateľku"</b>. Potom môžete napísať svoje mesto — alebo nenapíšte nič a uvidíte všetky opatrovateľky vo svojom okolí.'],
+  ['<h3>Vyberte si tu pravou</h3>', '<h3>Vyberte si tú pravú</h3>'],
+  ['U každé pečovatelky vidíte fotku, hvězdičky (spokojenost rodin) a cenu za hodinu. Klikněte na <b>„Zobrazit profil"</b> a přečtěte si zkušenosti i recenze.',
+    'U každej opatrovateľky vidíte fotku, hviezdičky (spokojnosť rodín) a cenu za hodinu. Kliknite na <b>„Zobraziť profil"</b> a prečítajte si skúsenosti aj recenzie.'],
+  ['<h3>Rezervujte termín</h3>', '<h3>Rezervujte termín</h3>'],
+  ['V profilu vyberte den a hodinu, kdy péči potřebujete, a klikněte na <b>„Rezervovat"</b>. Platba je bezpečná a objednávku rovnou potvrdíte.',
+    'V profile vyberte deň a hodinu, kedy starostlivosť potrebujete, a kliknite na <b>„Rezervovať"</b>. Platba je bezpečná a objednávku rovno potvrdíte.'],
+  ['<h3>Užijte si klid</h3>', '<h3>Užite si pokoj</h3>'],
+  ['Hotovo. S pečovatelkou si můžete kdykoli napsat přes <b>„Zprávy"</b>, v sekci <b>„Moje objednávky"</b> vidíte všechny termíny. O vaše blízké je postaráno.',
+    'Hotovo. S opatrovateľkou si môžete kedykoľvek napísať cez <b>„Správy"</b>, v sekcii <b>„Moje objednávky"</b> vidíte všetky termíny. O vašich blízkych je postarané.'],
+  ['<h3>Zaregistrujte se a ověřte</h3>', '<h3>Zaregistrujte sa a overte</h3>'],
+  ['Vytvořte si profil, nahrajte doklady a certifikace. Náš tým vás rychle ověří.', 'Vytvorte si profil, nahrajte doklady a certifikácie. Náš tím vás rýchlo overí.'],
+  ['<h3>Nastavte nabídku a kalendář</h3>', '<h3>Nastavte ponuku a kalendár</h3>'],
+  ['Vyberte služby, které nabízíte, ceny a dostupné termíny ve svém kalendáři.', 'Vyberte služby, ktoré ponúkate, ceny a dostupné termíny vo svojom kalendári.'],
+  ['<h3>Přijímejte poptávky</h3>', '<h3>Prijímajte dopyty</h3>'],
+  ['Rodiny vás osloví, vy potvrdíte termín. Platby probíhají bezpečně přes aplikaci.', 'Rodiny vás oslovia, vy potvrdíte termín. Platby prebiehajú bezpečne cez aplikáciu.'],
 ];
 function translateHomeToSk(html) {
   let out = html.replace('<html lang="cs">', '<html lang="sk">');
@@ -2336,6 +2379,66 @@ function buildIndexHtml(cssRef, jsRef, country) {
 }
 let INDEX_HTML = buildIndexHtml('app.css', 'app.js', 'cz');
 let INDEX_HTML_SK = buildIndexHtml('app.css', 'app.js', 'sk');
+
+// slovenský překlad dílčích view bloků z deferred-views.html — zatím přihlášení/registrace
+// (view-login, view-register); zbytek (dashboardy, chat, admin…) čeká na další fázi lokalizace
+const DEFERRED_SK_TRANSLATIONS = [
+  // view-login
+  ['„Péče s lidskostí — pro klid vašich blízkých."', '„Starostlivosť s ľudskosťou — pre pokoj vašich blízkych."'],
+  ['Ověřené pečovatelky, kterým můžete věřit.', 'Overené opatrovateľky, ktorým môžete veriť.'],
+  ['<h1>Vítejte zpět</h1>', '<h1>Vitajte späť</h1>'],
+  ['Přihlaste se ke svému účtu a spravujte péči pro své blízké.', 'Prihláste sa do svojho účtu a spravujte starostlivosť pre svojich blízkych.'],
+  ['Zadejte platný e-mail.', 'Zadajte platný e-mail.'],
+  ['aria-label="Zobrazit heslo"', 'aria-label="Zobraziť heslo"'],
+  ['Zadejte heslo (min. 6 znaků).', 'Zadajte heslo (min. 6 znakov).'],
+  ['Zapamatovat si mě', 'Zapamätať si ma'],
+  ['Zapomněli jste heslo?', 'Zabudli ste heslo?'],
+  ['>Přihlásit se<', '>Prihlásiť sa<'],
+  ['Nemáte účet? <button type="button" class="auth-link" onclick="go(\'register\')">Zaregistrujte se</button>', 'Nemáte účet? <button type="button" class="auth-link" onclick="go(\'register\')">Zaregistrujte sa</button>'],
+  // view-forgot
+  ['„Jsme tu, abychom vám pomohli."', '„Sme tu, aby sme vám pomohli."'],
+  ['Obnovte přístup ke svému účtu během chvilky.', 'Obnovte prístup k svojmu účtu v priebehu chvíľky.'],
+  ['<h1>Zapomněli jste heslo?</h1>', '<h1>Zabudli ste heslo?</h1>'],
+  ['Zadejte e-mail svého účtu a pošleme vám odkaz pro nastavení nového hesla.', 'Zadajte e-mail svojho účtu a pošleme vám odkaz na nastavenie nového hesla.'],
+  ['Odeslat odkaz pro obnovu', 'Odoslať odkaz na obnovu'],
+  ['Vzpomněli jste si? <button type="button" class="auth-link" onclick="go(\'login\')">Zpět na přihlášení</button>', 'Spomenuli ste si? <button type="button" class="auth-link" onclick="go(\'login\')">Späť na prihlásenie</button>'],
+  ['<h1>Zkontrolujte e-mail</h1>', '<h1>Skontrolujte e-mail</h1>'],
+  ['Pokud u nás účet <b id="forgotEmailEcho"></b> existuje, poslali jsme na něj odkaz pro obnovu hesla. Zkontrolujte i složku se spamem.',
+    'Ak u nás účet <b id="forgotEmailEcho"></b> existuje, poslali sme naň odkaz na obnovu hesla. Skontrolujte aj priečinok so spamom.'],
+  ['>Zpět na přihlášení<', '>Späť na prihlásenie<'],
+  // view-register
+  ['<h1>Vytvořit účet</h1>', '<h1>Vytvoriť účet</h1>'],
+  ['Připojte se k ZENVORIA — péči s lidskostí.', 'Pripojte sa k ZENVORIA — starostlivosti s ľudskosťou.'],
+  ['<b>Rodina</b><span>Hledám péči</span>', '<b>Rodina</b><span>Hľadám starostlivosť</span>'],
+  ['<b>Pečovatelka</b><span>Nabízím péči</span>', '<b>Opatrovateľka</b><span>Ponúkam starostlivosť</span>'],
+  ['>Jméno a příjmení<', '>Meno a priezvisko<'],
+  ['Zadejte své jméno a příjmení.', 'Zadajte svoje meno a priezvisko.'],
+  ['>Telefon<', '>Telefón<'],
+  ['<select class="phone-prefix" id="regPhonePrefix" aria-label="Předvolba"><option value="+420">+420</option><option value="+421">+421</option><option value="+49">+49</option><option value="+43">+43</option><option value="+48">+48</option></select>',
+    '<select class="phone-prefix" id="regPhonePrefix" aria-label="Predvoľba"><option value="+421">+421</option><option value="+420">+420</option><option value="+49">+49</option><option value="+43">+43</option><option value="+48">+48</option></select>'],
+  ['Zadejte platné telefonní číslo.', 'Zadajte platné telefónne číslo.'],
+  ['placeholder="Min. 8 znaků, velké i malé písmeno a číslo"', 'placeholder="Min. 8 znakov, veľké aj malé písmeno a číslo"'],
+  ['Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslo.', 'Heslo musí mať aspoň 8 znakov a obsahovať malé písmeno, veľké písmeno a číslo.'],
+  ['Souhlasím s <a class="auth-link" href="/obchodni-podminky">podmínkami</a>', 'Súhlasím s <a class="auth-link" href="/obchodni-podminky">podmienkami</a>'],
+  ['Pro pokračování musíte souhlasit s podmínkami.', 'Pre pokračovanie musíte súhlasiť s podmienkami.'],
+  ['>Vytvořit účet<', '>Vytvoriť účet<'],
+  ['Už máte účet? <button type="button" class="auth-link" onclick="go(\'login\')">Přihlaste se</button>', 'Už máte účet? <button type="button" class="auth-link" onclick="go(\'login\')">Prihláste sa</button>'],
+];
+function translateDeferredToSk(html) {
+  let out = html;
+  for (const [cz, sk] of DEFERRED_SK_TRANSLATIONS) out = out.split(cz).join(sk);
+  return out;
+}
+function buildDeferredViewsHtml(country) {
+  try {
+    const html = fs.readFileSync(path.join(__dirname, 'deferred-views.html'), 'utf8');
+    return country === 'sk' ? translateDeferredToSk(html) : html;
+  } catch (e) {
+    return null;
+  }
+}
+let DEFERRED_VIEWS_HTML = buildDeferredViewsHtml('cz');
+let DEFERRED_VIEWS_HTML_SK = buildDeferredViewsHtml('sk');
 async function minifyAssets() {
   try {
     const { minify } = require('terser');
@@ -6103,6 +6206,13 @@ const IMMUTABLE_ASSET_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$/i;
 const REVALIDATE_ASSET_RE = /(?:\.html?|app(?:\.min)?\.js|app(?:\.min)?\.css|deferred-views\.html)$/i;
 /* index.html vždy s otiskem verze (musí být PŘED express.static) */
 app.get(['/', '/index.html'], (req, res) => sendSeoPage(req, res, { canonical: `${APP_ORIGIN}/`, jsonLd: ORG_JSON_LD }));
+/* deferred-views.html podle země (musí být PŘED express.static, jinak by šel nepřeložený soubor z disku) */
+app.get('/deferred-views.html', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  const html = countryForReq(req) === 'sk' ? (DEFERRED_VIEWS_HTML_SK || DEFERRED_VIEWS_HTML) : DEFERRED_VIEWS_HTML;
+  if (html) return res.type('html').send(html);
+  return res.sendFile(path.join(ROOT, 'deferred-views.html'));
+});
 app.use(express.static(ROOT, {
   extensions: ['html'],
   index: 'index.html',
