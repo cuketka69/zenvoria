@@ -1041,7 +1041,8 @@
   .account.open .caret{transform:rotate(180deg)}
   .account-menu{position:absolute;top:calc(100% + 10px);right:0;width:248px;background:var(--white);
     border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:8px;
-    opacity:0;visibility:hidden;transform:translateY(-6px);transition:.18s;z-index:60}
+    opacity:0;visibility:hidden;transform:translateY(-6px);transition:.18s;z-index:60;
+    max-height:calc(100vh - 90px);overflow-y:auto}
   .account.open .account-menu{opacity:1;visibility:visible;transform:none}
   .am-head{padding:12px 13px 13px;border-bottom:1px solid var(--line);margin-bottom:6px}
   .am-head strong{display:block;font-family:'Playfair Display',serif;font-size:16px;color:var(--navy-900)}

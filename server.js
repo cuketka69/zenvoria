@@ -309,7 +309,7 @@ function sanitizeContactInfo(value) {
   return { name, phone, email, ico, address };
 }
 /* provozovatel je fyzická osoba, ne ZENVORIA s.r.o. — proto výchozí jméno, dokud admin nezadá jinak */
-const DEFAULT_CONTACT_INFO = { name: 'PaedDr. Iveta Miklášová', phone: '', email: '', ico: '', address: '' };
+const DEFAULT_CONTACT_INFO = { name: 'PaedDr. Iveta Miklášová', phone: '+420 777 625 165', email: 'miklasova@zenvoria.cz', ico: '', address: '' };
 
 /* tarif po registraci: { plan: 'none'|'start'|'premium', days: 0..365 (0 = neomezeně) } */
 function sanitizeSignupPlan(value) {
@@ -781,7 +781,7 @@ function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl
                           </td>
                           <td width="33.33%" valign="top" style="padding:34px 28px 32px 28px;border-right:1px solid rgba(217,169,29,0.25);">
                             <div style="font-size:13px;line-height:1.2;color:#D9A91D;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:14px;">Kontakt</div>
-                            <div style="color:#E4ECE6;font-size:15px;line-height:2;">✉ miklasova@zenvoria.cz<br>☎ +420 777 625 165<br>⌘ www.zenvoria.cz</div>
+                            <div style="color:#E4ECE6;font-size:15px;line-height:2;">✉ ${escapeHtml(contactInfo.email || DEFAULT_CONTACT_INFO.email)}<br>☎ ${escapeHtml(contactInfo.phone || DEFAULT_CONTACT_INFO.phone)}<br>⌘ www.zenvoria.cz</div>
                           </td>
                           <td width="33.33%" valign="top" style="padding:34px 28px 32px 28px;">
                             <div style="font-size:13px;line-height:1.2;color:#D9A91D;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:16px;">Sledujte nás</div>
