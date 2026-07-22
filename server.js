@@ -1009,9 +1009,45 @@ function reservationMail({ user, order, caregiverName, country }) {
   };
 }
 // ---- e-mail: souhrn opakované objednávky (jeden e-mail za celou sérii, ne jeden na termín) ----
-function recurringBookingMail({ user, caregiverName, service, time, created, skipped }) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
+function recurringBookingMail({ user, caregiverName, service, time, created, skipped, country }) {
+  const sk = country === 'sk';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || (sk ? 'zákazník' : 'zákazníku');
   const datesText = created.map((o) => o.date).join(', ');
+  if (sk) {
+    const facts = [
+      { label: 'Služba', value: service || '' },
+      { label: 'Čas', value: time || '' },
+      { label: 'Opatrovateľka', value: caregiverName || '' },
+      { label: 'Počet vytvorených termínov', value: String(created.length) },
+    ];
+    if (skipped.length) facts.push({ label: 'Vynechané termíny', value: skipped.map((s) => s.date).join(', ') });
+    return {
+      subject: `Opakovaná objednávka vytvorená (${created.length} termínov)`,
+      text:
+        `Dobrý deň, ${user.name},\n\n` +
+        `vytvorili sme vám ${created.length} opakovaných objednávok u opatrovateľky ${caregiverName || ''} (${service}, ${time}):\n` +
+        `${datesText}\n` +
+        (skipped.length ? `\nNiektoré termíny sa nepodarilo vytvoriť (opatrovateľka ich má obsadené alebo blokované): ${skipped.map((s) => s.date).join(', ')}\n` : '') +
+        '\nKaždú objednávku musí opatrovateľka zvlášť potvrdiť.\n\n' +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: `Vytvorili sme ${created.length} opakovaných objednávok.`,
+        title: 'Opakovaná objednávka vytvorená',
+        intro: `Dobrý deň, ${firstName}. Vytvorili sme vám ${created.length} opakovaných objednávok u opatrovateľky ${caregiverName || ''}.`,
+        bodyHtml:
+          `<p style="margin:0 0 10px 0;"><b>Termíny:</b> ${escapeHtml(datesText)}</p>` +
+          (skipped.length ? `<p style="margin:0 0 10px 0;color:#B23A2E;"><b>Nepodarilo sa vytvoriť:</b> ${escapeHtml(skipped.map((s) => s.date).join(', '))} (opatrovateľka ich má obsadené alebo blokované)</p>` : '') +
+          '<p style="margin:0;">Každú objednávku musí opatrovateľka zvlášť potvrdiť, rovnako ako pri jednorazovej rezervácii.</p>',
+        ctaLabel: 'Zobraziť moje objednávky',
+        ctaUrl: `${APP_URL_SK}/#bookings`,
+        ctaNote: '',
+        facts,
+        closingTitle: 'Ďakujeme za vašu dôveru.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail slúži ako potvrdenie práve vytvorenej opakovanej objednávky v ZENVORIA.',
+      }),
+    };
+  }
   const facts = [
     { label: 'Služba', value: service || '' },
     { label: 'Čas', value: time || '' },
@@ -1110,8 +1146,39 @@ function forgotPasswordMail({ user, resetUrl, country }) {
   };
 }
 
-function changeEmailLinkMail({ user, confirmUrl }) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
+function changeEmailLinkMail({ user, confirmUrl, country }) {
+  const sk = country === 'sk';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || (sk ? 'zákazník' : 'zákazníku');
+  if (sk) {
+    return {
+      subject: 'Potvrdenie zmeny e-mailu v ZENVORIA',
+      text:
+        `Dobrý deň, ${user.name || firstName},\n\n` +
+        'dostali sme žiadosť o zmenu e-mailovej adresy pri vašom účte ZENVORIA.\n\n' +
+        `Pre pokračovanie otvorte tento odkaz: ${confirmUrl}\n\n` +
+        'Odkaz je platný 30 minút. Ak ste o zmenu e-mailu nežiadali, tento e-mail ignorujte.\n\n' +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: 'Potvrďte zmenu e-mailu bezpečným odkazom na pôvodnej adrese.',
+        title: 'Zmena e-mailu',
+        intro: `Dobrý deň, ${firstName}. Na zmenu e-mailovej adresy najprv potrebujeme potvrdiť prístup k vášmu súčasnému e-mailu.`,
+        bodyHtml:
+          '<p style="margin:0 0 14px 0;">Kliknutím na tlačidlo nižšie otvoríte bezpečnú stránku, kde zadáte nový e-mail. Naň vám následne pošleme overovací kód.</p>' +
+          '<p style="margin:0;">Ak ste o zmenu nežiadali, nič sa nestane a tento e-mail môžete ignorovať.</p>',
+        ctaLabel: 'Potvrdiť zmenu e-mailu',
+        ctaUrl: confirmUrl,
+        ctaNote: `Odkaz je platný 30 minút. Ak tlačidlo nefunguje, otvorte tento odkaz: ${confirmUrl}`,
+        facts: [
+          { label: 'Súčasný e-mail', value: user.email || '' },
+          { label: 'Typ požiadavky', value: 'Zmena e-mailu' },
+          { label: 'Platnosť odkazu', value: '30 minút' },
+        ],
+        closingTitle: 'Bezpečnosť je pre nás prioritou.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail bol odoslaný automaticky po žiadosti o zmenu e-mailu v ZENVORIA.',
+      }),
+    };
+  }
   return {
     subject: 'Potvrzení změny e-mailu v ZENVORIA',
     text:
@@ -1142,8 +1209,39 @@ function changeEmailLinkMail({ user, confirmUrl }) {
   };
 }
 
-function changeEmailCodeMail({ user, newEmail, code }) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
+function changeEmailCodeMail({ user, newEmail, code, country }) {
+  const sk = country === 'sk';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || (sk ? 'zákazník' : 'zákazníku');
+  if (sk) {
+    return {
+      subject: 'Overovací kód pre nový e-mail v ZENVORIA',
+      text:
+        `Dobrý deň, ${user.name || firstName},\n\n` +
+        `na potvrdenie novej e-mailovej adresy ${newEmail} zadajte tento kód: ${code}\n\n` +
+        'Kód je platný 10 minút. Ak ste o zmenu e-mailu nežiadali, tento e-mail ignorujte.\n\n' +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: 'Posielame vám overovací kód pre novú e-mailovú adresu.',
+        title: 'Overenie nového e-mailu',
+        intro: `Dobrý deň, ${firstName}. Na dokončenie zmeny e-mailu zadajte do aplikácie tento šesťmiestny kód.`,
+        bodyHtml:
+          `<p style="margin:0 0 14px 0;">Nová adresa: <b>${escapeHtml(newEmail)}</b></p>` +
+          `<div style="margin:0 auto 16px auto;max-width:260px;padding:18px 22px;border-radius:18px;background:#0A2F20;color:#D9A91D;font-size:34px;letter-spacing:0.22em;font-weight:800;text-align:center;">${escapeHtml(code)}</div>` +
+          '<p style="margin:0;">Kód je platný 10 minút. Ak ste o zmenu e-mailu nežiadali, tento e-mail ignorujte.</p>',
+        ctaLabel: 'Otvoriť ZENVORIA',
+        ctaUrl: `${APP_URL_SK}/#settings`,
+        ctaNote: 'Kód opíšte do formulára v aplikácii. Nikdy ho nezdieľajte s inou osobou.',
+        facts: [
+          { label: 'Nová e-mailová adresa', value: newEmail || '' },
+          { label: 'Overovací kód', value: code || '' },
+          { label: 'Platnosť kódu', value: '10 minút' },
+        ],
+        closingTitle: 'Ďakujeme za potvrdenie.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail bol odoslaný automaticky pri overení novej e-mailovej adresy v ZENVORIA.',
+      }),
+    };
+  }
   return {
     subject: 'Ověřovací kód pro nový e-mail v ZENVORIA',
     text:
@@ -1555,9 +1653,39 @@ function caregiverOrderConfirmMail({ name, order, familyName, country }) {
   };
 }
 // ---- e-mail: proběhla péče? (rodině, po uplynutí naplánovaného konce služby) ----
-function serviceDoneCheckMail({ familyName, order, caregiverName }) {
-  const firstName = (familyName || '').trim().split(/\s+/)[0] || 'zákazníku';
-  const when = [order.date, order.time].filter(Boolean).join(' v ');
+function serviceDoneCheckMail({ familyName, order, caregiverName, country }) {
+  const sk = country === 'sk';
+  const firstName = (familyName || '').trim().split(/\s+/)[0] || (sk ? 'zákazník' : 'zákazníku');
+  const when = [order.date, order.time].filter(Boolean).join(sk ? ' o ' : ' v ');
+  if (sk) {
+    return {
+      subject: `Prebehla starostlivosť ${order.date}? Potvrďte prosím dokončenie`,
+      text:
+        `Dobrý deň, ${familyName || firstName},\n\n` +
+        `naplánovaný čas služby (${order.service}, ${when}) u opatrovateľky ${caregiverName || ''} už uplynul.\n` +
+        'Ak všetko prebehlo v poriadku, označte prosím objednávku vo svojom účte ako dokončenú — odomkne sa vám tým možnosť opatrovateľku ohodnotiť.\n\n' +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: 'Potvrďte prosím, že starostlivosť prebehla.',
+        title: 'Prebehla starostlivosť v poriadku?',
+        intro: `Dobrý deň, ${firstName}. Naplánovaný čas služby u opatrovateľky ${caregiverName || ''} už uplynul.`,
+        bodyHtml:
+          '<p style="margin:0 0 14px 0;">Ak všetko prebehlo v poriadku, označte prosím objednávku vo svojom účte ako dokončenú.</p>' +
+          '<p style="margin:0;">Odomkne sa vám tým možnosť opatrovateľku ohodnotiť.</p>',
+        ctaLabel: 'Otvoriť objednávku',
+        ctaUrl: `${APP_URL_SK}/#bookings`,
+        ctaNote: '',
+        facts: [
+          { label: 'Služba', value: order.service || '' },
+          { label: 'Termín', value: when || '' },
+          { label: 'Opatrovateľka', value: caregiverName || '' },
+        ],
+        closingTitle: 'Ďakujeme za využitie ZENVORIA.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail sa posiela jedenkrát, krátko po uplynutí naplánovaného konca služby.',
+      }),
+    };
+  }
   return {
     subject: `Proběhla péče ${order.date}? Potvrďte prosím dokončení`,
     text:
@@ -1587,9 +1715,38 @@ function serviceDoneCheckMail({ familyName, order, caregiverName }) {
   };
 }
 // ---- e-mail: připomínka blížící se objednávky (rodině i pečovatelce) ----
-function upcomingOrderReminderMail({ name, order, counterpartName, forCaregiver }) {
-  const firstName = (name || '').trim().split(/\s+/)[0] || (forCaregiver ? 'pečovatelko' : 'zákazníku');
-  const when = [order.date, order.time].filter(Boolean).join(' v ');
+function upcomingOrderReminderMail({ name, order, counterpartName, forCaregiver, country }) {
+  const sk = country === 'sk';
+  const firstName = (name || '').trim().split(/\s+/)[0] || (forCaregiver ? (sk ? 'opatrovateľka' : 'pečovatelko') : (sk ? 'zákazník' : 'zákazníku'));
+  const when = [order.date, order.time].filter(Boolean).join(sk ? ' o ' : ' v ');
+  if (sk) {
+    const counterpartLabel = forCaregiver ? 'Klient' : 'Opatrovateľka';
+    return {
+      subject: `Pripomienka: zajtra máte naplánovanú starostlivosť (${order.date})`,
+      text:
+        `Dobrý deň, ${name || firstName},\n\n` +
+        `pripomíname naplánovanú službu: ${order.service}, ${when}.\n` +
+        `${counterpartLabel}: ${counterpartName || ''}\n\n` +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: 'Zajtra máte naplánovanú starostlivosť.',
+        title: 'Pripomienka nadchádzajúcej služby',
+        intro: `Dobrý deň, ${firstName}. Pripomíname vašu naplánovanú službu.`,
+        bodyHtml: '<p style="margin:0;">Ak sa termín z nejakého dôvodu zmenil, ozvite sa prosím druhej strane cez chat čo najskôr.</p>',
+        ctaLabel: forCaregiver ? 'Zobraziť kalendár' : 'Zobraziť objednávky',
+        ctaUrl: forCaregiver ? `${APP_URL_SK}/#cg-calendar` : `${APP_URL_SK}/#bookings`,
+        ctaNote: '',
+        facts: [
+          { label: 'Služba', value: order.service || '' },
+          { label: 'Termín', value: when || '' },
+          { label: counterpartLabel, value: counterpartName || '' },
+        ],
+        closingTitle: 'Tešíme sa, nech všetko prebehne v poriadku.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail sa posiela jedenkrát, približne 24 hodín pred naplánovaným začiatkom služby.',
+      }),
+    };
+  }
   const counterpartLabel = forCaregiver ? 'Klient' : 'Pečovatelka';
   return {
     subject: `Připomínka: zítra máte naplánovanou péči (${order.date})`,
@@ -1667,9 +1824,36 @@ function newChatMessageMail({ name, senderName, preview, country }) {
   };
 }
 // ---- e-mail: rozhodnutí o navrženém termínu (odesílateli návrhu) ----
-function termDecisionMail({ name, accepted, term }) {
+function termDecisionMail({ name, accepted, term, country }) {
+  const sk = country === 'sk';
   const firstName = (name || '').trim().split(/\s+/)[0] || '';
-  const when = [term && term.date, term && term.time].filter(Boolean).join(' v ');
+  const when = [term && term.date, term && term.time].filter(Boolean).join(sk ? ' o ' : ' v ');
+  if (sk) {
+    return {
+      subject: accepted ? `Váš navrhnutý termín bol prijatý (${when})` : `Váš navrhnutý termín bol odmietnutý (${when})`,
+      text:
+        `Dobrý deň, ${name || firstName},\n\n` +
+        (accepted
+          ? `váš navrhnutý termín (${when}) bol prijatý.\n`
+          : `váš navrhnutý termín (${when}) bol bohužiaľ odmietnutý.\n`) +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: accepted ? 'Váš navrhnutý termín bol prijatý.' : 'Váš navrhnutý termín bol odmietnutý.',
+        title: accepted ? 'Termín prijatý' : 'Termín odmietnutý',
+        intro: `Dobrý deň, ${firstName}. ${accepted ? 'Váš navrhnutý termín bol prijatý.' : 'Váš navrhnutý termín bol bohužiaľ odmietnutý.'}`,
+        bodyHtml: accepted
+          ? '<p style="margin:0;">Detaily nájdete vo svojom účte v sekcii Správy alebo Objednávky.</p>'
+          : '<p style="margin:0;">Skúste v chate navrhnúť iný termín.</p>',
+        ctaLabel: 'Otvoriť chat',
+        ctaUrl: `${APP_URL_SK}/#chat`,
+        ctaNote: '',
+        facts: [{ label: 'Navrhnutý termín', value: when || '' }],
+        closingTitle: accepted ? 'Tešíme sa, nech všetko prebehne v poriadku.' : 'Sme tu pre vás.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail informuje o vybavení vášho návrhu termínu v chate.',
+      }),
+    };
+  }
   return {
     subject: accepted ? `Váš navržený termín byl přijat (${when})` : `Váš navržený termín byl odmítnut (${when})`,
     text:
@@ -1696,8 +1880,28 @@ function termDecisionMail({ name, accepted, term }) {
   };
 }
 // ---- e-mail: hromadná zpráva od správce (broadcast) ----
-function broadcastMail({ name, text }) {
+function broadcastMail({ name, text, country }) {
+  const sk = country === 'sk';
   const firstName = (name || '').trim().split(/\s+/)[0] || '';
+  if (sk) {
+    return {
+      subject: 'Správa od tímu ZENVORIA',
+      text: `Dobrý deň, ${name || firstName},\n\n${text}\n\nS pozdravom,\nTím ZENVORIA`,
+      html: renderEmailLayout({
+        preheader: text.slice(0, 120),
+        title: 'Správa od tímu ZENVORIA',
+        intro: `Dobrý deň, ${firstName}.`,
+        bodyHtml: `<p style="margin:0;white-space:pre-wrap;">${escapeHtml(text)}</p>`,
+        ctaLabel: 'Otvoriť ZENVORIA',
+        ctaUrl: APP_URL_SK,
+        ctaNote: '',
+        facts: [],
+        closingTitle: 'Ďakujeme, že ste s nami.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Túto správu odoslal správca systému ZENVORIA vašej skupine používateľov.',
+      }),
+    };
+  }
   return {
     subject: 'Zpráva od týmu ZENVORIA',
     text: `Dobrý den, ${name || firstName},\n\n${text}\n\nS pozdravem,\nTým ZENVORIA`,
@@ -1717,8 +1921,31 @@ function broadcastMail({ name, text }) {
   };
 }
 // ---- e-mail: oblíbená pečovatelka je opět dostupná (rodině) ----
-function favoriteAvailableMail({ familyName, caregiverName }) {
-  const firstName = (familyName || '').trim().split(/\s+/)[0] || 'zákazníku';
+function favoriteAvailableMail({ familyName, caregiverName, country }) {
+  const sk = country === 'sk';
+  const firstName = (familyName || '').trim().split(/\s+/)[0] || (sk ? 'zákazník' : 'zákazníku');
+  if (sk) {
+    return {
+      subject: `${caregiverName} je opäť dostupná na ZENVORIA`,
+      text:
+        `Dobrý deň, ${familyName || firstName},\n\n` +
+        `vaša obľúbená opatrovateľka ${caregiverName} je znovu dostupná pre nové objednávky.\n\n` +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: `${caregiverName} je opäť dostupná.`,
+        title: 'Obľúbená opatrovateľka je späť',
+        intro: `Dobrý deň, ${firstName}. Opatrovateľka ${caregiverName}, ktorú máte v obľúbených, je znovu dostupná pre nové objednávky.`,
+        bodyHtml: '<p style="margin:0;">Môžete jej rovno poslať dopyt.</p>',
+        ctaLabel: 'Zobraziť profil',
+        ctaUrl: `${APP_URL_SK}/#search`,
+        ctaNote: '',
+        facts: [{ label: 'Opatrovateľka', value: caregiverName }],
+        closingTitle: 'Ďakujeme, že ste s nami.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail ste dostali, pretože máte túto opatrovateľku uloženú v obľúbených.',
+      }),
+    };
+  }
   return {
     subject: `${caregiverName} je opět dostupná na ZENVORIA`,
     text:
@@ -1740,10 +1967,34 @@ function favoriteAvailableMail({ familyName, caregiverName }) {
     }),
   };
 }
-// ---- e-mail: výsledek ověření (pečovatelce) ----
 // ---- e-mail: brzy vyprší platnost osvědčení ----
-function certExpiryReminderMail({ name, certs }) {
-  const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+function certExpiryReminderMail({ name, certs, country }) {
+  const sk = country === 'sk';
+  const firstName = (name || '').trim().split(/\s+/)[0] || (sk ? 'opatrovateľka' : 'pečovatelko');
+  if (sk) {
+    const list = certs.map((c) => `${c.name || 'Osvedčenie'} (platnosť do ${c.validUntil})`);
+    return {
+      subject: certs.length > 1 ? 'Čoskoro vyprší platnosť vašich osvedčení' : 'Čoskoro vyprší platnosť vášho osvedčenia',
+      text:
+        `Dobrý deň, ${name || firstName},\n\n` +
+        `blíži sa koniec platnosti:\n${list.map((l) => '- ' + l).join('\n')}\n\n` +
+        'Nahrajte prosím aktuálne osvedčenie cez formulár overenia, aby vám profil zostal dôveryhodný.\n\n' +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: 'Blíži sa koniec platnosti vášho osvedčenia.',
+        title: 'Platnosť osvedčenia čoskoro vyprší',
+        intro: `Dobrý deň, ${firstName}. Blíži sa koniec platnosti pri týchto osvedčeniach:`,
+        bodyHtml: `<ul style="margin:0;padding-left:18px;">${list.map((l) => `<li style="margin-bottom:6px;">${escapeHtml(l)}</li>`).join('')}</ul>`,
+        ctaLabel: 'Nahrať nové osvedčenie',
+        ctaUrl: `${APP_URL_SK}/#cg-verify`,
+        ctaNote: '',
+        facts: [],
+        closingTitle: 'Vďaka, že si udržujete profil aktuálny.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail sa posiela jedenkrát, približne 30 dní pred vypršaním platnosti osvedčenia.',
+      }),
+    };
+  }
   const list = certs.map((c) => `${c.name || 'Osvědčení'} (platnost do ${c.validUntil})`);
   return {
     subject: certs.length > 1 ? 'Brzy vyprší platnost vašich osvědčení' : 'Brzy vyprší platnost vašeho osvědčení',
@@ -1767,8 +2018,37 @@ function certExpiryReminderMail({ name, certs }) {
     }),
   };
 }
-function verificationResultMail({ name, approved, reason }) {
-  const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
+function verificationResultMail({ name, approved, reason, country }) {
+  const sk = country === 'sk';
+  const firstName = (name || '').trim().split(/\s+/)[0] || (sk ? 'opatrovateľka' : 'pečovatelko');
+  if (sk) {
+    return {
+      subject: approved ? 'Vaše overenie bolo schválené' : 'Vaša žiadosť o overenie bola zamietnutá',
+      text:
+        `Dobrý deň, ${name || firstName},\n\n` +
+        (approved
+          ? 'gratulujeme — vaša žiadosť o overenie bola schválená. Váš profil je teraz viditeľný rodinám.\n'
+          : `vašu žiadosť o overenie sme bohužiaľ nemohli schváliť.\n${reason ? 'Dôvod: ' + reason + '\n' : ''}Upravte prosím údaje a odošlite znova.\n`) +
+        '\nS pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: approved ? 'Vaše overenie bolo schválené.' : 'Vaša žiadosť o overenie bola zamietnutá.',
+        title: approved ? 'Overenie schválené' : 'Žiadosť zamietnutá',
+        intro: approved
+          ? `Gratulujeme, ${firstName}. Vaša žiadosť o overenie bola schválená.`
+          : `Dobrý deň, ${firstName}. Vašu žiadosť o overenie sme bohužiaľ nemohli schváliť.`,
+        bodyHtml: approved
+          ? '<p style="margin:0;">Váš profil je teraz <b>viditeľný rodinám</b> vo vyhľadávaní. Doplňte si ponuku služieb a dostupnosť v kalendári, aby vás oslovilo čo najviac rodín.</p>'
+          : `<p style="margin:0 0 14px 0;">${reason ? 'Dôvod: <b>' + escapeHtml(reason) + '</b>' : 'Niektoré údaje nebolo možné overiť.'}</p><p style="margin:0;">Upravte prosím svoje údaje či doklady a odošlite žiadosť znova.</p>`,
+        ctaLabel: approved ? 'Otvoriť profil' : 'Upraviť a odoslať znova',
+        ctaUrl: approved ? `${APP_URL_SK}/#cg-profile` : `${APP_URL_SK}/#cg-verify`,
+        ctaNote: '',
+        facts: [{ label: 'Stav overenia', value: approved ? 'Schválené' : 'Zamietnuté' }],
+        closingTitle: approved ? 'Vitajte medzi overenými opatrovateľkami.' : 'Radi vám pomôžeme.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail informuje o výsledku vašej žiadosti o overenie v ZENVORIA.',
+      }),
+    };
+  }
   return {
     subject: approved ? 'Vaše ověření bylo schváleno' : 'Vaše žádost o ověření byla zamítnuta',
     text:
@@ -3621,8 +3901,8 @@ app.post('/api/auth/change-email/request', requireAuth, rateLimit('change-email-
   if (!user) return res.status(404).json({ error: 'Ucet nebyl nalezen.' });
   const token = createEmailChangeToken();
   await saveEmailChangeToken(user, token);
-  const confirmUrl = `${APP_URL}/?changeEmail=${encodeURIComponent(token)}`;
-  await sendMailSafe({ to: user.email, ...changeEmailLinkMail({ user, confirmUrl }) });
+  const confirmUrl = `${appUrlFor(user.country)}/?changeEmail=${encodeURIComponent(token)}`;
+  await sendMailSafe({ to: user.email, ...changeEmailLinkMail({ user, confirmUrl, country: user.country }) });
   fireAudit('auth.change_email.request', { req, actor: auditActor(req), targetType: 'user', targetId: user.id, status: 'success' });
   res.json({ ok: true });
 }));
@@ -3676,7 +3956,7 @@ app.post('/api/auth/change-email/send-code', rateLimit('change-email-code', RATE
     verifySentAt: new Date().toISOString(),
     verifiedAt: null,
   });
-  await sendMailSafe({ to: newEmail, ...changeEmailCodeMail({ user, newEmail, code }) });
+  await sendMailSafe({ to: newEmail, ...changeEmailCodeMail({ user, newEmail, code, country: user.country }) });
   fireAudit('auth.change_email.code_sent', {
     req,
     actor: { id: user.id, email: user.email, role: user.role },
@@ -4174,7 +4454,7 @@ app.post('/api/recurring-bookings', requireRole('family', 'admin'), requireVerif
     await restDelete(T.recurringBookings, `id=eq.${recurring.id}`, { prefer: 'return=minimal' });
     return res.status(409).json({ error: 'Ani jeden termín se nepodařilo vytvořit.', skipped });
   }
-  const summaryMail = recurringBookingMail({ user: req.session, caregiverName, service, time, created, skipped });
+  const summaryMail = recurringBookingMail({ user: req.session, caregiverName, service, time, created, skipped, country: countryForReq(req) });
   await notifyMail({ to: req.session.email, category: 'requests', ...summaryMail });
   res.json({ recurringId: recurring.id, created, skipped });
 }));
@@ -4734,7 +5014,7 @@ app.post('/api/verifications/:id/approve', requireRole('admin'), h(async (req, r
     await restInsert(T.caregivers, { id: newId, user_id: userId, public_id: genPublicId(), slug, ...data, rating: 0, reviews: 0, plan, plan_status, trial_until, langs: ['Čeština'], price_type: 'hod', day_rate: (v.rate || 0) * 8, radius: 10, km_price: 0, country: userCountry || countryForReq(req) }, { prefer: 'return=minimal' });
   }
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'approved' }, { prefer: 'return=minimal' });
-  if (v.email) await notifyMail({ to: v.email, category: 'email', ...verificationResultMail({ name: v.name, approved: true }) });
+  if (v.email) await notifyMail({ to: v.email, category: 'email', ...verificationResultMail({ name: v.name, approved: true, country: userCountry || countryForReq(req) }) });
   if (v.email) {
     const vu = await findUserByEmail(v.email);
     if (vu) await createNotification(vu.id, { type: 'verification', title: 'Ověření bylo schváleno', body: 'Váš profil je teď veřejný.', link: 'cg-profile' });
@@ -4752,9 +5032,10 @@ app.post('/api/verifications/:id/reject', requireRole('admin'), h(async (req, re
   const v = rows && rows[0];
   if (!v) return res.status(404).json({ error: 'Žádost nenalezena.' });
   await restUpdate(T.verifications, `id=eq.${id}`, { status: 'rejected', reason: reason || null }, { prefer: 'return=minimal' });
-  if (v && v.email) await notifyMail({ to: v.email, category: 'email', ...verificationResultMail({ name: v.name, approved: false, reason }) });
+  const rejectUser = v && v.email ? await findUserByEmail(v.email) : null;
+  if (v && v.email) await notifyMail({ to: v.email, category: 'email', ...verificationResultMail({ name: v.name, approved: false, reason, country: rejectUser && rejectUser.country }) });
   if (v && v.email) {
-    const vu = await findUserByEmail(v.email);
+    const vu = rejectUser;
     if (vu) await createNotification(vu.id, { type: 'verification', title: 'Ověření bylo zamítnuto', body: reason || null, link: 'cg-verify' });
   }
   fireAudit('admin.verification.reject', { req, actor: auditActor(req), targetType: 'verification', targetId: id, status: 'success', metadata: { email: v && v.email || null, reason: reason ? 'provided' : 'empty' } });
@@ -5023,7 +5304,7 @@ async function notifyFavoritersCaregiverAvailable(caregiverId, caregiverName) {
     if (!favRows || !favRows.length) return;
     for (const f of favRows) {
       const u = await findUserByEmail(f.family_email);
-      await notifyMail({ to: f.family_email, settings: u && u.settings, category: 'email', ...favoriteAvailableMail({ familyName: u && u.name, caregiverName }) });
+      await notifyMail({ to: f.family_email, settings: u && u.settings, category: 'email', ...favoriteAvailableMail({ familyName: u && u.name, caregiverName, country: u && u.country }) });
       if (u) {
         await createNotification(u.id, {
           type: 'favorite-available', title: `${caregiverName} je opět dostupná`, body: null, link: 'search',
@@ -5642,10 +5923,10 @@ async function notifyOfflineMessage({ conversationId, recipientId, senderName, p
 // e-mail odesílateli návrhu termínu, jakmile je přijat/odmítnut
 async function notifyTermDecision(proposerId, accepted, term) {
   try {
-    const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(proposerId)}&select=name,email,settings&limit=1`);
+    const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(proposerId)}&select=name,email,settings,country&limit=1`);
     const u = rows && rows[0];
     if (!u || !u.email) return;
-    await notifyMail({ to: u.email, settings: u.settings, category: 'chat', ...termDecisionMail({ name: u.name, accepted, term }) });
+    await notifyMail({ to: u.email, settings: u.settings, category: 'chat', ...termDecisionMail({ name: u.name, accepted, term, country: u.country }) });
   } catch (e) { console.warn('[mail] notifyTermDecision failed:', e.message); }
 }
 function sseSend(userId, payload) {
@@ -5786,15 +6067,15 @@ app.post('/api/broadcasts', requireRole('admin'), h(async (req, res) => {
   try {
     if (audience === 'specific') {
       const list = emails.map((e) => `"${e}"`).join(',');
-      recipients = list ? (await restSelect(T.users, `email=in.(${list})&select=name,email,settings`)) || [] : [];
+      recipients = list ? (await restSelect(T.users, `email=in.(${list})&select=name,email,settings,country`)) || [] : [];
     } else {
-      let filter = 'select=name,email';
+      let filter = 'select=name,email,settings,country';
       if (audience === 'caregivers') filter += '&role=eq.caregiver';
       else if (audience === 'families') filter += '&role=eq.family';
       recipients = (await restSelect(T.users, filter)) || [];
     }
     for (const u of recipients) {
-      if (u && u.email) notifyMail({ to: u.email, settings: u.settings, category: 'email', ...broadcastMail({ name: u.name, text }) });
+      if (u && u.email) notifyMail({ to: u.email, settings: u.settings, category: 'email', ...broadcastMail({ name: u.name, text, country: u.country }) });
     }
   } catch (e) { console.warn('[mail] broadcast send failed:', e.message); }
   res.json({ broadcast: { id: row.id, audience: row.audience, emails: row.emails || [], text: row.text, date: row.date, t: row.t }, emailsSent: recipients.length });
@@ -7156,7 +7437,8 @@ async function checkFinishedServices() {
         caregiverName = (cgs && cgs[0] && cgs[0].name) || '';
       }
       if (o.family_email) {
-        await notifyMail({ to: o.family_email, category: 'reminders', ...serviceDoneCheckMail({ familyName: o.fam_name, order: o, caregiverName }) });
+        const famUser = await findUserByEmail(o.family_email);
+        await notifyMail({ to: o.family_email, category: 'reminders', ...serviceDoneCheckMail({ familyName: o.fam_name, order: o, caregiverName, country: famUser && famUser.country }) });
       }
       await restUpdate(T.orders, `oid=eq.${o.oid}`, { done_prompt_sent_at: nowIso }, { prefer: 'return=minimal' });
     }
@@ -7176,18 +7458,20 @@ async function sendUpcomingReminders() {
       if (!Number.isFinite(startMs)) continue;
       const hoursUntil = (startMs - Date.now()) / 3600000;
       if (hoursUntil > 25 || hoursUntil < 0) continue;
-      let caregiverName = '', caregiverEmail = '';
+      let caregiverName = '', caregiverEmail = '', caregiverCountry = null;
       if (o.cid != null) {
-        const cgs = await restSelect(T.caregivers, `id=eq.${o.cid}&select=name,email&limit=1`);
+        const cgs = await restSelect(T.caregivers, `id=eq.${o.cid}&select=name,email,country&limit=1`);
         const cg = cgs && cgs[0];
         caregiverName = (cg && cg.name) || '';
         caregiverEmail = (cg && cg.email) || '';
+        caregiverCountry = cg && cg.country;
       }
       if (o.family_email) {
-        await notifyMail({ to: o.family_email, category: 'reminders', ...upcomingOrderReminderMail({ name: o.fam_name, order: o, counterpartName: caregiverName, forCaregiver: false }) });
+        const famUser = await findUserByEmail(o.family_email);
+        await notifyMail({ to: o.family_email, category: 'reminders', ...upcomingOrderReminderMail({ name: o.fam_name, order: o, counterpartName: caregiverName, forCaregiver: false, country: famUser && famUser.country }) });
       }
       if (caregiverEmail) {
-        await notifyMail({ to: caregiverEmail, category: 'reminders', ...upcomingOrderReminderMail({ name: caregiverName, order: o, counterpartName: o.fam_name, forCaregiver: true }) });
+        await notifyMail({ to: caregiverEmail, category: 'reminders', ...upcomingOrderReminderMail({ name: caregiverName, order: o, counterpartName: o.fam_name, forCaregiver: true, country: caregiverCountry }) });
       }
       await restUpdate(T.orders, `oid=eq.${o.oid}`, { reminder_sent_at: nowIso }, { prefer: 'return=minimal' });
     }
@@ -7213,7 +7497,8 @@ async function sendCertExpiryReminders() {
         return Number.isFinite(t) && t - todayMs <= windowMs;
       });
       if (!expiring.length) continue;
-      await notifyMail({ to: v.email, category: 'reminders', ...certExpiryReminderMail({ name: v.name, certs: expiring }) });
+      const certUser = await findUserByEmail(v.email);
+      await notifyMail({ to: v.email, category: 'reminders', ...certExpiryReminderMail({ name: v.name, certs: expiring, country: certUser && certUser.country }) });
       await restUpdate(T.verifications, `id=eq.${v.id}`, { cert_reminder_sent_at: nowIso }, { prefer: 'return=minimal' });
     }
   } catch (e) { console.warn('[jobs] sendCertExpiryReminders failed:', e.message); }
