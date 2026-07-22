@@ -4617,14 +4617,10 @@ function fmtStatsDay(k){
   return String(Number(m[3]))+'.'+String(Number(m[2]))+'.';
 }
 /* obecný časový graf s pevnou šířkou na bod — u delších řad (celá historie, dny v měsíci)
-   je tak graf širší než panel a jede se v něm vodorovně, místo aby se body stlačily k sobě */
-function buildTimeSeriesChartSvg(series,opts){
-  opts=opts||{};
-  const lines=opts.lines||[{key:'total',color:'var(--navy-700)',label:'Celkem'}];
-  const labelFor=opts.labelFor||(m=>fmtStatsMonth(m.month));
-  const valueFmt=opts.valueFmt||(v=>String(v));
-  const ariaLabel=opts.ariaLabel||'Graf v čase';
-  if(!series||!series.length)return '<div class="empty">Zatím žádná data.</div>';
+   je tak graf širší než panel a jede se v něm vodorovně, místo aby se body stlačily k sobě.
+   geometrii počítá statsChartGeom() a sdílí ji jak vykreslení SVG, tak myší interakce (křížová
+   osa při najetí kurzorem) — musí se počítat stejným vzorcem, jinak by se čára rozešla s body */
+function statsChartGeom(series,lines){
   const n=series.length;
   const H=220,padL=54,padR=16,padT=14,padB=30,pointGap=48,minInnerW=560;
   const innerH=H-padT-padB;
@@ -4634,6 +4630,16 @@ function buildTimeSeriesChartSvg(series,opts){
   const step=n>1?innerW/(n-1):0;
   const x=i=>padL+(n>1?i*step:innerW/2);
   const y=v=>padT+innerH-(v/maxV)*innerH;
+  return {n,H,padL,padR,padT,padB,innerW,innerH,maxV,step,x,y,W};
+}
+function buildTimeSeriesChartSvg(series,opts){
+  opts=opts||{};
+  const lines=opts.lines||[{key:'total',color:'var(--navy-700)',label:'Celkem'}];
+  const labelFor=opts.labelFor||(m=>fmtStatsMonth(m.month));
+  const valueFmt=opts.valueFmt||(v=>String(v));
+  const ariaLabel=opts.ariaLabel||'Graf v čase';
+  if(!series||!series.length)return '<div class="empty">Zatím žádná data.</div>';
+  const {H,padL,padR,W,x,y,maxV}=statsChartGeom(series,lines);
   const pathFor=key=>series.map((m,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${y(Number(m[key])||0).toFixed(1)}`).join(' ');
   const gridN=4;
   let grid='';
@@ -4658,9 +4664,65 @@ function buildTimeSeriesChartSvg(series,opts){
     </div>
     <div class="stats-chart-legend">${legend}</div>`;
 }
-function buildStatsChartSvg(series,opts){
+/* vykreslí graf do containeru a navěsí myší/dotykovou interakci — svislá křížová čára
+   sledující kurzor + bublina s hodnotami v daném bodě (native <title> zůstává jako fallback) */
+function mountTimeSeriesChart(container,series,opts){
   opts=opts||{};
-  return buildTimeSeriesChartSvg(series,{
+  if(!container)return;
+  container.innerHTML=buildTimeSeriesChartSvg(series,opts);
+  if(!series||!series.length)return;
+  const lines=opts.lines||[{key:'total',color:'var(--navy-700)',label:'Celkem'}];
+  const labelFor=opts.labelFor||(m=>fmtStatsMonth(m.month));
+  const valueFmt=opts.valueFmt||(v=>String(v));
+  const geom=statsChartGeom(series,lines);
+  const svg=container.querySelector('svg.stats-chart-svg');
+  if(!svg)return;
+  const ns='http://www.w3.org/2000/svg';
+  const crossLine=document.createElementNS(ns,'line');
+  crossLine.setAttribute('y1',geom.padT);crossLine.setAttribute('y2',geom.H-geom.padB);
+  crossLine.setAttribute('stroke','var(--muted)');crossLine.setAttribute('stroke-width','1.2');
+  crossLine.setAttribute('stroke-dasharray','3,3');
+  crossLine.style.display='none';crossLine.style.pointerEvents='none';
+  svg.appendChild(crossLine);
+  const dots=lines.map(l=>{
+    const c=document.createElementNS(ns,'circle');
+    c.setAttribute('r','4.6');c.setAttribute('fill',l.color);
+    c.setAttribute('stroke','var(--white)');c.setAttribute('stroke-width','1.8');
+    c.style.display='none';c.style.pointerEvents='none';
+    svg.appendChild(c);
+    return c;
+  });
+  let tooltip=container.querySelector('.stats-chart-tooltip');
+  if(!tooltip){tooltip=document.createElement('div');tooltip.className='stats-chart-tooltip';container.appendChild(tooltip);}
+  container.style.position='relative';
+  const hide=()=>{crossLine.style.display='none';dots.forEach(d=>d.style.display='none');tooltip.style.display='none';};
+  const update=(clientX)=>{
+    const rect=svg.getBoundingClientRect();
+    const relX=clientX-rect.left;
+    const idx=Math.max(0,Math.min(geom.n-1,Math.round((relX-geom.padL)/(geom.step||1))));
+    const m=series[idx];
+    const px=geom.x(idx);
+    crossLine.setAttribute('x1',px);crossLine.setAttribute('x2',px);crossLine.style.display='';
+    dots.forEach((d,li)=>{
+      const val=Number(m[lines[li].key])||0;
+      d.setAttribute('cx',px);d.setAttribute('cy',geom.y(val));d.style.display='';
+    });
+    tooltip.innerHTML=`<b>${esc(labelFor(m))}</b>`+lines.map(l=>`<div><i style="background:${l.color}"></i>${esc(l.label)}: <b>${esc(valueFmt(Number(m[l.key])||0))}</b></div>`).join('');
+    tooltip.style.display='block';
+    const containerRect=container.getBoundingClientRect();
+    const rawLeft=clientX-containerRect.left+12;
+    const left=Math.min(Math.max(4,rawLeft),Math.max(4,containerRect.width-172));
+    tooltip.style.left=left+'px';
+    tooltip.style.top='4px';
+  };
+  svg.addEventListener('mousemove',e=>update(e.clientX));
+  svg.addEventListener('mouseleave',hide);
+  svg.addEventListener('touchmove',e=>{if(e.touches&&e.touches[0])update(e.touches[0].clientX);},{passive:true});
+  svg.addEventListener('touchend',hide);
+}
+function mountStatsChart(container,series,opts){
+  opts=opts||{};
+  mountTimeSeriesChart(container,series,{
     labelFor:opts.labelFor,
     ariaLabel:'Graf objednávek v čase',
     lines:[
@@ -4669,9 +4731,9 @@ function buildStatsChartSvg(series,opts){
     ]
   });
 }
-function buildEarningsChartSvg(series,opts){
+function mountEarningsChart(container,series,opts){
   opts=opts||{};
-  return buildTimeSeriesChartSvg(series,{
+  mountTimeSeriesChart(container,series,{
     labelFor:opts.labelFor,
     ariaLabel:'Graf výdělku v čase',
     valueFmt:v=>Number(v||0).toLocaleString('cs-CZ')+' Kč',
@@ -4696,7 +4758,7 @@ async function renderAdminStats(){
     {l:'Aktivních pečovatelek',v:s.activeCaregiverCount},
   ];
   if(cardsEl)cardsEl.innerHTML=cards.map(c=>`<div class="stat"><div class="stat-top"><span class="sl">${esc(c.l)}</span></div><div class="sv">${esc(String(c.v))}</div></div>`).join('');
-  if(chartEl)chartEl.innerHTML=buildStatsChartSvg(s.monthly||[]);
+  if(chartEl)mountStatsChart(chartEl,s.monthly||[]);
   if(monthlyEl)monthlyEl.innerHTML=(s.monthly||[]).length?s.monthly.map(m=>`
     <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px">
       <span>${esc(m.month)}</span><span>${m.total} objednávek · ${m.confirmedOrDone} potvrzeno/dokončeno</span>
@@ -5435,8 +5497,8 @@ async function renderCgStats(){
   ];
   if(cardsEl)cardsEl.innerHTML=cards.map(c=>`<div class="stat"><div class="stat-top"><span class="sl">${esc(c.l)}</span></div><div class="sv">${esc(String(c.v))}</div></div>`).join('');
   const labelFor=s.granularity==='day'?(m=>fmtStatsDay(m.key)):(m=>fmtStatsMonth(m.key));
-  if(chartEl)chartEl.innerHTML=buildStatsChartSvg(s.series||[],{labelFor});
-  if(earnEl)earnEl.innerHTML=buildEarningsChartSvg(s.series||[],{labelFor});
+  if(chartEl)mountStatsChart(chartEl,s.series||[],{labelFor});
+  if(earnEl)mountEarningsChart(earnEl,s.series||[],{labelFor});
   if(topEl)topEl.innerHTML=(s.topFamilies||[]).length?s.topFamilies.map(f=>`
     <div class="row" style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px">
       <span>${esc(f.name)}</span><span>${f.count} služeb</span>
