@@ -213,6 +213,17 @@
           <div class="panel-h"><b>Naplánováno</b></div>
           <div id="cgCalJobs"></div>
         </div>
+        <div class="panel">
+          <div class="panel-h"><b>Export do kalendáře</b></div>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 12px">Synchronizujte si potvrzené služby do Google, Apple nebo Outlook kalendáře.</p>
+          <div id="icsLinkWrap" hidden style="margin-bottom:10px">
+            <input class="inp" id="icsLinkInput" readonly onclick="this.select()">
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button type="button" class="btn btn-gold btn-sm" onclick="showCalendarExportLink()">Zobrazit odkaz</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="icsRegenBtn" onclick="regenerateCalendarExportLink()" hidden>Vygenerovat nový odkaz</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

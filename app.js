@@ -5349,6 +5349,30 @@ let cgBlockedDates=[];
 /* výjimky z týdenního vzorce pro konkrétní budoucí datum, např. {"2026-08-15":{"from":"08:00","to":"12:00"}} */
 let cgAvailOverrides={};
 function isoDateYMD(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+/* ---------- EXPORT KALENDÁŘE (ICS) ---------- */
+function renderCalendarExportLink(url){
+  const wrap=document.getElementById('icsLinkWrap');
+  const input=document.getElementById('icsLinkInput');
+  const regenBtn=document.getElementById('icsRegenBtn');
+  if(wrap)wrap.hidden=false;
+  if(input)input.value=url;
+  if(regenBtn)regenBtn.hidden=false;
+}
+function showCalendarExportLink(){
+  apiSync(api('/caregivers/me/calendar-token').then(r=>{
+    renderCalendarExportLink(r.url);
+  }));
+}
+function regenerateCalendarExportLink(){
+  askConfirm({title:'Vygenerovat nový odkaz?',icon:warnSVG(),danger:true,
+    message:'Starý odkaz přestane fungovat — pokud ho máte přidaný v jiném kalendáři, přestane se synchronizovat.',
+    confirmLabel:'Vygenerovat nový',onConfirm:()=>{
+      apiSync(api('/caregivers/me/calendar-token/regenerate',{method:'POST'}).then(r=>{
+        renderCalendarExportLink(r.url);
+        toast('Nový odkaz byl vygenerován.','success');
+      }));
+    }});
+}
 function renderCgCalendar(){
   document.getElementById('cgCalTitle').textContent=MONTHS[cgCalMonth]+' '+cgCalYear;
   const first=new Date(cgCalYear,cgCalMonth,1).getDay();

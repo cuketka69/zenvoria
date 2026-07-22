@@ -4974,6 +4974,99 @@ app.get('/api/invoices/:id/pdf', requireAuth, h(async (req, res) => {
   res.type('pdf').send(pdfBuffer);
 }));
 
+/* ---------------- EXPORT KALENDÁŘE (ICS) — pečovatelka si synchronizuje potvrzené služby do Google/Apple kalendáře ---------------- */
+// escapuje text podle RFC 5545 (čárka, středník, zpětné lomítko, nová řádka)
+function icsEscape(s) {
+  return String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+}
+// datum+čas appky jsou vždy "wall clock" v místním čase (Europe/Prague) bez explicitní časové zóny —
+// stejná konvence jako zbytek appky; FLOATING formát (bez Z/TZID) necháme klientský kalendář interpretovat lokálně
+function icsDateTime(dateStr, timeStr) {
+  return `${dateStr.replace(/-/g, '')}T${(timeStr || '00:00').replace(':', '')}00`;
+}
+// přičte hodiny k datu+času a případně korektně přetočí na další den (noční péče přes půlnoc apod.) —
+// počítáno čistě přes UTC komponenty, ať sčítání není ovlivněné časovou zónou serveru
+function addHoursToDateTime(dateStr, timeStr, hours) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const [hh, mm] = (timeStr || '00:00').split(':').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
+  dt.setUTCMinutes(dt.getUTCMinutes() + Math.round(Number(hours || 0) * 60));
+  const pad = (n) => String(n).padStart(2, '0');
+  return {
+    date: `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`,
+    time: `${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())}`,
+  };
+}
+function buildIcsCalendar(caregiverName, events) {
+  const now = icsDateTime(new Date().toISOString().slice(0, 10), new Date().toISOString().slice(11, 16));
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ZENVORIA//Kalendar pecovatelky//CS', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${icsEscape('ZENVORIA — ' + (caregiverName || 'Kalendář'))}`];
+  events.forEach((e) => {
+    const end = addHoursToDateTime(e.date, e.time, e.hours || 1);
+    lines.push('BEGIN:VEVENT');
+    lines.push(`UID:zenvoria-${e.oid || e.id}@zenvoria.cz`);
+    lines.push(`DTSTAMP:${now}Z`);
+    lines.push(`DTSTART:${icsDateTime(e.date, e.time)}`);
+    lines.push(`DTEND:${icsDateTime(end.date, end.time)}`);
+    lines.push(`SUMMARY:${icsEscape(e.summary)}`);
+    if (e.description) lines.push(`DESCRIPTION:${icsEscape(e.description)}`);
+    if (e.location) lines.push(`LOCATION:${icsEscape(e.location)}`);
+    lines.push('END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+// vrátí (a při první potřebě vygeneruje) soukromý token pro export kalendáře — nejde uhodnout, funguje bez přihlášení
+app.get('/api/caregivers/me/calendar-token', requireRole('caregiver'), h(async (req, res) => {
+  const own = await currentCaregiverRow(req);
+  if (!own) return res.status(404).json({ error: 'Účet pečovatelky nenalezen.' });
+  let token = own.ics_token;
+  if (!token) {
+    token = genPublicId(24);
+    await restUpdate(T.caregivers, `id=eq.${own.id}`, { ics_token: token }, { prefer: 'return=minimal' });
+  }
+  res.json({ url: `${APP_URL}/api/calendar/${token}.ics` });
+}));
+// zneplatní starý odkaz a vygeneruje nový (např. při podezření na únik)
+app.post('/api/caregivers/me/calendar-token/regenerate', requireRole('caregiver'), h(async (req, res) => {
+  const own = await currentCaregiverRow(req);
+  if (!own) return res.status(404).json({ error: 'Účet pečovatelky nenalezen.' });
+  const token = genPublicId(24);
+  await restUpdate(T.caregivers, `id=eq.${own.id}`, { ics_token: token }, { prefer: 'return=minimal' });
+  res.json({ url: `${APP_URL}/api/calendar/${token}.ics` });
+}));
+// veřejný (bez přihlášení) ICS feed — kalendářové appky (Google/Apple) neumí poslat naši session cookie,
+// proto se autorizace řeší neuhodnutelným tokenem v URL, stejně jako u ostatních appek s "odkazem na export kalendáře"
+app.get('/api/calendar/:token.ics', h(async (req, res) => {
+  const token = String(req.params.token || '').replace(/[^A-Za-z0-9]/g, '');
+  if (!token) return res.status(404).send('Kalendář nenalezen.');
+  const cgs = await restSelect(T.caregivers, `ics_token=eq.${encodeURIComponent(token)}&select=id,name&limit=1`);
+  const cg = cgs && cgs[0];
+  if (!cg) return res.status(404).send('Kalendář nenalezen.');
+  const scheduleRows = await restSelect(T.schedule, `cid=eq.${cg.id}&order=date.asc&select=id,oid,fam,service,date,time,hours`);
+  const oids = (scheduleRows || []).map((s) => s.oid).filter((x) => x != null);
+  const addrByOid = {};
+  if (oids.length) {
+    const orderRows = await restSelect(T.orders, `oid=in.(${oids.join(',')})&select=oid,addr,note`);
+    (orderRows || []).forEach((o) => { addrByOid[o.oid] = o; });
+  }
+  const serviceRows = await restSelect(T.settings, `key=eq.services&limit=1`);
+  const serviceList = sanitizeServices(serviceRows && serviceRows[0] && serviceRows[0].value);
+  const serviceName = (csv) => String(csv || '').split(',').map((id) => (serviceList.find((s) => s.id === id.trim()) || {}).name || id.trim()).filter(Boolean).join(', ');
+  const events = (scheduleRows || []).map((s) => {
+    const o = addrByOid[s.oid];
+    return {
+      id: s.id, oid: s.oid, date: s.date, time: s.time, hours: s.hours,
+      summary: `${serviceName(s.service)} — ${s.fam || 'klient'}`,
+      description: o && o.note ? o.note : null,
+      location: o && o.addr ? o.addr : null,
+    };
+  });
+  const ics = buildIcsCalendar(cg.name, events);
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Disposition', 'inline; filename="zenvoria-kalendar.ics"');
+  res.type('text/calendar; charset=utf-8').send(ics);
+}));
+
 // ---- e-mail: faktura k předplatnému (PDF v příloze) ----
 function invoiceMail({ name, number, amountCzk, plan }) {
   const firstName = (name || '').trim().split(/\s+/)[0] || 'pečovatelko';
