@@ -165,6 +165,10 @@ function countryForReq(req) {
   if (host.endsWith('zenvoria.cz')) return 'cz';
   return DEFAULT_COUNTRY;
 }
+// odkazy v e-mailech musí mířit na doménu příjemce, ne vždy na APP_URL (ten je defaultně .cz) —
+// SK env override (APP_URL_SK) pro lokální/testovací nastavení, jinak pevná produkční SK doména
+const APP_URL_SK = process.env.APP_URL_SK || 'https://www.zenvoria.sk';
+function appUrlFor(country) { return country === 'sk' ? APP_URL_SK : APP_URL; }
 
 // --- Stripe (předplatné PREMIUM pro pečovatelky) ---
 // klíče lze nastavit přes proměnné prostředí (Railway) NEBO za běhu přes admin panel (Nastavení > Platby) —
@@ -828,8 +832,39 @@ function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl
 </html>`;
 }
 
-function registrationMail(user) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
+function registrationMail(user, country) {
+  const sk = country === 'sk';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || (sk ? 'zákazník' : 'zákazníku');
+  if (sk) {
+    return {
+      subject: 'Vitajte v ZENVORIA',
+      text:
+        `Dobrý deň, ${user.name},\n\n` +
+        'ďakujeme za registráciu do ZENVORIA. Váš účet bol úspešne vytvorený.\n\n' +
+        'Ak ste sa neregistrovali vy, odpovedzte prosím na tento e-mail.\n\n' +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: 'Váš účet v ZENVORIA je pripravený a môžete začať.',
+        title: 'Potvrdenie registrácie',
+        intro: `Ďakujeme za registráciu do ZENVORIA. ${firstName}, váš účet bol úspešne vytvorený a môžete pokračovať do aplikácie.`,
+        bodyHtml:
+          '<p style="margin:0 0 14px 0;">Práve sme pre vás aktivovali prístup do prostredia ZENVORIA, kde prepájame rodiny s opatrovateľkami v duchu dôvery, pokoja a ľudského prístupu.</p>' +
+          '<p style="margin:0;">Ak ste sa neregistrovali vy, odpovedzte prosím na tento e-mail a situáciu okamžite preveríme.</p>',
+        ctaLabel: 'Prejsť do aplikácie',
+        ctaUrl: `${APP_URL_SK}/`,
+        ctaNote: 'Ak tlačidlo nefunguje, otvorte prosím ZENVORIA priamo vo svojom prehliadači na www.zenvoria.sk.',
+        facts: [
+          { label: 'Meno', value: user.name || '' },
+          { label: 'E-mail', value: user.email || '' },
+          { label: 'Rola', value: user.role === 'caregiver' ? 'Opatrovateľka' : 'Rodina' },
+          { label: 'Stav účtu', value: 'Aktívny' },
+        ],
+        closingTitle: 'Teší nás, že ste s nami.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail bol odoslaný automaticky po vytvorení účtu v ZENVORIA.',
+      }),
+    };
+  }
   return {
     subject: 'Vítejte v ZENVORIA',
     text:
@@ -888,9 +923,51 @@ function caregiverPlanUpsellMail(user) {
   };
 }
 
-function reservationMail({ user, order, caregiverName }) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
+function reservationMail({ user, order, caregiverName, country }) {
+  const sk = country === 'sk';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || (sk ? 'zákazník' : 'zákazníku');
   const when = [order.date, order.time].filter(Boolean).join(' v ');
+  if (sk) {
+    const facts = [
+      { label: 'Služba', value: order.service || '' },
+      { label: 'Termín', value: when || '' },
+      { label: 'Adresa', value: order.addr || '' },
+      { label: 'Dĺžka starostlivosti', value: `${order.hours} h` },
+    ];
+    if (caregiverName) facts.push({ label: 'Opatrovateľka', value: caregiverName });
+    facts.push({ label: 'Stav rezervácie', value: order.status || '' });
+    if (order.note) facts.push({ label: 'Poznámka', value: order.note });
+    return {
+      subject: `Potvrdenie rezervácie starostlivosti na ${order.date}`,
+      text:
+        `Dobrý deň, ${user.name},\n\n` +
+        'ďakujeme za vašu rezerváciu v ZENVORIA.\n\n' +
+        `Služba: ${order.service}\n` +
+        `Termín: ${when}\n` +
+        `Adresa: ${order.addr}\n` +
+        `Dĺžka: ${order.hours} h\n` +
+        (caregiverName ? `Opatrovateľka: ${caregiverName}\n` : '') +
+        `Stav: ${order.status}\n` +
+        (order.note ? `Poznámka: ${order.note}\n` : '') +
+        '\nAkonáhle sa stav rezervácie zmení, dáme vám vedieť.\n\n' +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: 'Vaša rezervácia v ZENVORIA bola prijatá.',
+        title: 'Potvrdenie rezervácie',
+        intro: `Ďakujeme za vašu rezerváciu v ZENVORIA. ${firstName}, objednávku sme prijali a čaká na ďalšie spracovanie.`,
+        bodyHtml:
+          '<p style="margin:0 0 14px 0;">Nižšie nájdete zhrnutie rezervácie. Akonáhle sa stav zmení, pošleme vám ďalšiu aktualizáciu.</p>' +
+          '<p style="margin:0;">Ak potrebujete čokoľvek upraviť, odpovedzte prosím na tento e-mail.</p>',
+        ctaLabel: 'Zobraziť ZENVORIA',
+        ctaUrl: `${APP_URL_SK}/`,
+        ctaNote: 'Prehľad rezervácií nájdete po prihlásení vo svojom účte na ZENVORIA.',
+        facts,
+        closingTitle: 'Ďakujeme za vašu dôveru.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail slúži ako potvrdenie práve vytvorenej rezervácie v ZENVORIA.',
+      }),
+    };
+  }
   const facts = [
     { label: 'Služba', value: order.service || '' },
     { label: 'Termín', value: when || '' },
@@ -970,8 +1047,39 @@ function recurringBookingMail({ user, caregiverName, service, time, created, ski
   };
 }
 
-function forgotPasswordMail({ user, resetUrl }) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
+function forgotPasswordMail({ user, resetUrl, country }) {
+  const sk = country === 'sk';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || (sk ? 'zákazník' : 'zákazníku');
+  if (sk) {
+    return {
+      subject: 'Obnova hesla v ZENVORIA',
+      text:
+        `Dobrý deň, ${user.name || firstName},\n\n` +
+        'dostali sme žiadosť o nastavenie nového hesla k vášmu účtu ZENVORIA.\n\n' +
+        `Pokračujte tu: ${resetUrl}\n\n` +
+        'Odkaz je platný 30 minút. Ak ste o zmenu hesla nežiadali, tento e-mail ignorujte.\n\n' +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: 'Posielame vám bezpečný odkaz na nastavenie nového hesla.',
+        title: 'Obnova hesla',
+        intro: `Ďakujeme, ${firstName}. Pripravili sme pre vás bezpečný odkaz na nastavenie nového hesla k účtu ZENVORIA.`,
+        bodyHtml:
+          '<p style="margin:0 0 14px 0;">Kliknutím na tlačidlo nižšie otvoríte stránku, kde zadáte nové heslo dvakrát. Odkaz je časovo obmedzený.</p>' +
+          '<p style="margin:0;">Ak ste o zmenu hesla nežiadali, tento e-mail môžete bezpečne ignorovať.</p>',
+        ctaLabel: 'Nastaviť nové heslo',
+        ctaUrl: resetUrl,
+        ctaNote: `Odkaz je platný 30 minút. Ak tlačidlo nefunguje, otvorte tento odkaz: ${resetUrl}`,
+        facts: [
+          { label: 'E-mail účtu', value: user.email || '' },
+          { label: 'Typ požiadavky', value: 'Reset hesla' },
+          { label: 'Platnosť odkazu', value: '30 minút' },
+        ],
+        closingTitle: 'Bezpečnosť je pre nás prioritou.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail bol odoslaný automaticky po žiadosti o obnovu hesla v ZENVORIA.',
+      }),
+    };
+  }
   return {
     subject: 'Obnova hesla v ZENVORIA',
     text:
@@ -1066,8 +1174,37 @@ function changeEmailCodeMail({ user, newEmail, code }) {
   };
 }
 
-function emailVerifyMail({ user, code }) {
-  const firstName = (user.name || '').trim().split(/\s+/)[0] || 'zákazníku';
+function emailVerifyMail({ user, code, country }) {
+  const sk = country === 'sk';
+  const firstName = (user.name || '').trim().split(/\s+/)[0] || (sk ? 'zákazník' : 'zákazníku');
+  if (sk) {
+    return {
+      subject: 'Overte svoj e-mail v ZENVORIA',
+      text:
+        `Dobrý deň, ${user.name || firstName},\n\n` +
+        `na overenie svojej e-mailovej adresy zadajte v appke tento kód: ${code}\n\n` +
+        'Kód je platný 30 minút. Ak ste si u nás účet nezakladali, tento e-mail ignorujte.\n\n' +
+        'S pozdravom,\nTím ZENVORIA',
+      html: renderEmailLayout({
+        preheader: 'Posielame vám overovací kód na dokončenie registrácie.',
+        title: 'Overenie e-mailu',
+        intro: `Dobrý deň, ${firstName}. Na overenie svojej e-mailovej adresy zadajte do aplikácie tento šesťmiestny kód.`,
+        bodyHtml:
+          `<div style="margin:0 auto 16px auto;max-width:260px;padding:18px 22px;border-radius:18px;background:#0A2F20;color:#D9A91D;font-size:34px;letter-spacing:0.22em;font-weight:800;text-align:center;">${escapeHtml(code)}</div>` +
+          '<p style="margin:0;">Kód je platný 30 minút. Kým e-mail neoveríte, nepôjde vytvárať objednávky, žiadosti o overenie, recenzie ani správy.</p>',
+        ctaLabel: 'Otvoriť ZENVORIA',
+        ctaUrl: `${APP_URL_SK}/`,
+        ctaNote: 'Kód opíšte do formulára v aplikácii. Nikdy ho nezdieľajte s inou osobou.',
+        facts: [
+          { label: 'Overovací kód', value: code || '' },
+          { label: 'Platnosť kódu', value: '30 minút' },
+        ],
+        closingTitle: 'Ďakujeme za registráciu.',
+        closingSubtitle: 'Tím Zenvoria',
+        footerNote: 'Tento e-mail bol odoslaný automaticky po registrácii v ZENVORIA.',
+      }),
+    };
+  }
   return {
     subject: 'Ověřte svůj e-mail v ZENVORIA',
     text:
@@ -3144,11 +3281,11 @@ app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(as
   const password_hash = bcrypt.hashSync(String(password), 10);
   const country = countryForReq(req);
   const user = await restInsert(T.users, { email: em, password_hash, name: safeName, titul: safeTitul, role: r, init, public_id: genPublicId(), phone: safePhone, country });
-  const welcomeMail = registrationMail(user);
+  const welcomeMail = registrationMail(user, country);
   await sendMailSafe({ to: user.email, ...welcomeMail });
   const code = createEmailVerificationCode();
   await saveEmailVerifyCode(user.id, user.email, code);
-  await sendMailSafe({ to: user.email, ...emailVerifyMail({ user, code }) });
+  await sendMailSafe({ to: user.email, ...emailVerifyMail({ user, code, country }) });
   if (r === 'caregiver') {
     await createNotification(user.id, {
       type: 'plan-upsell',
@@ -3188,7 +3325,7 @@ app.post('/api/auth/verify-email/resend', requireAuth, rateLimit('verify-email',
   if (!user) return res.status(404).json({ error: 'Účet nenalezen.' });
   const code = createEmailVerificationCode();
   await saveEmailVerifyCode(user.id, user.email, code);
-  await sendMailSafe({ to: user.email, ...emailVerifyMail({ user, code }) });
+  await sendMailSafe({ to: user.email, ...emailVerifyMail({ user, code, country: user.country }) });
   res.json({ ok: true });
 }));
 
@@ -3219,8 +3356,8 @@ app.post('/api/auth/forgot-password', rateLimit('forgot-password', RATE_LIMITS.f
   if (user) {
     const token = createResetToken();
     await saveResetToken(user.email, token);
-    const resetUrl = `${APP_URL}/?reset=${encodeURIComponent(token)}`;
-    const mail = forgotPasswordMail({ user, resetUrl });
+    const resetUrl = `${appUrlFor(user.country)}/?reset=${encodeURIComponent(token)}`;
+    const mail = forgotPasswordMail({ user, resetUrl, country: user.country });
     await sendMailSafe({ to: user.email, ...mail });
   }
   fireAudit('auth.forgot_password', { req, actor: { email }, targetType: 'user', targetId: email, status: 'success', metadata: { userFound: !!user } });
@@ -3790,7 +3927,7 @@ app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, ra
   const result = await createOrderOccurrence({ req, caregiver, cid, famName, service, hours, date, time, addr, note, km, lat, lng, postalCode });
   if (!result.ok) return res.status(result.status).json({ error: result.reason });
   const orderView = mapOrder(result.order);
-  const confirmationMail = reservationMail({ user: req.session, order: orderView, caregiverName });
+  const confirmationMail = reservationMail({ user: req.session, order: orderView, caregiverName, country: countryForReq(req) });
   await notifyMail({ to: req.session.email, category: 'requests', ...confirmationMail });
   if (caregiver.user_id != null) emitToUser(caregiver.user_id, { type: 'new-request', request: mapRequest(result.request) });
   res.json({ order: orderView });
