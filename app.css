@@ -1195,7 +1195,7 @@
   }
   /* pod 480px se sloupce tabulky pečovatelek přestanou vejít vedle sebe za jakoukoli rozumnou
      míru zmenšení → přepnout na karty (řádek = box, hodnoty pod sebou s popiskem) */
-  @media(max-width:480px){
+  @media(max-width:706px){
     .adm-table-cg thead{display:none}
     .adm-table-cg,.adm-table-cg tbody,.adm-table-cg tr{display:block;width:100%}
     .adm-table-cg tr{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px}
