@@ -2597,7 +2597,7 @@ function updateAuthUI(){
   else{greet.hidden=true;}
   const homeLink=(auth.role==='caregiver'||auth.role==='admin')?`<a role="button" tabindex="0" onclick="go('${landingView()}')">Přehled</a>`:"<a role=\"button\" tabindex=\"0\" onclick=\"go('bookings')\">Moje objednávky</a>";
   mm.innerHTML=inn
-    ? `<div class="mm-user">${avaHtml(initials(auth.name),auth.role==='caregiver'?cgProfile.photo:null)}<div><b>${esc(dispName(auth))}</b><span>${esc(auth.email)}</span></div></div>
+    ? `<div class="mm-user">${avaHtml(initials(auth.name),auth.photo||(auth.role==='caregiver'?cgProfile.photo:null))}<div><b>${esc(dispName(auth))}</b><span>${esc(auth.email)}</span></div></div>
        ${homeLink}
        <a role="button" tabindex="0" onclick="logout()" style="color:#B23A2E">Odhlásit se</a>`
     : `<a data-v="login" role="button" tabindex="0" onclick="go('login')">Přihlásit se</a>
