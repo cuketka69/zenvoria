@@ -1165,7 +1165,10 @@
   .adm-table .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;word-break:break-word}
   .adm-table .small{display:block;font-size:11.5px;color:var(--muted);margin-top:4px}
   .adm-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-  .table-scroll{overflow-x:auto}
+  .table-scroll{overflow-x:auto;scrollbar-width:thin}
+  .table-scroll::-webkit-scrollbar{height:6px}
+  .table-scroll::-webkit-scrollbar-track{background:transparent}
+  .table-scroll::-webkit-scrollbar-thumb{background:rgba(201,162,51,.4);border-radius:6px}
   .ver-done-scroll{max-height:none;overflow:visible}
   .ver-done-scroll thead th{background:transparent;z-index:1}
   .audit-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
@@ -1177,6 +1180,10 @@
     .adm-table .u-cell{gap:8px}
     .adm-table .u-cell .ava{width:30px;height:30px;font-size:12px}
     .adm-table .badge{font-size:11px;padding:4px 8px;gap:4px}
+  }
+  @media(max-width:640px){
+    .adm-table-cg th:nth-child(6),.adm-table-cg td:nth-child(6){display:none}
+    .adm-table .btn-sm{padding:7px 12px;font-size:12px}
   }
   .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap}
   .badge.ok{color:var(--gold-deep);background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.35)}
