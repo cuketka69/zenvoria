@@ -1170,7 +1170,7 @@
   .ver-done-scroll thead th{background:transparent;z-index:1}
   .audit-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
   .audit-meta .chip{padding:4px 9px;font-size:11px}
-  @media(max-width:640px){
+  @media(max-width:900px){
     .adm-table th:nth-child(3),.adm-table td:nth-child(3){display:none}
     .adm-table{font-size:12.5px}
     .adm-table th,.adm-table td{padding:10px 7px}
