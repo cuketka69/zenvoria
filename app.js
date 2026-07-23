@@ -7470,6 +7470,31 @@ function initAuthWatch(){
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden)pollAuthSession(); });
   window.addEventListener('focus',pollAuthSession);
 }
+/* ---------- NATIVNÍ MOBILNÍ APPKA (Capacitor) ----------
+   Appka (mobile/) načítá tenhle stejný app.js jako web — Capacitor mu injektuje window.Capacitor,
+   takže tady jde bezpečně (jen když běžíme v appce) doladit věci, co web nepotřebuje: barva
+   stavového řádku a chování tlačítka Zpět (bez vlastního listeneru appka při "canGoBack=false"
+   rovnou zabije proces; s dvojklikem je to šetrnější, jak bývá zvykem). */
+function initNativeApp(){
+  const cap=window.Capacitor;
+  if(!cap||typeof cap.isNativePlatform!=='function'||!cap.isNativePlatform())return;
+  const plugins=cap.Plugins||{};
+  try{
+    plugins.StatusBar&&plugins.StatusBar.setBackgroundColor({color:'#0A5A34'}).catch(()=>{});
+    plugins.StatusBar&&plugins.StatusBar.setStyle({style:'DARK'}).catch(()=>{});
+  }catch(e){}
+  try{
+    const CapApp=plugins.App;
+    if(!CapApp)return;
+    let lastBack=0;
+    CapApp.addListener('backButton',(ev)=>{
+      if(ev&&ev.canGoBack){window.history.back();return;}
+      const now=Date.now();
+      if(now-lastBack<2000){CapApp.exitApp();}
+      else{lastBack=now;toast('Stiskněte znovu pro ukončení appky');}
+    });
+  }catch(e){}
+}
 async function initApp(){
   // appka přebírá vykreslování — statický obsah pro boty bez JS (viz server.js) už není potřeba
   const ssr=document.getElementById('ssrContent');
@@ -7580,6 +7605,7 @@ async function initApp(){
   initPresencePing();
   initChatWatch();
   initRealtime();
+  initNativeApp();
 }
 function hideAppLoader(){
   const el=document.getElementById('appLoader');
