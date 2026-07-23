@@ -1185,6 +1185,14 @@
     .adm-table-cg th:nth-child(6),.adm-table-cg td:nth-child(6){display:none}
     .adm-table .btn-sm{padding:7px 12px;font-size:12px}
   }
+  @media(max-width:600px){
+    .adm-table{font-size:11.5px}
+    .adm-table th,.adm-table td{padding:8px 5px}
+    .adm-table .u-cell{gap:6px}
+    .adm-table .u-cell .ava{width:26px;height:26px;font-size:11px}
+    .adm-table .badge{font-size:10px;padding:3px 6px;gap:3px}
+    .adm-table .btn-sm{padding:6px 8px;font-size:10.5px}
+  }
   .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap}
   .badge.ok{color:var(--gold-deep);background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.35)}
   .badge.wait{color:var(--gold-deep);background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.35)}
