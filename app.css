@@ -1170,7 +1170,14 @@
   .ver-done-scroll thead th{background:transparent;z-index:1}
   .audit-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
   .audit-meta .chip{padding:4px 9px;font-size:11px}
-  @media(max-width:640px){.adm-table th:nth-child(3),.adm-table td:nth-child(3){display:none}}
+  @media(max-width:640px){
+    .adm-table th:nth-child(3),.adm-table td:nth-child(3){display:none}
+    .adm-table{font-size:12.5px}
+    .adm-table th,.adm-table td{padding:10px 7px}
+    .adm-table .u-cell{gap:8px}
+    .adm-table .u-cell .ava{width:30px;height:30px;font-size:12px}
+    .adm-table .badge{font-size:11px;padding:4px 8px;gap:4px}
+  }
   .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap}
   .badge.ok{color:var(--gold-deep);background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.35)}
   .badge.wait{color:var(--gold-deep);background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.35)}
