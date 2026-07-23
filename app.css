@@ -1094,7 +1094,7 @@
   .dash-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;align-items:start;padding-bottom:60px}
   .dash-grid-2{grid-template-columns:1fr 1fr}
   .panel{background:var(--white);border:1px solid var(--line);border-radius:20px;padding:24px 26px;box-shadow:var(--shadow-sm);margin-bottom:24px}
-  .panel-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .panel-h{display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:10px 14px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
   .panel-h b{font-family:'Playfair Display',serif;font-size:19px;color:var(--navy-900);display:inline-flex;align-items:center;gap:11px}
   .panel-h b::before{content:"";width:4px;height:19px;border-radius:3px;background:linear-gradient(var(--gold),var(--gold-deep))}
   .panel-h .count{font-size:12px;font-weight:600;background:var(--gold);color:var(--navy-900);border-radius:20px;padding:3px 10px}
@@ -1690,6 +1690,7 @@
     .brand .word{display:none}
   }
   @media(max-width:640px){
+    .panel-h .btn{width:100%;margin-left:0!important}
     .care-grid,.serv-grid,.opt-grid,.pchips,.grid2{grid-template-columns:1fr}
     .wrap{padding:0 18px}
     .auth-card{padding:30px 22px}
