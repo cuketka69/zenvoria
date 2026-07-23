@@ -17,6 +17,7 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
+  html,body{overflow-x:hidden;max-width:100%}
   body{
     font-family:'Inter',sans-serif;
     background:var(--cream);
@@ -1681,6 +1682,12 @@
     .hero::before{background:linear-gradient(180deg,rgba(7,20,14,.5) 0%,rgba(7,20,14,.36) 45%,rgba(7,20,14,.62) 100%)}
     /* hero vyplní celou obrazovku → vidět je akorát po tlačítka, karty jdou pod přehyb */
     .hero{min-height:100svh;padding:108px 0 40px}
+  }
+  /* na úzkých telefonech (~<400px) se do lišty nevejde logo+text+zvonek+avatar+burger →
+     zvolíme jen ikonu loga, ať zbytek ovládacích prvků nepřeteče mimo obrazovku */
+  @media(max-width:400px){
+    .brand{gap:0}
+    .brand .word{display:none}
   }
   @media(max-width:640px){
     .care-grid,.serv-grid,.opt-grid,.pchips,.grid2{grid-template-columns:1fr}
