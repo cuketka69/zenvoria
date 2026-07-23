@@ -1,0 +1,16 @@
+{
+  "appId": "cz.zenvoria.app",
+  "appName": "ZENVORIA",
+  "webDir": "www",
+  "server": {
+    "url": "https://www.zenvoria.cz",
+    "cleartext": false,
+    "allowNavigation": [
+      "*.zenvoria.cz",
+      "*.zenvoria.sk"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

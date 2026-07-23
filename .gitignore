@@ -155,3 +155,13 @@ vite.config.ts.timestamp-*
 .mcp.json
 .playwright-mcp/
 _tmp_*
+
+# Android Studio / Gradle build output (mobile/ Capacitor project) — machine-specific, regenerated on build
+mobile/android/local.properties
+mobile/android/.gradle/
+mobile/android/.idea/
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/captures/
+mobile/android/*.iml
+mobile/android/app/*.iml

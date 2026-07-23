@@ -1,0 +1,22 @@
+{
+  "name": "zenvoria-mobile",
+  "version": "1.0.0",
+  "description": "ZENVORIA mobilní appka (Capacitor) — nativní obal kolem živého webu www.zenvoria.cz, žádný vlastní build kroku frontendu.",
+  "private": true,
+  "scripts": {
+    "sync": "cap sync android",
+    "open:android": "cap open android",
+    "assets": "node make_assets.js && capacitor-assets generate --android"
+  },
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/core": "^8.4.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.4.2",
+    "sharp": "^0.35.3"
+  }
+}
