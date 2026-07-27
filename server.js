@@ -423,9 +423,10 @@ function sanitizeSettingValue(key, value) {
 /* příloha jako data URL (obrázek / PDF), s limitem velikosti */
 const DATA_URL_RE = /^data:([^;,]+)(;base64)?,([\s\S]*)$/i;
 const PUBLIC_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
-const VERIFICATION_FILE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'application/pdf', 'text/plain']);
+const VERIFICATION_FILE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'application/pdf']);
 const UPLOAD_IMAGE_MAX_DIMENSION = parseInt(process.env.UPLOAD_IMAGE_MAX_DIMENSION || '1600', 10);
 const UPLOAD_IMAGE_MAX_PIXELS = parseInt(process.env.UPLOAD_IMAGE_MAX_PIXELS || String(16 * 1000 * 1000), 10);
+const UPLOAD_IMAGE_MAX_SOURCE_DIMENSION = parseInt(process.env.UPLOAD_IMAGE_MAX_SOURCE_DIMENSION || '6000', 10);
 
 function detectDataMime(bytes) {
   if (!Buffer.isBuffer(bytes) || bytes.length < 4) return null;
@@ -468,10 +469,15 @@ async function sanitizePublicImageDataUrl(v, maxBytes = 2 * 1024 * 1024) {
   const parsed = decodeDataUrl(v, { maxBytes, allowedTypes: PUBLIC_IMAGE_MIME_TYPES });
   if (!parsed) return null;
   try {
-    const { data, info } = await sharp(parsed.bytes, {
+    const image = sharp(parsed.bytes, {
       animated: false,
       limitInputPixels: UPLOAD_IMAGE_MAX_PIXELS,
-    })
+    });
+    const meta = await image.metadata();
+    if (!meta || !meta.width || !meta.height) return null;
+    if (meta.width > UPLOAD_IMAGE_MAX_SOURCE_DIMENSION || meta.height > UPLOAD_IMAGE_MAX_SOURCE_DIMENSION) return null;
+    if (meta.width * meta.height > UPLOAD_IMAGE_MAX_PIXELS) return null;
+    const { data, info } = await image
       .rotate()
       .resize({
         width: UPLOAD_IMAGE_MAX_DIMENSION,
@@ -643,6 +649,27 @@ function auditEmailSnapshot({ subject, text, html }) {
   };
 }
 
+function auditValue(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'boolean') return value ? 'ano' : 'ne';
+  return String(value);
+}
+
+function auditChangeSet(before, after, labels) {
+  const out = [];
+  const b = before && typeof before === 'object' ? before : {};
+  const a = after && typeof after === 'object' ? after : {};
+  Object.keys(labels || {}).forEach((field) => {
+    if (!(field in a)) return;
+    const oldValue = auditValue(b[field]);
+    const newValue = auditValue(a[field]);
+    if (oldValue === newValue) return;
+    out.push({ field, label: labels[field], before: oldValue, after: newValue });
+  });
+  return out;
+}
+
 // názvy tabulek s fallbackem (Webilio-style — lze přepsat env proměnnou)
 const T = {
   users:         process.env.TBL_USERS         || 'zenvoria_users',
@@ -785,6 +812,21 @@ async function notifyMail({ to, settings, category, ...mail }) {
   }
   if (!mailAllowed(s, category)) return false;
   return sendMailSafe({ to, ...mail, audit: { category, source: 'notifyMail' } });
+}
+
+function phoneCompletionMail({ name, country }) {
+  const url = `${appUrlFor(country || DEFAULT_COUNTRY)}/#settings`;
+  const subject = 'Doplňte si prosím telefonní číslo v ZENVORIA';
+  const text = `Dobrý den${name ? ' ' + name : ''},\n\nve vašem účtu ZENVORIA chybí telefonní číslo. Doplňte ho prosím v nastavení účtu, aby vás druhá strana nebo správa platformy mohla v případě potřeby kontaktovat.\n\nNastavení: ${url}`;
+  const html = renderEmailLayout({
+    preheader: 'Ve vašem účtu chybí telefonní číslo.',
+    title: 'Doplňte telefonní číslo',
+    intro: `Dobrý den${name ? ' ' + escapeHtml(name) : ''},`,
+    bodyHtml: '<p>Ve vašem účtu ZENVORIA chybí telefonní číslo. Doplňte ho prosím v nastavení účtu, aby vás druhá strana nebo správa platformy mohla v případě potřeby kontaktovat.</p>',
+    ctaLabel: 'Otevřít nastavení',
+    ctaUrl: url,
+  });
+  return { subject, text, html };
 }
 
 /* odkazy na sociální sítě pro e-maily — drženo v cache, aktualizováno z DB
@@ -4419,7 +4461,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
           ? restSelect(T.verifications, `email=eq.${encodeURIComponent(req.session.email)}&order=id.asc`)
           : []),
       viewer === 'admin'
-        ? restSelect(T.users, 'select=id,email,name,titul,phone,role,status,init,joined,orders_count,photo,last_seen,country&order=joined.asc')
+        ? restSelect(T.users, 'select=id,email,name,titul,phone,role,status,init,joined,orders_count,photo,last_seen,country,settings&order=joined.asc')
         : [],
       restSelect(T.reviews, 'select=*&order=id.asc'),
       viewer === 'admin'
@@ -4457,9 +4499,18 @@ app.get('/api/bootstrap', h(async (req, res) => {
   });
 
   const planPerms = sanitizePlanPermissions(settings.planPermissions);
+  const userAdminNoteByEmail = {};
+  if (viewer === 'admin') {
+    (usersRows || []).forEach((u) => {
+      const note = u && u.settings && typeof u.settings === 'object' ? trimmedString(u.settings.adminNote, 1000) : '';
+      if (u && u.email && note) userAdminNoteByEmail[String(u.email).toLowerCase()] = note;
+    });
+  }
   const caregiversForViewer = (caregivers || []).map((c) => {
     const includePrivate = viewer === 'caregiver' && ownCaregiver && Number(c.id) === Number(ownCaregiver.id);
-    return mapCaregiverForViewer(c, { viewer, includePrivate, perms: planPerms });
+    const row = mapCaregiverForViewer(c, { viewer, includePrivate, perms: planPerms });
+    if (viewer === 'admin') row.adminNote = userAdminNoteByEmail[String(c.email || '').toLowerCase()] || '';
+    return row;
   });
   const broadcastsForViewer = (broadcasts || []).filter((b) => {
     if (viewer === 'admin') return true;
@@ -4516,7 +4567,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
     schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null, famPublicId: (oidToEmail[s.oid] && famPublicIdByEmail[oidToEmail[s.oid]]) || null })),
     verifications: (verifications || []).map(mapVerification),
-    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, phone: u.phone || null, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null, country: u.country || 'cz' })),
+    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, phone: u.phone || null, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null, country: u.country || 'cz', adminNote: u.settings && typeof u.settings === 'object' ? trimmedString(u.settings.adminNote, 1000) : '' })),
     cgReviews, generalReviews,
     familyReviews: (viewer === 'family' || viewer === 'admin')
       ? (familyReviewsRows || []).map((r) => ({ id: Number(r.id), caregiverName: r.caregiver_name, caregiverId: r.caregiver_id != null ? Number(r.caregiver_id) : null, familyEmail: r.family_email || null, familyName: r.family_name || null, stars: r.stars, text: r.text, createdAt: r.created_at }))
@@ -6458,6 +6509,32 @@ app.post('/api/admin/caregivers/notify-upsell', requireRole('admin'), h(async (r
   res.json({ ok: true, sent });
 }));
 
+app.post('/api/admin/caregivers/:id/request-phone', requireRole('admin'), h(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID pečovatelky.' });
+  const rows = await restSelect(T.caregivers, `id=eq.${id}&select=id,name,email,phone,country&limit=1`);
+  const c = rows && rows[0];
+  if (!c) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
+  if (c.phone) return res.status(400).json({ error: 'Telefonní číslo už je vyplněné.' });
+  const sent = await notifyMail({ to: c.email, category: 'email', ...phoneCompletionMail({ name: c.name, country: c.country }) });
+  fireAudit('admin.caregiver.requestPhone', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: sent ? 'success' : 'failed', metadata: { email: c.email || null } });
+  if (!sent) return res.status(502).json({ error: 'Výzvu se nepodařilo odeslat.' });
+  res.json({ ok: sent });
+}));
+
+app.post('/api/admin/users/:id/request-phone', requireRole('admin'), h(async (req, res) => {
+  const id = String(req.params.id || '').trim();
+  if (!id) return res.status(400).json({ error: 'Neplatné ID uživatele.' });
+  const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(id)}&select=id,name,email,phone,role,country,settings&limit=1`);
+  const u = rows && rows[0];
+  if (!u) return res.status(404).json({ error: 'Uživatel nebyl nalezen.' });
+  if (u.phone) return res.status(400).json({ error: 'Telefonní číslo už je vyplněné.' });
+  const sent = await notifyMail({ to: u.email, settings: u.settings, category: 'email', ...phoneCompletionMail({ name: u.name, country: u.country }) });
+  fireAudit('admin.user.requestPhone', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: sent ? 'success' : 'failed', metadata: { email: u.email || null, role: u.role || null } });
+  if (!sent) return res.status(502).json({ error: 'Výzvu se nepodařilo odeslat.' });
+  res.json({ ok: sent });
+}));
+
 app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   const id = Number(req.params.id);
   const b = req.body || {};
@@ -6620,10 +6697,21 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     }
     patch.langs = patch.langs.map((item) => trimmedString(item, 40));
   }
-  if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
-  const currentRows = await restSelect(T.caregivers, `id=eq.${id}&select=id,email,name,suspended,plan&limit=1`);
+  const adminNoteRequested = isAdmin && b.adminNote !== undefined;
+  const adminNote = adminNoteRequested ? trimmedString(b.adminNote, 1000) : undefined;
+  if (!Object.keys(patch).length && !adminNoteRequested) return res.status(400).json({ error: 'Nic k aktualizaci.' });
+  const currentRows = await restSelect(T.caregivers, `id=eq.${id}&select=id,email,name,titul,phone,suspended,status,verified,plan,trial_until,user_id&limit=1`);
   const currentCaregiver = currentRows && currentRows[0];
   const currentEmail = currentCaregiver && currentCaregiver.email ? String(currentCaregiver.email).toLowerCase() : '';
+  let linkedUser = null;
+  if (isAdmin && currentCaregiver && (currentCaregiver.user_id || currentCaregiver.email)) {
+    const userFilter = currentCaregiver.user_id
+      ? `id=eq.${encodeURIComponent(currentCaregiver.user_id)}`
+      : `email=eq.${encodeURIComponent(currentEmail)}`;
+    const userRows = await restSelect(T.users, `${userFilter}&select=id,email,name,titul,phone,status,settings&limit=1`);
+    linkedUser = userRows && userRows[0] || null;
+  }
+  if (adminNoteRequested && !linkedUser) return res.status(404).json({ error: 'K pečovatelce nebyl nalezen uživatelský účet pro uložení poznámky.' });
   const nextEmail = patch.email !== undefined ? String(patch.email || '').toLowerCase() : currentEmail;
   if (isAdmin && patch.email !== undefined && nextEmail !== currentEmail) {
     const userRows = await restSelect(T.users, `email=eq.${encodeURIComponent(nextEmail)}&select=id,email&limit=1`);
@@ -6631,18 +6719,19 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     const caregiverRows = await restSelect(T.caregivers, `email=eq.${encodeURIComponent(nextEmail)}&select=id,email&limit=1`);
     if (caregiverRows && caregiverRows[0] && Number(caregiverRows[0].id) !== id) return res.status(409).json({ error: 'Tento e-mail uz pouziva jina pecovatelka.' });
   }
-  const rows = await restUpdate(T.caregivers, `id=eq.${id}`, patch);
+  const rows = Object.keys(patch).length ? await restUpdate(T.caregivers, `id=eq.${id}`, patch) : currentRows;
   if (isAdmin && currentCaregiver && currentCaregiver.email && patch.suspended !== undefined) {
     const nextUserStatus = patch.suspended ? 'suspended' : 'active';
     await restUpdate(T.users, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, { status: nextUserStatus }, { prefer: 'return=minimal' });
   }
-  if (isAdmin && currentCaregiver && currentCaregiver.email && (patch.email !== undefined || patch.phone !== undefined || patch.name !== undefined || patch.titul !== undefined)) {
+  if (isAdmin && linkedUser && currentCaregiver && currentCaregiver.email && (patch.email !== undefined || patch.phone !== undefined || patch.name !== undefined || patch.titul !== undefined || adminNoteRequested)) {
     const userPatch = {};
     if (patch.name !== undefined) userPatch.name = patch.name;
     if (patch.titul !== undefined) userPatch.titul = patch.titul;
     if (patch.email !== undefined) userPatch.email = patch.email;
     if (patch.phone !== undefined) userPatch.phone = patch.phone;
-    await restUpdate(T.users, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, userPatch, { prefer: 'return=minimal' });
+    if (adminNoteRequested) userPatch.settings = Object.assign({}, linkedUser.settings && typeof linkedUser.settings === 'object' ? linkedUser.settings : {}, { adminNote });
+    await restUpdate(T.users, `id=eq.${encodeURIComponent(linkedUser.id)}`, userPatch, { prefer: 'return=minimal' });
     if (patch.email !== undefined || patch.name !== undefined) {
       const verificationPatch = {};
       if (patch.email !== undefined) verificationPatch.email = patch.email;
@@ -6658,10 +6747,17 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
       notifyFavoritersCaregiverAvailable(id, currentCaregiver.name).catch(() => {});
     }
   }
-  if (isAdmin && (b.suspended !== undefined || b.status !== undefined || b.plan !== undefined || b.verified !== undefined || b.trialUntil !== undefined || b.email !== undefined || b.phone !== undefined || b.name !== undefined || b.titul !== undefined)) {
-    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { fields: Object.keys(patch), suspended: b.suspended, status: b.status, plan: b.plan, verified: b.verified, trialUntil: b.trialUntil, emailChanged: patch.email !== undefined && nextEmail !== currentEmail, phoneChanged: patch.phone !== undefined, nameChanged: patch.name !== undefined } });
+  if (isAdmin && (b.suspended !== undefined || b.status !== undefined || b.plan !== undefined || b.verified !== undefined || b.trialUntil !== undefined || b.email !== undefined || b.phone !== undefined || b.name !== undefined || b.titul !== undefined || adminNoteRequested)) {
+    const oldNote = linkedUser && linkedUser.settings && typeof linkedUser.settings === 'object' ? linkedUser.settings.adminNote : '';
+    const changes = auditChangeSet(
+      Object.assign({}, currentCaregiver, { trialUntil: currentCaregiver && currentCaregiver.trial_until, adminNote: oldNote }),
+      Object.assign({}, patch, { trialUntil: patch.trial_until, adminNote: adminNoteRequested ? adminNote : undefined }),
+      { name: 'Jméno', titul: 'Titul', email: 'E-mail', phone: 'Telefon', suspended: 'Pozastavení', status: 'Stav', verified: 'Ověření', plan: 'Tarif', trialUntil: 'Platí do', adminNote: 'Admin poznámka' }
+    );
+    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { fields: Object.keys(patch).concat(adminNoteRequested ? ['adminNote'] : []), suspended: b.suspended, status: b.status, plan: b.plan, verified: b.verified, trialUntil: b.trialUntil, emailChanged: patch.email !== undefined && nextEmail !== currentEmail, phoneChanged: patch.phone !== undefined, nameChanged: patch.name !== undefined, titulChanged: patch.titul !== undefined, adminNoteChanged: adminNoteRequested, changes } });
   }
-  res.json({ caregiver: rows && rows[0] ? mapCaregiver(rows[0], await getPlanPermissions()) : null });
+  const responseRows = await restSelect(T.caregivers, `id=eq.${id}&select=*&limit=1`);
+  res.json({ caregiver: responseRows && responseRows[0] ? mapCaregiver(responseRows[0], await getPlanPermissions()) : (rows && rows[0] ? mapCaregiver(rows[0], await getPlanPermissions()) : null) });
 }));
 
 // zaznamenání zhlédnutí veřejného profilu (statistiky zobrazení profilu — PREMIUM)
@@ -7127,7 +7223,7 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
   const b = req.body || {};
   const id = String(req.params.id || '').trim();
   if (!id) return res.status(400).json({ error: 'Neplatné ID uživatele.' });
-  const currentRows = await restSelect(T.users, `id=eq.${encodeURIComponent(id)}&select=id,email,role&limit=1`);
+  const currentRows = await restSelect(T.users, `id=eq.${encodeURIComponent(id)}&select=id,email,role,name,titul,phone,status,settings&limit=1`);
   const currentUser = currentRows && currentRows[0];
   if (!currentUser) return res.status(404).json({ error: 'Uživatel nebyl nalezen.' });
   const patch = {};
@@ -7158,6 +7254,9 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
     }
     patch.phone = phone;
   }
+  const adminNoteRequested = b.adminNote !== undefined;
+  const adminNote = adminNoteRequested ? trimmedString(b.adminNote, 1000) : undefined;
+  if (adminNoteRequested) patch.settings = Object.assign({}, currentUser.settings && typeof currentUser.settings === 'object' ? currentUser.settings : {}, { adminNote });
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   await restUpdate(T.users, `id=eq.${encodeURIComponent(id)}`, patch, { prefer: 'return=minimal' });
   if (patch.email !== undefined && currentUser.role === 'family') {
@@ -7172,7 +7271,12 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
     await restUpdate(T.orders, `family_email=eq.${encodeURIComponent(email)}`, { fam_name: patch.name }, { prefer: 'return=minimal' }).catch(() => {});
     await restUpdate(T.familyReviews, `family_email=eq.${encodeURIComponent(email)}`, { family_name: patch.name }, { prefer: 'return=minimal' }).catch(() => {});
   }
-  fireAudit('admin.user.update', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: 'success', metadata: { fields: Object.keys(patch), emailChanged: patch.email !== undefined, phoneChanged: patch.phone !== undefined, nameChanged: patch.name !== undefined, titulChanged: patch.titul !== undefined } });
+  const changes = auditChangeSet(
+    Object.assign({}, currentUser, { adminNote: currentUser.settings && typeof currentUser.settings === 'object' ? currentUser.settings.adminNote : '' }),
+    Object.assign({}, patch, { adminNote: adminNoteRequested ? adminNote : undefined }),
+    { name: 'Jméno', titul: 'Titul', email: 'E-mail', phone: 'Telefon', status: 'Stav', adminNote: 'Admin poznámka' }
+  );
+  fireAudit('admin.user.update', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: 'success', metadata: { fields: Object.keys(patch).map((k) => k === 'settings' && adminNoteRequested ? 'adminNote' : k), emailChanged: patch.email !== undefined, phoneChanged: patch.phone !== undefined, nameChanged: patch.name !== undefined, titulChanged: patch.titul !== undefined, adminNoteChanged: adminNoteRequested, changes } });
   res.json({ ok: true });
 }));
 
@@ -7520,9 +7624,14 @@ app.get('/api/admin/stats', requireRole('admin'), h(async (req, res) => {
 
 app.get('/api/admin/audit-logs', requireRole('admin'), h(async (req, res) => {
   const limit = Math.min(200, Math.max(1, Number(req.query.limit || 80)));
+  const filters = [];
+  const targetType = trimmedString(req.query.targetType, 80);
+  const targetId = trimmedString(req.query.targetId, 120);
+  if (targetType) filters.push(`target_type=eq.${encodeURIComponent(targetType)}`);
+  if (targetId) filters.push(`target_id=eq.${encodeURIComponent(targetId)}`);
   const rows = await restSelect(
     T.auditLogs,
-    `select=id,action,actor_id,actor_email,actor_role,target_type,target_id,status,ip,user_agent,metadata,created_at&order=created_at.desc&limit=${limit}`
+    `select=id,action,actor_id,actor_email,actor_role,target_type,target_id,status,ip,user_agent,metadata,created_at${filters.length ? '&' + filters.join('&') : ''}&order=created_at.desc&limit=${limit}`
   );
   res.json({
     logs: (rows || []).map((row) => ({

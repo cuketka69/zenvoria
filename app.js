@@ -4180,27 +4180,69 @@ function doRejectVerification(id,reason){
 /* ---- ADMIN: pečovatelky ---- */
 /* vlaječka země u admin řádků (CZ/SK) — appka běží na sdílené DB pro obě země */
 function countryFlag(country){return country==='sk'?'<span class="badge" title="Slovensko">🇸🇰 SK</span>':'<span class="badge" title="Česko">🇨🇿 CZ</span>';}
+function auditChangeText(ch){
+  const before=ch.before==null||ch.before===''?'prázdné':String(ch.before);
+  const after=ch.after==null||ch.after===''?'prázdné':String(ch.after);
+  return `${ch.label||ch.field}: ${before} → ${after}`;
+}
+function auditHistoryHtml(logs){
+  if(!logs||!logs.length)return '<div class="empty">Zatím žádné změny.</div>';
+  return logs.map(log=>{
+    const changes=log.metadata&&Array.isArray(log.metadata.changes)?log.metadata.changes:[];
+    const changeHtml=changes.length
+      ?changes.slice(0,6).map(ch=>`<div class="small">${esc(auditChangeText(ch))}</div>`).join('')
+      :`<div class="small">${esc(auditActionLabel(log.action))}</div>`;
+    return `<div class="row" style="display:block;padding:9px 0;border-bottom:1px solid var(--line)">
+      <b>${esc(auditActionLabel(log.action))}</b>
+      <span class="small">${esc(log.actorEmail||'Systém')} · ${fmtDate(log.createdAt)} ${new Date(log.createdAt).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'})}</span>
+      ${changeHtml}
+    </div>`;
+  }).join('');
+}
+async function loadAdminHistory(targetType,targetId,elId){
+  const el=document.getElementById(elId);if(!el)return;
+  el.innerHTML='<div class="empty">Načítám historii…</div>';
+  try{
+    const r=await api(`/admin/audit-logs?limit=12&targetType=${encodeURIComponent(targetType)}&targetId=${encodeURIComponent(String(targetId))}`);
+    el.innerHTML=auditHistoryHtml(r.logs||[]);
+  }catch(e){
+    el.innerHTML='<div class="empty">Historii se nepodařilo načíst.</div>';
+  }
+}
 let cgUpsellSelected=new Set();
 function renderAdminCaregivers(){
-  document.getElementById('admCgCount').textContent=CAREGIVERS.length;
+  const q=(document.getElementById('admCgSearch')?.value||'').trim().toLowerCase();
+  const filter=(document.getElementById('admCgFilter')?.value||'').trim();
+  const filtered=CAREGIVERS.filter(c=>{
+    const hay=[dispName(c),c.name,c.email,c.phone,c.loc,c.country,c.plan,c.status].filter(Boolean).join(' ').toLowerCase();
+    if(q&&!hay.includes(q))return false;
+    if(filter==='active'&&(c.suspended||!c.verified))return false;
+    if(filter==='suspended'&&!c.suspended)return false;
+    if(filter==='missing-phone'&&c.phone)return false;
+    if(filter==='missing-plan'&&c.plan)return false;
+    if(filter==='premium'&&c.plan!=='premium')return false;
+    return true;
+  });
+  document.getElementById('admCgCount').textContent=filtered.length;
   // odeber z výběru pečovatelky, které mezitím zmizely nebo už mají tarif
   const noPlanIds=new Set(CAREGIVERS.filter(c=>!c.plan).map(c=>c.id));
   Array.from(cgUpsellSelected).forEach(id=>{if(!noPlanIds.has(id))cgUpsellSelected.delete(id);});
-  document.getElementById('admCgBody').innerHTML=CAREGIVERS.map(c=>{
+  document.getElementById('admCgBody').innerHTML=filtered.length?filtered.map(c=>{
     const badge=c.suspended?'<span class="badge off">Pozastavena</span>':(c.verified?'<span class="badge gold">'+checkSVG(12)+' Ověřená</span>':'<span class="badge wait">Neověřená</span>');
     const isPrem=c.plan==='premium';
     const planBadge=isPrem?`<span class="badge gold">${diamondSVG(11)} PREMIUM</span>`:(c.plan==='start'?'<span class="badge">START</span>':'<span class="badge off">Bez plánu</span>');
+    const phoneBadge=!c.phone?' <span class="badge wait">Chybí telefon</span>':'';
     const chk=!c.plan?`<input type="checkbox" class="cg-upsell-chk" data-id="${c.id}" ${cgUpsellSelected.has(c.id)?'checked':''} onchange="toggleCgUpsell(${c.id},this.checked)">`:'';
     const contact=[c.email, c.phone].filter(Boolean).map(esc).join(' · ')||'—';
     return `<tr>
       <td data-label="">${chk}</td>
-      <td data-label=""><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(dispName(c))} ${countryFlag(c.country)}</b><span>${contact}</span><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
+      <td data-label=""><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(dispName(c))} ${countryFlag(c.country)}${phoneBadge}</b><span>${contact}</span><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
       <td data-label="Lokalita">${esc(c.loc)}</td><td data-label="Sazba">${c.rate} Kč</td><td data-label="Stav">${badge}</td>
       <td data-label="Předplatné">${planBadge}${(isPrem&&c.trialUntil)?`<div style="font-size:11.5px;color:var(--muted);margin-top:3px">do ${fmtDate(c.trialUntil)}</div>`:''}</td>
       <td data-label=""><div class="adm-actions" style="justify-content:flex-end">
         <button class="btn btn-sm btn-gold" onclick="openCgAdmin(${c.id})">Zobrazit</button>
       </div></td>
-    </tr>`;}).join('');
+    </tr>`;}).join(''):'<tr><td colspan="7" class="empty">Žádné pečovatelky neodpovídají filtru.</td></tr>';
   const selectAll=document.getElementById('admCgSelectAll');
   if(selectAll)selectAll.checked=noPlanIds.size>0&&cgUpsellSelected.size===noPlanIds.size;
   updateCgUpsellBtn();
@@ -4270,7 +4312,9 @@ function openCgAdmin(id){
   document.getElementById('cgAdminSub').textContent=`${c.loc||''} · ${c.exp} let praxe · ${c.rate} Kč/hod`;
   const cgEmailEl=document.getElementById('cgAdminEmail');if(cgEmailEl)cgEmailEl.value=c.email||'';
   const cgPhoneEl=document.getElementById('cgAdminPhone');if(cgPhoneEl)cgPhoneEl.value=c.phone||'';
+  const cgPhoneReq=document.getElementById('cgAdminPhoneRequestBtn');if(cgPhoneReq)cgPhoneReq.hidden=!!c.phone;
   const cgNameEl=document.getElementById('cgAdminName');if(cgNameEl)cgNameEl.value=c.name||'';
+  const cgNoteEl=document.getElementById('cgAdminNote');if(cgNoteEl)cgNoteEl.value=c.adminNote||'';
   setAdminContactEdit('cgAdmin',false);
   const cgAdminTitulEl=document.getElementById('cgAdminTitul');if(cgAdminTitulEl)cgAdminTitulEl.value=c.titul||'';
   setAva(document.getElementById('cgAdminAva'),c.photo||userPhotoByEmail(c.email),c.init);
@@ -4302,6 +4346,7 @@ function openCgAdmin(id){
   const ed=document.getElementById('cgAdminEditor');if(ed)ed.hidden=true;
   const eb=document.getElementById('cgAdminEditBtn');if(eb)eb.style.display='';
   const m=document.getElementById('cgAdminModal');if(m){m.classList.add('open');document.body.style.overflow='hidden';}
+  loadAdminHistory('caregiver',id,'cgAdminHistory');
 }
 function cgAdminEditPlan(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
@@ -4344,6 +4389,24 @@ function cgAdminSaveIdentity(){
   });
 }
 const cgAdminSaveTitul=cgAdminSaveIdentity;
+async function cgAdminSaveNote(){
+  const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
+  const adminNote=(document.getElementById('cgAdminNote')?.value||'').trim();
+  try{
+    await api('/caregivers/'+c.id,{method:'PATCH',body:{adminNote}});
+    c.adminNote=adminNote;
+    loadAdminHistory('caregiver',c.id,'cgAdminHistory');
+    toast('Interní poznámka byla uložena.','success');
+  }catch(e){toastApiError(e,'Poznámku se nepodařilo uložit.');}
+}
+async function cgAdminRequestPhone(){
+  const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
+  try{
+    await api('/admin/caregivers/'+c.id+'/request-phone',{method:'POST'});
+    loadAdminHistory('caregiver',c.id,'cgAdminHistory');
+    toast('Výzva k doplnění telefonu byla odeslána.','success');
+  }catch(e){toastApiError(e,'Výzvu se nepodařilo odeslat.');}
+}
 function cgAdminSaveContact(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
   const email=(document.getElementById('cgAdminEmail')?.value||'').trim().toLowerCase();
@@ -4446,18 +4509,29 @@ function isUserEffectivelySuspended(u){
 }
 function renderAdminUsers(){
   // stránka je popsaná jako "Rodiny" — pečovatelky mají vlastní stránku (Pečovatelky), ať se tu neduplikují
-  const families=USERS.filter(u=>u.role==='family');
+  const q=(document.getElementById('admUsrSearch')?.value||'').trim().toLowerCase();
+  const filter=(document.getElementById('admUsrFilter')?.value||'').trim();
+  const families=USERS.filter(u=>u.role==='family').filter(u=>{
+    const suspended=isUserEffectivelySuspended(u);
+    const hay=[dispName(u),u.name,u.email,u.phone,u.country,u.status].filter(Boolean).join(' ').toLowerCase();
+    if(q&&!hay.includes(q))return false;
+    if(filter==='active'&&suspended)return false;
+    if(filter==='suspended'&&!suspended)return false;
+    if(filter==='missing-phone'&&u.phone)return false;
+    return true;
+  });
   document.getElementById('admUsrCount').textContent=families.length;
-  document.getElementById('admUsrBody').innerHTML=families.map(u=>{
+  document.getElementById('admUsrBody').innerHTML=families.length?families.map(u=>{
     const suspended=isUserEffectivelySuspended(u);
     const badge=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
+    const phoneBadge=!u.phone?' <span class="badge wait">Chybí telefon</span>':'';
     return `<tr>
-      <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))} ${countryFlag(u.country)}</b><span>${esc([u.email,u.phone].filter(Boolean).join(' · ')||'—')}</span></div></div></td>
+      <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))} ${countryFlag(u.country)}${phoneBadge}</b><span>${esc([u.email,u.phone].filter(Boolean).join(' · ')||'—')}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${esc(lastSeenText(u.lastSeen))}</td><td>${badge}</td>
       <td><div class="adm-actions" style="justify-content:flex-end">
         <button class="btn btn-sm btn-gold" onclick="openFamilyAdmin(${jsq(u.id)})">Zobrazit</button>
       </div></td>
-    </tr>`;}).join('');
+    </tr>`;}).join(''):'<tr><td colspan="6" class="empty">Žádné rodiny neodpovídají filtru.</td></tr>';
 }
 /* ---- ADMIN: detail rodiny ---- */
 let famAdminId=null;
@@ -4492,6 +4566,7 @@ function ensureFamilyAdminModal(){
         <button class="btn btn-ghost" type="button" onclick="famAdminCancelContact()">Zrušit</button>
         <button class="btn btn-gold" type="button" onclick="famAdminSaveContact()">Uložit kontakt</button>
       </div>
+      <button class="btn btn-ghost btn-block" id="famAdminPhoneRequestBtn" style="margin-top:10px" type="button" onclick="famAdminRequestPhone()">Poslat výzvu k doplnění telefonu</button>
       <div class="grid2" style="margin-bottom:18px">
         <div>
           <label class="lbl" for="famAdminName">Jméno</label>
@@ -4505,6 +4580,9 @@ function ensureFamilyAdminModal(){
           <button type="button" class="btn btn-gold btn-block" onclick="famAdminSaveIdentity()">Uložit identitu</button>
         </div>
       </div>
+      <div class="cga-sec-title" style="margin-top:24px">Interní poznámka</div>
+      <textarea class="inp" id="famAdminNote" maxlength="1000" rows="3" placeholder="Např. volat po 16:00, špatný e-mail"></textarea>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="famAdminSaveNote()">Uložit poznámku</button>
       <div class="panel" style="padding:0;background:transparent;border:0;box-shadow:none;margin-bottom:18px">
         <div class="panel-h" style="padding:0 0 10px"><b>Objednávky</b><span class="count" id="famAdminOrdCount">0</span></div>
         <div id="famAdminOrders"></div>
@@ -4517,6 +4595,8 @@ function ensureFamilyAdminModal(){
         <button type="button" class="btn btn-ghost btn-block" id="famAdminSuspendBtn" onclick="famAdminSuspend()">Pozastavit</button>
         <button type="button" class="btn btn-decline btn-block" onclick="famAdminRemove()">Odebrat rodinu</button>
       </div>
+      <div class="cga-sec-title" style="margin-top:24px">Poslední změny</div>
+      <div id="famAdminHistory" class="audit-history"><div class="empty">Načítám historii…</div></div>
     </div>`;
   document.body.appendChild(m);
 }
@@ -4528,9 +4608,11 @@ function openFamilyAdmin(id){
   document.getElementById('famAdminSub').textContent=`${[u.email,u.phone].filter(Boolean).join(' · ')||'—'} · registrace ${fmtDate(u.joined)}`;
   const famEmailEl=document.getElementById('famAdminEmail');if(famEmailEl)famEmailEl.value=u.email||'';
   const famPhoneEl=document.getElementById('famAdminPhone');if(famPhoneEl)famPhoneEl.value=u.phone||'';
+  const famPhoneReq=document.getElementById('famAdminPhoneRequestBtn');if(famPhoneReq)famPhoneReq.hidden=!!u.phone;
   setAdminContactEdit('famAdmin',false);
   const famNameEl=document.getElementById('famAdminName');if(famNameEl)famNameEl.value=u.name||'';
   const famAdminTitulEl=document.getElementById('famAdminTitul');if(famAdminTitulEl)famAdminTitulEl.value=u.titul||'';
+  const famNoteEl=document.getElementById('famAdminNote');if(famNoteEl)famNoteEl.value=u.adminNote||'';
   setAva(document.getElementById('famAdminAva'),u.photo,u.init);
   const suspended=isUserEffectivelySuspended(u);
   document.getElementById('famAdminBadges').innerHTML=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
@@ -4549,6 +4631,7 @@ function openFamilyAdmin(id){
     <div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join(''):'<div class="empty">Zatím žádné recenze.</div>';
   const m=document.getElementById('famAdminModal');
   m.classList.add('open');document.body.style.overflow='hidden';
+  loadAdminHistory('user',u.id,'famAdminHistory');
 }
 function closeFamilyAdmin(){
   const m=document.getElementById('famAdminModal');
@@ -4574,6 +4657,24 @@ function famAdminSaveIdentity(){
   });
 }
 const famAdminSaveTitul=famAdminSaveIdentity;
+async function famAdminSaveNote(){
+  const u=USERS.find(x=>String(x.id)===String(famAdminId));if(!u)return;
+  const adminNote=(document.getElementById('famAdminNote')?.value||'').trim();
+  try{
+    await api('/users/'+u.id,{method:'PATCH',body:{adminNote}});
+    u.adminNote=adminNote;
+    loadAdminHistory('user',u.id,'famAdminHistory');
+    toast('Interní poznámka byla uložena.','success');
+  }catch(e){toastApiError(e,'Poznámku se nepodařilo uložit.');}
+}
+async function famAdminRequestPhone(){
+  const u=USERS.find(x=>String(x.id)===String(famAdminId));if(!u)return;
+  try{
+    await api('/admin/users/'+u.id+'/request-phone',{method:'POST'});
+    loadAdminHistory('user',u.id,'famAdminHistory');
+    toast('Výzva k doplnění telefonu byla odeslána.','success');
+  }catch(e){toastApiError(e,'Výzvu se nepodařilo odeslat.');}
+}
 function famAdminSaveContact(){
   const u=USERS.find(x=>String(x.id)===String(famAdminId));if(!u)return;
   const email=(document.getElementById('famAdminEmail')?.value||'').trim().toLowerCase();
@@ -5275,6 +5376,8 @@ const AUDIT_ACTION_LABELS={
   'admin.user.delete':'Odebrání uživatele',
   'admin.caregiver.update':'Úprava pečovatelky',
   'admin.caregiver.delete':'Odebrání pečovatelky',
+  'admin.caregiver.requestPhone':'Výzva k doplnění telefonu',
+  'admin.user.requestPhone':'Výzva k doplnění telefonu',
   'admin.verification.approve':'Schválení ověření',
   'admin.verification.reject':'Zamítnutí ověření',
   'admin.broadcast.create':'Odeslání hromadné zprávy',
@@ -5314,6 +5417,12 @@ Object.assign(AUDIT_META_KEYS,{
   replyToId:'Odpověď na',
   sourceConversationId:'Zdrojová konverzace',
   sourceMessageId:'Zdrojová zpráva',
+  fields:'Pole',
+  emailChanged:'E-mail změněn',
+  phoneChanged:'Telefon změněn',
+  nameChanged:'Jméno změněno',
+  titulChanged:'Titul změněn',
+  adminNoteChanged:'Poznámka změněna',
   userId:'Uživatel',
   notificationType:'Typ notifikace',
   title:'Titulek',
@@ -5332,6 +5441,10 @@ function auditMetaChip(k,v){
   if(k==='reason')val=AUDIT_REASONS[v]||v;
   else if(val==='true')val='Ano';else if(val==='false')val='Ne';
   return `<span class="chip">${esc(key)}: ${esc(val)}</span>`;
+}
+function auditChangesHtml(changes){
+  if(!Array.isArray(changes)||!changes.length)return '';
+  return `<div class="audit-meta">${changes.slice(0,8).map(ch=>`<span class="chip">${esc(auditChangeText(ch))}</span>`).join('')}</div>`;
 }
 function auditEmailSnapshotHtml(snapshot){
   const html=snapshot&&snapshot.html;
@@ -5381,8 +5494,9 @@ function renderAdminAuditRows(list){
     const actor=esc(log.actorEmail||log.actorId||'—');
     const idx=FILTERED_AUDIT_LOGS.indexOf(log);
     const canOpenEmail=log.action==='email.send'&&log.metadata&&log.metadata.emailSnapshot;
+    const changes=log.metadata&&Array.isArray(log.metadata.changes)?log.metadata.changes:[];
     const meta=log.metadata&&typeof log.metadata==='object'
-      ?Object.entries(log.metadata).filter(([k])=>k!=='emailSnapshot').slice(0,6).map(([k,v])=>auditMetaChip(k,v)).join('')
+      ?Object.entries(log.metadata).filter(([k])=>k!=='emailSnapshot'&&k!=='changes').slice(0,6).map(([k,v])=>auditMetaChip(k,v)).join('')
       :'';
     const statusCls=log.status==='success'?'ok':(log.status==='failed'?'bad':'wait');
     return `<tr>
@@ -5400,6 +5514,7 @@ function renderAdminAuditRows(list){
       </td>
       <td>
         ${auditTargetHtml(log)}
+        ${auditChangesHtml(changes)}
         ${meta?`<div class="audit-meta">${meta}</div>`:''}
       </td>
       <td>
@@ -5414,7 +5529,8 @@ function applyAdminAuditFilters(){
   const q=(document.getElementById('admAuditSearch')?.value||'').trim().toLowerCase();
   const status=(document.getElementById('admAuditStatus')?.value||'').trim().toLowerCase();
   const filtered=AUDIT_LOGS.filter(log=>{
-    const hay=[log.action,auditActionLabel(log.action),log.actorEmail,log.actorId,log.targetType,auditTargetLabel(log.targetType),log.targetId,auditRoleLabel(log.actorRole)].filter(Boolean).join(' ').toLowerCase();
+    const metaText=log.metadata?JSON.stringify(log.metadata):'';
+    const hay=[log.action,auditActionLabel(log.action),log.actorEmail,log.actorId,log.targetType,auditTargetLabel(log.targetType),log.targetId,auditRoleLabel(log.actorRole),metaText].filter(Boolean).join(' ').toLowerCase();
     if(q && !hay.includes(q)) return false;
     if(status && String(log.status||'').toLowerCase()!==status) return false;
     return true;

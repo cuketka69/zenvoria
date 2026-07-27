@@ -966,6 +966,10 @@
     <div class="page-head"><h1>Pečovatelky</h1><p>Spravujte ověřené pečovatelky. Pozastavená pečovatelka se nezobrazuje rodinám.</p></div>
     <div class="panel">
       <div class="panel-h"><b>Všechny pečovatelky</b><span class="count" id="admCgCount">0</span><button type="button" class="btn btn-sm btn-gold" id="admCgUpsellBtn" style="margin-left:auto" onclick="sendCgPlanUpsell()" disabled>Poslat upozornění na tarif (<span id="admCgUpsellCount">0</span>)</button></div>
+      <div class="grid2" style="margin:0 0 16px 0">
+        <div><label class="lbl" for="admCgSearch">Hledat</label><input class="inp" id="admCgSearch" placeholder="Jméno, e-mail, telefon, lokalita" oninput="renderAdminCaregivers()"></div>
+        <div><label class="lbl" for="admCgFilter">Filtr</label><select class="inp" id="admCgFilter" onchange="renderAdminCaregivers()"><option value="">Všechny</option><option value="active">Aktivní</option><option value="suspended">Pozastavené</option><option value="missing-phone">Bez telefonu</option><option value="missing-plan">Bez tarifu</option><option value="premium">Premium</option></select></div>
+      </div>
       <div class="table-scroll"><table class="adm-table adm-table-cg"><thead><tr><th style="width:36px"><input type="checkbox" id="admCgSelectAll" onchange="toggleAllCgUpsell(this.checked)"></th><th>Pečovatelka</th><th>Lokalita</th><th>Sazba</th><th>Stav</th><th>Předplatné</th><th style="text-align:right">Akce</th></tr></thead><tbody id="admCgBody"></tbody></table></div>
     </div>
   </div>
@@ -977,6 +981,10 @@
     <div class="page-head"><h1>Rodiny</h1><p>Spravujte účty rodin využívajících platformu.</p></div>
     <div class="panel">
       <div class="panel-h"><b>Rodiny</b><span class="count" id="admUsrCount">0</span></div>
+      <div class="grid2" style="margin:0 0 16px 0">
+        <div><label class="lbl" for="admUsrSearch">Hledat</label><input class="inp" id="admUsrSearch" placeholder="Jméno, e-mail, telefon" oninput="renderAdminUsers()"></div>
+        <div><label class="lbl" for="admUsrFilter">Filtr</label><select class="inp" id="admUsrFilter" onchange="renderAdminUsers()"><option value="">Všechny</option><option value="active">Aktivní</option><option value="suspended">Pozastavené</option><option value="missing-phone">Bez telefonu</option></select></div>
+      </div>
       <div class="table-scroll"><table class="adm-table"><thead><tr><th>Uživatel</th><th>Registrace</th><th>Objednávek</th><th>Naposledy online</th><th>Stav</th><th style="text-align:right">Akce</th></tr></thead><tbody id="admUsrBody"></tbody></table></div>
     </div>
   </div>
