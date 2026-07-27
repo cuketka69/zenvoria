@@ -2587,7 +2587,7 @@ function mapCaregiver(c, permsSetting) {
     idVerified: c.id_verified, plan: c.plan, planStatus: c.plan_status || null, trialUntil: c.trial_until || null,
     langs: c.langs || ['Čeština'],
     priceType: c.price_type, dayRate: c.day_rate, radius: c.radius, kmPrice: c.km_price,
-    photo: c.photo || null, email: c.email || null, avail: c.avail || null, blockedDates: c.blocked_dates || [],
+    photo: c.photo || null, email: c.email || null, phone: c.phone || null, avail: c.avail || null, blockedDates: c.blocked_dates || [],
     availOverrides: c.avail_overrides || {}, hasStripeSubscription: !!c.stripe_customer_id,
     views: Number(c.views || 0), perms: permsForPlan(c.plan, permsSetting),
     country: c.country || 'cz',
