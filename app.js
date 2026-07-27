@@ -4396,8 +4396,54 @@ function renderAdminUsers(){
 }
 /* ---- ADMIN: detail rodiny ---- */
 let famAdminId=null;
+function ensureFamilyAdminModal(){
+  if(document.getElementById('famAdminModal'))return;
+  const m=document.createElement('div');
+  m.className='modal';
+  m.id='famAdminModal';
+  m.setAttribute('role','dialog');
+  m.setAttribute('aria-modal','true');
+  m.setAttribute('aria-labelledby','famAdminTitle');
+  m.innerHTML=`<div class="modal-scrim" onclick="closeFamilyAdmin()"></div>
+    <div class="modal-card" style="width:min(720px,94vw);max-height:90vh;overflow:auto">
+      <button class="modal-x" aria-label="Zavřít" onclick="closeFamilyAdmin()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <div class="u-cell" style="align-items:flex-start;margin-bottom:18px">
+        <div class="ava" id="famAdminAva"></div>
+        <div>
+          <h3 id="famAdminTitle" style="margin:0"></h3>
+          <p class="msub" id="famAdminSub" style="margin:5px 0 10px"></p>
+          <div class="audit-meta" id="famAdminBadges"></div>
+        </div>
+      </div>
+      <div class="grid2" style="margin-bottom:18px">
+        <div>
+          <label class="lbl" for="famAdminTitul">Titul</label>
+          <input class="inp" id="famAdminTitul" maxlength="20" placeholder="Např. Ing.">
+        </div>
+        <div style="display:flex;align-items:end">
+          <button type="button" class="btn btn-gold btn-block" onclick="famAdminSaveTitul()">Uložit titul</button>
+        </div>
+      </div>
+      <div class="panel" style="padding:0;background:transparent;border:0;box-shadow:none;margin-bottom:18px">
+        <div class="panel-h" style="padding:0 0 10px"><b>Objednávky</b><span class="count" id="famAdminOrdCount">0</span></div>
+        <div id="famAdminOrders"></div>
+      </div>
+      <div class="panel" style="padding:0;background:transparent;border:0;box-shadow:none;margin-bottom:18px">
+        <div class="panel-h" style="padding:0 0 10px"><b>Recenze od pečovatelek</b><span class="count" id="famAdminRevCount">0</span></div>
+        <div id="famAdminReviews"></div>
+      </div>
+      <div class="grid2">
+        <button type="button" class="btn btn-ghost btn-block" id="famAdminSuspendBtn" onclick="famAdminSuspend()">Pozastavit</button>
+        <button type="button" class="btn btn-decline btn-block" onclick="famAdminRemove()">Odebrat rodinu</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
 function openFamilyAdmin(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
+  ensureFamilyAdminModal();
   famAdminId=id;
   document.getElementById('famAdminTitle').textContent=dispName(u);
   document.getElementById('famAdminSub').textContent=`${u.email} · registrace ${fmtDate(u.joined)}`;
@@ -5162,6 +5208,34 @@ function auditMetaChip(k,v){
   else if(val==='true')val='Ano';else if(val==='false')val='Ne';
   return `<span class="chip">${esc(key)}: ${esc(val)}</span>`;
 }
+function auditEmailSnapshotHtml(snapshot){
+  const html=snapshot&&snapshot.html;
+  const text=snapshot&&snapshot.text;
+  const body=html||`<pre style="white-space:pre-wrap;font:14px/1.55 Arial,sans-serif;color:#1f2937">${esc(text||'Náhled e-mailu není k dispozici.')}</pre>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline';"><style>body{margin:0;padding:24px;background:#fff;color:#111;font-family:Arial,sans-serif}a{color:#8a6a00;pointer-events:none}</style></head><body>${body}</body></html>`;
+}
+function openAuditEmail(idx){
+  const log=FILTERED_AUDIT_LOGS[idx]||AUDIT_LOGS.find(x=>String(x.id)===String(idx));
+  const snap=log&&log.metadata&&log.metadata.emailSnapshot;
+  if(!snap){toast('Náhled e-mailu není k dispozici.','info');return;}
+  const ov=document.createElement('div');
+  ov.className='modal open';
+  ov.innerHTML=`<div class="modal-scrim"></div>
+    <div class="modal-card" style="width:min(980px,calc(100vw - 28px));max-width:980px">
+      <button type="button" class="modal-x" aria-label="Zavřít">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <h3>${esc(snap.subject||'Odeslaný e-mail')}</h3>
+      <p class="msub">Náhled je uložený v audit logu. Citlivé tokeny a jednorázové kódy jsou začerněné.</p>
+      <iframe title="Náhled e-mailu" sandbox="" srcdoc="${esc(auditEmailSnapshotHtml(snap))}" style="width:100%;height:min(70vh,720px);border:1px solid rgba(20,78,45,.16);border-radius:8px;background:#fff"></iframe>
+    </div>`;
+  const close=()=>{ov.remove();document.body.style.overflow='';};
+  ov.querySelector('.modal-scrim').onclick=close;
+  ov.querySelector('.modal-x').onclick=close;
+  document.addEventListener('keydown',function escAuditEmail(e){if(e.key==='Escape'){close();document.removeEventListener('keydown',escAuditEmail);}});
+  document.body.appendChild(ov);
+  document.body.style.overflow='hidden';
+}
 /* cíl: „Uživatel · 3e4f61a2…" (zkráceně, plné ID v title) */
 function auditTargetHtml(log){
   if(!log.targetType&&!log.targetId)return '<span>—</span>';
@@ -5180,8 +5254,10 @@ function renderAdminAuditRows(list){
   count.textContent=list.length;
   body.innerHTML=list.length?list.map(log=>{
     const actor=esc(log.actorEmail||log.actorId||'—');
+    const idx=FILTERED_AUDIT_LOGS.indexOf(log);
+    const canOpenEmail=log.action==='email.send'&&log.metadata&&log.metadata.emailSnapshot;
     const meta=log.metadata&&typeof log.metadata==='object'
-      ?Object.entries(log.metadata).slice(0,6).map(([k,v])=>auditMetaChip(k,v)).join('')
+      ?Object.entries(log.metadata).filter(([k])=>k!=='emailSnapshot').slice(0,6).map(([k,v])=>auditMetaChip(k,v)).join('')
       :'';
     const statusCls=log.status==='success'?'ok':(log.status==='failed'?'bad':'wait');
     return `<tr>
@@ -5190,6 +5266,7 @@ function renderAdminAuditRows(list){
         <div class="audit-meta">
           <span class="badge ${statusCls}">${esc(auditStatusLabel(log.status))}</span>
           ${log.actorRole?`<span class="chip">${esc(auditRoleLabel(log.actorRole))}</span>`:''}
+          ${canOpenEmail?`<button type="button" class="btn btn-ghost btn-sm" onclick="openAuditEmail(${idx})">Otevřít e-mail</button>`:''}
         </div>
       </td>
       <td>

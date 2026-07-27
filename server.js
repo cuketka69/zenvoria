@@ -623,6 +623,26 @@ function auditAttachmentMeta(attachments) {
   });
 }
 
+function auditRedactEmailBody(value) {
+  if (value == null) return '';
+  return String(value)
+    .replace(/([?&](?:token|reset|changeEmail|code|secret|key|session|auth)=)[^"'&<>\s]+/gi, '$1[redacted]')
+    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, '[redacted-token]')
+    .replace(/\b\d{6}\b/g, '[redacted-code]')
+    .slice(0, 120000);
+}
+
+function auditEmailSnapshot({ subject, text, html }) {
+  const cleanHtml = auditRedactEmailBody(html);
+  const cleanText = auditRedactEmailBody(text);
+  return {
+    subject: auditTextPreview(subject, 200),
+    html: cleanHtml || null,
+    text: cleanText || null,
+    redacted: true,
+  };
+}
+
 // názvy tabulek s fallbackem (Webilio-style — lze přepsat env proměnnou)
 const T = {
   users:         process.env.TBL_USERS         || 'zenvoria_users',
@@ -689,6 +709,7 @@ async function sendMailSafe({ to, subject, text, html, attachments, audit = null
     htmlLength: String(html || '').length,
     attachments: auditAttachmentMeta(attachments),
     provider: 'resend',
+    emailSnapshot: auditEmailSnapshot({ subject, text, html }),
   };
   try {
     const body = {
