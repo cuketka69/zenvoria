@@ -4249,6 +4249,8 @@ function openCgAdmin(id){
   cgAdminId=id;
   document.getElementById('cgAdminTitle').textContent=dispName(c);
   document.getElementById('cgAdminSub').textContent=`${c.loc||''} · ${c.exp} let praxe · ${c.rate} Kč/hod`;
+  const cgEmailEl=document.getElementById('cgAdminEmail');if(cgEmailEl)cgEmailEl.value=c.email||'';
+  const cgPhoneEl=document.getElementById('cgAdminPhone');if(cgPhoneEl)cgPhoneEl.value=c.phone||'';
   const cgAdminTitulEl=document.getElementById('cgAdminTitul');if(cgAdminTitulEl)cgAdminTitulEl.value=c.titul||'';
   setAva(document.getElementById('cgAdminAva'),c.photo||userPhotoByEmail(c.email),c.init);
   const planKey=c.plan==='premium'?'premium':(c.plan==='start'?'start':'none');
@@ -4303,6 +4305,22 @@ function cgAdminSaveTitul(){
   document.getElementById('cgAdminTitle').textContent=dispName(c);
   renderAdminCaregivers();renderCare();
   toast('Titul byl uložen.','success');
+}
+async function cgAdminSaveContact(){
+  const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
+  const email=(document.getElementById('cgAdminEmail')?.value||'').trim().toLowerCase();
+  const phone=(document.getElementById('cgAdminPhone')?.value||'').trim();
+  if(!isEmail(email)){toast('Zadejte platný e-mail.','declined');return;}
+  if(!isPhone(phone)){toast('Zadejte platné telefonní číslo.','declined');return;}
+  try{
+    const oldEmail=c.email;
+    await api('/caregivers/'+c.id,{method:'PATCH',body:{email,phone}});
+    c.email=email;c.phone=phone;
+    const u=USERS.find(x=>String(x.email||'').toLowerCase()===String(oldEmail||'').toLowerCase());
+    if(u){u.email=email;u.phone=phone;}
+    renderAdminCaregivers();renderAdminUsers();renderCare();openCgAdmin(c.id);
+    toast('Kontakt pečovatelky byl uložen.','success');
+  }catch(e){toastApiError(e,'Kontakt se nepodařilo uložit.');}
 }
 function cgAdminToggleUntil(){
   const hasPlan=(document.getElementById('cgAdminPlan')||{}).value!=='none';
@@ -4417,6 +4435,12 @@ function ensureFamilyAdminModal(){
           <div class="audit-meta" id="famAdminBadges"></div>
         </div>
       </div>
+      <div class="cga-sec-title" style="margin-top:24px">Kontakt</div>
+      <div class="grid2">
+        <div><label class="lbl" for="famAdminEmail">E-mail</label><input class="inp" id="famAdminEmail" type="email" autocomplete="off"></div>
+        <div><label class="lbl" for="famAdminPhone">Telefon</label><input class="inp" id="famAdminPhone" type="tel" autocomplete="off"></div>
+      </div>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="famAdminSaveContact()">Uložit kontakt</button>
       <div class="grid2" style="margin-bottom:18px">
         <div>
           <label class="lbl" for="famAdminTitul">Titul</label>
@@ -4447,6 +4471,8 @@ function openFamilyAdmin(id){
   famAdminId=id;
   document.getElementById('famAdminTitle').textContent=dispName(u);
   document.getElementById('famAdminSub').textContent=`${[u.email,u.phone].filter(Boolean).join(' · ')||'—'} · registrace ${fmtDate(u.joined)}`;
+  const famEmailEl=document.getElementById('famAdminEmail');if(famEmailEl)famEmailEl.value=u.email||'';
+  const famPhoneEl=document.getElementById('famAdminPhone');if(famPhoneEl)famPhoneEl.value=u.phone||'';
   const famAdminTitulEl=document.getElementById('famAdminTitul');if(famAdminTitulEl)famAdminTitulEl.value=u.titul||'';
   setAva(document.getElementById('famAdminAva'),u.photo,u.init);
   const suspended=isUserEffectivelySuspended(u);
@@ -4480,6 +4506,22 @@ function famAdminSaveTitul(){
   document.getElementById('famAdminTitle').textContent=dispName(u);
   renderAdminUsers();
   toast('Titul byl uložen.','success');
+}
+async function famAdminSaveContact(){
+  const u=USERS.find(x=>String(x.id)===String(famAdminId));if(!u)return;
+  const email=(document.getElementById('famAdminEmail')?.value||'').trim().toLowerCase();
+  const phone=(document.getElementById('famAdminPhone')?.value||'').trim();
+  if(!isEmail(email)){toast('Zadejte platný e-mail.','declined');return;}
+  if(!isPhone(phone)){toast('Zadejte platné telefonní číslo.','declined');return;}
+  try{
+    const oldEmail=u.email;
+    await api('/users/'+u.id,{method:'PATCH',body:{email,phone}});
+    u.email=email;u.phone=phone;
+    ORDERS.forEach(o=>{if(String(o.familyEmail||'').toLowerCase()===String(oldEmail||'').toLowerCase())o.familyEmail=email;});
+    FAMILY_REVIEWS.forEach(r=>{if(String(r.familyEmail||'').toLowerCase()===String(oldEmail||'').toLowerCase())r.familyEmail=email;});
+    renderAdminUsers();openFamilyAdmin(u.id);
+    toast('Kontakt rodiny byl uložen.','success');
+  }catch(e){toastApiError(e,'Kontakt se nepodařilo uložit.');}
 }
 function famAdminSuspend(){
   const id=famAdminId;if(id==null)return;

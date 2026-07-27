@@ -558,7 +558,14 @@
       </div>
     </div>
 
-    <div class="cga-sec-title">Titul</div>
+    <div class="cga-sec-title">Kontakt</div>
+    <div class="grid2">
+      <div><label class="lbl" for="cgAdminEmail">E-mail</label><input class="inp" id="cgAdminEmail" type="email" autocomplete="off"></div>
+      <div><label class="lbl" for="cgAdminPhone">Telefon</label><input class="inp" id="cgAdminPhone" type="tel" autocomplete="off"></div>
+    </div>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="cgAdminSaveContact()">Uložit kontakt</button>
+
+    <div class="cga-sec-title" style="margin-top:24px">Titul</div>
     <div><label class="lbl" for="cgAdminTitul">Titul (nepovinné)</label>
       <input class="inp" id="cgAdminTitul" maxlength="20" placeholder="Ing., Mgr., MUDr. …">
     </div>
@@ -611,6 +618,13 @@
         <div class="cga-badges" id="famAdminBadges"></div>
       </div>
     </div>
+
+    <div class="cga-sec-title" style="margin-top:24px">Kontakt</div>
+    <div class="grid2">
+      <div><label class="lbl" for="famAdminEmail">E-mail</label><input class="inp" id="famAdminEmail" type="email" autocomplete="off"></div>
+      <div><label class="lbl" for="famAdminPhone">Telefon</label><input class="inp" id="famAdminPhone" type="tel" autocomplete="off"></div>
+    </div>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="famAdminSaveContact()">Uložit kontakt</button>
 
     <div class="cga-sec-title" style="margin-top:24px">Titul</div>
     <div><label class="lbl" for="famAdminTitul">Titul (nepovinné)</label>

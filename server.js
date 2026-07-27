@@ -6472,7 +6472,7 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   }
   const patch = {};
   // jen povolená pole
-  const map = { name: 'name', titul: 'titul', loc: 'loc', lat: 'lat', lng: 'lng', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
+  const map = { name: 'name', titul: 'titul', email: 'email', phone: 'phone', loc: 'loc', lat: 'lat', lng: 'lng', rate: 'rate', exp: 'exp', bio: 'bio', services: 'services', langs: 'langs',
     plan: 'plan', priceType: 'price_type', dayRate: 'day_rate', radius: 'radius', kmPrice: 'km_price',
     photo: 'photo', avail: 'avail', blockedDates: 'blocked_dates', availOverrides: 'avail_overrides',
     suspended: 'suspended', status: 'status', verified: 'verified', trialUntil: 'trial_until',
@@ -6485,7 +6485,7 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     if (!perms.manageProfile) return res.status(403).json({ error: 'Úprava profilu není ve vašem aktuálním tarifu dostupná.' });
   }
   // pozastavení / stav / ověření / trvání předplatného smí měnit jen správce
-  if ((b.suspended !== undefined || b.status !== undefined || b.verified !== undefined || b.trialUntil !== undefined) && !isAdmin) {
+  if ((b.suspended !== undefined || b.status !== undefined || b.verified !== undefined || b.trialUntil !== undefined || b.email !== undefined || b.phone !== undefined) && !isAdmin) {
     return res.status(403).json({ error: 'Tuto změnu smí provést jen správce.' });
   }
   // PREMIUM smí nastavit jen správce (jinak přes platbu); pečovatelka smí max. downgrade na START
@@ -6502,6 +6502,16 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   }
   if (patch.name !== undefined) patch.name = trimmedString(patch.name, 120);
   if (patch.titul !== undefined) patch.titul = trimmedString(patch.titul, 20) || null;
+  if (patch.email !== undefined) {
+    patch.email = trimmedString(patch.email, 320).toLowerCase();
+    if (!isEmail(patch.email)) return res.status(400).json({ error: 'Zadejte platny e-mail.' });
+  }
+  if (patch.phone !== undefined) {
+    patch.phone = trimmedString(patch.phone, 30);
+    if (!patch.phone || !/^[0-9+\s/]{6,30}$/.test(patch.phone) || patch.phone.replace(/[^0-9]/g, '').length < 9) {
+      return res.status(400).json({ error: 'Zadejte platne telefonni cislo.' });
+    }
+  }
   if (patch.loc !== undefined) {
     patch.loc = trimmedString(patch.loc, 120);
     if (!patch.loc) return res.status(400).json({ error: 'Zadejte lokalitu (město nebo okres).' });
@@ -6610,10 +6620,27 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   const currentRows = await restSelect(T.caregivers, `id=eq.${id}&select=id,email,name,suspended,plan&limit=1`);
   const currentCaregiver = currentRows && currentRows[0];
+  const currentEmail = currentCaregiver && currentCaregiver.email ? String(currentCaregiver.email).toLowerCase() : '';
+  const nextEmail = patch.email !== undefined ? String(patch.email || '').toLowerCase() : currentEmail;
+  if (isAdmin && patch.email !== undefined && nextEmail !== currentEmail) {
+    const userRows = await restSelect(T.users, `email=eq.${encodeURIComponent(nextEmail)}&select=id,email&limit=1`);
+    if (userRows && userRows[0]) return res.status(409).json({ error: 'Tento e-mail uz pouziva jiny ucet.' });
+    const caregiverRows = await restSelect(T.caregivers, `email=eq.${encodeURIComponent(nextEmail)}&select=id,email&limit=1`);
+    if (caregiverRows && caregiverRows[0] && Number(caregiverRows[0].id) !== id) return res.status(409).json({ error: 'Tento e-mail uz pouziva jina pecovatelka.' });
+  }
   const rows = await restUpdate(T.caregivers, `id=eq.${id}`, patch);
   if (isAdmin && currentCaregiver && currentCaregiver.email && patch.suspended !== undefined) {
     const nextUserStatus = patch.suspended ? 'suspended' : 'active';
     await restUpdate(T.users, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, { status: nextUserStatus }, { prefer: 'return=minimal' });
+  }
+  if (isAdmin && currentCaregiver && currentCaregiver.email && (patch.email !== undefined || patch.phone !== undefined)) {
+    const userPatch = {};
+    if (patch.email !== undefined) userPatch.email = patch.email;
+    if (patch.phone !== undefined) userPatch.phone = patch.phone;
+    await restUpdate(T.users, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, userPatch, { prefer: 'return=minimal' });
+    if (patch.email !== undefined) {
+      await restUpdate(T.verifications, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, { email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
+    }
   }
   // pečovatelka se stala znovu dostupnou (přestala být pozastavená, nebo si aktivovala tarif) → dej vědět rodinám, co ji mají v oblíbených
   if (currentCaregiver) {
@@ -6623,8 +6650,8 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
       notifyFavoritersCaregiverAvailable(id, currentCaregiver.name).catch(() => {});
     }
   }
-  if (isAdmin && (b.suspended !== undefined || b.status !== undefined || b.plan !== undefined || b.verified !== undefined || b.trialUntil !== undefined)) {
-    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { suspended: b.suspended, status: b.status, plan: b.plan, verified: b.verified, trialUntil: b.trialUntil } });
+  if (isAdmin && (b.suspended !== undefined || b.status !== undefined || b.plan !== undefined || b.verified !== undefined || b.trialUntil !== undefined || b.email !== undefined || b.phone !== undefined)) {
+    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { fields: Object.keys(patch), suspended: b.suspended, status: b.status, plan: b.plan, verified: b.verified, trialUntil: b.trialUntil, emailChanged: patch.email !== undefined && nextEmail !== currentEmail, phoneChanged: patch.phone !== undefined } });
   }
   res.json({ caregiver: rows && rows[0] ? mapCaregiver(rows[0], await getPlanPermissions()) : null });
 }));
@@ -7092,6 +7119,9 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
   const b = req.body || {};
   const id = String(req.params.id || '').trim();
   if (!id) return res.status(400).json({ error: 'Neplatné ID uživatele.' });
+  const currentRows = await restSelect(T.users, `id=eq.${encodeURIComponent(id)}&select=id,email,role&limit=1`);
+  const currentUser = currentRows && currentRows[0];
+  if (!currentUser) return res.status(404).json({ error: 'Uživatel nebyl nalezen.' });
   const patch = {};
   if (b.status !== undefined) {
     const status = trimmedString(b.status, 20);
@@ -7099,9 +7129,32 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
     patch.status = status;
   }
   if (b.titul !== undefined) patch.titul = trimmedString(b.titul, 20) || null;
+  if (b.email !== undefined) {
+    const email = trimmedString(b.email, 320).toLowerCase();
+    if (!isEmail(email)) return res.status(400).json({ error: 'Zadejte platný e-mail.' });
+    if (email !== String(currentUser.email || '').toLowerCase()) {
+      const existing = await restSelect(T.users, `email=eq.${encodeURIComponent(email)}&select=id,email&limit=1`);
+      if (existing && existing[0]) return res.status(409).json({ error: 'Tento e-mail už používá jiný účet.' });
+    }
+    patch.email = email;
+  }
+  if (b.phone !== undefined) {
+    const phone = trimmedString(b.phone, 30);
+    if (!phone || !/^[0-9+\s/]{6,30}$/.test(phone) || phone.replace(/[^0-9]/g, '').length < 9) {
+      return res.status(400).json({ error: 'Zadejte platné telefonní číslo.' });
+    }
+    patch.phone = phone;
+  }
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
-  await restUpdate(T.users, `id=eq.${id}`, patch, { prefer: 'return=minimal' });
-  fireAudit('admin.user.update', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: 'success', metadata: { fields: Object.keys(patch) } });
+  await restUpdate(T.users, `id=eq.${encodeURIComponent(id)}`, patch, { prefer: 'return=minimal' });
+  if (patch.email !== undefined && currentUser.role === 'family') {
+    const oldEmail = String(currentUser.email || '').toLowerCase();
+    await restUpdate(T.orders, `family_email=eq.${encodeURIComponent(oldEmail)}`, { family_email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
+    await restUpdate(T.familyReviews, `family_email=eq.${encodeURIComponent(oldEmail)}`, { family_email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
+    await restUpdate(T.favorites, `family_email=eq.${encodeURIComponent(oldEmail)}`, { family_email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
+    await restUpdate(T.helpChats, `user_email=eq.${encodeURIComponent(oldEmail)}`, { user_email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
+  }
+  fireAudit('admin.user.update', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: 'success', metadata: { fields: Object.keys(patch), emailChanged: patch.email !== undefined, phoneChanged: patch.phone !== undefined } });
   res.json({ ok: true });
 }));
 
