@@ -6722,7 +6722,10 @@ function askConfirm(o){
 }
 function closeConfirm(){
   const m=document.getElementById('confirmModal');
-  if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
+  if(m&&m.classList.contains('open')){
+    m.classList.remove('open');
+    document.body.style.overflow=document.querySelector('.modal.open')?'hidden':'';
+  }
   confirmCb=null;
 }
 function confirmProceed(){
