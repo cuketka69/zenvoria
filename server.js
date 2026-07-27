@@ -6500,7 +6500,10 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     if (!Number.isFinite(t)) return res.status(400).json({ error: 'Neplatné datum platnosti předplatného.' });
     patch.trial_until = new Date(t).toISOString();
   }
-  if (patch.name !== undefined) patch.name = trimmedString(patch.name, 120);
+  if (patch.name !== undefined) {
+    patch.name = trimmedString(patch.name, 120);
+    if (patch.name.split(/\s+/).filter(Boolean).length < 2) return res.status(400).json({ error: 'Zadejte celé jméno.' });
+  }
   if (patch.titul !== undefined) patch.titul = trimmedString(patch.titul, 20) || null;
   if (patch.email !== undefined) {
     patch.email = trimmedString(patch.email, 320).toLowerCase();
@@ -6633,13 +6636,18 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     const nextUserStatus = patch.suspended ? 'suspended' : 'active';
     await restUpdate(T.users, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, { status: nextUserStatus }, { prefer: 'return=minimal' });
   }
-  if (isAdmin && currentCaregiver && currentCaregiver.email && (patch.email !== undefined || patch.phone !== undefined)) {
+  if (isAdmin && currentCaregiver && currentCaregiver.email && (patch.email !== undefined || patch.phone !== undefined || patch.name !== undefined || patch.titul !== undefined)) {
     const userPatch = {};
+    if (patch.name !== undefined) userPatch.name = patch.name;
+    if (patch.titul !== undefined) userPatch.titul = patch.titul;
     if (patch.email !== undefined) userPatch.email = patch.email;
     if (patch.phone !== undefined) userPatch.phone = patch.phone;
     await restUpdate(T.users, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, userPatch, { prefer: 'return=minimal' });
-    if (patch.email !== undefined) {
-      await restUpdate(T.verifications, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, { email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
+    if (patch.email !== undefined || patch.name !== undefined) {
+      const verificationPatch = {};
+      if (patch.email !== undefined) verificationPatch.email = patch.email;
+      if (patch.name !== undefined) verificationPatch.name = patch.name;
+      await restUpdate(T.verifications, `email=eq.${encodeURIComponent(String(currentCaregiver.email).toLowerCase())}`, verificationPatch, { prefer: 'return=minimal' }).catch(() => {});
     }
   }
   // pečovatelka se stala znovu dostupnou (přestala být pozastavená, nebo si aktivovala tarif) → dej vědět rodinám, co ji mají v oblíbených
@@ -6650,8 +6658,8 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
       notifyFavoritersCaregiverAvailable(id, currentCaregiver.name).catch(() => {});
     }
   }
-  if (isAdmin && (b.suspended !== undefined || b.status !== undefined || b.plan !== undefined || b.verified !== undefined || b.trialUntil !== undefined || b.email !== undefined || b.phone !== undefined)) {
-    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { fields: Object.keys(patch), suspended: b.suspended, status: b.status, plan: b.plan, verified: b.verified, trialUntil: b.trialUntil, emailChanged: patch.email !== undefined && nextEmail !== currentEmail, phoneChanged: patch.phone !== undefined } });
+  if (isAdmin && (b.suspended !== undefined || b.status !== undefined || b.plan !== undefined || b.verified !== undefined || b.trialUntil !== undefined || b.email !== undefined || b.phone !== undefined || b.name !== undefined || b.titul !== undefined)) {
+    fireAudit('admin.caregiver.update', { req, actor: auditActor(req), targetType: 'caregiver', targetId: id, status: 'success', metadata: { fields: Object.keys(patch), suspended: b.suspended, status: b.status, plan: b.plan, verified: b.verified, trialUntil: b.trialUntil, emailChanged: patch.email !== undefined && nextEmail !== currentEmail, phoneChanged: patch.phone !== undefined, nameChanged: patch.name !== undefined } });
   }
   res.json({ caregiver: rows && rows[0] ? mapCaregiver(rows[0], await getPlanPermissions()) : null });
 }));
@@ -7128,6 +7136,11 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
     if (!ADMIN_UPDATABLE_USER_STATUSES.has(status)) return res.status(400).json({ error: 'Neplatný stav uživatele.' });
     patch.status = status;
   }
+  if (b.name !== undefined) {
+    const name = trimmedString(b.name, 120);
+    if (name.split(/\s+/).filter(Boolean).length < 2) return res.status(400).json({ error: 'Zadejte celé jméno.' });
+    patch.name = name;
+  }
   if (b.titul !== undefined) patch.titul = trimmedString(b.titul, 20) || null;
   if (b.email !== undefined) {
     const email = trimmedString(b.email, 320).toLowerCase();
@@ -7154,7 +7167,12 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
     await restUpdate(T.favorites, `family_email=eq.${encodeURIComponent(oldEmail)}`, { family_email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
     await restUpdate(T.helpChats, `user_email=eq.${encodeURIComponent(oldEmail)}`, { user_email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
   }
-  fireAudit('admin.user.update', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: 'success', metadata: { fields: Object.keys(patch), emailChanged: patch.email !== undefined, phoneChanged: patch.phone !== undefined } });
+  if (patch.name !== undefined && currentUser.role === 'family') {
+    const email = String(patch.email || currentUser.email || '').toLowerCase();
+    await restUpdate(T.orders, `family_email=eq.${encodeURIComponent(email)}`, { fam_name: patch.name }, { prefer: 'return=minimal' }).catch(() => {});
+    await restUpdate(T.familyReviews, `family_email=eq.${encodeURIComponent(email)}`, { family_name: patch.name }, { prefer: 'return=minimal' }).catch(() => {});
+  }
+  fireAudit('admin.user.update', { req, actor: auditActor(req), targetType: 'user', targetId: id, status: 'success', metadata: { fields: Object.keys(patch), emailChanged: patch.email !== undefined, phoneChanged: patch.phone !== undefined, nameChanged: patch.name !== undefined, titulChanged: patch.titul !== undefined } });
   res.json({ ok: true });
 }));
 

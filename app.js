@@ -4270,6 +4270,7 @@ function openCgAdmin(id){
   document.getElementById('cgAdminSub').textContent=`${c.loc||''} · ${c.exp} let praxe · ${c.rate} Kč/hod`;
   const cgEmailEl=document.getElementById('cgAdminEmail');if(cgEmailEl)cgEmailEl.value=c.email||'';
   const cgPhoneEl=document.getElementById('cgAdminPhone');if(cgPhoneEl)cgPhoneEl.value=c.phone||'';
+  const cgNameEl=document.getElementById('cgAdminName');if(cgNameEl)cgNameEl.value=c.name||'';
   setAdminContactEdit('cgAdmin',false);
   const cgAdminTitulEl=document.getElementById('cgAdminTitul');if(cgAdminTitulEl)cgAdminTitulEl.value=c.titul||'';
   setAva(document.getElementById('cgAdminAva'),c.photo||userPhotoByEmail(c.email),c.init);
@@ -4324,15 +4325,25 @@ function cgAdminCancelContact(){
   setAdminContactEdit('cgAdmin',false);
 }
 function closeCgAdmin(){const m=document.getElementById('cgAdminModal');if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}}
-function cgAdminSaveTitul(){
+function cgAdminSaveIdentity(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
+  const name=(document.getElementById('cgAdminName')?.value||'').trim();
   const val=(document.getElementById('cgAdminTitul').value||'').trim().slice(0,20);
-  c.titul=val||null;
-  apiSync(api('/caregivers/'+c.id,{method:'PATCH',body:{titul:c.titul}}));
-  document.getElementById('cgAdminTitle').textContent=dispName(c);
-  renderAdminCaregivers();renderCare();
-  toast('Titul byl uložen.','success');
+  if(name.split(/\s+/).filter(Boolean).length<2){toast('Zadejte celé jméno.','declined');return;}
+  askConfirm({
+    title:'Uložit identitu?',
+    message:`Změníte jméno pečovatelky na ${name}.`,
+    confirmLabel:'Uložit',
+    onConfirm:async()=>{
+      await api('/caregivers/'+c.id,{method:'PATCH',body:{name,titul:val||null}});
+      c.name=name;c.titul=val||null;
+      document.getElementById('cgAdminTitle').textContent=dispName(c);
+      renderAdminCaregivers();renderCare();openCgAdmin(c.id);
+      toast('Identita byla uložena.','success');
+    }
+  });
 }
+const cgAdminSaveTitul=cgAdminSaveIdentity;
 function cgAdminSaveContact(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
   const email=(document.getElementById('cgAdminEmail')?.value||'').trim().toLowerCase();
@@ -4483,11 +4494,15 @@ function ensureFamilyAdminModal(){
       </div>
       <div class="grid2" style="margin-bottom:18px">
         <div>
+          <label class="lbl" for="famAdminName">Jméno</label>
+          <input class="inp" id="famAdminName" maxlength="120">
+        </div>
+        <div>
           <label class="lbl" for="famAdminTitul">Titul</label>
           <input class="inp" id="famAdminTitul" maxlength="20" placeholder="Např. Ing.">
         </div>
         <div style="display:flex;align-items:end">
-          <button type="button" class="btn btn-gold btn-block" onclick="famAdminSaveTitul()">Uložit titul</button>
+          <button type="button" class="btn btn-gold btn-block" onclick="famAdminSaveIdentity()">Uložit identitu</button>
         </div>
       </div>
       <div class="panel" style="padding:0;background:transparent;border:0;box-shadow:none;margin-bottom:18px">
@@ -4514,6 +4529,7 @@ function openFamilyAdmin(id){
   const famEmailEl=document.getElementById('famAdminEmail');if(famEmailEl)famEmailEl.value=u.email||'';
   const famPhoneEl=document.getElementById('famAdminPhone');if(famPhoneEl)famPhoneEl.value=u.phone||'';
   setAdminContactEdit('famAdmin',false);
+  const famNameEl=document.getElementById('famAdminName');if(famNameEl)famNameEl.value=u.name||'';
   const famAdminTitulEl=document.getElementById('famAdminTitul');if(famAdminTitulEl)famAdminTitulEl.value=u.titul||'';
   setAva(document.getElementById('famAdminAva'),u.photo,u.init);
   const suspended=isUserEffectivelySuspended(u);
@@ -4539,15 +4555,25 @@ function closeFamilyAdmin(){
   if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}
   famAdminId=null;
 }
-function famAdminSaveTitul(){
+function famAdminSaveIdentity(){
   const u=USERS.find(x=>String(x.id)===String(famAdminId));if(!u)return;
+  const name=(document.getElementById('famAdminName')?.value||'').trim();
   const val=(document.getElementById('famAdminTitul').value||'').trim().slice(0,20);
-  u.titul=val||null;
-  apiSync(api('/users/'+u.id,{method:'PATCH',body:{titul:u.titul}}));
-  document.getElementById('famAdminTitle').textContent=dispName(u);
-  renderAdminUsers();
-  toast('Titul byl uložen.','success');
+  if(name.split(/\s+/).filter(Boolean).length<2){toast('Zadejte celé jméno.','declined');return;}
+  askConfirm({
+    title:'Uložit identitu?',
+    message:`Změníte jméno rodiny na ${name}.`,
+    confirmLabel:'Uložit',
+    onConfirm:async()=>{
+      await api('/users/'+u.id,{method:'PATCH',body:{name,titul:val||null}});
+      u.name=name;u.titul=val||null;
+      document.getElementById('famAdminTitle').textContent=dispName(u);
+      renderAdminUsers();openFamilyAdmin(u.id);
+      toast('Identita byla uložena.','success');
+    }
+  });
 }
+const famAdminSaveTitul=famAdminSaveIdentity;
 function famAdminSaveContact(){
   const u=USERS.find(x=>String(x.id)===String(famAdminId));if(!u)return;
   const email=(document.getElementById('famAdminEmail')?.value||'').trim().toLowerCase();
