@@ -3266,6 +3266,7 @@ function submittedVerificationCard(v){
     <div id="cgVerifyDetail" style="display:none;margin-top:8px">
       <div class="vsum">
         ${row('Telefon',esc(v.phone||'—'))}
+        ${row('Datum narození',esc(v.birthDate?fmtDate(v.birthDate):'—'))}
         ${row('Doklad',esc(v.docType||'—')+(v.docNum?' · č. '+esc(v.docNum):''))}
         ${row('Osvědčení',esc(v.cert||'—')+(v.issuer?'<br><span style="font-weight:400;color:var(--muted);font-size:13px">'+esc(v.issuer)+'</span>':''))}
         ${v.validUntil?row('Platnost do',esc(v.validUntil)):''}
@@ -3585,7 +3586,8 @@ function renderAdminDoneVerifyDetail(v){
   const docs=adminDoneVerifyDocs(v);
   return `
     <div class="vreq-fields vdone-fields">
-      <div class="vreq-field"><div class="vreq-k">${shieldSVG(14)} Identita</div><div class="vreq-v">${esc(v.docType||'—')}${v.docNum?` · č. ${esc(v.docNum)}`:''}${v.phone?` · ${esc(v.phone)}`:''}</div></div>
+      <div class="vreq-field"><div class="vreq-k">${envelopeSVG()} Kontakt</div><div class="vreq-v">${esc(v.email||'—')}${v.phone?` · ${esc(v.phone)}`:''}</div></div>
+      <div class="vreq-field"><div class="vreq-k">${shieldSVG(14)} Identita</div><div class="vreq-v">${esc(v.docType||'—')}${v.docNum?` · č. ${esc(v.docNum)}`:''} · datum narození ${esc(v.birthDate?fmtDate(v.birthDate):'—')}</div></div>
       <div class="vreq-field"><div class="vreq-k">${capSVG(14)} Osvědčení</div><div class="vreq-v">${verifyCertDetails(v)||'—'}</div></div>
       ${(v.services||[]).length?`<div class="vreq-field"><div class="vreq-k">Nabízené služby</div><div class="vreq-chips">${svc}</div></div>`:''}
       ${v.refs?`<div class="vreq-field"><div class="vreq-k">Reference</div><div class="vreq-v">${esc(v.refs)}</div></div>`:''}
@@ -3682,7 +3684,7 @@ async function submitVerify(e){
   const g=id=>document.getElementById(id).value.trim();
   const err=document.getElementById('vfErr');err.textContent='';
   const btn=document.getElementById('vfSubmitBtn');
-  const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum');
+  const name=g('vfName'),phone=getVerifyPhoneValue(),docNum=g('vfDocNum'),birthDate=g('vfBirthDate');
   const certifications=getVerifyCertifications();
   const services=verifyServices.filter((id,idx,arr)=>arr.indexOf(id)===idx&&SERVICES.some(s=>s.id===id));
   const rate=+g('vfRate');
@@ -3691,6 +3693,7 @@ async function submitVerify(e){
   if(!rate||rate<150){verifyError(err,'Zadejte platnou hodinovou sazbu (min. 150 Kč).');return false;}
   if(!isPhone(phone)){verifyError(err,'Zadejte platné telefonní číslo.');return false;}
   if(!docNum){verifyError(err,'Zadejte číslo dokladu totožnosti.');return false;}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)){verifyError(err,'Zadejte datum narození.');return false;}
   if(!verifyIdFrontName){verifyError(err,'Nahrajte prosím přední stranu dokladu totožnosti.');return false;}
   if(!verifyIdBackName){verifyError(err,'Nahrajte prosím zadní stranu dokladu totožnosti.');return false;}
   if(!verifySelfieName){verifyError(err,'Nahrajte prosím selfie pro ověření totožnosti.');return false;}
@@ -3705,7 +3708,7 @@ async function submitVerify(e){
   const rec={
     name,email:auth.email,init:initials(name),loc:g('vfLoc'),lat:vfGeo.lat,lng:vfGeo.lng,
     rate,exp:+g('vfExp')||0,phone,
-    docType:document.getElementById('vfDocType').value==='pas'?'Cestovni pas':'Obcansky prukaz',docNum,
+    docType:document.getElementById('vfDocType').value==='pas'?'Cestovni pas':'Obcansky prukaz',docNum,birthDate,
     idFront:verifyIdFrontName,idBack:verifyIdBackName,selfie:verifySelfieName,
     services,cert:summarizeVerifyCertifications(certifications),issuer:(certifications[0]&&certifications[0].issuer)||'',validUntil:(certifications[0]&&certifications[0].validUntil)||'',certifications,
     fileName:verifyDocName,refs:g('vfRefs'),note:g('vfNote'),bio:cgProfile.bio,
@@ -3796,7 +3799,8 @@ function renderAdminVerify(){
           </div>
         </div>
         <div class="vreq-fields">
-          <div class="vreq-field"><div class="vreq-k">${shieldSVG(14)} Identita</div><div class="vreq-v">${esc(v.docType||'-')}${v.docNum?' - č. '+esc(v.docNum):''}${v.phone?' - '+esc(v.phone):''}</div></div>
+          <div class="vreq-field"><div class="vreq-k">${envelopeSVG()} Kontakt</div><div class="vreq-v">${esc(v.email||'—')}${v.phone?' - '+esc(v.phone):''}</div></div>
+          <div class="vreq-field"><div class="vreq-k">${shieldSVG(14)} Identita</div><div class="vreq-v">${esc(v.docType||'-')}${v.docNum?' - č. '+esc(v.docNum):''} - datum narození ${esc(v.birthDate?fmtDate(v.birthDate):'—')}</div></div>
           <div class="vreq-field"><div class="vreq-k">${capSVG(14)} Osvědčení</div><div class="vreq-v">${verifyCertDetails(v)}</div></div>
           <div class="vreq-field"><div class="vreq-k">Nabízené služby</div><div class="vreq-chips">${v.services.map(s=>`<span class="chip">${esc(sName2(s))}</span>`).join('')}</div></div>
           ${v.refs?`<div class="vreq-field"><div class="vreq-k">Reference</div><div class="vreq-v">${esc(v.refs)}</div></div>`:''}
@@ -4010,7 +4014,7 @@ async function downloadDossier(id){
   const rows=[
     ['ZENVORIA — žádost o ověření pečovatelky',''],
     ['',''],
-    ['Jméno',v.name],['E-mail',v.email],['Telefon',v.phone||''],
+    ['Jméno',v.name],['E-mail',v.email],['Telefon',v.phone||''],['Datum narození',v.birthDate||''],
     ['Lokalita',v.loc],['Hodinová sazba (Kč)',String(v.rate)],['Praxe (let)',String(v.exp)],
     ['Doklad totožnosti',(v.docType||'')+(v.docNum?' č. '+v.docNum:'')],['Doklad přední (soubor)',v.idFront||''],['Doklad zadní (soubor)',v.idBack||''],['Selfie (soubor)',v.selfie||''],
     ['Osvědčení',certs.map(item=>`${item.name||''}${item.issuer?` — ${item.issuer}`:''}${item.validUntil?` (${item.validUntil})`:''}`).join(' | ')],['Vystavil',v.issuer||''],['Platnost do',v.validUntil||''],

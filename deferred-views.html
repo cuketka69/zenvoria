@@ -400,18 +400,18 @@
         </div>
         <div class="grid2" style="margin-top:14px">
           <div><label class="lbl">Číslo dokladu</label><input class="inp" id="vfDocNum" placeholder="např. 123456789"></div>
-          <div></div>
+          <div><label class="lbl">Datum narození</label><input class="inp" type="date" id="vfBirthDate"></div>
         </div>
         <div style="margin-top:14px">
           <label class="lbl">Foto dokladu totožnosti (občanský průkaz / pas) — obě strany</label>
           <div class="grid2">
             <label class="doc-drop" id="vfIdFrontLabel">
               <span id="vfIdFrontText"><b>Přední strana</b> — foto nebo sken</span>
-              <input type="file" accept="image/*,.pdf" id="vfIdFront" hidden onchange="onVerifyIdFront(event)">
+              <input type="file" accept="image/*" id="vfIdFront" hidden onchange="onVerifyIdFront(event)">
             </label>
             <label class="doc-drop" id="vfIdBackLabel">
               <span id="vfIdBackText"><b>Zadní strana</b> — foto nebo sken</span>
-              <input type="file" accept="image/*,.pdf" id="vfIdBack" hidden onchange="onVerifyIdBack(event)">
+              <input type="file" accept="image/*" id="vfIdBack" hidden onchange="onVerifyIdBack(event)">
             </label>
           </div>
         </div>

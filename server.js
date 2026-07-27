@@ -15,6 +15,7 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const compression = require('compression');
 const PDFDocument = require('pdfkit');
+const sharp = require('sharp');
 
 // --- pojistka proti tichému pádu procesu ---
 // bez tohohle by nezachycená chyba (typicky v na pozadí běžící úloze, ne v HTTP requestu — ty
@@ -420,20 +421,96 @@ function sanitizeSettingValue(key, value) {
 }
 
 /* příloha jako data URL (obrázek / PDF), s limitem velikosti */
-function sanitizeFileDataUrl(v, maxLen = 7 * 1024 * 1024) {
-  const s = typeof v === 'string' ? v : '';
+const DATA_URL_RE = /^data:([^;,]+)(;base64)?,([\s\S]*)$/i;
+const PUBLIC_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const VERIFICATION_FILE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'application/pdf', 'text/plain']);
+const UPLOAD_IMAGE_MAX_DIMENSION = parseInt(process.env.UPLOAD_IMAGE_MAX_DIMENSION || '1600', 10);
+const UPLOAD_IMAGE_MAX_PIXELS = parseInt(process.env.UPLOAD_IMAGE_MAX_PIXELS || String(16 * 1000 * 1000), 10);
+
+function detectDataMime(bytes) {
+  if (!Buffer.isBuffer(bytes) || bytes.length < 4) return null;
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+    && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) return 'image/png';
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (bytes.length >= 12 && bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp';
+  if (bytes.length >= 5 && bytes.subarray(0, 5).toString('ascii') === '%PDF-') return 'application/pdf';
+  return null;
+}
+
+function isPlainTextBytes(bytes) {
+  if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.includes(0)) return false;
+  try {
+    const text = bytes.toString('utf8');
+    return Buffer.from(text, 'utf8').equals(bytes);
+  } catch (e) {
+    return false;
+  }
+}
+
+function decodeDataUrl(v, { maxBytes, allowedTypes }) {
+  const s = typeof v === 'string' ? v.trim() : '';
   if (!s) return null;
-  if (!/^data:(image\/|application\/pdf|application\/octet-stream|text\/)/i.test(s)) return null;
-  if (s.length > maxLen) return null;
-  return s;
+  if (s.length > Math.ceil(maxBytes * 1.38) + 128) return null;
+  const m = DATA_URL_RE.exec(s);
+  if (!m || !m[2]) return null;
+  const declaredType = String(m[1] || '').toLowerCase();
+  if (!allowedTypes.has(declaredType)) return null;
+  const payload = String(m[3] || '').replace(/\s+/g, '');
+  if (!payload || !/^[A-Za-z0-9+/]*={0,2}$/.test(payload) || payload.length % 4 !== 0) return null;
+  const bytes = Buffer.from(payload, 'base64');
+  if (!bytes.length || bytes.length > maxBytes) return null;
+  const detectedType = detectDataMime(bytes) || (declaredType === 'text/plain' && isPlainTextBytes(bytes) ? 'text/plain' : null);
+  if (detectedType !== declaredType || !allowedTypes.has(detectedType)) return null;
+  return { dataUrl: `data:${detectedType};base64,${bytes.toString('base64')}`, bytes, mime: detectedType };
+}
+
+async function sanitizePublicImageDataUrl(v, maxBytes = 2 * 1024 * 1024) {
+  const parsed = decodeDataUrl(v, { maxBytes, allowedTypes: PUBLIC_IMAGE_MIME_TYPES });
+  if (!parsed) return null;
+  try {
+    const { data, info } = await sharp(parsed.bytes, {
+      animated: false,
+      limitInputPixels: UPLOAD_IMAGE_MAX_PIXELS,
+    })
+      .rotate()
+      .resize({
+        width: UPLOAD_IMAGE_MAX_DIMENSION,
+        height: UPLOAD_IMAGE_MAX_DIMENSION,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .toColourspace('srgb')
+      .webp({ quality: 84, effort: 4 })
+      .toBuffer({ resolveWithObject: true });
+    if (!data.length || data.length > maxBytes || info.format !== 'webp') return null;
+    return `data:image/webp;base64,${data.toString('base64')}`;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function sanitizeFileDataUrl(v, maxLen = 7 * 1024 * 1024) {
+  const parsed = decodeDataUrl(v, { maxBytes: maxLen, allowedTypes: VERIFICATION_FILE_MIME_TYPES });
+  if (!parsed) return null;
+  if (PUBLIC_IMAGE_MIME_TYPES.has(parsed.mime)) return sanitizePublicImageDataUrl(v, Math.min(maxLen, 4 * 1024 * 1024));
+  return parsed.dataUrl;
 }
 /* soubory přiložené k žádosti o ověření -> { idfront, idback, selfie, doc, certs:[...] } */
-function sanitizeVerificationFiles(value) {
+async function sanitizeVerificationFiles(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const out = {};
-  ['idfront', 'idback', 'selfie', 'doc'].forEach((k) => { const f = sanitizeFileDataUrl(value[k]); if (f) out[k] = f; });
+  for (const k of ['idfront', 'idback', 'selfie']) {
+    const f = await sanitizePublicImageDataUrl(value[k], 2 * 1024 * 1024);
+    if (f) out[k] = f;
+  }
+  const doc = await sanitizeFileDataUrl(value.doc);
+  if (doc) out.doc = doc;
   if (Array.isArray(value.certs)) {
-    const certs = value.certs.slice(0, 12).map((c) => sanitizeFileDataUrl(c)).filter(Boolean);
+    const certs = [];
+    for (const c of value.certs.slice(0, 12)) {
+      const f = await sanitizeFileDataUrl(c);
+      if (f) certs.push(f);
+    }
     if (certs.length) out.certs = certs;
   }
   return out;
@@ -2544,17 +2621,20 @@ const VERIFY_CERTS_MARKER = '[[CERTS]]';
 function decodeVerificationNote(note) {
   const raw = String(note || '');
   const idx = raw.indexOf(VERIFY_CERTS_MARKER);
-  if (idx < 0) return { note: raw, certifications: [] };
-  let certifications = [];
-  try { certifications = JSON.parse(raw.slice(idx + VERIFY_CERTS_MARKER.length)) || []; } catch (e) {}
-  return { note: raw.slice(0, idx).trim(), certifications: Array.isArray(certifications) ? certifications : [] };
+  if (idx < 0) return { note: raw, certifications: [], meta: {} };
+  let payload = null;
+  try { payload = JSON.parse(raw.slice(idx + VERIFY_CERTS_MARKER.length)); } catch (e) {}
+  const certifications = Array.isArray(payload) ? payload : (Array.isArray(payload && payload.certifications) ? payload.certifications : []);
+  const meta = payload && typeof payload === 'object' && !Array.isArray(payload) && payload.meta && typeof payload.meta === 'object' ? payload.meta : {};
+  return { note: raw.slice(0, idx).trim(), certifications, meta };
 }
 function mapVerification(v) {
   const parsed = decodeVerificationNote(v.note);
   return { id: Number(v.id), name: v.name, email: v.email, init: v.init, loc: v.loc, lat: v.lat, lng: v.lng, rate: v.rate, exp: v.exp,
     phone: v.phone, docType: v.doc_type, docNum: v.doc_num, idFront: v.id_front, idBack: v.id_back, selfie: v.selfie,
     services: v.services || [], cert: v.cert, issuer: v.issuer, validUntil: v.valid_until, fileName: v.file_name,
-    refs: v.refs, note: parsed.note, certifications: parsed.certifications, bio: v.bio, status: v.status, date: v.date, reason: v.reason };
+    refs: v.refs, note: parsed.note, certifications: parsed.certifications, birthDate: parsed.meta.birthDate || null,
+    bio: v.bio, status: v.status, date: v.date, reason: v.reason };
 }
 
 /* ----------------------------------------------------------------------
@@ -4217,8 +4297,9 @@ app.patch('/api/users/me/photo', requireAuth, h(async (req, res) => {
   let photo = req.body && req.body.photo;
   if (photo === null || photo === '' || photo === undefined) {
     photo = null;
-  } else if (typeof photo !== 'string' || !/^data:image\//.test(photo) || photo.length > 3 * 1024 * 1024) {
-    return res.status(400).json({ error: 'Neplatná fotka.' });
+  } else {
+    photo = await sanitizePublicImageDataUrl(photo, 2 * 1024 * 1024);
+    if (!photo) return res.status(400).json({ error: 'Neplatná fotka.' });
   }
   await restUpdate(T.users, `id=eq.${req.session.uid}`, { photo }, { prefer: 'return=minimal' });
   // pečovatelce propíšeme fotku i do její veřejné karty (aby ji viděly rodiny ve vyhledávání)
@@ -5019,9 +5100,10 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), requireVerifie
   const phone = trimmedString(b.phone, 40);
   const docType = trimmedString(b.docType, 40);
   const docNum = trimmedString(b.docNum, 80);
-  const idFront = trimmedString(b.idFront, 2 * 1024 * 1024);
-  const idBack = trimmedString(b.idBack, 2 * 1024 * 1024);
-  const selfie = trimmedString(b.selfie, 2 * 1024 * 1024);
+  const birthDate = trimmedString(b.birthDate, 10);
+  const idFront = trimmedString(b.idFront, 180);
+  const idBack = trimmedString(b.idBack, 180);
+  const selfie = trimmedString(b.selfie, 180);
   const services = Array.isArray(b.services) ? b.services.map((item) => trimmedString(item, 40)).filter(Boolean) : [];
   const rawCertifications = Array.isArray(b.certifications) ? b.certifications : [];
   const certifications = rawCertifications.map((item) => ({
@@ -5045,6 +5127,7 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), requireVerifie
   if (!Number.isInteger(exp) || exp < 0 || exp > 80) return res.status(400).json({ error: 'Neplatná délka praxe.' });
   if (!phone) return res.status(400).json({ error: 'Chybí telefonní číslo.' });
   if (!docType || !docNum) return res.status(400).json({ error: 'Chybí údaje o dokladu totožnosti.' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return res.status(400).json({ error: 'Chybí datum narození.' });
   if (!idFront || !idBack || !selfie) return res.status(400).json({ error: 'Chybí ověřovací fotografie.' });
   if (!services.length || services.length > 20) return res.status(400).json({ error: 'Vyberte alespoň jednu službu.' });
   if (!certifications.length && (!cert || !issuer)) return res.status(400).json({ error: 'Chybí údaje o osvědčení.' });
@@ -5052,10 +5135,17 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), requireVerifie
   if (certifications.some((item) => item.validUntil && !/^\d{4}-\d{2}-\d{2}$/.test(item.validUntil))) return res.status(400).json({ error: 'Neplatná platnost osvědčení.' });
   if (validUntil && !/^\d{4}-\d{2}-\d{2}$/.test(validUntil)) return res.status(400).json({ error: 'Neplatná platnost osvědčení.' });
   if ((!certifications.length && !fileName) || certifications.some((item) => !item.fileName)) return res.status(400).json({ error: 'Chybí název nahraného dokladu.' });
-  const storedNote = certifications.length > 1
-    ? `${note}${note ? `\n${VERIFY_CERTS_MARKER}` : VERIFY_CERTS_MARKER}${JSON.stringify(certifications)}`
+  const storedMeta = { certifications, meta: { birthDate } };
+  const storedNote = (certifications.length > 1 || birthDate)
+    ? `${note}${note ? `\n${VERIFY_CERTS_MARKER}` : VERIFY_CERTS_MARKER}${JSON.stringify(storedMeta)}`
     : note;
-  const files = sanitizeVerificationFiles(b.files);
+  const files = await sanitizeVerificationFiles(b.files);
+  if (!files.idfront || !files.idback || !files.selfie || !files.doc) {
+    return res.status(400).json({ error: 'Nahraný soubor má neplatný formát nebo je příliš velký.' });
+  }
+  if (certifications.length > 1 && (!Array.isArray(files.certs) || files.certs.length < certifications.length - 1)) {
+    return res.status(400).json({ error: 'Nahraný soubor má neplatný formát nebo je příliš velký.' });
+  }
   const lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
   const lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
   const id = await nextId(T.verifications, 'id');
@@ -5076,7 +5166,7 @@ app.post('/api/certifications', requireRole('caregiver', 'admin'), h(async (req,
   const issuer = trimmedString(b.issuer, 120);
   const validUntil = trimmedString(b.validUntil, 10);
   const fileName = trimmedString(b.fileName, 180);
-  const fileData = sanitizeFileDataUrl(b.fileData);
+  const fileData = await sanitizeFileDataUrl(b.fileData);
   if (!name) return res.status(400).json({ error: 'Zadejte název osvědčení.' });
   if (!issuer) return res.status(400).json({ error: 'Zadejte instituci, která osvědčení vystavila.' });
   if (validUntil && !/^\d{4}-\d{2}-\d{2}$/.test(validUntil)) return res.status(400).json({ error: 'Neplatná platnost osvědčení.' });
@@ -5590,12 +5680,8 @@ async function conversationBlockBetween(meId, otherId) {
 }
 
 // obrázek v chatu jako data URL (jen obrázky, s limitem velikosti)
-function sanitizeChatImage(v) {
-  const s = typeof v === 'string' ? v : '';
-  if (!s) return null;
-  if (!/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(s)) return null;
-  if (s.length > 8 * 1024 * 1024) return null; // ~6 MB obrázek
-  return s;
+async function sanitizeChatImage(v) {
+  return sanitizePublicImageDataUrl(v, 6 * 1024 * 1024);
 }
 // sinceIso: pokud rodina/pečovatelka konverzaci "smazala jen u sebe", nechceme jí vracet zprávy odeslané před smazáním
 function viewerDeletedAt(conv, me) {
@@ -5774,7 +5860,7 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   const conv = req.conversation;
   if (conv.blocked_by != null && req.session.role !== 'admin') return res.status(403).json({ error: 'Tato konverzace je blokovaná — nelze v ní posílat zprávy.' });
   const text = String(b.text || '').trim();
-  const image = sanitizeChatImage(b.image);
+  const image = await sanitizeChatImage(b.image);
   if (b.image && !image) return res.status(400).json({ error: 'Neplatný nebo příliš velký obrázek.' });
   let term = null;
   if (b.term && typeof b.term === 'object') {
@@ -6349,7 +6435,7 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     if (patch.photo == null) {
       patch.photo = null;
     } else {
-      const photo = /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(String(patch.photo)) ? sanitizeFileDataUrl(patch.photo, 2 * 1024 * 1024) : null;
+      const photo = await sanitizePublicImageDataUrl(patch.photo, 2 * 1024 * 1024);
       if (!photo) return res.status(400).json({ error: 'Neplatný formát fotky.' });
       patch.photo = photo;
     }

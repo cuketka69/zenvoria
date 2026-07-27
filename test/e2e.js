@@ -38,6 +38,8 @@ const HAS_DB = !!(SUPABASE_URL && SUPABASE_KEY);
 const stamp = Date.now();
 const CG_EMAIL = `e2e-cg-${stamp}@example.com`;
 const FAM_EMAIL = `e2e-fam-${stamp}@example.com`;
+const TEST_PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC';
+const TEST_PDF_DATA_URL = 'data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrp/Og0MTGCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nL1BhZ2VzIDIgMCBSPj4KZW5kb2JqCg==';
 const PASSWORD = 'TestPass123';
 
 let passed = 0, failed = 0;
@@ -140,11 +142,12 @@ function printSummary() {
       method: 'POST',
       body: {
         name: 'E2E Caregiver', loc: 'Praha 6', rate: 250, exp: 5, phone: '777123456',
-        docType: 'obcansky', docNum: '123456789',
-        idFront: 'data:image/png;base64,x', idBack: 'data:image/png;base64,x', selfie: 'data:image/png;base64,x',
+        docType: 'obcansky', docNum: '123456789', birthDate: '1985-04-12',
+        idFront: 'id-front.png', idBack: 'id-back.png', selfie: 'selfie.png',
         services: ['domaci-pece'],
         certifications: [{ name: 'Kurz', issuer: 'CK', validUntil: '2027-01-01', fileName: 'c.pdf' }],
         bio: 'E2E test caregiver.',
+        files: { idfront: TEST_PNG_DATA_URL, idback: TEST_PNG_DATA_URL, selfie: TEST_PNG_DATA_URL, doc: TEST_PDF_DATA_URL },
       },
     });
     assert.equal(r.verification.status, 'submitted');
