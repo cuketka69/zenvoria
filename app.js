@@ -4387,7 +4387,7 @@ function renderAdminUsers(){
     const suspended=isUserEffectivelySuspended(u);
     const badge=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
     return `<tr>
-      <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))} ${countryFlag(u.country)}</b><span>${esc(u.email)}</span></div></div></td>
+      <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))} ${countryFlag(u.country)}</b><span>${esc([u.email,u.phone].filter(Boolean).join(' · ')||'—')}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${esc(lastSeenText(u.lastSeen))}</td><td>${badge}</td>
       <td><div class="adm-actions" style="justify-content:flex-end">
         <button class="btn btn-sm btn-gold" onclick="openFamilyAdmin(${jsq(u.id)})">Zobrazit</button>
@@ -4446,7 +4446,7 @@ function openFamilyAdmin(id){
   ensureFamilyAdminModal();
   famAdminId=id;
   document.getElementById('famAdminTitle').textContent=dispName(u);
-  document.getElementById('famAdminSub').textContent=`${u.email} · registrace ${fmtDate(u.joined)}`;
+  document.getElementById('famAdminSub').textContent=`${[u.email,u.phone].filter(Boolean).join(' · ')||'—'} · registrace ${fmtDate(u.joined)}`;
   const famAdminTitulEl=document.getElementById('famAdminTitul');if(famAdminTitulEl)famAdminTitulEl.value=u.titul||'';
   setAva(document.getElementById('famAdminAva'),u.photo,u.init);
   const suspended=isUserEffectivelySuspended(u);

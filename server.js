@@ -4516,7 +4516,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
     schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null, famPublicId: (oidToEmail[s.oid] && famPublicIdByEmail[oidToEmail[s.oid]]) || null })),
     verifications: (verifications || []).map(mapVerification),
-    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null, country: u.country || 'cz' })),
+    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, phone: u.phone || null, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null, country: u.country || 'cz' })),
     cgReviews, generalReviews,
     familyReviews: (viewer === 'family' || viewer === 'admin')
       ? (familyReviewsRows || []).map((r) => ({ id: Number(r.id), caregiverName: r.caregiver_name, caregiverId: r.caregiver_id != null ? Number(r.caregiver_id) : null, familyEmail: r.family_email || null, familyName: r.family_name || null, stars: r.stars, text: r.text, createdAt: r.created_at }))
