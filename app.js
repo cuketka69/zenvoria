@@ -2130,6 +2130,15 @@ const isEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v||'').trim());
 const isPhone=v=>/^[0-9+\s/]+$/.test((v||'').trim())&&(v||'').replace(/[^0-9]/g,'').length>=9;
 const isStrongPassword=v=>{const s=String(v||'');return s.length>=8&&/[a-z]/.test(s)&&/[A-Z]/.test(s)&&/\d/.test(s);};
 
+document.addEventListener('wheel',e=>{
+  const open=e.target&&e.target.closest&&e.target.closest('.modal.open');
+  if(open&&!e.target.closest('.modal-card'))e.preventDefault();
+},{passive:false});
+document.addEventListener('touchmove',e=>{
+  const open=e.target&&e.target.closest&&e.target.closest('.modal.open');
+  if(open&&!e.target.closest('.modal-card'))e.preventDefault();
+},{passive:false});
+
 function isDeferredView(v){return DEFERRED_VIEW_IDS.has(String(v||''));}
 async function ensureDeferredViewsLoaded(){
   if(deferredViewsLoaded)return true;
