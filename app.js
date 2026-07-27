@@ -6698,6 +6698,9 @@ function submitFamilyRating(){
 let confirmCb=null;
 function askConfirm(o){
   o=o||{};
+  const m=document.getElementById('confirmModal');
+  if(m&&m.parentElement)m.parentElement.appendChild(m);
+  if(m)m.style.zIndex='2000';
   document.getElementById('confirmTitle').textContent=o.title||'Opravdu pokračovat?';
   document.getElementById('confirmMsg').textContent=o.message||'';
   const icEl=document.getElementById('confirmIcon');
@@ -6716,7 +6719,6 @@ function askConfirm(o){
     wrap.style.display='';
   }else{wrap.style.display='none';inp.value='';}
   confirmCb=typeof o.onConfirm==='function'?o.onConfirm:null;
-  const m=document.getElementById('confirmModal');
   m.classList.add('open');document.body.style.overflow='hidden';
   setTimeout(()=>{(o.input?inp:ok).focus();},60);
 }
