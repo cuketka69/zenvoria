@@ -4419,7 +4419,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
           ? restSelect(T.verifications, `email=eq.${encodeURIComponent(req.session.email)}&order=id.asc`)
           : []),
       viewer === 'admin'
-        ? restSelect(T.users, 'select=id,email,name,titul,role,status,init,joined,orders_count,photo,last_seen,country&order=joined.asc')
+        ? restSelect(T.users, 'select=id,email,name,titul,phone,role,status,init,joined,orders_count,photo,last_seen,country&order=joined.asc')
         : [],
       restSelect(T.reviews, 'select=*&order=id.asc'),
       viewer === 'admin'
