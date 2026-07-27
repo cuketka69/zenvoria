@@ -4243,6 +4243,16 @@ function setCgPlan(id,plan){
     danger:!toPrem,onConfirm:doIt});
 }
 /* ---- ADMIN: správcovský modal pečovatelky ---- */
+function setAdminContactEdit(prefix,on){
+  ['Email','Phone'].forEach(k=>{
+    const el=document.getElementById(prefix+k);
+    if(el)el.disabled=!on;
+  });
+  const edit=document.getElementById(prefix+'ContactEditBtn');
+  const actions=document.getElementById(prefix+'ContactActions');
+  if(edit)edit.hidden=!!on;
+  if(actions)actions.hidden=!on;
+}
 let cgAdminId=null;
 function openCgAdmin(id){
   const c=CAREGIVERS.find(x=>x.id===id);if(!c)return;
@@ -4251,6 +4261,7 @@ function openCgAdmin(id){
   document.getElementById('cgAdminSub').textContent=`${c.loc||''} · ${c.exp} let praxe · ${c.rate} Kč/hod`;
   const cgEmailEl=document.getElementById('cgAdminEmail');if(cgEmailEl)cgEmailEl.value=c.email||'';
   const cgPhoneEl=document.getElementById('cgAdminPhone');if(cgPhoneEl)cgPhoneEl.value=c.phone||'';
+  setAdminContactEdit('cgAdmin',false);
   const cgAdminTitulEl=document.getElementById('cgAdminTitul');if(cgAdminTitulEl)cgAdminTitulEl.value=c.titul||'';
   setAva(document.getElementById('cgAdminAva'),c.photo||userPhotoByEmail(c.email),c.init);
   const planKey=c.plan==='premium'?'premium':(c.plan==='start'?'start':'none');
@@ -4296,6 +4307,13 @@ function cgAdminCancelEdit(){
   const ed=document.getElementById('cgAdminEditor');if(ed)ed.hidden=true;
   const eb=document.getElementById('cgAdminEditBtn');if(eb)eb.style.display='';
 }
+function cgAdminEditContact(){setAdminContactEdit('cgAdmin',true);}
+function cgAdminCancelContact(){
+  const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
+  const email=document.getElementById('cgAdminEmail');if(email)email.value=c.email||'';
+  const phone=document.getElementById('cgAdminPhone');if(phone)phone.value=c.phone||'';
+  setAdminContactEdit('cgAdmin',false);
+}
 function closeCgAdmin(){const m=document.getElementById('cgAdminModal');if(m&&m.classList.contains('open')){m.classList.remove('open');document.body.style.overflow='';}}
 function cgAdminSaveTitul(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
@@ -4306,12 +4324,21 @@ function cgAdminSaveTitul(){
   renderAdminCaregivers();renderCare();
   toast('Titul byl uložen.','success');
 }
-async function cgAdminSaveContact(){
+function cgAdminSaveContact(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
   const email=(document.getElementById('cgAdminEmail')?.value||'').trim().toLowerCase();
   const phone=(document.getElementById('cgAdminPhone')?.value||'').trim();
   if(!isEmail(email)){toast('Zadejte platný e-mail.','declined');return;}
   if(!isPhone(phone)){toast('Zadejte platné telefonní číslo.','declined');return;}
+  askConfirm({
+    title:'Uložit kontakt?',
+    message:`Změníte kontakt pečovatelky na ${email} · ${phone}.`,
+    confirmLabel:'Uložit',
+    onConfirm:()=>cgAdminDoSaveContact(email,phone)
+  });
+}
+async function cgAdminDoSaveContact(email,phone){
+  const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
   try{
     const oldEmail=c.email;
     await api('/caregivers/'+c.id,{method:'PATCH',body:{email,phone}});
@@ -4440,7 +4467,11 @@ function ensureFamilyAdminModal(){
         <div><label class="lbl" for="famAdminEmail">E-mail</label><input class="inp" id="famAdminEmail" type="email" autocomplete="off"></div>
         <div><label class="lbl" for="famAdminPhone">Telefon</label><input class="inp" id="famAdminPhone" type="tel" autocomplete="off"></div>
       </div>
-      <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="famAdminSaveContact()">Uložit kontakt</button>
+      <button class="btn btn-ghost btn-block" id="famAdminContactEditBtn" style="margin-top:10px" type="button" onclick="famAdminEditContact()">Upravit kontakt</button>
+      <div class="cga-edit-actions" id="famAdminContactActions" hidden>
+        <button class="btn btn-ghost" type="button" onclick="famAdminCancelContact()">Zrušit</button>
+        <button class="btn btn-gold" type="button" onclick="famAdminSaveContact()">Uložit kontakt</button>
+      </div>
       <div class="grid2" style="margin-bottom:18px">
         <div>
           <label class="lbl" for="famAdminTitul">Titul</label>
@@ -4473,6 +4504,7 @@ function openFamilyAdmin(id){
   document.getElementById('famAdminSub').textContent=`${[u.email,u.phone].filter(Boolean).join(' · ')||'—'} · registrace ${fmtDate(u.joined)}`;
   const famEmailEl=document.getElementById('famAdminEmail');if(famEmailEl)famEmailEl.value=u.email||'';
   const famPhoneEl=document.getElementById('famAdminPhone');if(famPhoneEl)famPhoneEl.value=u.phone||'';
+  setAdminContactEdit('famAdmin',false);
   const famAdminTitulEl=document.getElementById('famAdminTitul');if(famAdminTitulEl)famAdminTitulEl.value=u.titul||'';
   setAva(document.getElementById('famAdminAva'),u.photo,u.init);
   const suspended=isUserEffectivelySuspended(u);
@@ -4507,12 +4539,21 @@ function famAdminSaveTitul(){
   renderAdminUsers();
   toast('Titul byl uložen.','success');
 }
-async function famAdminSaveContact(){
+function famAdminSaveContact(){
   const u=USERS.find(x=>String(x.id)===String(famAdminId));if(!u)return;
   const email=(document.getElementById('famAdminEmail')?.value||'').trim().toLowerCase();
   const phone=(document.getElementById('famAdminPhone')?.value||'').trim();
   if(!isEmail(email)){toast('Zadejte platný e-mail.','declined');return;}
   if(!isPhone(phone)){toast('Zadejte platné telefonní číslo.','declined');return;}
+  askConfirm({
+    title:'Uložit kontakt?',
+    message:`Změníte kontakt rodiny na ${email} · ${phone}.`,
+    confirmLabel:'Uložit',
+    onConfirm:()=>famAdminDoSaveContact(email,phone)
+  });
+}
+async function famAdminDoSaveContact(email,phone){
+  const u=USERS.find(x=>String(x.id)===String(famAdminId));if(!u)return;
   try{
     const oldEmail=u.email;
     await api('/users/'+u.id,{method:'PATCH',body:{email,phone}});
@@ -4522,6 +4563,13 @@ async function famAdminSaveContact(){
     renderAdminUsers();openFamilyAdmin(u.id);
     toast('Kontakt rodiny byl uložen.','success');
   }catch(e){toastApiError(e,'Kontakt se nepodařilo uložit.');}
+}
+function famAdminEditContact(){setAdminContactEdit('famAdmin',true);}
+function famAdminCancelContact(){
+  const u=USERS.find(x=>String(x.id)===String(famAdminId));if(!u)return;
+  const email=document.getElementById('famAdminEmail');if(email)email.value=u.email||'';
+  const phone=document.getElementById('famAdminPhone');if(phone)phone.value=u.phone||'';
+  setAdminContactEdit('famAdmin',false);
 }
 function famAdminSuspend(){
   const id=famAdminId;if(id==null)return;
