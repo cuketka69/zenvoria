@@ -4390,7 +4390,7 @@ function renderAdminUsers(){
       <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))} ${countryFlag(u.country)}</b><span>${esc(u.email)}</span></div></div></td>
       <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${esc(lastSeenText(u.lastSeen))}</td><td>${badge}</td>
       <td><div class="adm-actions" style="justify-content:flex-end">
-        <button class="btn btn-sm btn-gold" onclick="openFamilyAdmin(${u.id})">Zobrazit</button>
+        <button class="btn btn-sm btn-gold" onclick="openFamilyAdmin(${jsq(u.id)})">Zobrazit</button>
       </div></td>
     </tr>`;}).join('');
 }
@@ -4442,7 +4442,7 @@ function ensureFamilyAdminModal(){
   document.body.appendChild(m);
 }
 function openFamilyAdmin(id){
-  const u=USERS.find(x=>x.id===id);if(!u)return;
+  const u=USERS.find(x=>String(x.id)===String(id));if(!u)return;
   ensureFamilyAdminModal();
   famAdminId=id;
   document.getElementById('famAdminTitle').textContent=dispName(u);
@@ -4473,7 +4473,7 @@ function closeFamilyAdmin(){
   famAdminId=null;
 }
 function famAdminSaveTitul(){
-  const u=USERS.find(x=>x.id===famAdminId);if(!u)return;
+  const u=USERS.find(x=>String(x.id)===String(famAdminId));if(!u)return;
   const val=(document.getElementById('famAdminTitul').value||'').trim().slice(0,20);
   u.titul=val||null;
   apiSync(api('/users/'+u.id,{method:'PATCH',body:{titul:u.titul}}));
@@ -4492,7 +4492,7 @@ function famAdminRemove(){
   removeUser(id);
 }
 function toggleSuspendUser(id){
-  const u=USERS.find(x=>x.id===id);if(!u)return;
+  const u=USERS.find(x=>String(x.id)===String(id));if(!u)return;
   const cg=CAREGIVERS.find(c=>String(c.email||'').toLowerCase()===String(u.email||'').toLowerCase());
   const suspended=isUserEffectivelySuspended(u);
   const doIt=()=>{
@@ -4510,11 +4510,11 @@ function toggleSuspendUser(id){
   }else doIt();
 }
 function removeUser(id){
-  const u=USERS.find(x=>x.id===id);if(!u)return;
+  const u=USERS.find(x=>String(x.id)===String(id));if(!u)return;
   askConfirm({title:'Odebrat uživatele?',icon:trashSVG(),
     message:`Opravdu chcete odebrat uživatele ${esc(u.name)}? Tato akce je nevratná.`,
     confirmLabel:'Odebrat',danger:true,onConfirm:()=>{
-      USERS=USERS.filter(x=>x.id!==id);
+      USERS=USERS.filter(x=>String(x.id)!==String(id));
       apiSync(api('/users/'+id,{method:'DELETE'}));
       renderAdminUsers();
       toast(`${esc(u.name)} odebrán.`);
