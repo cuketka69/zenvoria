@@ -5114,13 +5114,50 @@ const AUDIT_ROLE_LABELS={admin:'Správce',caregiver:'Pečovatelka',family:'Rodin
 const AUDIT_TARGET_LABELS={user:'Uživatel',caregiver:'Pečovatelka',verification:'Ověření',setting:'Nastavení',broadcast:'Hromadná zpráva',order:'Objednávka','reset-token':'Token pro obnovu','email-change':'Změna e-mailu'};
 const AUDIT_META_KEYS={reason:'Důvod',userFound:'Uživatel nalezen',plan:'Tarif',status:'Stav',amount:'Částka',audience:'Příjemci',key:'Klíč'};
 const AUDIT_REASONS={invalid_credentials:'Nesprávné údaje',suspended:'Účet pozastaven',expired:'Platnost vypršela',used:'Již použito',invalid:'Neplatné',not_found:'Nenalezeno'};
+Object.assign(AUDIT_ACTION_LABELS,{
+  'email.send':'Odeslání e-mailu',
+  'notification.create':'Vytvoření notifikace',
+  'chat.message.send':'Odeslání zprávy v chatu',
+  'chat.message.forward':'Přeposlání zprávy v chatu'
+});
+Object.assign(AUDIT_ROLE_LABELS,{system:'Systém'});
+Object.assign(AUDIT_TARGET_LABELS,{email:'E-mail',notification:'Notifikace',conversation:'Konverzace'});
+Object.assign(AUDIT_META_KEYS,{
+  to:'Komu',
+  subject:'Předmět',
+  category:'Kategorie',
+  source:'Zdroj',
+  hasText:'Má text',
+  hasHtml:'Má HTML',
+  textLength:'Délka textu',
+  htmlLength:'Délka HTML',
+  attachments:'Přílohy',
+  provider:'Poskytovatel',
+  providerId:'ID poskytovatele',
+  error:'Chyba',
+  messageId:'ID zprávy',
+  recipientId:'Příjemce',
+  textPreview:'Náhled textu',
+  hasImage:'Má obrázek',
+  hasTerm:'Má termín',
+  replyToId:'Odpověď na',
+  sourceConversationId:'Zdrojová konverzace',
+  sourceMessageId:'Zdrojová zpráva',
+  userId:'Uživatel',
+  notificationType:'Typ notifikace',
+  title:'Titulek',
+  bodyPreview:'Náhled obsahu',
+  link:'Odkaz'
+});
 const auditActionLabel=a=>AUDIT_ACTION_LABELS[a]||a;
 const auditStatusLabel=s=>AUDIT_STATUS_LABELS[s]||s;
 const auditRoleLabel=r=>AUDIT_ROLE_LABELS[r]||r;
 const auditTargetLabel=t=>AUDIT_TARGET_LABELS[t]||t;
 function auditMetaChip(k,v){
   const key=AUDIT_META_KEYS[k]||k;
-  let val=String(v);
+  let val=Array.isArray(v)
+    ?v.map(x=>typeof x==='object'&&x?Object.entries(x).map(([ak,av])=>`${ak}: ${av}`).join(', '):String(x)).join(' | ')
+    :(v&&typeof v==='object'?Object.entries(v).map(([ak,av])=>`${ak}: ${av}`).join(', '):String(v));
   if(k==='reason')val=AUDIT_REASONS[v]||v;
   else if(val==='true')val='Ano';else if(val==='false')val='Ne';
   return `<span class="chip">${esc(key)}: ${esc(val)}</span>`;
@@ -5144,7 +5181,7 @@ function renderAdminAuditRows(list){
   body.innerHTML=list.length?list.map(log=>{
     const actor=esc(log.actorEmail||log.actorId||'—');
     const meta=log.metadata&&typeof log.metadata==='object'
-      ?Object.entries(log.metadata).slice(0,3).map(([k,v])=>auditMetaChip(k,v)).join('')
+      ?Object.entries(log.metadata).slice(0,6).map(([k,v])=>auditMetaChip(k,v)).join('')
       :'';
     const statusCls=log.status==='success'?'ok':(log.status==='failed'?'bad':'wait');
     return `<tr>

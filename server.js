@@ -602,6 +602,27 @@ function fireAudit(action, details) {
   writeAudit(action, details).catch(() => {});
 }
 
+function auditTextPreview(value, maxLen = 120) {
+  const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+  return text ? text.slice(0, maxLen) : '';
+}
+
+function auditMailRecipients(to) {
+  const list = Array.isArray(to) ? to : [to];
+  return list.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 20);
+}
+
+function auditAttachmentMeta(attachments) {
+  if (!Array.isArray(attachments) || !attachments.length) return [];
+  return attachments.slice(0, 10).map((a) => {
+    const content = a && a.content;
+    return {
+      filename: auditTextPreview(a && a.filename, 180),
+      size: Buffer.isBuffer(content) ? content.length : (typeof content === 'string' ? Buffer.byteLength(content) : null),
+    };
+  });
+}
+
 // názvy tabulek s fallbackem (Webilio-style — lze přepsat env proměnnou)
 const T = {
   users:         process.env.TBL_USERS         || 'zenvoria_users',
@@ -655,8 +676,20 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-async function sendMailSafe({ to, subject, text, html, attachments }) {
+async function sendMailSafe({ to, subject, text, html, attachments, audit = null }) {
   if (!MAIL_ENABLED || !RESEND_API_KEY || !to) return false;
+  const auditMeta = {
+    to: auditMailRecipients(to),
+    subject: auditTextPreview(subject, 200),
+    category: audit && audit.category ? String(audit.category).slice(0, 80) : null,
+    source: audit && audit.source ? String(audit.source).slice(0, 80) : 'sendMailSafe',
+    hasText: !!text,
+    hasHtml: !!html,
+    textLength: String(text || '').length,
+    htmlLength: String(html || '').length,
+    attachments: auditAttachmentMeta(attachments),
+    provider: 'resend',
+  };
   try {
     const body = {
       from: MAIL_FROM,
@@ -684,9 +717,28 @@ async function sendMailSafe({ to, subject, text, html, attachments }) {
       const body = await res.text();
       throw new Error(`Resend ${res.status}: ${body || res.statusText}`);
     }
+    let providerId = null;
+    try {
+      const data = await res.json();
+      providerId = data && (data.id || (data.data && data.data.id)) || null;
+    } catch (e) {}
+    fireAudit('email.send', {
+      actor: { id: null, email: null, role: 'system' },
+      targetType: 'email',
+      targetId: providerId || null,
+      status: 'success',
+      metadata: Object.assign({}, auditMeta, { providerId }),
+    });
     return true;
   } catch (err) {
     console.error('[mail]', err.message);
+    fireAudit('email.send', {
+      actor: { id: null, email: null, role: 'system' },
+      targetType: 'email',
+      targetId: null,
+      status: 'failed',
+      metadata: Object.assign({}, auditMeta, { error: auditTextPreview(err && err.message, 220) }),
+    });
     return false;
   }
 }
@@ -711,7 +763,7 @@ async function notifyMail({ to, settings, category, ...mail }) {
     } catch (e) { s = null; }
   }
   if (!mailAllowed(s, category)) return false;
-  return sendMailSafe({ to, ...mail });
+  return sendMailSafe({ to, ...mail, audit: { category, source: 'notifyMail' } });
 }
 
 /* odkazy na sociální sítě pro e-maily — drženo v cache, aktualizováno z DB
@@ -5903,6 +5955,22 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   const msgOut = { id: Number(row.id), me: true, text, image: image || null, t: t || '', createdAt: now, editedAt: null, deletedAt: null, reactions: {}, forwarded: false, replyTo: replySnippet, term };
   // realtime: pushni zprávu protistraně (pro ni me:false)
   const other = String(conv.user_a) === me ? conv.user_b : conv.user_a;
+  fireAudit('chat.message.send', {
+    req,
+    actor: auditActor(req),
+    targetType: 'conversation',
+    targetId: conv.id,
+    status: 'success',
+    metadata: {
+      messageId: Number(row.id),
+      recipientId: String(other),
+      textLength: text.length,
+      textPreview: auditTextPreview(text),
+      hasImage: !!image,
+      hasTerm: !!term,
+      replyToId,
+    },
+  });
   emitToUser(other, { type: 'message', conversationId: Number(conv.id), message: Object.assign({}, msgOut, { me: false, replyTo: replySnippet ? Object.assign({}, replySnippet, { me: !replySnippet.me }) : null }) });
   notifyOfflineMessage({ conversationId: Number(conv.id), recipientId: other, senderName: req.session.name || '', preview });
   res.json({ message: msgOut });
@@ -6080,6 +6148,22 @@ app.post('/api/conversations/:id/messages/:mid/forward', requireAuth, requireCon
   await restUpdate(T.conversations, `id=eq.${targetId}`, { last_text: preview, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
   const msgOut = { id: Number(row.id), me: true, text: src.text || '', image: src.image || null, t: '', createdAt: now, editedAt: null, deletedAt: null, reactions: {}, forwarded: true, replyTo: null };
   const other = String(target.user_a) === me ? target.user_b : target.user_a;
+  fireAudit('chat.message.forward', {
+    req,
+    actor: auditActor(req),
+    targetType: 'conversation',
+    targetId,
+    status: 'success',
+    metadata: {
+      messageId: Number(row.id),
+      sourceConversationId: Number(req.conversation.id),
+      sourceMessageId: Number(src.id),
+      recipientId: String(other),
+      textLength: String(src.text || '').length,
+      textPreview: auditTextPreview(src.text),
+      hasImage: !!src.image,
+    },
+  });
   emitToUser(other, { type: 'message', conversationId: targetId, message: Object.assign({}, msgOut, { me: false }) });
   res.json({ message: msgOut, conversationId: targetId });
 }));
@@ -6216,6 +6300,19 @@ async function createNotification(userId, { type, title, body, link }) {
     emitToUser(userId, { type: 'app-notification', notification: {
       id: Number(row.id), type: row.type, title: row.title, body: row.body, link: row.link, readAt: null, createdAt: row.created_at,
     } });
+    fireAudit('notification.create', {
+      actor: { id: null, email: null, role: 'system' },
+      targetType: 'notification',
+      targetId: row.id,
+      status: 'success',
+      metadata: {
+        userId: String(userId),
+        notificationType: type || null,
+        title: auditTextPreview(title, 160),
+        bodyPreview: auditTextPreview(body, 160),
+        link: link || null,
+      },
+    });
   } catch (e) { console.warn('[notif] createNotification failed:', e.message); }
 }
 
