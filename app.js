@@ -5275,10 +5275,10 @@ async function renderAdminTrustSignals(){
       const roleLabel=s.role==='caregiver'?'Pečovatelka':(s.role==='family'?'Rodina':(s.role||'—'));
       const statusBadge=s.accountStatus==='suspended'?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
       return `<tr>
-        <td><b>${esc(s.name||s.email)}</b><div style="font-size:12px;color:var(--muted)">${esc(s.email)} · ${esc(roleLabel)}</div></td>
-        <td>${s.reportsResolved} / ${s.reportsDismissed} / ${s.reportsPending}</td>
-        <td>${s.timesBlocked}</td>
-        <td>${s.role?statusBadge:'—'}</td>
+        <td data-label=""><b>${esc(s.name||s.email)}</b><div style="font-size:12px;color:var(--muted)">${esc(s.email)} · ${esc(roleLabel)}</div></td>
+        <td data-label="Nahlášení (vyřešeno/zamítnuto/čeká)">${s.reportsResolved} / ${s.reportsDismissed} / ${s.reportsPending}</td>
+        <td data-label="Zablokován (kolikrát)">${s.timesBlocked}</td>
+        <td data-label="Stav účtu">${s.role?statusBadge:'—'}</td>
       </tr>`;
     }).join(''):'<tr><td colspan="4"><div class="empty">Zatím žádný účet nemá nahlášení ani blokaci.</div></td></tr>';
   }catch(e){body.innerHTML='<tr><td colspan="4"><div class="empty">Přehled se nepodařilo načíst.</div></td></tr>';}
@@ -5304,11 +5304,11 @@ function renderAdminInvoices(){
   document.getElementById('admInvCount').textContent=INVOICES.length;
   document.getElementById('admInvBody').innerHTML=INVOICES.length?INVOICES.map(i=>`
     <tr>
-      <td>${esc(i.number)}</td>
-      <td>${esc(i.name||'—')}</td>
-      <td>${i.plan==='premium'?'PREMIUM':'START'}</td>
-      <td>${Number(i.amountCzk||0).toLocaleString('cs-CZ')} ${esc(i.currency||'CZK')}</td>
-      <td>${fmtDate(i.issuedAt)}</td>
+      <td data-label="Číslo">${esc(i.number)}</td>
+      <td data-label="Pečovatelka">${esc(i.name||'—')}</td>
+      <td data-label="Tarif">${i.plan==='premium'?'PREMIUM':'START'}</td>
+      <td data-label="Částka">${Number(i.amountCzk||0).toLocaleString('cs-CZ')} ${esc(i.currency||'CZK')}</td>
+      <td data-label="Vystaveno">${fmtDate(i.issuedAt)}</td>
     </tr>`).join(''):'<tr><td colspan="5"><div class="empty">Zatím žádné faktury.</div></td></tr>';
 }
 function saveStripeConfig(e){

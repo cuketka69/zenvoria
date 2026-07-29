@@ -33,7 +33,7 @@
             <div class="opt-grid" id="bkHours"></div>
           </div>
           <div style="margin-top:14px">
-            <label class="fav-only-toggle"><input type="checkbox" id="bkRecurring" onchange="toggleBkRecurring()"> Opakovat každý týden ve stejný den a čas</label>
+            <label class="fav-only-toggle" style="white-space:normal"><input type="checkbox" id="bkRecurring" onchange="toggleBkRecurring()"> Opakovat každý týden ve stejný den a čas</label>
             <div id="bkRecurringWrap" style="margin-top:10px" hidden>
               <label class="lbl">Počet opakování</label>
               <select class="inp" id="bkOccurrences" onchange="updateSummary()">
@@ -510,7 +510,7 @@
         <div id="chatPinBanner"></div>
         <div class="chat-body" id="chatBody"></div>
         <div id="chatReplyBanner"></div>
-        <div style="display:flex;gap:8px;padding:10px 14px 0" id="chatActions">
+        <div style="display:flex;gap:8px;padding:10px 14px 0;flex-wrap:wrap" id="chatActions">
           <button type="button" class="btn btn-ghost btn-sm" onclick="sendTerm()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><rect x="3.5" y="5" width="17" height="16" rx="2.3" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Poslat termín</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('chatImgInput').click()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:5px"><rect x="3.5" y="5" width="17" height="14" rx="2.3" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="10" r="1.6" stroke="currentColor" stroke-width="1.5"/><path d="m4 17 5-4.5 4 3 3-2.5 4 3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Přiložit obrázek</button>
           <input type="file" id="chatImgInput" accept="image/*" style="display:none" onchange="onChatImage(this)">
@@ -1154,7 +1154,7 @@
     <div class="page-head"><h1>Faktury</h1><p>Vystavené faktury za předplatné Start/Premium (generují se automaticky při platbě).</p></div>
     <div class="panel">
       <div class="panel-h"><b>Poslední faktury</b><span class="count" id="admInvCount">0</span></div>
-      <div class="table-scroll"><table class="adm-table"><thead><tr><th>Číslo</th><th>Pečovatelka</th><th>Tarif</th><th>Částka</th><th>Vystaveno</th></tr></thead><tbody id="admInvBody"></tbody></table></div>
+      <div class="table-scroll"><table class="adm-table adm-table-stack"><thead><tr><th>Číslo</th><th>Pečovatelka</th><th>Tarif</th><th>Částka</th><th>Vystaveno</th></tr></thead><tbody id="admInvBody"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -1180,7 +1180,7 @@
     <div class="page-head"><h1>Důvěryhodnost účtů</h1><p>Souhrn nahlášení a blokací podle e-mailu — signál, které účty stojí za bližší kontrolu.</p></div>
     <div class="panel">
       <div class="panel-h"><b>Účty se signálem</b><span class="count" id="admTrustCount">0</span></div>
-      <div class="table-scroll"><table class="adm-table"><thead><tr><th>Účet</th><th>Nahlášení (vyřešeno/zamítnuto/čeká)</th><th>Zablokován (kolikrát)</th><th>Stav účtu</th></tr></thead><tbody id="admTrustBody"></tbody></table></div>
+      <div class="table-scroll"><table class="adm-table adm-table-stack"><thead><tr><th>Účet</th><th>Nahlášení (vyřešeno/zamítnuto/čeká)</th><th>Zablokován (kolikrát)</th><th>Stav účtu</th></tr></thead><tbody id="admTrustBody"></tbody></table></div>
     </div>
   </div>
 </div>
