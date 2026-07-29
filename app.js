@@ -4526,9 +4526,9 @@ function renderAdminUsers(){
     const badge=suspended?'<span class="badge off">Pozastaven</span>':'<span class="badge ok">Aktivní</span>';
     const phoneBadge=!u.phone?' <span class="badge wait">Chybí telefon</span>':'';
     return `<tr>
-      <td><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))} ${countryFlag(u.country)}${phoneBadge}</b><span>${esc([u.email,u.phone].filter(Boolean).join(' · ')||'—')}</span></div></div></td>
-      <td>${fmtDate(u.joined)}</td><td>${u.orders}</td><td>${esc(lastSeenText(u.lastSeen))}</td><td>${badge}</td>
-      <td><div class="adm-actions" style="justify-content:flex-end">
+      <td data-label=""><div class="u-cell">${avaHtml(esc(u.init),u.photo)}<div><b>${esc(dispName(u))} ${countryFlag(u.country)}${phoneBadge}</b><span>${esc([u.email,u.phone].filter(Boolean).join(' · ')||'—')}</span></div></div></td>
+      <td data-label="Registrace">${fmtDate(u.joined)}</td><td data-label="Objednávek">${u.orders}</td><td data-label="Naposledy online">${esc(lastSeenText(u.lastSeen))}</td><td data-label="Stav">${badge}</td>
+      <td data-label=""><div class="adm-actions" style="justify-content:flex-end">
         <button class="btn btn-sm btn-gold" onclick="openFamilyAdmin(${jsq(u.id)})">Zobrazit</button>
       </div></td>
     </tr>`;}).join(''):'<tr><td colspan="6" class="empty">Žádné rodiny neodpovídají filtru.</td></tr>';

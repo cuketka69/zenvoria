@@ -1196,19 +1196,20 @@
   /* pod 480px se sloupce tabulky pečovatelek přestanou vejít vedle sebe za jakoukoli rozumnou
      míru zmenšení → přepnout na karty (řádek = box, hodnoty pod sebou s popiskem) */
   @media(max-width:706px){
-    .adm-table-cg thead{display:none}
-    .adm-table-cg,.adm-table-cg tbody,.adm-table-cg tr{display:block;width:100%}
-    .adm-table-cg tr{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px}
-    .adm-table-cg td{display:flex!important;align-items:center;justify-content:space-between;gap:12px;
+    .adm-table-stack thead{display:none}
+    .adm-table-stack,.adm-table-stack tbody,.adm-table-stack tr{display:block;width:100%}
+    .adm-table-stack tr{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+    .adm-table-stack td{display:flex!important;align-items:center;justify-content:space-between;gap:12px;
       padding:7px 0;border-bottom:none;width:100%;font-size:13px}
-    .adm-table-cg td[data-label]:not([data-label=""])::before{content:attr(data-label);
+    .adm-table-stack td[data-label]:not([data-label=""])::before{content:attr(data-label);
       font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);flex:0 0 auto}
+    .adm-table-stack td:first-child{justify-content:flex-start}
+    .adm-table-stack .u-cell{width:100%}
+    .adm-table-stack .adm-actions{width:100%}
+    .adm-table-stack .adm-actions .btn{width:100%}
     .adm-table-cg td:nth-child(1),.adm-table-cg td:nth-child(2){justify-content:flex-start}
     .adm-table-cg td:nth-child(6){flex-direction:column;align-items:flex-start;gap:6px}
     .adm-table-cg td:nth-child(6) div{margin-top:0!important}
-    .adm-table-cg .u-cell{width:100%}
-    .adm-table-cg .adm-actions{width:100%}
-    .adm-table-cg .adm-actions .btn{width:100%}
   }
   .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap}
   .badge.ok{color:var(--gold-deep);background:rgba(201,162,51,.14);border:1px solid rgba(201,162,51,.35)}
