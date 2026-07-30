@@ -4345,6 +4345,13 @@ function openCgAdmin(id){
   // předplatné zobrazit sbalené — editor se odkryje až přes „Upravit předplatné"
   const ed=document.getElementById('cgAdminEditor');if(ed)ed.hidden=true;
   const eb=document.getElementById('cgAdminEditBtn');if(eb)eb.style.display='';
+  const cgOrders=ORDERS.filter(o=>o.cid===id).sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('cgAdminOrdCount').textContent=cgOrders.length;
+  document.getElementById('cgAdminOrders').innerHTML=cgOrders.length?cgOrders.slice(0,8).map(o=>`
+    <div class="row" style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px">
+      <span>${esc(sNames(o.service))} · ${fmtDate(o.date)}</span>
+      <span class="status ${ORDER_STATUS[o.status].cls}">${ORDER_STATUS[o.status].label}</span>
+    </div>`).join(''):'<div class="empty">Zatím žádné objednávky.</div>';
   const m=document.getElementById('cgAdminModal');if(m){m.classList.add('open');document.body.style.overflow='hidden';}
   loadAdminHistory('caregiver',id,'cgAdminHistory');
 }
