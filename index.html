@@ -558,61 +558,67 @@
       </div>
     </div>
 
-    <div class="cga-sec-title">Kontakt</div>
-    <div class="grid2">
-      <div><label class="lbl" for="cgAdminEmail">E-mail</label><input class="inp" id="cgAdminEmail" type="email" autocomplete="off"></div>
-      <div><label class="lbl" for="cgAdminPhone">Telefon</label><input class="inp" id="cgAdminPhone" type="tel" autocomplete="off"></div>
-    </div>
-    <button class="btn btn-ghost btn-block" id="cgAdminContactEditBtn" style="margin-top:10px" type="button" onclick="cgAdminEditContact()">Upravit kontakt</button>
-    <div class="cga-edit-actions" id="cgAdminContactActions" hidden>
-      <button class="btn btn-ghost" type="button" onclick="cgAdminCancelContact()">Zrušit</button>
-      <button class="btn btn-gold" type="button" onclick="cgAdminSaveContact()">Uložit kontakt</button>
-    </div>
-    <button class="btn btn-ghost btn-block" id="cgAdminPhoneRequestBtn" style="margin-top:10px" type="button" onclick="cgAdminRequestPhone()">Poslat výzvu k doplnění telefonu</button>
-
-    <div class="cga-sec-title" style="margin-top:24px">Identita</div>
-    <div class="grid2">
-      <div><label class="lbl" for="cgAdminName">Jméno</label><input class="inp" id="cgAdminName" maxlength="120"></div>
-      <div><label class="lbl" for="cgAdminTitul">Titul (nepovinné)</label><input class="inp" id="cgAdminTitul" maxlength="20" placeholder="Ing., Mgr., MUDr. …"></div>
-    </div>
-    <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="cgAdminSaveIdentity()">Uložit identitu</button>
-
-    <div class="cga-sec-title" style="margin-top:24px">Interní poznámka</div>
-    <textarea class="inp" id="cgAdminNote" maxlength="1000" rows="3" placeholder="Např. ověřeno telefonicky, volat po 16:00"></textarea>
-    <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="cgAdminSaveNote()">Uložit poznámku</button>
-
-    <div class="cga-sec-title" style="margin-top:24px">Předplatné</div>
-    <div class="cga-current" id="cgAdminCurrent"></div>
-    <div id="cgAdminEditor" hidden>
-      <div class="cga-form">
-        <div><label class="lbl" for="cgAdminPlan">Tarif</label>
-          <select class="inp" id="cgAdminPlan" onchange="cgAdminToggleUntil()">
-            <option value="none">Bez plánu</option>
-            <option value="start">START</option>
-            <option value="premium">PREMIUM</option>
-          </select>
+    <div class="cga-cols">
+      <div class="cga-col">
+        <div class="cga-sec-title">Kontakt</div>
+        <div class="grid2">
+          <div><label class="lbl" for="cgAdminEmail">E-mail</label><input class="inp" id="cgAdminEmail" type="email" autocomplete="off"></div>
+          <div><label class="lbl" for="cgAdminPhone">Telefon</label><input class="inp" id="cgAdminPhone" type="tel" autocomplete="off"></div>
         </div>
-        <div id="cgAdminUntilWrap"><label class="lbl" for="cgAdminUntil">Platí do</label>
-          <input class="inp" type="date" id="cgAdminUntil">
-          <span class="cga-hint">Prázdné = neomezeně</span>
+        <button class="btn btn-ghost btn-block" id="cgAdminContactEditBtn" style="margin-top:10px" type="button" onclick="cgAdminEditContact()">Upravit kontakt</button>
+        <div class="cga-edit-actions" id="cgAdminContactActions" hidden>
+          <button class="btn btn-ghost" type="button" onclick="cgAdminCancelContact()">Zrušit</button>
+          <button class="btn btn-gold" type="button" onclick="cgAdminSaveContact()">Uložit kontakt</button>
         </div>
+        <button class="btn btn-ghost btn-block" id="cgAdminPhoneRequestBtn" style="margin-top:10px" type="button" onclick="cgAdminRequestPhone()">Poslat výzvu k doplnění telefonu</button>
+
+        <div class="cga-sec-title" style="margin-top:24px">Identita</div>
+        <div class="grid2">
+          <div><label class="lbl" for="cgAdminName">Jméno</label><input class="inp" id="cgAdminName" maxlength="120"></div>
+          <div><label class="lbl" for="cgAdminTitul">Titul (nepovinné)</label><input class="inp" id="cgAdminTitul" maxlength="20" placeholder="Ing., Mgr., MUDr. …"></div>
+        </div>
+        <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="cgAdminSaveIdentity()">Uložit identitu</button>
+
+        <div class="cga-sec-title" style="margin-top:24px">Interní poznámka</div>
+        <textarea class="inp" id="cgAdminNote" maxlength="1000" rows="3" placeholder="Např. ověřeno telefonicky, volat po 16:00"></textarea>
+        <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="cgAdminSaveNote()">Uložit poznámku</button>
       </div>
-      <div class="cga-edit-actions">
-        <button class="btn btn-ghost" type="button" onclick="cgAdminCancelEdit()">Zrušit</button>
-        <button class="btn btn-gold" type="button" onclick="cgAdminSavePlan()">Uložit předplatné</button>
+
+      <div class="cga-col">
+        <div class="cga-sec-title" style="margin-top:0">Předplatné</div>
+        <div class="cga-current" id="cgAdminCurrent"></div>
+        <div id="cgAdminEditor" hidden>
+          <div class="cga-form">
+            <div><label class="lbl" for="cgAdminPlan">Tarif</label>
+              <select class="inp" id="cgAdminPlan" onchange="cgAdminToggleUntil()">
+                <option value="none">Bez plánu</option>
+                <option value="start">START</option>
+                <option value="premium">PREMIUM</option>
+              </select>
+            </div>
+            <div id="cgAdminUntilWrap"><label class="lbl" for="cgAdminUntil">Platí do</label>
+              <input class="inp" type="date" id="cgAdminUntil">
+              <span class="cga-hint">Prázdné = neomezeně</span>
+            </div>
+          </div>
+          <div class="cga-edit-actions">
+            <button class="btn btn-ghost" type="button" onclick="cgAdminCancelEdit()">Zrušit</button>
+            <button class="btn btn-gold" type="button" onclick="cgAdminSavePlan()">Uložit předplatné</button>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-block" id="cgAdminEditBtn" style="margin-top:14px" type="button" onclick="cgAdminEditPlan()">Upravit předplatné</button>
+
+        <div class="cga-sec-title" style="margin-top:24px">Akce</div>
+        <div class="cga-actions">
+          <button class="btn btn-block" id="cgAdminSuspendBtn" type="button" onclick="cgAdminSuspend()">Pozastavit</button>
+          <button class="btn btn-ghost btn-block" id="cgAdminUnverifyBtn" type="button" onclick="cgAdminUnverify()">Odebrat ověření</button>
+          <button class="btn btn-decline btn-block" type="button" onclick="cgAdminRemove()">Odebrat pečovatelku</button>
+        </div>
+
+        <div class="cga-sec-title" style="margin-top:24px">Poslední změny</div>
+        <div id="cgAdminHistory" class="audit-history"><div class="empty">Načítám historii…</div></div>
       </div>
     </div>
-    <button class="btn btn-ghost btn-block" id="cgAdminEditBtn" style="margin-top:14px" type="button" onclick="cgAdminEditPlan()">Upravit předplatné</button>
-
-    <div class="cga-sec-title" style="margin-top:24px">Akce</div>
-    <div class="cga-actions">
-      <button class="btn btn-block" id="cgAdminSuspendBtn" type="button" onclick="cgAdminSuspend()">Pozastavit</button>
-      <button class="btn btn-ghost btn-block" id="cgAdminUnverifyBtn" type="button" onclick="cgAdminUnverify()">Odebrat ověření</button>
-      <button class="btn btn-decline btn-block" type="button" onclick="cgAdminRemove()">Odebrat pečovatelku</button>
-    </div>
-
-    <div class="cga-sec-title" style="margin-top:24px">Poslední změny</div>
-    <div id="cgAdminHistory" class="audit-history"><div class="empty">Načítám historii…</div></div>
   </div>
 </div>
 
