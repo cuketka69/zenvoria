@@ -1612,7 +1612,7 @@
   .star:hover{transform:scale(1.14)}
   .modal-card textarea.inp{min-height:92px;margin-bottom:18px}
   /* admin: správcovský modal pečovatelky */
-  #cgAdminModal .modal-card{max-height:90vh;overflow-y:auto;width:min(1100px,94vw);padding-bottom:36px;
+  #cgAdminModal .modal-card{max-height:90vh;overflow-y:auto;width:min(1300px,94vw);padding-bottom:36px;
     scrollbar-width:thin;scrollbar-color:var(--gold) transparent}
   #cgAdminModal .modal-card::-webkit-scrollbar{width:8px}
   #cgAdminModal .modal-card::-webkit-scrollbar-thumb{background:var(--gold);border-radius:8px}
