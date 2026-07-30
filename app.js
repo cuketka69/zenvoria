@@ -2219,7 +2219,7 @@ function userPhotoByEmail(email){
 function setAva(el,photo,init){
   if(!el)return;
   el.style.backgroundImage='';el.style.color='';
-  if(photo){el.innerHTML=`<img src="${esc(photo)}" alt="" loading="lazy" decoding="async">`;}
+  if(photo){el.innerHTML=`<img src="${esc(photo)}" alt="" loading="lazy" decoding="async" style="cursor:zoom-in" onclick="openImgLightbox(${jsq(photo)})">`;}
   else{el.textContent=init;}
 }
 /* propíše profilovou fotku pečovatelky do seznamu (Jana = id 1) */
