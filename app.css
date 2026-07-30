@@ -1625,11 +1625,15 @@
   #admOrderModal .modal-card::-webkit-scrollbar{width:8px}
   #admOrderModal .modal-card::-webkit-scrollbar-thumb{background:var(--gold);border-radius:8px}
   #cgAdminModal .modal-card{overscroll-behavior:contain}
-  #famAdminModal .modal-card,
   #admOrderModal .modal-card{max-height:90vh;overflow-y:auto;overscroll-behavior:contain;width:min(460px,94vw);padding-bottom:36px;
+    scrollbar-width:thin;scrollbar-color:var(--gold) transparent}
+  #famAdminModal .modal-card{max-height:90vh;overflow-y:auto;overscroll-behavior:contain;width:min(1300px,94vw);padding-bottom:36px;
     scrollbar-width:thin;scrollbar-color:var(--gold) transparent}
   #famAdminModal .modal-card::-webkit-scrollbar{width:8px}
   #famAdminModal .modal-card::-webkit-scrollbar-thumb{background:var(--gold);border-radius:8px}
+  @media(min-width:820px){
+    #famAdminModal .cga-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;align-items:start}
+  }
   .cga-head{display:flex;gap:14px;align-items:center;padding-right:26px;margin-bottom:22px}
   .cga-head .ava{flex:0 0 auto}
   .cga-head-tx{min-width:0}

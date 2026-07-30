@@ -638,43 +638,49 @@
       </div>
     </div>
 
-    <div class="cga-sec-title" style="margin-top:24px">Kontakt</div>
-    <div class="grid2">
-      <div><label class="lbl" for="famAdminEmail">E-mail</label><input class="inp" id="famAdminEmail" type="email" autocomplete="off"></div>
-      <div><label class="lbl" for="famAdminPhone">Telefon</label><input class="inp" id="famAdminPhone" type="tel" autocomplete="off"></div>
+    <div class="cga-cols">
+      <div class="cga-col">
+        <div class="cga-sec-title" style="margin-top:0">Kontakt</div>
+        <div class="grid2">
+          <div><label class="lbl" for="famAdminEmail">E-mail</label><input class="inp" id="famAdminEmail" type="email" autocomplete="off"></div>
+          <div><label class="lbl" for="famAdminPhone">Telefon</label><input class="inp" id="famAdminPhone" type="tel" autocomplete="off"></div>
+        </div>
+        <button class="btn btn-ghost btn-block" id="famAdminContactEditBtn" style="margin-top:10px" type="button" onclick="famAdminEditContact()">Upravit kontakt</button>
+        <div class="cga-edit-actions" id="famAdminContactActions" hidden>
+          <button class="btn btn-ghost" type="button" onclick="famAdminCancelContact()">Zrušit</button>
+          <button class="btn btn-gold" type="button" onclick="famAdminSaveContact()">Uložit kontakt</button>
+        </div>
+        <button class="btn btn-ghost btn-block" id="famAdminPhoneRequestBtn" style="margin-top:10px" type="button" onclick="famAdminRequestPhone()">Poslat výzvu k doplnění telefonu</button>
+
+        <div class="cga-sec-title" style="margin-top:24px">Identita</div>
+        <div class="grid2">
+          <div><label class="lbl" for="famAdminName">Jméno</label><input class="inp" id="famAdminName" maxlength="120"></div>
+          <div><label class="lbl" for="famAdminTitul">Titul (nepovinné)</label><input class="inp" id="famAdminTitul" maxlength="20" placeholder="Ing., Mgr., MUDr. …"></div>
+        </div>
+        <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="famAdminSaveIdentity()">Uložit identitu</button>
+
+        <div class="cga-sec-title" style="margin-top:24px">Interní poznámka</div>
+        <textarea class="inp" id="famAdminNote" maxlength="1000" rows="3" placeholder="Např. volat po 16:00, špatný e-mail"></textarea>
+        <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="famAdminSaveNote()">Uložit poznámku</button>
+      </div>
+
+      <div class="cga-col">
+        <div class="cga-sec-title" style="margin-top:0">Objednávky (<span id="famAdminOrdCount">0</span>)</div>
+        <div id="famAdminOrders"></div>
+
+        <div class="cga-sec-title" style="margin-top:24px">Recenze od pečovatelek (<span id="famAdminRevCount">0</span>)</div>
+        <div id="famAdminReviews"></div>
+
+        <div class="cga-sec-title" style="margin-top:24px">Akce</div>
+        <div class="cga-actions">
+          <button class="btn btn-block" id="famAdminSuspendBtn" type="button" onclick="famAdminSuspend()">Pozastavit</button>
+          <button class="btn btn-decline btn-block" type="button" onclick="famAdminRemove()">Odebrat rodinu</button>
+        </div>
+
+        <div class="cga-sec-title" style="margin-top:24px">Poslední změny</div>
+        <div id="famAdminHistory" class="audit-history"><div class="empty">Načítám historii…</div></div>
+      </div>
     </div>
-    <button class="btn btn-ghost btn-block" id="famAdminContactEditBtn" style="margin-top:10px" type="button" onclick="famAdminEditContact()">Upravit kontakt</button>
-    <div class="cga-edit-actions" id="famAdminContactActions" hidden>
-      <button class="btn btn-ghost" type="button" onclick="famAdminCancelContact()">Zrušit</button>
-      <button class="btn btn-gold" type="button" onclick="famAdminSaveContact()">Uložit kontakt</button>
-    </div>
-    <button class="btn btn-ghost btn-block" id="famAdminPhoneRequestBtn" style="margin-top:10px" type="button" onclick="famAdminRequestPhone()">Poslat výzvu k doplnění telefonu</button>
-
-    <div class="cga-sec-title" style="margin-top:24px">Identita</div>
-    <div class="grid2">
-      <div><label class="lbl" for="famAdminName">Jméno</label><input class="inp" id="famAdminName" maxlength="120"></div>
-      <div><label class="lbl" for="famAdminTitul">Titul (nepovinné)</label><input class="inp" id="famAdminTitul" maxlength="20" placeholder="Ing., Mgr., MUDr. …"></div>
-    </div>
-    <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="famAdminSaveIdentity()">Uložit identitu</button>
-
-    <div class="cga-sec-title" style="margin-top:24px">Interní poznámka</div>
-    <textarea class="inp" id="famAdminNote" maxlength="1000" rows="3" placeholder="Např. volat po 16:00, špatný e-mail"></textarea>
-    <button class="btn btn-ghost btn-block" style="margin-top:10px" type="button" onclick="famAdminSaveNote()">Uložit poznámku</button>
-
-    <div class="cga-sec-title" style="margin-top:24px">Objednávky (<span id="famAdminOrdCount">0</span>)</div>
-    <div id="famAdminOrders"></div>
-
-    <div class="cga-sec-title" style="margin-top:24px">Recenze od pečovatelek (<span id="famAdminRevCount">0</span>)</div>
-    <div id="famAdminReviews"></div>
-
-    <div class="cga-sec-title" style="margin-top:24px">Akce</div>
-    <div class="cga-actions">
-      <button class="btn btn-block" id="famAdminSuspendBtn" type="button" onclick="famAdminSuspend()">Pozastavit</button>
-      <button class="btn btn-decline btn-block" type="button" onclick="famAdminRemove()">Odebrat rodinu</button>
-    </div>
-
-    <div class="cga-sec-title" style="margin-top:24px">Poslední změny</div>
-    <div id="famAdminHistory" class="audit-history"><div class="empty">Načítám historii…</div></div>
   </div>
 </div>
 
