@@ -1094,6 +1094,9 @@
   .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;
     border:1px solid rgba(201,162,51,.3);background:rgba(201,162,51,.1);color:#C9A233;cursor:pointer;transition:.18s}
   .icon-btn:hover{background:rgba(201,162,51,.22);border-color:rgba(201,162,51,.5)}
+  .adm-table .u-cell span.adm-contact-btns{display:inline-flex;gap:5px;margin-left:8px;vertical-align:middle}
+  .adm-contact-btns .icon-btn{width:22px;height:22px;border-radius:6px}
+  .adm-contact-btns .icon-btn svg{width:12px;height:12px}
   .dash-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;align-items:start;padding-bottom:60px}
   .dash-grid-2{grid-template-columns:1fr 1fr}
   .panel{background:var(--white);border:1px solid var(--line);border-radius:20px;padding:24px 26px;box-shadow:var(--shadow-sm);margin-bottom:24px}

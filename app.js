@@ -4234,9 +4234,10 @@ function renderAdminCaregivers(){
     const phoneBadge=!c.phone?' <span class="badge wait">Chybí telefon</span>':'';
     const chk=!c.plan?`<input type="checkbox" class="cg-upsell-chk" data-id="${c.id}" ${cgUpsellSelected.has(c.id)?'checked':''} onchange="toggleCgUpsell(${c.id},this.checked)">`:'';
     const contact=[c.email, c.phone].filter(Boolean).map(esc).join(' · ')||'—';
+    const contactBtns=`<span class="adm-contact-btns">${c.phone?`<a class="icon-btn" href="tel:${esc(c.phone)}" title="Zavolat" aria-label="Zavolat ${esc(c.phone)}" onclick="event.stopPropagation()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 5c0 8.284 6.716 15 15 15h1a2 2 0 0 0 2-2v-2.2a1 1 0 0 0-.76-.97l-4.13-1.03a1 1 0 0 0-1.05.37l-1.1 1.47a12.06 12.06 0 0 1-5.6-5.6l1.47-1.1a1 1 0 0 0 .37-1.05L9.17 3.76A1 1 0 0 0 8.2 3H6a2 2 0 0 0-2 2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></a>`:''}${c.email?`<a class="icon-btn" href="mailto:${esc(c.email)}" title="Napsat e-mail" aria-label="Napsat e-mail ${esc(c.email)}" onclick="event.stopPropagation()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 6h18v12H3V6Z" stroke="currentColor" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="currentColor" stroke-width="1.6"/></svg></a>`:''}</span>`;
     return `<tr>
       <td data-label="">${chk}</td>
-      <td data-label=""><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(dispName(c))} ${countryFlag(c.country)}${phoneBadge}</b><span>${contact}</span><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
+      <td data-label=""><div class="u-cell">${avaHtml(c.init,c.photo||userPhotoByEmail(c.email))}<div><b>${esc(dispName(c))} ${countryFlag(c.country)}${phoneBadge}</b><span>${contact}${contactBtns}</span><span>${starFillSVG(11)} ${c.rating} · ${c.exp} let praxe</span></div></div></td>
       <td data-label="Lokalita">${esc(c.loc)}</td><td data-label="Sazba">${c.rate} Kč</td><td data-label="Stav">${badge}</td>
       <td data-label="Předplatné">${planBadge}${(isPrem&&c.trialUntil)?`<div style="font-size:11.5px;color:var(--muted);margin-top:3px">do ${fmtDate(c.trialUntil)}</div>`:''}</td>
       <td data-label=""><div class="adm-actions" style="justify-content:flex-end">
