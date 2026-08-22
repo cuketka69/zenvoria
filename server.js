@@ -463,6 +463,7 @@ function sanitizeGuideArticles(value) {
   for (const raw of value) {
     if (!raw || typeof raw !== 'object') continue;
     const title = trimmedString(raw.title, 140);
+    const author = trimmedString(raw.author, 120);
     const category = trimmedString(raw.category, 60);
     const lead = trimmedString(raw.lead, 500);
     const body = sanitizeGuideArticleBody(raw.body);
@@ -472,7 +473,7 @@ function sanitizeGuideArticles(value) {
     while (seen.has(slug)) slug = `${slug.slice(0, 76)}-${out.length + 2}`;
     seen.add(slug);
     out.push({
-      slug, title, lead, body, category, image: imageData ? imageData.dataUrl : '',
+      slug, title, author, lead, body, category, image: imageData ? imageData.dataUrl : '',
       time: guideReadingTimeLabel(raw.time),
       published: raw.published !== false,
       updatedAt: trimmedString(raw.updatedAt, 40) || new Date().toISOString(),
