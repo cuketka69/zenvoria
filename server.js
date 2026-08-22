@@ -444,7 +444,7 @@ function sanitizeGuideArticles(value) {
     const lead = trimmedString(raw.lead, 500);
     const body = sanitizeGuideArticleBody(raw.body);
     if (!title || !lead || !body) continue;
-    let slug = slugifyGuideArticle(trimmedString(raw.slug, 80) || title);
+    let slug = slugifyGuideArticle(title);
     while (seen.has(slug)) slug = `${slug.slice(0, 76)}-${out.length + 2}`;
     seen.add(slug);
     const category = ['Začínáme', 'Bezpečí', 'Každodenní péče', 'Pro pečující'].includes(raw.category) ? raw.category : 'Začínáme';

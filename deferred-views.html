@@ -1123,9 +1123,9 @@
               <button type="button" class="btn btn-decline btn-sm" id="admArticleDeleteBtn" onclick="deleteAdminArticle()">Smazat</button>
             </div>
           </div>
-          <div class="grid2">
-            <div><label class="lbl" for="admArticleTitle">Název článku</label><input class="inp" id="admArticleTitle" maxlength="140" oninput="syncAdminArticleSlug()" required></div>
-            <div><label class="lbl" for="admArticleSlug">Adresa článku</label><div class="admin-slug-field"><span>/pruvodce-pece/</span><input class="inp" id="admArticleSlug" maxlength="80" oninput="this.dataset.manual='1'" required></div></div>
+          <div>
+            <label class="lbl" for="admArticleTitle">Název článku</label>
+            <input class="inp" id="admArticleTitle" maxlength="140" required>
           </div>
           <div class="grid2" style="margin-top:14px">
             <div><label class="lbl" for="admArticleCategory">Kategorie</label><select class="inp" id="admArticleCategory"><option>Začínáme</option><option>Bezpečí</option><option>Každodenní péče</option><option>Pro pečující</option></select></div>
