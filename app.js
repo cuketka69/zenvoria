@@ -415,7 +415,7 @@ function openGuideArticle(slug){
 }
 function closeGuideArticle(){guideArticleSlug=null;go('guide');}
 function guideCategoryKey(category){
-  return category==='Bezpečí'?'bezpeci':(category==='Každodenní péče'?'kazdodenni':(category==='Pro pečující'?'pecujici':'zaciname'));
+  return String(category||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'kategorie';
 }
 function guideBodyText(html){
   const el=document.createElement('div');el.innerHTML=html||'';return el.textContent||'';
@@ -433,6 +433,13 @@ function renderGuideHubCards(){
     const empty=document.getElementById('guideEmpty'),title=document.getElementById('guideEmptyTitle'),text=document.getElementById('guideEmptyText'),reset=document.getElementById('guideEmptyReset');
     if(empty)empty.hidden=false;if(title)title.textContent='Zatím zde nejsou žádné články';if(text)text.textContent='Nové rady a návody připravuje tým ZENVORIA.';if(reset)reset.hidden=true;
     return;
+  }
+  const categoryNames=[...new Set(articles.map(article=>article.category).filter(Boolean))];
+  const categoryKeys=categoryNames.map(guideCategoryKey);
+  if(guideCategory!=='all'&&!categoryKeys.includes(guideCategory))guideCategory='all';
+  if(filters){
+    filters.innerHTML=`<button type="button" class="guide-filter${guideCategory==='all'?' on':''}" data-guide-filter="all">Všechny</button>`+categoryNames.map((category,index)=>`<button type="button" class="guide-filter${guideCategory===categoryKeys[index]?' on':''}" data-guide-filter="${esc(categoryKeys[index])}">${esc(category)}</button>`).join('');
+    filters.querySelectorAll('.guide-filter').forEach(button=>{button.onclick=()=>setGuideFilter(button.dataset.guideFilter,button);});
   }
   featured.hidden=false;grid.hidden=false;if(tip)tip.hidden=false;if(filters)filters.hidden=false;if(intro)intro.hidden=false;
   const first=articles[0];
@@ -573,7 +580,7 @@ function enhanceSelect(sel){
   car.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   btn.appendChild(lbl); btn.appendChild(car);
   const menu=document.createElement('div'); menu.id=ddId+'menu'; menu.className='dd-menu'; menu.setAttribute('role','listbox');
-  const sync=()=>{lbl.textContent=sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:'';};
+  const sync=()=>{lbl.textContent=sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:'';btn.disabled=!!sel.disabled;if(sel.disabled){wrap.classList.remove('open');btn.setAttribute('aria-expanded','false');}};
   let active=-1;
   const items=()=>Array.from(menu.querySelectorAll('.dd-opt'));
   const setActive=(i)=>{
@@ -608,7 +615,7 @@ function enhanceSelect(sel){
     setActive(selectedIdx>=0?selectedIdx:0);
   };
   const close=()=>{wrap.classList.remove('open');btn.setAttribute('aria-expanded','false');};
-  btn.onclick=e=>{e.stopPropagation();wrap.classList.contains('open')?close():open();};
+  btn.onclick=e=>{e.stopPropagation();if(btn.disabled)return;wrap.classList.contains('open')?close():open();};
   btn.addEventListener('keydown',e=>{
     const opened=wrap.classList.contains('open');
     if(e.key==='ArrowDown'){e.preventDefault();opened?setActive(active+1):open();}
@@ -5223,6 +5230,7 @@ async function renderAdminStats(){
 const SERVICE_DEFAULT_ICON='M9 11l3 3L22 4M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11';
 /* ---- ADMIN: články Průvodce péčí ---- */
 let adminGuideArticles=[];
+let adminGuideCategories=[];
 let adminGuideLoaded=false;
 let adminGuideEditingSlug=null;
 async function renderAdminArticles(){
@@ -5233,14 +5241,59 @@ async function renderAdminArticles(){
     try{
       const data=await api('/admin/guide-articles');
       adminGuideArticles=data&&data.configured?(data.articles||[]):guideArticleArray(true);
+      adminGuideCategories=data&&Array.isArray(data.categories)?data.categories:[];
       adminGuideLoaded=true;
       if(data&&data.configured)applyGuideArticles(adminGuideArticles);
     }catch(e){
-      adminGuideArticles=guideArticleArray(true);adminGuideLoaded=true;
+      adminGuideArticles=guideArticleArray(true);adminGuideCategories=[];adminGuideLoaded=true;
       toast('Články z databáze se nepodařilo načíst: '+(e.message||''),'declined');
     }
   }
+  renderAdminGuideCategories();
   renderAdminArticleList();
+}
+function renderAdminGuideCategories(selectedCategory){
+  const list=document.getElementById('admGuideCategoryList'),select=document.getElementById('admArticleCategory'),newButton=document.getElementById('admArticleNewBtn');
+  if(newButton)newButton.disabled=!adminGuideCategories.length;
+  if(list){
+    list.innerHTML=adminGuideCategories.length?adminGuideCategories.map((category,index)=>`<span class="admin-guide-category-chip">${esc(category)}<button type="button" data-guide-category-index="${index}" aria-label="Smazat kategorii ${esc(category)}">×</button></span>`).join(''):'<span class="empty">Zatím nemáte vytvořenou žádnou kategorii.</span>';
+    list.querySelectorAll('[data-guide-category-index]').forEach(button=>{button.onclick=()=>deleteAdminGuideCategory(Number(button.dataset.guideCategoryIndex));});
+  }
+  if(select){
+    const current=selectedCategory!==undefined?selectedCategory:select.value;
+    select.innerHTML=adminGuideCategories.length?'<option value="">Vyberte kategorii</option>'+adminGuideCategories.map(category=>`<option value="${esc(category)}">${esc(category)}</option>`).join(''):'<option value="">Nejprve vytvořte kategorii</option>';
+    select.disabled=!adminGuideCategories.length;
+    select.value=adminGuideCategories.includes(current)?current:'';
+    if(select._ddRefresh)select._ddRefresh();
+  }
+}
+async function persistAdminGuideCategories(successMessage,previousCategories){
+  const button=document.getElementById('admGuideCategoryAddBtn');if(button)button.disabled=true;
+  try{
+    const result=await api('/settings/guideCategories',{method:'PUT',body:{value:adminGuideCategories}});
+    if(result&&Array.isArray(result.value))adminGuideCategories=result.value;
+    renderAdminGuideCategories();toast(successMessage,'success');return true;
+  }catch(e){
+    if(previousCategories)adminGuideCategories=previousCategories;
+    renderAdminGuideCategories();toast('Uložení kategorií se nezdařilo: '+(e.message||''),'declined');return false;
+  }finally{if(button)button.disabled=false;}
+}
+function addAdminGuideCategory(e){
+  if(e)e.preventDefault();
+  const input=document.getElementById('admGuideCategoryName'),err=document.getElementById('admGuideCategoryErr');
+  const name=String(input&&input.value||'').trim();if(err)err.textContent='';
+  if(!name){if(err)err.textContent='Zadejte název kategorie.';return false;}
+  if(adminGuideCategories.some(category=>guideCategoryKey(category)===guideCategoryKey(name))){if(err)err.textContent='Stejná nebo příliš podobná kategorie už existuje.';return false;}
+  const previous=[...adminGuideCategories];adminGuideCategories.push(name);renderAdminGuideCategories();
+  persistAdminGuideCategories('Kategorie byla přidána.',previous).then(ok=>{if(ok&&input){input.value='';input.focus();}});
+  return false;
+}
+function deleteAdminGuideCategory(index){
+  const category=adminGuideCategories[index];if(!category)return;
+  if(adminGuideArticles.some(article=>article.category===category)){toast('Kategorii nelze smazat, protože ji používá některý článek.','declined');return;}
+  askConfirm({title:'Smazat kategorii?',icon:trashSVG(),message:`Kategorie „${esc(category)}“ bude trvale odstraněna.`,confirmLabel:'Smazat',danger:true,onConfirm:async()=>{
+    const previous=[...adminGuideCategories];adminGuideCategories.splice(index,1);renderAdminGuideCategories();await persistAdminGuideCategories('Kategorie byla smazána.',previous);
+  }});
 }
 function renderAdminArticleList(){
   const list=document.getElementById('admArticleList'),count=document.getElementById('admArticleCount');
@@ -5266,20 +5319,22 @@ function showAdminArticleForm(article,isNew){
   document.getElementById('admArticleFormEyebrow').textContent=isNew?'Nový článek':'Úprava článku';
   document.getElementById('admArticleFormTitle').textContent=isNew?'Nový článek':article.title;
   document.getElementById('admArticleTitle').value=article.title||'';
-  document.getElementById('admArticleCategory').value=article.category||'Začínáme';
+  renderAdminGuideCategories(article.category||'');
   document.getElementById('admArticleTime').value=guideReadingMinutes(article.time);
   document.getElementById('admArticleLead').value=article.lead||'';
   document.getElementById('admArticleBody').innerHTML=article.body||'<h2>Začněte psát</h2><p>Sem napište obsah článku.</p>';
   document.getElementById('admArticlePublished').checked=article.published!==false;
-  document.getElementById('admArticleDeleteBtn').hidden=isNew;
-  document.getElementById('admArticlePreviewBtn').hidden=isNew;
+  const deleteButton=document.getElementById('admArticleDeleteBtn'),previewButton=document.getElementById('admArticlePreviewBtn');
+  if(deleteButton){deleteButton.hidden=isNew;if(deleteButton.parentElement)deleteButton.parentElement.hidden=isNew;}
+  if(previewButton){previewButton.hidden=isNew;if(previewButton.parentElement)previewButton.parentElement.hidden=isNew;}
   document.getElementById('admArticleErr').textContent='';
   document.getElementById('admArticleSavedAt').textContent=article.updatedAt?('Naposledy upraveno '+new Date(article.updatedAt).toLocaleString('cs-CZ',{dateStyle:'medium',timeStyle:'short'})):'';
   const category=document.getElementById('admArticleCategory');if(category&&category._ddRefresh)category._ddRefresh();
   renderAdminArticleList();
 }
 function newAdminArticle(){
-  showAdminArticleForm({title:'',slug:'',category:'Začínáme',time:'5 minut čtení',lead:'',body:'',published:false},true);
+  if(!adminGuideCategories.length){toast('Nejdříve vytvořte alespoň jednu kategorii.','declined');return;}
+  showAdminArticleForm({title:'',slug:'',category:'',time:'5 minut čtení',lead:'',body:'',published:false},true);
   setTimeout(()=>document.getElementById('admArticleTitle')?.focus(),30);
 }
 function editAdminArticle(slug){
@@ -5314,6 +5369,7 @@ function saveAdminArticle(e){
     updatedAt:new Date().toISOString(),
   };
   if(!article.title||!article.lead||!document.getElementById('admArticleBody').innerText.trim()){err.textContent='Vyplňte název, krátký úvod a obsah článku.';return false;}
+  if(!article.category||!adminGuideCategories.includes(article.category)){err.textContent='Vyberte jednu z vytvořených kategorií.';return false;}
   if(adminGuideArticles.some(item=>item.slug===article.slug&&item.slug!==original)){err.textContent='Článek se stejným nebo příliš podobným názvem už existuje.';return false;}
   const index=original?adminGuideArticles.findIndex(item=>item.slug===original):-1;
   if(index>=0)adminGuideArticles.splice(index,1,article);else adminGuideArticles.push(article);

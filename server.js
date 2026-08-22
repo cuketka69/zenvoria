@@ -252,7 +252,7 @@ const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks', 'signupPlan', 'planPe
 const ADMIN_UPDATABLE_USER_STATUSES = new Set(['active', 'suspended']);
 const ADMIN_UPDATABLE_CAREGIVER_STATUSES = new Set(['pending', 'verified', 'rejected']);
 const ADMIN_UPDATABLE_CAREGIVER_PLANS = new Set(['start', 'premium']);
-const ADMIN_UPDATABLE_SETTING_KEYS = new Set([...PUBLIC_SETTINGS_KEYS, 'guideArticles']);
+const ADMIN_UPDATABLE_SETTING_KEYS = new Set([...PUBLIC_SETTINGS_KEYS, 'guideArticles', 'guideCategories']);
 const rateLimitStore = new Map();
 
 function trimmedString(value, maxLen = 0) {
@@ -415,6 +415,21 @@ function slugifyGuideArticle(value) {
   return String(value || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'clanek';
 }
+function sanitizeGuideCategories(value) {
+  if (!Array.isArray(value)) return null;
+  const seen = new Set();
+  const categories = [];
+  for (const raw of value) {
+    if (typeof raw !== 'string') continue;
+    const name = trimmedString(raw, 60);
+    const key = slugifyGuideArticle(name);
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    categories.push(name);
+    if (categories.length >= 30) break;
+  }
+  return categories;
+}
 function guideReadingTimeLabel(value) {
   const match = String(value || '').match(/^\s*(\d+)(?:\s|$)/);
   const parsed = match ? Number(match[1]) : 5;
@@ -448,13 +463,13 @@ function sanitizeGuideArticles(value) {
   for (const raw of value) {
     if (!raw || typeof raw !== 'object') continue;
     const title = trimmedString(raw.title, 140);
+    const category = trimmedString(raw.category, 60);
     const lead = trimmedString(raw.lead, 500);
     const body = sanitizeGuideArticleBody(raw.body);
-    if (!title || !lead || !body) continue;
+    if (!title || !category || !lead || !body) continue;
     let slug = slugifyGuideArticle(title);
     while (seen.has(slug)) slug = `${slug.slice(0, 76)}-${out.length + 2}`;
     seen.add(slug);
-    const category = ['Začínáme', 'Bezpečí', 'Každodenní péče', 'Pro pečující'].includes(raw.category) ? raw.category : 'Začínáme';
     out.push({
       slug, title, lead, body, category,
       time: guideReadingTimeLabel(raw.time),
@@ -473,6 +488,7 @@ function sanitizeSettingValue(key, value) {
   if (key === 'services') return sanitizeServices(value);
   if (key === 'contactInfo') return sanitizeContactInfo(value);
   if (key === 'guideArticles') return sanitizeGuideArticles(value);
+  if (key === 'guideCategories') return sanitizeGuideCategories(value);
   return null;
 }
 
@@ -7398,16 +7414,25 @@ async function loadStoredGuideArticles() {
   return { configured: true, articles: sanitizeGuideArticles(row.value) || [] };
 }
 
+async function loadStoredGuideCategories() {
+  if (!REST_ENABLED) return { configured: false, categories: [] };
+  const rows = await restSelect(T.settings, 'key=eq.guideCategories&limit=1');
+  const row = rows && rows[0];
+  if (!row) return { configured: false, categories: [] };
+  return { configured: true, categories: sanitizeGuideCategories(row.value) || [] };
+}
+
 app.get('/api/guide-articles', h(async (_req, res) => {
-  const stored = await loadStoredGuideArticles();
+  const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
+  const allowed = new Set(storedCategories.categories);
   res.setHeader('Cache-Control', 'no-cache');
-  res.json({ configured: stored.configured, articles: stored.configured ? stored.articles.filter((article) => article.published) : null });
+  res.json({ configured: stored.configured, articles: stored.configured ? stored.articles.filter((article) => article.published && allowed.has(article.category)) : null });
 }));
 
 app.get('/api/admin/guide-articles', requireRole('admin'), h(async (_req, res) => {
-  const stored = await loadStoredGuideArticles();
+  const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
   res.setHeader('Cache-Control', 'no-store');
-  res.json(stored);
+  res.json({ ...stored, categories: storedCategories.categories });
 }));
 
 app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
@@ -7415,11 +7440,22 @@ app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   if (!ADMIN_UPDATABLE_SETTING_KEYS.has(key)) return res.status(400).json({ error: 'Tento klíč nastavení nelze upravit.' });
   const value = sanitizeSettingValue(key, (req.body || {}).value);
   if (value == null) return res.status(400).json({ error: 'Neplatná hodnota nastavení.' });
+  if (key === 'guideArticles') {
+    const storedCategories = await loadStoredGuideCategories();
+    const allowed = new Set(storedCategories.categories);
+    if (value.some((article) => !allowed.has(article.category))) return res.status(400).json({ error: 'Každý článek musí používat některou z vytvořených kategorií.' });
+  }
+  if (key === 'guideCategories') {
+    const [storedArticles, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
+    const allowed = new Set(value);
+    const removed = new Set(storedCategories.categories.filter((category) => !allowed.has(category)));
+    if ((storedArticles.articles || []).some((article) => removed.has(article.category))) return res.status(400).json({ error: 'Nelze odstranit kategorii, kterou používá některý článek.' });
+  }
   await supabaseRestRequest('POST', T.settings, { body: { key, value }, prefer: 'resolution=merge-duplicates,return=minimal' });
   if (key === 'socialLinks') emailSocialLinks = { facebook: value.facebook || '', instagram: value.instagram || '' };
   if (key === 'contactInfo') contactInfo = { name: value.name || DEFAULT_CONTACT_INFO.name, phone: value.phone || '', email: value.email || '', ico: value.ico || '', address: value.address || '' };
   fireAudit('admin.settings.update', { req, actor: auditActor(req), targetType: 'setting', targetId: key, status: 'success' });
-  res.json(key === 'guideArticles' ? { ok: true, value } : { ok: true });
+  res.json(key === 'guideArticles' || key === 'guideCategories' ? { ok: true, value } : { ok: true });
 }));
 
 // zamaskuje tajný klíč pro zobrazení v adminu (nikdy neposílej celý klíč zpět v GET odpovědi)
@@ -7859,8 +7895,9 @@ app.get(['/pruvodce-pece', '/pruvodce-pece/:slug'], h(async (req, res) => {
   const slug = String(req.params.slug || '');
   let storedArticle = null;
   try {
-    const stored = await loadStoredGuideArticles();
-    if (stored.configured && slug) storedArticle = stored.articles.find((article) => article.slug === slug && article.published) || null;
+    const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
+    const allowed = new Set(storedCategories.categories);
+    if (stored.configured && slug) storedArticle = stored.articles.find((article) => article.slug === slug && article.published && allowed.has(article.category)) || null;
     if (stored.configured && slug && !storedArticle) return res.status(404).type('text').send('Článek nebyl nalezen.');
   } catch (e) { /* při výpadku databáze vrátíme běžnou stránku průvodce bez článků */ }
   if (slug && !storedArticle) return res.status(404).type('text').send('Článek nebyl nalezen.');
@@ -8112,8 +8149,9 @@ Sitemap: ${APP_ORIGIN}/sitemap.xml
 app.get('/sitemap.xml', h(async (req, res) => {
   let guideSlugs = [];
   try {
-    const stored = await loadStoredGuideArticles();
-    if (stored.configured) guideSlugs = stored.articles.filter((article) => article.published).map((article) => article.slug);
+    const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
+    const allowed = new Set(storedCategories.categories);
+    if (stored.configured) guideSlugs = stored.articles.filter((article) => article.published && allowed.has(article.category)).map((article) => article.slug);
   } catch (e) { /* při výpadku databáze nevkládáme žádné články */ }
   const guidePaths = ['/pruvodce-pece', ...guideSlugs.map(slug => `/pruvodce-pece/${slug}`)];
   const staticPaths = ['/', '/hledat-peci', '/jak-to-funguje', ...guidePaths, '/cenik', '/obchodni-podminky', '/zasady-cookies'];
