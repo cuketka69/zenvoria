@@ -5250,6 +5250,14 @@ function renderAdminArticleList(){
 function slugifyGuideArticle(value){
   return String(value||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'clanek';
 }
+function guideReadingMinutes(value){
+  const match=String(value||'').match(/^\s*(\d+)(?:\s|$)/),minutes=match?Number(match[1]):5;
+  return Number.isInteger(minutes)&&minutes>=1&&minutes<=999?minutes:5;
+}
+function guideReadingTimeLabel(minutes){
+  const unit=minutes===1?'minuta':(minutes>=2&&minutes<=4?'minuty':'minut');
+  return `${minutes} ${unit} čtení`;
+}
 function showAdminArticleForm(article,isNew){
   const form=document.getElementById('admArticleForm'),placeholder=document.getElementById('admArticlePlaceholder');
   if(!form)return;
@@ -5259,7 +5267,7 @@ function showAdminArticleForm(article,isNew){
   document.getElementById('admArticleFormTitle').textContent=isNew?'Nový článek':article.title;
   document.getElementById('admArticleTitle').value=article.title||'';
   document.getElementById('admArticleCategory').value=article.category||'Začínáme';
-  document.getElementById('admArticleTime').value=article.time||'5 minut čtení';
+  document.getElementById('admArticleTime').value=guideReadingMinutes(article.time);
   document.getElementById('admArticleLead').value=article.lead||'';
   document.getElementById('admArticleBody').innerHTML=article.body||'<h2>Začněte psát</h2><p>Sem napište obsah článku.</p>';
   document.getElementById('admArticlePublished').checked=article.published!==false;
@@ -5292,17 +5300,19 @@ function saveAdminArticle(e){
   const form=document.getElementById('admArticleForm'),err=document.getElementById('admArticleErr');
   const original=adminGuideEditingSlug;
   const title=document.getElementById('admArticleTitle').value.trim();
+  const minutes=Number(document.getElementById('admArticleTime').value);
+  err.textContent='';
+  if(!Number.isInteger(minutes)||minutes<1||minutes>999){err.textContent='Doba čtení musí být celé číslo od 1 do 999.';return false;}
   const article={
     slug:slugifyGuideArticle(title),
     title,
     category:document.getElementById('admArticleCategory').value,
-    time:document.getElementById('admArticleTime').value.trim()||'5 minut čtení',
+    time:guideReadingTimeLabel(minutes),
     lead:document.getElementById('admArticleLead').value.trim(),
     body:document.getElementById('admArticleBody').innerHTML.trim(),
     published:document.getElementById('admArticlePublished').checked,
     updatedAt:new Date().toISOString(),
   };
-  err.textContent='';
   if(!article.title||!article.lead||!document.getElementById('admArticleBody').innerText.trim()){err.textContent='Vyplňte název, krátký úvod a obsah článku.';return false;}
   if(adminGuideArticles.some(item=>item.slug===article.slug&&item.slug!==original)){err.textContent='Článek se stejným nebo příliš podobným názvem už existuje.';return false;}
   const index=original?adminGuideArticles.findIndex(item=>item.slug===original):-1;

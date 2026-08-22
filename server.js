@@ -415,6 +415,13 @@ function slugifyGuideArticle(value) {
   return String(value || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'clanek';
 }
+function guideReadingTimeLabel(value) {
+  const match = String(value || '').match(/^\s*(\d+)(?:\s|$)/);
+  const parsed = match ? Number(match[1]) : 5;
+  const minutes = Number.isInteger(parsed) && parsed >= 1 && parsed <= 999 ? parsed : 5;
+  const unit = minutes === 1 ? 'minuta' : (minutes >= 2 && minutes <= 4 ? 'minuty' : 'minut');
+  return `${minutes} ${unit} čtení`;
+}
 function sanitizeGuideArticleBody(value) {
   return sanitizeHtml(String(value || '').slice(0, 60000), {
     allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'label', 'input'],
@@ -450,7 +457,7 @@ function sanitizeGuideArticles(value) {
     const category = ['Začínáme', 'Bezpečí', 'Každodenní péče', 'Pro pečující'].includes(raw.category) ? raw.category : 'Začínáme';
     out.push({
       slug, title, lead, body, category,
-      time: trimmedString(raw.time, 40) || '5 minut čtení',
+      time: guideReadingTimeLabel(raw.time),
       published: raw.published !== false,
       updatedAt: trimmedString(raw.updatedAt, 40) || new Date().toISOString(),
     });

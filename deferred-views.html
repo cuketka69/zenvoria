@@ -1129,7 +1129,7 @@
           </div>
           <div class="grid2" style="margin-top:14px">
             <div><label class="lbl" for="admArticleCategory">Kategorie</label><select class="inp" id="admArticleCategory"><option>Začínáme</option><option>Bezpečí</option><option>Každodenní péče</option><option>Pro pečující</option></select></div>
-            <div><label class="lbl" for="admArticleTime">Doba čtení</label><input class="inp" id="admArticleTime" maxlength="40" placeholder="Např. 5 minut čtení"></div>
+            <div><label class="lbl" for="admArticleTime">Doba čtení (minuty)</label><input class="inp" id="admArticleTime" type="number" min="1" max="999" step="1" inputmode="numeric" placeholder="5" required></div>
           </div>
           <div style="margin-top:14px"><label class="lbl" for="admArticleLead">Krátký úvod</label><textarea class="inp" id="admArticleLead" maxlength="500" rows="3" required></textarea></div>
           <div style="margin-top:14px">
