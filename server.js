@@ -438,22 +438,39 @@ function guideReadingTimeLabel(value) {
   return `${minutes} ${unit} čtení`;
 }
 function sanitizeGuideArticleBody(value) {
-  return sanitizeHtml(String(value || '').slice(0, 60000), {
-    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'label', 'input'],
+  return sanitizeHtml(String(value || '').slice(0, GUIDE_ARTICLE_BODY_MAX_CHARS), {
+    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'label', 'input', 'img'],
     allowedAttributes: {
       a: ['href', 'target', 'rel'],
       div: ['class'], p: ['class'], span: ['class'],
       input: ['type', 'checked', 'disabled'],
+      img: ['src', 'alt', 'class', 'loading', 'decoding'],
     },
     allowedClasses: {
       div: ['guide-callout', 'guide-callout-warn', 'guide-checklist'],
       p: ['guide-source'],
+      img: ['guide-inline-image'],
     },
     allowedSchemes: ['http', 'https', 'mailto'],
+    allowedSchemesByTag: { img: ['data'] },
     transformTags: {
       a: (_tagName, attribs) => ({ tagName: 'a', attribs: { href: attribs.href || '#', target: '_blank', rel: 'noopener' } }),
       input: (_tagName, attribs) => ({ tagName: 'input', attribs: { type: 'checkbox', ...(attribs.checked != null ? { checked: '' } : {}), disabled: '' } }),
+      img: (_tagName, attribs) => {
+        const image = decodeDataUrl(attribs.src, { maxBytes: GUIDE_INLINE_IMAGE_MAX_BYTES, allowedTypes: GUIDE_INLINE_IMAGE_MIME_TYPES });
+        return {
+          tagName: 'img',
+          attribs: image ? {
+            src: image.dataUrl,
+            alt: trimmedString(attribs.alt, 180),
+            class: 'guide-inline-image',
+            loading: 'lazy',
+            decoding: 'async',
+          } : {},
+        };
+      },
     },
+    exclusiveFilter: (frame) => frame.tag === 'img' && !frame.attribs.src,
   }).trim();
 }
 function sanitizeGuideArticles(value) {
@@ -497,10 +514,14 @@ function sanitizeSettingValue(key, value) {
 /* příloha jako data URL (obrázek / PDF), s limitem velikosti */
 const DATA_URL_RE = /^data:([^;,]+)(;base64)?,([\s\S]*)$/i;
 const PUBLIC_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const GUIDE_INLINE_IMAGE_MIME_TYPES = new Set(['image/webp']);
 const VERIFICATION_FILE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'application/pdf']);
 const UPLOAD_IMAGE_MAX_DIMENSION = parseInt(process.env.UPLOAD_IMAGE_MAX_DIMENSION || '1600', 10);
 const UPLOAD_IMAGE_MAX_PIXELS = parseInt(process.env.UPLOAD_IMAGE_MAX_PIXELS || String(16 * 1000 * 1000), 10);
 const UPLOAD_IMAGE_MAX_SOURCE_DIMENSION = parseInt(process.env.UPLOAD_IMAGE_MAX_SOURCE_DIMENSION || '6000', 10);
+const GUIDE_INLINE_IMAGE_MAX_BYTES = 700 * 1024;
+const GUIDE_INLINE_IMAGE_MAX_COUNT = 8;
+const GUIDE_ARTICLE_BODY_MAX_CHARS = 8 * 1024 * 1024;
 
 function detectDataMime(bytes) {
   if (!Buffer.isBuffer(bytes) || bytes.length < 4) return null;
@@ -581,6 +602,45 @@ async function sanitizePublicImageDataUrl(v, maxBytes = 2 * 1024 * 1024) {
   } catch (e) {
     return null;
   }
+}
+
+function collectGuideInlineImages(articles) {
+  const images = new Set();
+  const pattern = /data:image\/webp;base64,[A-Za-z0-9+/=]+/gi;
+  for (const article of Array.isArray(articles) ? articles : []) {
+    for (const match of String(article && article.body || '').matchAll(pattern)) images.add(match[0]);
+  }
+  return images;
+}
+
+async function sanitizeGuideInlineImages(value, existingImages = new Set()) {
+  if (!Array.isArray(value)) return value;
+  const output = [];
+  const pattern = /data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=\s]+/gi;
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      output.push(raw);
+      continue;
+    }
+    const body = String(raw.body || '').slice(0, GUIDE_ARTICLE_BODY_MAX_CHARS);
+    let rebuilt = '';
+    let lastIndex = 0;
+    let imageCount = 0;
+    for (const match of body.matchAll(pattern)) {
+      rebuilt += body.slice(lastIndex, match.index);
+      const source = match[0].replace(/\s+/g, '');
+      let clean = null;
+      if (imageCount < GUIDE_INLINE_IMAGE_MAX_COUNT) {
+        clean = existingImages.has(source) ? source : await sanitizePublicImageDataUrl(source, GUIDE_INLINE_IMAGE_MAX_BYTES);
+      }
+      rebuilt += clean || '';
+      lastIndex = match.index + match[0].length;
+      imageCount += 1;
+    }
+    rebuilt += body.slice(lastIndex);
+    output.push({ ...raw, body: rebuilt });
+  }
+  return output;
 }
 
 async function sanitizeFileDataUrl(v, maxLen = 7 * 1024 * 1024) {
@@ -7454,10 +7514,17 @@ app.get('/api/admin/guide-articles', requireRole('admin'), h(async (_req, res) =
 app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   const key = String(req.params.key || '').trim();
   if (!ADMIN_UPDATABLE_SETTING_KEYS.has(key)) return res.status(400).json({ error: 'Tento klíč nastavení nelze upravit.' });
-  let value = sanitizeSettingValue(key, (req.body || {}).value);
-  if (value == null) return res.status(400).json({ error: 'Neplatná hodnota nastavení.' });
+  let requestedValue = (req.body || {}).value;
+  let storedGuideContext = null;
   if (key === 'guideArticles') {
     const [storedCategories, storedArticles] = await Promise.all([loadStoredGuideCategories(), loadStoredGuideArticles()]);
+    storedGuideContext = { storedCategories, storedArticles };
+    requestedValue = await sanitizeGuideInlineImages(requestedValue, collectGuideInlineImages(storedArticles.articles));
+  }
+  let value = sanitizeSettingValue(key, requestedValue);
+  if (value == null) return res.status(400).json({ error: 'Neplatná hodnota nastavení.' });
+  if (key === 'guideArticles') {
+    const { storedCategories, storedArticles } = storedGuideContext;
     const existingImages = new Set((storedArticles.articles || []).map((article) => article.image).filter(Boolean));
     for (const article of value) {
       if (!article.image || existingImages.has(article.image)) continue;

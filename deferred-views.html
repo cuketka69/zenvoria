@@ -1147,7 +1147,7 @@
           <div class="admin-article-image-field">
             <label class="lbl">Úvodní obrázek <span class="admin-help" tabindex="0" data-help="Obrázek se zobrazí na kartě článku i na začátku jeho detailu. Server ověří skutečný formát a uloží pouze nově vytvořený bezpečný WebP." aria-label="Nápověda k úvodnímu obrázku">?</span></label>
             <div class="admin-article-image-row">
-              <div class="admin-article-image-preview" id="admArticleImagePreview"><img id="admArticleImagePreviewImg" alt="Náhled úvodního obrázku" hidden><span id="admArticleImagePlaceholder">Použije se výchozí obrázek</span></div>
+              <div class="admin-article-image-preview" id="admArticleImagePreview"><img id="admArticleImagePreviewImg" alt="Náhled úvodního obrázku" hidden><span id="admArticleImagePlaceholder">Bez úvodního obrázku</span></div>
               <div class="admin-article-image-actions">
                 <label class="btn btn-ghost btn-sm">Vybrat obrázek<input type="file" id="admArticleImageInput" accept="image/jpeg,image/png,image/webp" hidden onchange="onAdminArticleImage(event)"></label>
                 <button type="button" class="btn btn-decline btn-sm" id="admArticleImageRemove" onclick="removeAdminArticleImage()" hidden>Odebrat</button>
@@ -1161,7 +1161,7 @@
           </div>
           <div style="margin-top:14px"><label class="lbl" for="admArticleLead">Krátký úvod <span class="admin-help" tabindex="0" data-help="Stručné shrnutí článku, které se zobrazí na kartě článku a ve výsledcích vyhledávání." aria-label="Nápověda ke krátkému úvodu">?</span></label><textarea class="inp" id="admArticleLead" maxlength="500" rows="3" required></textarea></div>
           <div style="margin-top:14px">
-            <label class="lbl" id="admArticleBodyLabel">Obsah článku <span class="admin-help" tabindex="0" data-help="Napište celý článek. Tlačítky pod názvem pole můžete text formátovat, vytvořit seznam nebo vložit odkaz." aria-label="Nápověda k obsahu článku">?</span></label>
+            <label class="lbl" id="admArticleBodyLabel">Obsah článku <span class="admin-help" tabindex="0" data-help="Napište celý článek. Lištou můžete text formátovat, vytvořit seznam, vložit odkaz nebo přidat až 8 obrázků." aria-label="Nápověda k obsahu článku">?</span></label>
             <div class="article-editor-toolbar" role="toolbar" aria-label="Formátování textu">
               <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('bold')" title="Tučně"><b>B</b></button>
               <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('italic')" title="Kurzíva"><i>I</i></button>
@@ -1169,6 +1169,8 @@
               <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('formatBlock','p')" title="Odstavec">Odstavec</button>
               <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('insertUnorderedList')" title="Odrážkový seznam">• Seznam</button>
               <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorLink()" title="Vložit odkaz">Odkaz</button>
+              <button type="button" data-guide-body-image-button title="Vložit obrázek do článku">Obrázek</button>
+              <input type="file" id="admArticleBodyImageInput" accept="image/jpeg,image/png,image/webp" hidden>
               <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('removeFormat')" title="Zrušit formátování">Vyčistit</button>
             </div>
             <div class="article-rich-editor" id="admArticleBody" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="admArticleBodyLabel"></div>
