@@ -260,6 +260,11 @@ function trimmedString(value, maxLen = 0) {
   return maxLen ? v.slice(0, maxLen) : v;
 }
 
+function sanitizedIsoDate(value) {
+  const parsed = Date.parse(String(value || ''));
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : '';
+}
+
 function isEmail(value) {
   const v = trimmedString(value, 320).toLowerCase();
   return !!v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -439,16 +444,18 @@ function guideReadingTimeLabel(value) {
 }
 function sanitizeGuideArticleBody(value) {
   return sanitizeHtml(String(value || '').slice(0, GUIDE_ARTICLE_BODY_MAX_CHARS), {
-    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'label', 'input', 'img'],
+    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'label', 'input', 'figure', 'figcaption', 'img'],
     allowedAttributes: {
       a: ['href', 'target', 'rel'],
       div: ['class'], p: ['class'], span: ['class'],
+      figure: ['class'], figcaption: ['class'],
       input: ['type', 'checked', 'disabled'],
       img: ['src', 'alt', 'class', 'loading', 'decoding'],
     },
     allowedClasses: {
       div: ['guide-callout', 'guide-callout-warn', 'guide-checklist'],
       p: ['guide-source'],
+      figure: ['guide-inline-figure'], figcaption: ['guide-inline-caption'],
       img: ['guide-inline-image'],
     },
     allowedSchemes: ['http', 'https', 'mailto'],
@@ -489,11 +496,15 @@ function sanitizeGuideArticles(value) {
     let slug = slugifyGuideArticle(title);
     while (seen.has(slug)) slug = `${slug.slice(0, 76)}-${out.length + 2}`;
     seen.add(slug);
+    const updatedAt = sanitizedIsoDate(raw.updatedAt) || new Date().toISOString();
+    const published = raw.published !== false;
+    const publishedAt = sanitizedIsoDate(raw.publishedAt) || (published ? updatedAt : '');
     out.push({
       slug, title, author, lead, body, category, image: imageData ? imageData.dataUrl : '',
       time: guideReadingTimeLabel(raw.time),
-      published: raw.published !== false,
-      updatedAt: trimmedString(raw.updatedAt, 40) || new Date().toISOString(),
+      published,
+      publishedAt,
+      updatedAt,
     });
     if (out.length >= 100) break;
   }
