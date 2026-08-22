@@ -16,6 +16,7 @@ const bcrypt = require('bcryptjs');
 const compression = require('compression');
 const PDFDocument = require('pdfkit');
 const sharp = require('sharp');
+const sanitizeHtml = require('sanitize-html');
 
 // --- pojistka proti tichému pádu procesu ---
 // bez tohohle by nezachycená chyba (typicky v na pozadí běžící úloze, ne v HTTP requestu — ty
@@ -251,7 +252,7 @@ const PUBLIC_SETTINGS_KEYS = ['planPrices', 'socialLinks', 'signupPlan', 'planPe
 const ADMIN_UPDATABLE_USER_STATUSES = new Set(['active', 'suspended']);
 const ADMIN_UPDATABLE_CAREGIVER_STATUSES = new Set(['pending', 'verified', 'rejected']);
 const ADMIN_UPDATABLE_CAREGIVER_PLANS = new Set(['start', 'premium']);
-const ADMIN_UPDATABLE_SETTING_KEYS = new Set(PUBLIC_SETTINGS_KEYS);
+const ADMIN_UPDATABLE_SETTING_KEYS = new Set([...PUBLIC_SETTINGS_KEYS, 'guideArticles']);
 const rateLimitStore = new Map();
 
 function trimmedString(value, maxLen = 0) {
@@ -410,6 +411,53 @@ function sanitizeServices(value) {
   }
   return out.length ? out : DEFAULT_SERVICES;
 }
+function slugifyGuideArticle(value) {
+  return String(value || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'clanek';
+}
+function sanitizeGuideArticleBody(value) {
+  return sanitizeHtml(String(value || '').slice(0, 60000), {
+    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'label', 'input'],
+    allowedAttributes: {
+      a: ['href', 'target', 'rel'],
+      div: ['class'], p: ['class'], span: ['class'],
+      input: ['type', 'checked', 'disabled'],
+    },
+    allowedClasses: {
+      div: ['guide-callout', 'guide-callout-warn', 'guide-checklist'],
+      p: ['guide-source'],
+    },
+    allowedSchemes: ['http', 'https', 'mailto'],
+    transformTags: {
+      a: (_tagName, attribs) => ({ tagName: 'a', attribs: { href: attribs.href || '#', target: '_blank', rel: 'noopener' } }),
+      input: (_tagName, attribs) => ({ tagName: 'input', attribs: { type: 'checkbox', ...(attribs.checked != null ? { checked: '' } : {}), disabled: '' } }),
+    },
+  }).trim();
+}
+function sanitizeGuideArticles(value) {
+  if (!Array.isArray(value)) return null;
+  const seen = new Set();
+  const out = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') continue;
+    const title = trimmedString(raw.title, 140);
+    const lead = trimmedString(raw.lead, 500);
+    const body = sanitizeGuideArticleBody(raw.body);
+    if (!title || !lead || !body) continue;
+    let slug = slugifyGuideArticle(trimmedString(raw.slug, 80) || title);
+    while (seen.has(slug)) slug = `${slug.slice(0, 76)}-${out.length + 2}`;
+    seen.add(slug);
+    const category = ['Začínáme', 'Bezpečí', 'Každodenní péče', 'Pro pečující'].includes(raw.category) ? raw.category : 'Začínáme';
+    out.push({
+      slug, title, lead, body, category,
+      time: trimmedString(raw.time, 40) || '5 minut čtení',
+      published: raw.published !== false,
+      updatedAt: trimmedString(raw.updatedAt, 40) || new Date().toISOString(),
+    });
+    if (out.length >= 100) break;
+  }
+  return out;
+}
 function sanitizeSettingValue(key, value) {
   if (key === 'planPrices') return sanitizePlanPrices(value);
   if (key === 'socialLinks') return sanitizeSocialLinks(value);
@@ -417,6 +465,7 @@ function sanitizeSettingValue(key, value) {
   if (key === 'signupPlan') return sanitizeSignupPlan(value);
   if (key === 'services') return sanitizeServices(value);
   if (key === 'contactInfo') return sanitizeContactInfo(value);
+  if (key === 'guideArticles') return sanitizeGuideArticles(value);
   return null;
 }
 
@@ -7327,6 +7376,26 @@ app.delete('/api/caregivers/:id', requireRole('admin'), h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+async function loadStoredGuideArticles() {
+  if (!REST_ENABLED) return { configured: false, articles: null };
+  const rows = await restSelect(T.settings, 'key=eq.guideArticles&limit=1');
+  const row = rows && rows[0];
+  if (!row) return { configured: false, articles: null };
+  return { configured: true, articles: sanitizeGuideArticles(row.value) || [] };
+}
+
+app.get('/api/guide-articles', h(async (_req, res) => {
+  const stored = await loadStoredGuideArticles();
+  res.setHeader('Cache-Control', 'no-cache');
+  res.json({ configured: stored.configured, articles: stored.configured ? stored.articles.filter((article) => article.published) : null });
+}));
+
+app.get('/api/admin/guide-articles', requireRole('admin'), h(async (_req, res) => {
+  const stored = await loadStoredGuideArticles();
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(stored);
+}));
+
 app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   const key = String(req.params.key || '').trim();
   if (!ADMIN_UPDATABLE_SETTING_KEYS.has(key)) return res.status(400).json({ error: 'Tento klíč nastavení nelze upravit.' });
@@ -7336,7 +7405,7 @@ app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   if (key === 'socialLinks') emailSocialLinks = { facebook: value.facebook || '', instagram: value.instagram || '' };
   if (key === 'contactInfo') contactInfo = { name: value.name || DEFAULT_CONTACT_INFO.name, phone: value.phone || '', email: value.email || '', ico: value.ico || '', address: value.address || '' };
   fireAudit('admin.settings.update', { req, actor: auditActor(req), targetType: 'setting', targetId: key, status: 'success' });
-  res.json({ ok: true });
+  res.json(key === 'guideArticles' ? { ok: true, value } : { ok: true });
 }));
 
 // zamaskuje tajný klíč pro zobrazení v adminu (nikdy neposílej celý klíč zpět v GET odpovědi)
@@ -7782,8 +7851,14 @@ const GUIDE_SEO = {
 };
 app.get(['/pruvodce-pece', '/pruvodce-pece/:slug'], h(async (req, res) => {
   const slug = String(req.params.slug || '');
-  if (slug && !GUIDE_SEO[slug]) return res.status(404).type('text').send('Článek nebyl nalezen.');
-  const meta = slug ? GUIDE_SEO[slug] : null;
+  let storedArticle = null;
+  try {
+    const stored = await loadStoredGuideArticles();
+    if (stored.configured && slug) storedArticle = stored.articles.find((article) => article.slug === slug && article.published) || null;
+    if (stored.configured && slug && !storedArticle) return res.status(404).type('text').send('Článek nebyl nalezen.');
+  } catch (e) { /* při výpadku databáze zůstane dostupný výchozí obsah */ }
+  if (slug && !storedArticle && !GUIDE_SEO[slug]) return res.status(404).type('text').send('Článek nebyl nalezen.');
+  const meta = storedArticle ? [storedArticle.title, storedArticle.lead] : (slug ? GUIDE_SEO[slug] : null);
   const canonical = `${APP_ORIGIN}/pruvodce-pece${slug ? `/${slug}` : ''}`;
   const title = meta ? `${meta[0]} — Průvodce péčí ZENVORIA` : 'Průvodce péčí o seniory — ZENVORIA';
   const description = meta ? meta[1] : 'Srozumitelné a praktické návody pro rodiny i pečovatelky — bezpečný domov, léky, pitný režim, hygiena a podpora pečujících.';
@@ -8029,7 +8104,12 @@ Sitemap: ${APP_ORIGIN}/sitemap.xml
 });
 
 app.get('/sitemap.xml', h(async (req, res) => {
-  const guidePaths = ['/pruvodce-pece', ...Object.keys(GUIDE_SEO).map(slug => `/pruvodce-pece/${slug}`)];
+  let guideSlugs = Object.keys(GUIDE_SEO);
+  try {
+    const stored = await loadStoredGuideArticles();
+    if (stored.configured) guideSlugs = stored.articles.filter((article) => article.published).map((article) => article.slug);
+  } catch (e) { /* fallback na výchozí články */ }
+  const guidePaths = ['/pruvodce-pece', ...guideSlugs.map(slug => `/pruvodce-pece/${slug}`)];
   const staticPaths = ['/', '/hledat-peci', '/jak-to-funguje', ...guidePaths, '/cenik', '/obchodni-podminky', '/zasady-cookies'];
   const cgs = await getPublicCaregivers(countryForReq(req));
   const urls = [

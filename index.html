@@ -450,9 +450,9 @@
         <aside class="guide-month-tip" aria-label="Tip měsíce">
           <span class="guide-tip-label">Tip měsíce</span>
           <div class="guide-tip-icon" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 3a7 7 0 0 0-4.2 12.6c.8.6 1.2 1.2 1.2 2.1h6c0-.9.4-1.5 1.2-2.1A7 7 0 0 0 12 3Z" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 21h5M9 18h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
-          <h2>Malé změny, bezpečnější domov</h2>
-          <p>Projít byt zabere jen pár minut. Začněte volnými koberci, osvětlením a cestou na toaletu.</p>
-          <button type="button" class="guide-text-link" onclick="openGuideArticle('bezpecny-domov')">Přečíst návod <span>→</span></button>
+          <h2 id="guideTipTitle">Malé změny, bezpečnější domov</h2>
+          <p id="guideTipLead">Projít byt zabere jen pár minut. Začněte volnými koberci, osvětlením a cestou na toaletu.</p>
+          <button type="button" class="guide-text-link" id="guideTipLink" onclick="openGuideArticle('bezpecny-domov')">Přečíst návod <span>→</span></button>
         </aside>
       </div>
     </section>
@@ -473,7 +473,7 @@
         <button type="button" class="guide-filter" data-guide-filter="pecujici" onclick="setGuideFilter('pecujici',this)">Pro pečující</button>
       </div>
 
-      <div class="guide-featured guide-card" data-category="zaciname" data-search="jak začít s domácí péčí plán rodina pečovatelka">
+      <div class="guide-featured guide-card" id="guideFeatured" data-category="zaciname" data-search="jak začít s domácí péčí plán rodina pečovatelka">
         <div class="guide-featured-image" role="img" aria-label="Pečující osoba drží seniora za ruku"></div>
         <div class="guide-featured-copy">
           <span class="guide-category">Začínáme</span>
