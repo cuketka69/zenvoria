@@ -50,6 +50,7 @@
       <a data-v="home" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home')})">Domů</a>
       <a data-v="search" role="button" tabindex="0" onclick="navProgress(this,()=>{go('search')})">Hledat péči</a>
       <a data-v="howto" role="button" tabindex="0" onclick="navProgress(this,()=>{go('howto')})">Jak to funguje</a>
+      <a data-v="guide" role="button" tabindex="0" onclick="navProgress(this,()=>{openGuideHome()})">Průvodce péčí</a>
     </nav>
     <div class="nav-right">
       <div class="msg-btn-wrap" hidden id="msgBtnWrap">
@@ -112,6 +113,7 @@
       <a data-v="home" role="button" tabindex="0" onclick="navProgress(this,()=>{go('home')})">Domů</a>
       <a data-v="search" role="button" tabindex="0" onclick="navProgress(this,()=>{go('search')})">Hledat péči</a>
       <a data-v="howto" role="button" tabindex="0" onclick="navProgress(this,()=>{go('howto')})">Jak to funguje</a>
+      <a data-v="guide" role="button" tabindex="0" onclick="navProgress(this,()=>{openGuideHome()})">Průvodce péčí</a>
     </div>
     <div class="mm-divider"></div>
     <div id="mmAuth">
@@ -136,6 +138,7 @@
         <div class="hero-cta">
           <button class="btn btn-gold btn-cta" onclick="go('search')">Najít pečovatelku</button>
           <button class="btn btn-ghost" onclick="fillThen(this,()=>{go('howto')})">Jak to funguje</button>
+          <button class="btn btn-ghost hero-guide-btn" onclick="openGuideHome()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5v-16Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Průvodce péčí</button>
         </div>
       </div>
     </div>
@@ -428,6 +431,101 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- ============ PRŮVODCE PÉČÍ ============ -->
+<div class="view" id="view-guide">
+  <div class="guide-hub" id="guideHub">
+    <section class="guide-hero">
+      <div class="wrap guide-hero-grid">
+        <div>
+          <span class="eyebrow">Průvodce péčí</span>
+          <h1>Praktické rady pro péči, která dává <em>jistotu.</em></h1>
+          <p>Srozumitelné návody pro rodiny i pečovatelky — od bezpečného domova po každodenní péči o blízkého.</p>
+          <div class="guide-search" role="search">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <input id="guideSearch" type="search" placeholder="Hledat radu nebo téma…" aria-label="Hledat v průvodci" oninput="filterGuideArticles()">
+          </div>
+        </div>
+        <aside class="guide-month-tip" aria-label="Tip měsíce">
+          <span class="guide-tip-label">Tip měsíce</span>
+          <div class="guide-tip-icon" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 3a7 7 0 0 0-4.2 12.6c.8.6 1.2 1.2 1.2 2.1h6c0-.9.4-1.5 1.2-2.1A7 7 0 0 0 12 3Z" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 21h5M9 18h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+          <h2>Malé změny, bezpečnější domov</h2>
+          <p>Projít byt zabere jen pár minut. Začněte volnými koberci, osvětlením a cestou na toaletu.</p>
+          <button type="button" class="guide-text-link" onclick="openGuideArticle('bezpecny-domov')">Přečíst návod <span>→</span></button>
+        </aside>
+      </div>
+    </section>
+
+    <section class="guide-main wrap">
+      <div class="guide-intro">
+        <div>
+          <span class="eyebrow">Vyberte si téma</span>
+          <h2>Rady pro běžné i náročné chvíle</h2>
+        </div>
+        <p>Každý článek nabízí konkrétní kroky, časté chyby a stručný seznam, který můžete hned použít.</p>
+      </div>
+      <div class="guide-filters" role="group" aria-label="Filtrovat články">
+        <button type="button" class="guide-filter on" data-guide-filter="all" onclick="setGuideFilter('all',this)">Všechny</button>
+        <button type="button" class="guide-filter" data-guide-filter="zaciname" onclick="setGuideFilter('zaciname',this)">Začínáme</button>
+        <button type="button" class="guide-filter" data-guide-filter="bezpeci" onclick="setGuideFilter('bezpeci',this)">Bezpečí</button>
+        <button type="button" class="guide-filter" data-guide-filter="kazdodenni" onclick="setGuideFilter('kazdodenni',this)">Každodenní péče</button>
+        <button type="button" class="guide-filter" data-guide-filter="pecujici" onclick="setGuideFilter('pecujici',this)">Pro pečující</button>
+      </div>
+
+      <div class="guide-featured guide-card" data-category="zaciname" data-search="jak začít s domácí péčí plán rodina pečovatelka">
+        <div class="guide-featured-image" role="img" aria-label="Pečující osoba drží seniora za ruku"></div>
+        <div class="guide-featured-copy">
+          <span class="guide-category">Začínáme</span>
+          <h2>Jak začít s domácí péčí: první kroky pro rodinu</h2>
+          <p>Co si společně ujasnit, jak připravit jednoduchý plán a které informace předat pečovatelce před první návštěvou.</p>
+          <div class="guide-meta"><span>7 minut čtení</span><span>Kontrolní seznam</span></div>
+          <button type="button" class="btn btn-gold" onclick="openGuideArticle('jak-zacit-s-domaci-peci')">Přečíst článek</button>
+        </div>
+      </div>
+
+      <div class="guide-grid" id="guideGrid">
+        <article class="guide-card" data-category="bezpeci" data-search="bezpečný domov prevence pádu koberce světlo koupelna">
+          <div class="guide-card-art guide-art-home"><span class="guide-card-number">01</span></div>
+          <div class="guide-card-body"><span class="guide-category">Bezpečí</span><h3>Bezpečný domov: prevence pádů krok za krokem</h3><p>Praktická kontrola místností a drobné úpravy, které mohou snížit riziko pádu.</p><div class="guide-meta"><span>6 minut</span></div><button type="button" class="guide-text-link" onclick="openGuideArticle('bezpecny-domov')">Přečíst článek <span>→</span></button></div>
+        </article>
+        <article class="guide-card" data-category="kazdodenni" data-search="léky bezpečně seznam dávkování lékárna lékař">
+          <div class="guide-card-art guide-art-meds"><span class="guide-card-number">02</span></div>
+          <div class="guide-card-body"><span class="guide-category">Každodenní péče</span><h3>Jak pomoci s léky bezpečně a bez zmatků</h3><p>Jak vést aktuální seznam, nastavit připomínky a předejít nebezpečným omylům.</p><div class="guide-meta"><span>5 minut</span></div><button type="button" class="guide-text-link" onclick="openGuideArticle('bezpecne-uzivani-leku')">Přečíst článek <span>→</span></button></div>
+        </article>
+        <article class="guide-card" data-category="kazdodenni" data-search="pitný režim hydratace jídlo výživa senioři">
+          <div class="guide-card-art guide-art-water"><span class="guide-card-number">03</span></div>
+          <div class="guide-card-body"><span class="guide-category">Každodenní péče</span><h3>Pitný režim a jídlo bez zbytečného nátlaku</h3><p>Jemné způsoby, jak během dne podpořit pravidelné pití a chuť k jídlu.</p><div class="guide-meta"><span>5 minut</span></div><button type="button" class="guide-text-link" onclick="openGuideArticle('pitny-rezim-a-jidlo')">Přečíst článek <span>→</span></button></div>
+        </article>
+        <article class="guide-card" data-category="kazdodenni" data-search="hygiena důstojnost soukromí koupání pomoc senior">
+          <div class="guide-card-art guide-art-care"><span class="guide-card-number">04</span></div>
+          <div class="guide-card-body"><span class="guide-category">Každodenní péče</span><h3>Osobní hygiena s respektem a důstojností</h3><p>Jak nabídnout pomoc citlivě, zachovat soukromí a podpořit soběstačnost.</p><div class="guide-meta"><span>6 minut</span></div><button type="button" class="guide-text-link" onclick="openGuideArticle('hygiena-s-respektem')">Přečíst článek <span>→</span></button></div>
+        </article>
+        <article class="guide-card" data-category="pecujici" data-search="únava pečující odpočinek vyhoření pomoc rodina">
+          <div class="guide-card-art guide-art-rest"><span class="guide-card-number">05</span></div>
+          <div class="guide-card-body"><span class="guide-category">Pro pečující</span><h3>Když docházejí síly: péče také o sebe</h3><p>Varovné signály přetížení a malé kroky, které pomohou pečujícím vydržet dlouhodobě.</p><div class="guide-meta"><span>5 minut</span></div><button type="button" class="guide-text-link" onclick="openGuideArticle('pece-o-pecujici')">Přečíst článek <span>→</span></button></div>
+        </article>
+      </div>
+      <div class="guide-empty" id="guideEmpty" hidden>
+        <h3>Takové téma jsme nenašli</h3><p>Zkuste kratší výraz nebo si zobrazte všechny články.</p>
+        <button type="button" class="btn btn-ghost" onclick="resetGuideFilters()">Zobrazit všechny články</button>
+      </div>
+    </section>
+
+    <section class="guide-support">
+      <div class="wrap guide-support-inner">
+        <div><span class="eyebrow">Potřebujete pomoc s péčí?</span><h2>Nemusíte na všechno zůstat sami.</h2><p>Najděte ověřenou pečovatelku podle potřeb svého blízkého a domluvte péči v termínu, který vám vyhovuje.</p></div>
+        <button type="button" class="btn btn-gold btn-cta-lg" onclick="go('search')">Najít pečovatelku</button>
+      </div>
+    </section>
+  </div>
+
+  <article class="guide-article" id="guideArticle" hidden aria-live="polite">
+    <div class="wrap guide-article-wrap">
+      <button type="button" class="guide-back" onclick="closeGuideArticle()"><span aria-hidden="true">←</span> Všechny články</button>
+      <div id="guideArticleContent"></div>
+    </div>
+  </article>
 </div>
 
 <!-- ============ DEFERRED VIEWS ============ -->
@@ -778,6 +876,7 @@
       </div>
       <div>
         <h5>Odkazy</h5>
+        <a href="/pruvodce-pece" onclick="event.preventDefault();openGuideHome()">Průvodce péčí</a>
         <a href="/obchodni-udaje">Obchodní údaje</a>
         <a href="/ochrana-osobnich-udaju">Ochrana osobních údajů</a>
         <a href="/obchodni-podminky">Obchodní podmínky</a>

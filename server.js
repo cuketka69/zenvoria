@@ -7772,6 +7772,30 @@ app.get('/jak-to-funguje', h(async (req, res) => {
   });
 }));
 
+const GUIDE_SEO = {
+  'jak-zacit-s-domaci-peci': ['Jak začít s domácí péčí', 'První kroky pro rodinu: jak společně nastavit potřeby, připravit plán péče a předat důležité informace pečovatelce.'],
+  'bezpecny-domov': ['Bezpečný domov: prevence pádů', 'Praktická kontrola domácnosti a jednoduché úpravy, které pomáhají snižovat riziko pádu seniora.'],
+  'bezpecne-uzivani-leku': ['Jak pomoci s léky bezpečně', 'Přehledný a bezpečný systém pro pomoc seniorovi s užíváním léků podle pokynů zdravotníků.'],
+  'pitny-rezim-a-jidlo': ['Pitný režim a jídlo ve vyšším věku', 'Citlivé a praktické tipy, jak u seniora podpořit pravidelné pití a chuť k jídlu.'],
+  'hygiena-s-respektem': ['Osobní hygiena s respektem', 'Jak při pomoci s osobní hygienou zachovat soukromí, důstojnost a co největší samostatnost seniora.'],
+  'pece-o-pecujici': ['Péče také o pečující', 'Jak poznat přetížení, požádat o pomoc a vytvořit si prostor k odpočinku při dlouhodobé péči o blízkého.'],
+};
+app.get(['/pruvodce-pece', '/pruvodce-pece/:slug'], h(async (req, res) => {
+  const slug = String(req.params.slug || '');
+  if (slug && !GUIDE_SEO[slug]) return res.status(404).type('text').send('Článek nebyl nalezen.');
+  const meta = slug ? GUIDE_SEO[slug] : null;
+  const canonical = `${APP_ORIGIN}/pruvodce-pece${slug ? `/${slug}` : ''}`;
+  const title = meta ? `${meta[0]} — Průvodce péčí ZENVORIA` : 'Průvodce péčí o seniory — ZENVORIA';
+  const description = meta ? meta[1] : 'Srozumitelné a praktické návody pro rodiny i pečovatelky — bezpečný domov, léky, pitný režim, hygiena a podpora pečujících.';
+  sendSeoPage(req, res, {
+    title,
+    description,
+    canonical,
+    jsonLd: meta ? [ORG_JSON_LD, { '@context': 'https://schema.org', '@type': 'Article', headline: meta[0], description: meta[1], mainEntityOfPage: canonical, publisher: { '@type': 'Organization', name: 'ZENVORIA', url: APP_ORIGIN } }] : [ORG_JSON_LD, { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Průvodce péčí', description, url: canonical }],
+    ssrHtml: extractViewHtml(INDEX_HTML || '', 'view-guide'),
+  });
+}));
+
 app.get('/cenik', h(async (req, res) => {
   let devHtml = '';
   try { devHtml = fs.readFileSync(path.join(__dirname, 'deferred-views.html'), 'utf8'); } catch (e) { /* ignore */ }
@@ -8005,7 +8029,8 @@ Sitemap: ${APP_ORIGIN}/sitemap.xml
 });
 
 app.get('/sitemap.xml', h(async (req, res) => {
-  const staticPaths = ['/', '/hledat-peci', '/jak-to-funguje', '/cenik', '/obchodni-podminky', '/zasady-cookies'];
+  const guidePaths = ['/pruvodce-pece', ...Object.keys(GUIDE_SEO).map(slug => `/pruvodce-pece/${slug}`)];
+  const staticPaths = ['/', '/hledat-peci', '/jak-to-funguje', ...guidePaths, '/cenik', '/obchodni-podminky', '/zasady-cookies'];
   const cgs = await getPublicCaregivers(countryForReq(req));
   const urls = [
     ...staticPaths.map((p) => `<url><loc>${APP_ORIGIN}${p}</loc></url>`),
@@ -8025,6 +8050,7 @@ Rodiny si zdarma vyhledají pečovatelku podle lokality, ceny a nabízených slu
 
 - [Hledat pečovatelku](${APP_ORIGIN}/hledat-peci)
 - [Jak to funguje](${APP_ORIGIN}/jak-to-funguje)
+- [Průvodce péčí](${APP_ORIGIN}/pruvodce-pece)
 - [Ceník](${APP_ORIGIN}/cenik)
 `);
 });

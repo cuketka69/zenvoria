@@ -134,6 +134,8 @@ const ORDER_STATUS={
 
 /* ---------- STATE ---------- */
 const state={caregiverId:1,bkServices:['osobni'],bkHours:4,profileToken:null,profileKind:null};
+let guideArticleSlug=null;
+let guideCategory='all';
 let legalBackView='home';
 let legalCurrentKey='terms';
 /* zobrazené údaje o provozovateli na právních stránkách — meta/phone se skládají z centrálního contactInfo (nastavuje admin) */
@@ -188,6 +190,7 @@ function stateForView(v){
   if(v==='legal')return {view:v,legalKey:legalCurrentKey};
   if(v==='profile')return {view:v,caregiverId:state.caregiverId,token:state.profileToken,kind:state.profileKind};
   if(v==='order-detail')return {view:v,oid:curOrder&&curOrder.oid||null};
+  if(v==='guide')return {view:v,guideSlug:guideArticleSlug};
   return {view:v};
 }
 /* znovu sestaví curOrder podle oid (po F5 na #order-detail curOrder v paměti neexistuje) */
@@ -215,6 +218,7 @@ function pathForView(v){
   if(v==='search')return '/hledat-peci';
   if(v==='howto')return '/jak-to-funguje';
   if(v==='pricing')return '/cenik';
+  if(v==='guide')return guideArticleSlug?'/pruvodce-pece/'+encodeURIComponent(guideArticleSlug):'/pruvodce-pece';
   if(v==='legal')return legalCurrentKey==='cookies'?'/zasady-cookies':'/obchodni-podminky';
   if(v==='profile'&&state.profileKind==='caregiver'&&state.profileSlug)return '/pecovatelka/'+encodeURIComponent(state.profileSlug);
   return null;
@@ -224,6 +228,9 @@ function viewForPath(pathname){
   if(pathname==='/hledat-peci')return 'search';
   if(pathname==='/jak-to-funguje')return 'howto';
   if(pathname==='/cenik')return 'pricing';
+  if(pathname==='/pruvodce-pece'||pathname==='/pruvodce-pece/')return 'guide';
+  const guideMatch=/^\/pruvodce-pece\/([^/]+)\/?$/.exec(pathname);
+  if(guideMatch){guideArticleSlug=decodeURIComponent(guideMatch[1]);return 'guide';}
   if(pathname==='/obchodni-podminky'){legalCurrentKey='terms';return 'legal';}
   if(pathname==='/zasady-cookies'){legalCurrentKey='cookies';return 'legal';}
   return null;
@@ -245,7 +252,7 @@ async function copyLegalLink(){
 
 /* ---------- NAV ---------- */
 /* stránky dostupné i bez přihlášení — vše ostatní nepřihlášeného návštěvníka pošle na Domů */
-const GUEST_ALLOWED_VIEWS=new Set(['home','search','howto','profile','pricing','legal','login','register','forgot','reset-password','change-email']);
+const GUEST_ALLOWED_VIEWS=new Set(['home','search','howto','guide','profile','pricing','legal','login','register','forgot','reset-password','change-email']);
 const FAMILY_ONLY_VIEWS=new Set(['fam-dash','bookings','booking']);
 async function go(v,fromPop){
   if(!auth.loggedIn&&!GUEST_ALLOWED_VIEWS.has(v))v='home';
@@ -278,6 +285,10 @@ async function go(v,fromPop){
     a.classList.toggle('active',on);
     if(on)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');
   });
+  if(v!=='guide'){
+    const titles={home:'ZENVORIA — Péče s lidskostí',search:'Hledat pečovatelku — ZENVORIA',howto:'Jak to funguje — ZENVORIA',pricing:'Ceník — ZENVORIA'};
+    if(titles[v])document.title=titles[v];
+  }
   toggleMenu(false);
   closeAccountMenu();
   window.scrollTo({top:0,behavior:'smooth'});
@@ -314,6 +325,7 @@ async function go(v,fromPop){
   if(v==='register')pickRole(regRole);
   if(v==='forgot')resetForgot();
   if(v==='howto')howtoTab('family');
+  if(v==='guide')renderGuide();
   if(v==='reset-password')resetResetPassword(true);
   if(v==='change-email')resetChangeEmail(true);
   // Při odchodu z reset hesla vyčisti token z URL, ať tam nezůstává viset.
@@ -337,6 +349,7 @@ async function go(v,fromPop){
       const changed=cur!==v
         ||(v==='legal'&&history.state&&history.state.legalKey!==legalCurrentKey)
         ||(v==='profile'&&history.state&&history.state.token!==state.profileToken)
+        ||(v==='guide'&&history.state&&history.state.guideSlug!==guideArticleSlug)
         ||(v==='order-detail'&&history.state&&history.state.oid!==(curOrder&&curOrder.oid||null));
       if(changed){
         const p=pathForView(v);
@@ -363,9 +376,129 @@ window.addEventListener('popstate',function(e){
     openOrderDetailByOid(e.state.oid).then(ok=>{if(!ok)go(landingView(),true);});
     return;
   }
+  if(v==='guide')guideArticleSlug=(e.state&&e.state.guideSlug)||null;
   if(document.getElementById('view-'+v)||isDeferredView(v))go(v,true);
 });
 function scrollTo2(id){setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}),60);}
+
+/* ---------- PRŮVODCE PÉČÍ ---------- */
+const GUIDE_ARTICLES={
+  'jak-zacit-s-domaci-peci':{
+    category:'Začínáme',time:'7 minut čtení',title:'Jak začít s domácí péčí: první kroky pro rodinu',
+    lead:'Dobrá péče nezačíná dokonalým plánem. Začíná klidným rozhovorem, jasnými prioritami a několika informacemi, ke kterým se mohou všichni vracet.',
+    body:`
+      <h2>1. Začněte přáním člověka, o kterého pečujete</h2>
+      <p>Promluvte si o tom, s čím si přeje pomoci a co chce dál zvládat sám. Nabídněte konkrétní možnosti místo rozhodování bez něj. Respekt k jeho tempu a soukromí je stejně důležitý jako praktická pomoc.</p>
+      <div class="guide-callout"><b>Zkuste se zeptat:</b> „Co je pro tebe během dne nejtěžší?“ a „Co by ti teď přineslo největší úlevu?“</div>
+      <h2>2. Sepište potřeby podle důležitosti</h2>
+      <ul><li><b>Každý den:</b> jídlo, pití, hygiena, pohyb a léky podle pokynů lékaře.</li><li><b>Pravidelně:</b> nákupy, úklid, doprovod, společnost nebo rehabilitace.</li><li><b>Pro případ změny:</b> kontakty na rodinu, praktického lékaře a informace, kdy volat pomoc.</li></ul>
+      <h2>3. Připravte stručný plán péče</h2>
+      <p>Na jednu stránku napište běžný denní režim, důležité kontakty, pohybová omezení, alergie, komunikační potřeby a úkoly pečovatelky. Citlivé zdravotní informace sdílejte jen s lidmi, kteří je k péči skutečně potřebují.</p>
+      <h2>4. První návštěvu využijte k poznání</h2>
+      <p>Projděte společně domácnost, ukažte důležité pomůcky a domluvte způsob předávání informací. Po první péči se všech zeptejte, co fungovalo a co je potřeba upravit.</p>
+      <div class="guide-checklist"><h3>Kontrolní seznam před první návštěvou</h3><label><input type="checkbox"> Domluvený rozsah a čas péče</label><label><input type="checkbox"> Telefonní kontakty pro běžné i naléhavé situace</label><label><input type="checkbox"> Seznam důležitých omezení a pomůcek</label><label><input type="checkbox"> Klíče, vstup do domu a domácí pravidla</label><label><input type="checkbox"> Způsob krátkého zápisu po návštěvě</label></div>
+      <h2>Co bývá častou chybou</h2><p>Příliš mnoho změn najednou, nejasná odpovědnost a rozhodování bez seniora. Začněte tím nejdůležitějším, dejte novému režimu pár dní a plán průběžně upravujte.</p>`
+  },
+  'bezpecny-domov':{
+    category:'Bezpečí',time:'6 minut čtení',title:'Bezpečný domov: prevence pádů krok za krokem',
+    lead:'Pády nejsou běžnou a nevyhnutelnou součástí stárnutí. Riziko často snižují jednoduché úpravy prostředí, vhodné pomůcky a včasná konzultace změn zdravotního stavu.',
+    body:`
+      <h2>Projďte nejčastější cesty</h2><p>Začněte trasou mezi postelí, toaletou, koupelnou a kuchyní. Odstraňte volné kabely a klouzající koberečky, uvolněte průchody a věci denní potřeby přesuňte do snadno dosažitelné výšky.</p>
+      <h2>Světlo a opora</h2><ul><li>Zajistěte světlo dostupné přímo od postele a noční osvětlení cesty na toaletu.</li><li>Na schodech zvýrazněte hrany a zkontrolujte pevnost zábradlí.</li><li>V koupelně zvažte odborně upevněná madla a protiskluzovou podložku.</li><li>Židle a postel by měly umožnit bezpečné vstávání; pojízdný nábytek není opora.</li></ul>
+      <div class="guide-callout guide-callout-warn"><b>Po pádu:</b> Pokud má člověk silnou bolest, poranění hlavy, krvácí, je zmatený, nemůže vstát nebo se jeho stav náhle zhoršuje, volejte 155. Nezvedejte ho násilím.</div>
+      <h2>Nezapomeňte na zdravotní souvislosti</h2><p>Závrať, slabost, zhoršený zrak nebo nový pád proberte s lékařem. Léky mohou riziko pádu ovlivňovat, jejich dávky ale nikdy neměňte bez domluvy s lékařem nebo lékárníkem.</p>
+      <div class="guide-checklist"><h3>Pětiminutová kontrola</h3><label><input type="checkbox"> Volná cesta bez kabelů a koberců</label><label><input type="checkbox"> Dostatek světla i v noci</label><label><input type="checkbox"> Stabilní obuv a běžné věci na dosah</label><label><input type="checkbox"> Telefon nebo přivolání pomoci dostupné</label></div>
+      <p class="guide-source">Více informací: <a href="https://www.who.int/news-room/fact-sheets/detail/falls" target="_blank" rel="noopener">Světová zdravotnická organizace — pády</a> a <a href="https://www.nhs.uk/conditions/falls/prevention/" target="_blank" rel="noopener">NHS — prevence pádů</a>.</p>`
+  },
+  'bezpecne-uzivani-leku':{
+    category:'Každodenní péče',time:'5 minut čtení',title:'Jak pomoci s léky bezpečně a bez zmatků',
+    lead:'Úkolem pečujícího není léčbu měnit. Může ale pomoci udržet přehled, dodržet pokyny a včas zachytit nejasnost nebo problém.',
+    body:`
+      <h2>Udržujte jeden aktuální seznam</h2><p>Zapište název léku, sílu, dávku, čas užití a důvod. Přidejte volně prodejné přípravky a doplňky. Seznam vezměte na každou návštěvu lékaře i do lékárny a po změně ho hned aktualizujte.</p>
+      <h2>Nastavte jednoduchý systém</h2><ul><li>Léky uchovávejte v původních obalech podle pokynů a mimo dosah dětí.</li><li>Dávkovač používejte jen tehdy, když je jasné, kdo jej správně připravuje.</li><li>Pro připomenutí může pomoci budík nebo přehledná tabulka.</li><li>Zaznamenejte podanou dávku, pokud se v péči střídá více lidí.</li></ul>
+      <div class="guide-callout guide-callout-warn"><b>Důležité:</b> Tablety nedrťte, dávku nevynechávejte, nezdvojujte ani léčbu nevysazujte bez pokynu zdravotníka. Při nejasnosti volejte lékárníkovi nebo předepisujícímu lékaři.</div>
+      <h2>Když se stane chyba</h2><p>Při podezření na záměnu nebo předávkování si připravte názvy léků, přibližné množství a čas. Bez odkladu kontaktujte zdravotníka; při bezvědomí, potížích s dýcháním, křečích nebo prudkém zhoršení volejte 155.</p>
+      <div class="guide-checklist"><h3>Před předáním péče</h3><label><input type="checkbox"> Aktuální seznam léků</label><label><input type="checkbox"> Jasně určené časy a způsob užití</label><label><input type="checkbox"> Zapsané alergie a důležité reakce</label><label><input type="checkbox"> Kontakt pro případ nejasností</label></div>
+      <p class="guide-source">Více informací: <a href="https://www.nhs.uk/conditions/social-care-and-support-guide/practical-tips-if-you-care-for-someone/managing-medicines-for-someone/" target="_blank" rel="noopener">NHS — pomoc s užíváním léků</a>.</p>`
+  },
+  'pitny-rezim-a-jidlo':{
+    category:'Každodenní péče',time:'5 minut čtení',title:'Pitný režim a jídlo bez zbytečného nátlaku',
+    lead:'S věkem může slábnout pocit žízně i chuť k jídlu. Pomáhá pravidelnost, malé porce a nabídka, která respektuje zdravotní omezení i osobní preference.',
+    body:`
+      <h2>Nabízejte po menších dávkách</h2><p>Nápoj dejte na viditelné a snadno dosažitelné místo, nabídněte ho při každé běžné činnosti a střídejte vhodné druhy podle chuti. Do příjmu tekutin se mohou započítat také polévky nebo potraviny s vysokým obsahem vody.</p>
+      <h2>Jídlo zpříjemněte, nezvětšujte tlak</h2><ul><li>Podávejte menší porce častěji a jídlo upravte tak, aby se snadno jedlo.</li><li>Klidné prostředí a společnost u stolu mohou pomoci více než přemlouvání.</li><li>Sledujte náhlý pokles chuti, hmotnosti nebo potíže s kousáním a polykáním.</li></ul>
+      <div class="guide-callout"><b>Pozor na individuální omezení:</b> Doporučené množství tekutin se liší. Při onemocnění srdce či ledvin, otocích nebo nařízeném omezení tekutin se vždy řiďte plánem lékaře.</div>
+      <h2>Signály, které nepřehlížet</h2><p>Tmavá moč, méně časté močení, suchá ústa, závratě nebo nezvyklá únava mohou souviset s nedostatkem tekutin. Náhle vzniklá zmatenost, výrazná ospalost, kolaps nebo nemožnost pít vyžadují rychlou zdravotní konzultaci; při závažném stavu volejte 155.</p>
+      <p class="guide-source">Více informací: <a href="https://www.nhs.uk/conditions/dehydration/" target="_blank" rel="noopener">NHS — dehydratace</a> a <a href="https://www.nia.nih.gov/health/healthy-eating-nutrition-and-diet/healthy-eating-you-age-know-your-food-groups" target="_blank" rel="noopener">National Institute on Aging — výživa ve vyšším věku</a>.</p>`
+  },
+  'hygiena-s-respektem':{
+    category:'Každodenní péče',time:'6 minut čtení',title:'Osobní hygiena s respektem a důstojností',
+    lead:'Pomoc s hygienou je velmi osobní. Dobrá péče chrání soukromí, nabízí volbu a ponechává člověku vše, co ještě zvládne bezpečně sám.',
+    body:`
+      <h2>Nejdřív se domluvte</h2><p>Vysvětlete, co chcete udělat, a požádejte o souhlas. Nabídněte volbu času, sprchy nebo omytí a pokud možno i pečující osoby. Nespěchejte a po celou dobu zakrývejte části těla, které právě neošetřujete.</p>
+      <h2>Podporujte samostatnost</h2><p>Připravte pomůcky na dosah a nechte člověka provést bezpečně vše, co zvládne. Pomáhejte jen v potřebné míře. Teplotu vody ověřte společně a koupelnu předem vyhřejte.</p>
+      <h2>Všímejte si změn</h2><ul><li>zarudnutí, otlaků, ran nebo opruzenin,</li><li>nové bolesti, otoků či změny barvy kůže,</li><li>krvácení dásní, bolesti v ústech nebo potíží se zubní náhradou.</li></ul><p>Změny zaznamenejte a podle závažnosti je proberte s rodinou, sestrou nebo lékařem. Rány neošetřujte způsobem, který nebyl doporučen zdravotníkem.</p>
+      <div class="guide-callout"><b>Když člověk pomoc odmítá:</b> Zůstaňte klidní, zjistěte důvod a nabídněte jiný čas nebo menší krok. Bezprostřední nátlak může narušit důvěru a situaci zhoršit.</div>
+      <p class="guide-source">Více informací: <a href="https://www.nhs.uk/conditions/social-care-and-support-guide/practical-tips-if-you-care-for-someone/how-to-help-someone-you-care-for-keep-clean/" target="_blank" rel="noopener">NHS — pomoc s osobní hygienou</a>.</p>`
+  },
+  'pece-o-pecujici':{
+    category:'Pro pečující',time:'5 minut čtení',title:'Když docházejí síly: péče také o sebe',
+    lead:'Únava není selhání. Dlouhodobá péče je náročná a odpočinek, pomoc druhých i jasné hranice jsou součástí bezpečné péče.',
+    body:`
+      <h2>Všímejte si varovných signálů</h2><p>Dlouhodobě špatný spánek, podrážděnost, beznaděj, ztráta zájmu, časté bolesti nebo pocit, že už situaci nezvládáte, jsou důvodem nezůstávat na vše sami.</p>
+      <h2>Začněte malým odlehčením</h2><ul><li>Napište si tři úkoly, které může převzít někdo jiný.</li><li>Domluvte pravidelný čas, kdy péči přebírá rodina nebo pečovatelka.</li><li>Udržujte vlastní lékařské kontroly, jídlo, pohyb a spánek.</li><li>Sdílejte důležité informace v jednom plánu, aby předání péče nebylo další zátěží.</li></ul>
+      <div class="guide-callout"><b>Praktické pravidlo:</b> Nečekejte na úplné vyčerpání. Pravidelná malá pomoc bývá účinnější než jednorázová pomoc až v krizi.</div>
+      <h2>Kdy vyhledat odbornou podporu</h2><p>Pokud úzkost, smutek nebo vyčerpání trvají a narušují běžný život, obraťte se na praktického lékaře nebo odborníka na duševní zdraví. Při bezprostředním ohrožení zdraví či života volejte 155 nebo 112.</p>
+      <div class="guide-checklist"><h3>Plán na tento týden</h3><label><input type="checkbox"> Jeden konkrétní úkol předám dál</label><label><input type="checkbox"> Naplánuji si čas bez péče</label><label><input type="checkbox"> Řeknu někomu otevřeně, jak se cítím</label></div>
+      <p class="guide-source">Více informací: <a href="https://www.cdc.gov/caregiving/about/index.html" target="_blank" rel="noopener">CDC — péče o pečující</a>.</p>`
+  }
+};
+function openGuideHome(){guideArticleSlug=null;go('guide');}
+function openGuideArticle(slug){
+  if(!GUIDE_ARTICLES[slug])return;
+  guideArticleSlug=slug;
+  go('guide');
+}
+function closeGuideArticle(){guideArticleSlug=null;go('guide');}
+function renderGuide(){
+  const hub=document.getElementById('guideHub');
+  const article=document.getElementById('guideArticle');
+  const content=document.getElementById('guideArticleContent');
+  if(!hub||!article||!content)return;
+  const item=guideArticleSlug&&GUIDE_ARTICLES[guideArticleSlug];
+  if(!item){
+    guideArticleSlug=null;hub.hidden=false;article.hidden=true;content.innerHTML='';
+    document.title='Průvodce péčí — ZENVORIA';
+    filterGuideArticles();return;
+  }
+  hub.hidden=true;article.hidden=false;
+  document.title=item.title+' — ZENVORIA';
+  content.innerHTML=`<header class="guide-article-head"><span class="guide-category">${item.category}</span><h1>${item.title}</h1><p>${item.lead}</p><div class="guide-meta"><span>${item.time}</span><span>Ověřeno redakcí ZENVORIA</span></div></header><div class="guide-article-layout"><div class="guide-article-body">${item.body}<div class="guide-medical-note"><b>Upozornění:</b> Článek poskytuje obecné informace a nenahrazuje individuální doporučení lékaře nebo jiného zdravotníka.</div></div><aside class="guide-article-aside"><span>Potřebujete praktickou pomoc?</span><h3>Najděte péči pro svého blízkého</h3><p>Ověřené pečovatelky podle lokality, zkušeností a služeb.</p><button type="button" class="btn btn-gold btn-block" onclick="go('search')">Najít pečovatelku</button></aside></div>`;
+}
+function setGuideFilter(category,button){
+  guideCategory=category||'all';
+  document.querySelectorAll('.guide-filter').forEach(el=>el.classList.toggle('on',el===button||el.dataset.guideFilter===guideCategory));
+  filterGuideArticles();
+}
+function guideNorm(value){return String(value||'').toLocaleLowerCase('cs').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();}
+function filterGuideArticles(){
+  const input=document.getElementById('guideSearch');
+  const query=guideNorm(input&&input.value);
+  const cards=[...document.querySelectorAll('#guideHub .guide-card')];
+  let visible=0;
+  cards.forEach(card=>{
+    const categoryOk=guideCategory==='all'||card.dataset.category===guideCategory;
+    const text=guideNorm((card.dataset.search||'')+' '+card.textContent);
+    const show=categoryOk&&(!query||text.includes(query));
+    card.hidden=!show;if(show)visible++;
+  });
+  const empty=document.getElementById('guideEmpty');if(empty)empty.hidden=visible>0;
+}
+function resetGuideFilters(){
+  guideCategory='all';const input=document.getElementById('guideSearch');if(input)input.value='';
+  document.querySelectorAll('.guide-filter').forEach(el=>el.classList.toggle('on',el.dataset.guideFilter==='all'));
+  filterGuideArticles();
+}
 
 /* ---------- HERO PARALLAX ---------- */
 (function(){
@@ -2485,6 +2618,7 @@ const NAV_GUEST=[
   {v:'home',label:'Domů',fn:"go('home')"},
   {v:'search',label:'Hledat péči',fn:"go('search')"},
   {v:'howto',label:'Jak to funguje',fn:"go('howto')"},
+  {v:'guide',label:'Průvodce péčí',fn:"openGuideHome()"},
   {v:'pricing',label:'Ceník',fn:"go('pricing')"}
 ];
 const NAV_CAREGIVER=[
@@ -7966,7 +8100,8 @@ async function initApp(){
     const v=active?active.id.replace('view-',''):'home';
     const changed=!history.state||history.state.view!==v
       ||(v==='legal'&&history.state.legalKey!==legalCurrentKey)
-      ||(v==='profile'&&history.state.token!==state.profileToken);
+      ||(v==='profile'&&history.state.token!==state.profileToken)
+      ||(v==='guide'&&history.state.guideSlug!==guideArticleSlug);
     if(changed){
       const p=pathForView(v);
       history.replaceState(stateForView(v),'',(p||'/')+(p?'':'#'+hashForView(v)));
