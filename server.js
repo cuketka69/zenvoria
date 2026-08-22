@@ -544,12 +544,18 @@ async function sanitizePublicImageDataUrl(v, maxBytes = 2 * 1024 * 1024) {
   try {
     const image = sharp(parsed.bytes, {
       animated: false,
+      failOn: 'warning',
       limitInputPixels: UPLOAD_IMAGE_MAX_PIXELS,
     });
     const meta = await image.metadata();
     if (!meta || !meta.width || !meta.height) return null;
+    const metadataMime = meta.format === 'jpeg' ? 'image/jpeg' : (meta.format === 'png' ? 'image/png' : (meta.format === 'webp' ? 'image/webp' : null));
+    if (!metadataMime || metadataMime !== parsed.mime) return null;
+    if (meta.pages != null && meta.pages !== 1) return null;
     if (meta.width > UPLOAD_IMAGE_MAX_SOURCE_DIMENSION || meta.height > UPLOAD_IMAGE_MAX_SOURCE_DIMENSION) return null;
     if (meta.width * meta.height > UPLOAD_IMAGE_MAX_PIXELS) return null;
+    // Neukládáme původní soubor. Dekódováním a novým WebP odstraníme metadata
+    // i případná data připojená za obrazem (například polyglot payload).
     const { data, info } = await image
       .rotate()
       .resize({
@@ -561,7 +567,15 @@ async function sanitizePublicImageDataUrl(v, maxBytes = 2 * 1024 * 1024) {
       .toColourspace('srgb')
       .webp({ quality: 84, effort: 4 })
       .toBuffer({ resolveWithObject: true });
-    if (!data.length || data.length > maxBytes || info.format !== 'webp') return null;
+    if (!data.length || data.length > maxBytes || info.format !== 'webp' || detectDataMime(data) !== 'image/webp') return null;
+    const cleanMeta = await sharp(data, {
+      animated: false,
+      failOn: 'warning',
+      limitInputPixels: UPLOAD_IMAGE_MAX_PIXELS,
+    }).metadata();
+    if (!cleanMeta || cleanMeta.format !== 'webp' || !cleanMeta.width || !cleanMeta.height) return null;
+    if (cleanMeta.pages != null && cleanMeta.pages !== 1) return null;
+    if (cleanMeta.width > UPLOAD_IMAGE_MAX_DIMENSION || cleanMeta.height > UPLOAD_IMAGE_MAX_DIMENSION) return null;
     return `data:image/webp;base64,${data.toString('base64')}`;
   } catch (e) {
     return null;
@@ -7447,7 +7461,7 @@ app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
     for (const article of value) {
       if (!article.image || existingImages.has(article.image)) continue;
       article.image = await sanitizePublicImageDataUrl(article.image, 1024 * 1024);
-      if (!article.image) return res.status(400).json({ error: 'Úvodní obrázek článku není platný nebo je příliš velký.' });
+      if (!article.image) return res.status(400).json({ error: 'Úvodní obrázek neprošel bezpečnostní kontrolou. Použijte platný JPG, PNG nebo WebP do 10 MB.' });
     }
     const allowed = new Set(storedCategories.categories);
     if (value.some((article) => !allowed.has(article.category))) return res.status(400).json({ error: 'Každý článek musí používat některou z vytvořených kategorií.' });

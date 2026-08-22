@@ -1141,12 +1141,13 @@
             <input class="inp" id="admArticleTitle" maxlength="140" required>
           </div>
           <div class="admin-article-image-field">
-            <label class="lbl">Úvodní obrázek <span class="admin-help" tabindex="0" data-help="Obrázek se zobrazí na kartě článku i na začátku jeho detailu. Doporučený je široký obrázek na šířku." aria-label="Nápověda k úvodnímu obrázku">?</span></label>
+            <label class="lbl">Úvodní obrázek <span class="admin-help" tabindex="0" data-help="Obrázek se zobrazí na kartě článku i na začátku jeho detailu. Server ověří skutečný formát a uloží pouze nově vytvořený bezpečný WebP." aria-label="Nápověda k úvodnímu obrázku">?</span></label>
             <div class="admin-article-image-row">
               <div class="admin-article-image-preview" id="admArticleImagePreview"><img id="admArticleImagePreviewImg" alt="Náhled úvodního obrázku" hidden><span id="admArticleImagePlaceholder">Použije se výchozí obrázek</span></div>
               <div class="admin-article-image-actions">
                 <label class="btn btn-ghost btn-sm">Vybrat obrázek<input type="file" id="admArticleImageInput" accept="image/jpeg,image/png,image/webp" hidden onchange="onAdminArticleImage(event)"></label>
                 <button type="button" class="btn btn-decline btn-sm" id="admArticleImageRemove" onclick="removeAdminArticleImage()" hidden>Odebrat</button>
+                <span class="admin-article-image-note">Použijte JPG, PNG nebo WebP do 10 MB. Soubor se bezpečně ověří a převede na nový WebP.</span>
               </div>
             </div>
           </div>
