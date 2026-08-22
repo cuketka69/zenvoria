@@ -5368,8 +5368,8 @@ function saveAdminArticle(e){
     published:document.getElementById('admArticlePublished').checked,
     updatedAt:new Date().toISOString(),
   };
+  if(!article.category||!adminGuideCategories.includes(article.category)){err.textContent='Nemáte vybranou kategorii.';toast('Nemáte vybranou kategorii.','declined');return false;}
   if(!article.title||!article.lead||!document.getElementById('admArticleBody').innerText.trim()){err.textContent='Vyplňte název, krátký úvod a obsah článku.';return false;}
-  if(!article.category||!adminGuideCategories.includes(article.category)){err.textContent='Vyberte jednu z vytvořených kategorií.';return false;}
   if(adminGuideArticles.some(item=>item.slug===article.slug&&item.slug!==original)){err.textContent='Článek se stejným nebo příliš podobným názvem už existuje.';return false;}
   const index=original?adminGuideArticles.findIndex(item=>item.slug===original):-1;
   if(index>=0)adminGuideArticles.splice(index,1,article);else adminGuideArticles.push(article);
