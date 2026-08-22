@@ -447,25 +447,25 @@
             <input id="guideSearch" type="search" placeholder="Hledat radu nebo téma…" aria-label="Hledat v průvodci" oninput="filterGuideArticles()">
           </div>
         </div>
-        <aside class="guide-month-tip" aria-label="Tip měsíce">
+        <aside class="guide-month-tip" aria-label="Tip měsíce" hidden>
           <span class="guide-tip-label">Tip měsíce</span>
           <div class="guide-tip-icon" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 3a7 7 0 0 0-4.2 12.6c.8.6 1.2 1.2 1.2 2.1h6c0-.9.4-1.5 1.2-2.1A7 7 0 0 0 12 3Z" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 21h5M9 18h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
-          <h2 id="guideTipTitle">Malé změny, bezpečnější domov</h2>
-          <p id="guideTipLead">Projít byt zabere jen pár minut. Začněte volnými koberci, osvětlením a cestou na toaletu.</p>
-          <button type="button" class="guide-text-link" id="guideTipLink" onclick="openGuideArticle('bezpecny-domov')">Přečíst návod <span>→</span></button>
+          <h2 id="guideTipTitle"></h2>
+          <p id="guideTipLead"></p>
+          <button type="button" class="guide-text-link" id="guideTipLink">Přečíst návod <span>→</span></button>
         </aside>
       </div>
     </section>
 
     <section class="guide-main wrap">
-      <div class="guide-intro">
+      <div class="guide-intro" id="guideContentIntro" hidden>
         <div>
           <span class="eyebrow">Vyberte si téma</span>
           <h2>Rady pro běžné i náročné chvíle</h2>
         </div>
         <p>Každý článek nabízí konkrétní kroky, časté chyby a stručný seznam, který můžete hned použít.</p>
       </div>
-      <div class="guide-filters" role="group" aria-label="Filtrovat články">
+      <div class="guide-filters" id="guideFilters" role="group" aria-label="Filtrovat články" hidden>
         <button type="button" class="guide-filter on" data-guide-filter="all" onclick="setGuideFilter('all',this)">Všechny</button>
         <button type="button" class="guide-filter" data-guide-filter="zaciname" onclick="setGuideFilter('zaciname',this)">Začínáme</button>
         <button type="button" class="guide-filter" data-guide-filter="bezpeci" onclick="setGuideFilter('bezpeci',this)">Bezpečí</button>
@@ -473,42 +473,12 @@
         <button type="button" class="guide-filter" data-guide-filter="pecujici" onclick="setGuideFilter('pecujici',this)">Pro pečující</button>
       </div>
 
-      <div class="guide-featured guide-card" id="guideFeatured" data-category="zaciname" data-search="jak začít s domácí péčí plán rodina pečovatelka">
-        <div class="guide-featured-image" role="img" aria-label="Pečující osoba drží seniora za ruku"></div>
-        <div class="guide-featured-copy">
-          <span class="guide-category">Začínáme</span>
-          <h2>Jak začít s domácí péčí: první kroky pro rodinu</h2>
-          <p>Co si společně ujasnit, jak připravit jednoduchý plán a které informace předat pečovatelce před první návštěvou.</p>
-          <div class="guide-meta"><span>7 minut čtení</span><span>Kontrolní seznam</span></div>
-          <button type="button" class="btn btn-gold" onclick="openGuideArticle('jak-zacit-s-domaci-peci')">Přečíst článek</button>
-        </div>
-      </div>
+      <div class="guide-featured guide-card" id="guideFeatured" hidden></div>
 
-      <div class="guide-grid" id="guideGrid">
-        <article class="guide-card" data-category="bezpeci" data-search="bezpečný domov prevence pádu koberce světlo koupelna">
-          <div class="guide-card-art guide-art-home"><span class="guide-card-number">01</span></div>
-          <div class="guide-card-body"><span class="guide-category">Bezpečí</span><h3>Bezpečný domov: prevence pádů krok za krokem</h3><p>Praktická kontrola místností a drobné úpravy, které mohou snížit riziko pádu.</p><div class="guide-meta"><span>6 minut</span></div><button type="button" class="guide-text-link" onclick="openGuideArticle('bezpecny-domov')">Přečíst článek <span>→</span></button></div>
-        </article>
-        <article class="guide-card" data-category="kazdodenni" data-search="léky bezpečně seznam dávkování lékárna lékař">
-          <div class="guide-card-art guide-art-meds"><span class="guide-card-number">02</span></div>
-          <div class="guide-card-body"><span class="guide-category">Každodenní péče</span><h3>Jak pomoci s léky bezpečně a bez zmatků</h3><p>Jak vést aktuální seznam, nastavit připomínky a předejít nebezpečným omylům.</p><div class="guide-meta"><span>5 minut</span></div><button type="button" class="guide-text-link" onclick="openGuideArticle('bezpecne-uzivani-leku')">Přečíst článek <span>→</span></button></div>
-        </article>
-        <article class="guide-card" data-category="kazdodenni" data-search="pitný režim hydratace jídlo výživa senioři">
-          <div class="guide-card-art guide-art-water"><span class="guide-card-number">03</span></div>
-          <div class="guide-card-body"><span class="guide-category">Každodenní péče</span><h3>Pitný režim a jídlo bez zbytečného nátlaku</h3><p>Jemné způsoby, jak během dne podpořit pravidelné pití a chuť k jídlu.</p><div class="guide-meta"><span>5 minut</span></div><button type="button" class="guide-text-link" onclick="openGuideArticle('pitny-rezim-a-jidlo')">Přečíst článek <span>→</span></button></div>
-        </article>
-        <article class="guide-card" data-category="kazdodenni" data-search="hygiena důstojnost soukromí koupání pomoc senior">
-          <div class="guide-card-art guide-art-care"><span class="guide-card-number">04</span></div>
-          <div class="guide-card-body"><span class="guide-category">Každodenní péče</span><h3>Osobní hygiena s respektem a důstojností</h3><p>Jak nabídnout pomoc citlivě, zachovat soukromí a podpořit soběstačnost.</p><div class="guide-meta"><span>6 minut</span></div><button type="button" class="guide-text-link" onclick="openGuideArticle('hygiena-s-respektem')">Přečíst článek <span>→</span></button></div>
-        </article>
-        <article class="guide-card" data-category="pecujici" data-search="únava pečující odpočinek vyhoření pomoc rodina">
-          <div class="guide-card-art guide-art-rest"><span class="guide-card-number">05</span></div>
-          <div class="guide-card-body"><span class="guide-category">Pro pečující</span><h3>Když docházejí síly: péče také o sebe</h3><p>Varovné signály přetížení a malé kroky, které pomohou pečujícím vydržet dlouhodobě.</p><div class="guide-meta"><span>5 minut</span></div><button type="button" class="guide-text-link" onclick="openGuideArticle('pece-o-pecujici')">Přečíst článek <span>→</span></button></div>
-        </article>
-      </div>
+      <div class="guide-grid" id="guideGrid" hidden></div>
       <div class="guide-empty" id="guideEmpty" hidden>
-        <h3>Takové téma jsme nenašli</h3><p>Zkuste kratší výraz nebo si zobrazte všechny články.</p>
-        <button type="button" class="btn btn-ghost" onclick="resetGuideFilters()">Zobrazit všechny články</button>
+        <h3 id="guideEmptyTitle">Zatím zde nejsou žádné články</h3><p id="guideEmptyText">Nové rady a návody připravuje tým ZENVORIA.</p>
+        <button type="button" class="btn btn-ghost" id="guideEmptyReset" onclick="resetGuideFilters()" hidden>Zobrazit všechny články</button>
       </div>
     </section>
 

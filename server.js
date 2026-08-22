@@ -7378,6 +7378,13 @@ app.delete('/api/caregivers/:id', requireRole('admin'), h(async (req, res) => {
 
 async function loadStoredGuideArticles() {
   if (!REST_ENABLED) return { configured: false, articles: null };
+  const resetKey = 'guideArticlesResetV1';
+  const resetRows = await restSelect(T.settings, `key=eq.${resetKey}&limit=1`);
+  if (!(resetRows && resetRows[0])) {
+    await supabaseRestRequest('POST', T.settings, { body: { key: 'guideArticles', value: [] }, prefer: 'resolution=merge-duplicates,return=minimal' });
+    await supabaseRestRequest('POST', T.settings, { body: { key: resetKey, value: { doneAt: new Date().toISOString() } }, prefer: 'resolution=merge-duplicates,return=minimal' });
+    return { configured: true, articles: [] };
+  }
   const rows = await restSelect(T.settings, 'key=eq.guideArticles&limit=1');
   const row = rows && rows[0];
   if (!row) return { configured: false, articles: null };
@@ -7841,14 +7848,6 @@ app.get('/jak-to-funguje', h(async (req, res) => {
   });
 }));
 
-const GUIDE_SEO = {
-  'jak-zacit-s-domaci-peci': ['Jak začít s domácí péčí', 'První kroky pro rodinu: jak společně nastavit potřeby, připravit plán péče a předat důležité informace pečovatelce.'],
-  'bezpecny-domov': ['Bezpečný domov: prevence pádů', 'Praktická kontrola domácnosti a jednoduché úpravy, které pomáhají snižovat riziko pádu seniora.'],
-  'bezpecne-uzivani-leku': ['Jak pomoci s léky bezpečně', 'Přehledný a bezpečný systém pro pomoc seniorovi s užíváním léků podle pokynů zdravotníků.'],
-  'pitny-rezim-a-jidlo': ['Pitný režim a jídlo ve vyšším věku', 'Citlivé a praktické tipy, jak u seniora podpořit pravidelné pití a chuť k jídlu.'],
-  'hygiena-s-respektem': ['Osobní hygiena s respektem', 'Jak při pomoci s osobní hygienou zachovat soukromí, důstojnost a co největší samostatnost seniora.'],
-  'pece-o-pecujici': ['Péče také o pečující', 'Jak poznat přetížení, požádat o pomoc a vytvořit si prostor k odpočinku při dlouhodobé péči o blízkého.'],
-};
 app.get(['/pruvodce-pece', '/pruvodce-pece/:slug'], h(async (req, res) => {
   const slug = String(req.params.slug || '');
   let storedArticle = null;
@@ -7856,12 +7855,12 @@ app.get(['/pruvodce-pece', '/pruvodce-pece/:slug'], h(async (req, res) => {
     const stored = await loadStoredGuideArticles();
     if (stored.configured && slug) storedArticle = stored.articles.find((article) => article.slug === slug && article.published) || null;
     if (stored.configured && slug && !storedArticle) return res.status(404).type('text').send('Článek nebyl nalezen.');
-  } catch (e) { /* při výpadku databáze zůstane dostupný výchozí obsah */ }
-  if (slug && !storedArticle && !GUIDE_SEO[slug]) return res.status(404).type('text').send('Článek nebyl nalezen.');
-  const meta = storedArticle ? [storedArticle.title, storedArticle.lead] : (slug ? GUIDE_SEO[slug] : null);
+  } catch (e) { /* při výpadku databáze vrátíme běžnou stránku průvodce bez článků */ }
+  if (slug && !storedArticle) return res.status(404).type('text').send('Článek nebyl nalezen.');
+  const meta = storedArticle ? [storedArticle.title, storedArticle.lead] : null;
   const canonical = `${APP_ORIGIN}/pruvodce-pece${slug ? `/${slug}` : ''}`;
   const title = meta ? `${meta[0]} — Průvodce péčí ZENVORIA` : 'Průvodce péčí o seniory — ZENVORIA';
-  const description = meta ? meta[1] : 'Srozumitelné a praktické návody pro rodiny i pečovatelky — bezpečný domov, léky, pitný režim, hygiena a podpora pečujících.';
+  const description = meta ? meta[1] : 'Průvodce péčí ZENVORIA s články a praktickými návody zveřejněnými naším týmem.';
   sendSeoPage(req, res, {
     title,
     description,
@@ -8104,11 +8103,11 @@ Sitemap: ${APP_ORIGIN}/sitemap.xml
 });
 
 app.get('/sitemap.xml', h(async (req, res) => {
-  let guideSlugs = Object.keys(GUIDE_SEO);
+  let guideSlugs = [];
   try {
     const stored = await loadStoredGuideArticles();
     if (stored.configured) guideSlugs = stored.articles.filter((article) => article.published).map((article) => article.slug);
-  } catch (e) { /* fallback na výchozí články */ }
+  } catch (e) { /* při výpadku databáze nevkládáme žádné články */ }
   const guidePaths = ['/pruvodce-pece', ...guideSlugs.map(slug => `/pruvodce-pece/${slug}`)];
   const staticPaths = ['/', '/hledat-peci', '/jak-to-funguje', ...guidePaths, '/cenik', '/obchodni-podminky', '/zasady-cookies'];
   const cgs = await getPublicCaregivers(countryForReq(req));
