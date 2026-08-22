@@ -445,7 +445,8 @@ function renderGuideHubCards(){
   const first=articles[0];
   featured.dataset.category=guideCategoryKey(first.category);
   featured.dataset.search=[first.title,first.lead,guideBodyText(first.body)].join(' ');
-  featured.innerHTML=`<div class="guide-featured-image" role="img" aria-label="Péče o seniora"></div><div class="guide-featured-copy"><span class="guide-category">${esc(first.category)}</span><h2>${esc(first.title)}</h2><p>${esc(first.lead)}</p><div class="guide-meta"><span>${esc(first.time)}</span><span>Praktický průvodce</span></div><button type="button" class="btn btn-gold" data-guide-slug="${esc(first.slug)}">Přečíst článek</button></div>`;
+  featured.classList.toggle('guide-featured-no-image',!first.image);
+  featured.innerHTML=`${first.image?`<div class="guide-featured-image" role="img" aria-label="${esc(first.title)}"></div>`:''}<div class="guide-featured-copy"><span class="guide-category">${esc(first.category)}</span><h2>${esc(first.title)}</h2><p>${esc(first.lead)}</p><div class="guide-meta"><span>${esc(first.time)}</span><span>Praktický průvodce</span></div><button type="button" class="btn btn-gold" data-guide-slug="${esc(first.slug)}">Přečíst článek</button></div>`;
   const featuredImage=featured.querySelector('.guide-featured-image');
   if(featuredImage&&first.image)featuredImage.style.backgroundImage=`linear-gradient(90deg,rgba(4,32,19,.08),transparent),url(${JSON.stringify(first.image)})`;
   featured.querySelector('[data-guide-slug]').onclick=()=>openGuideArticle(first.slug);

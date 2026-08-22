@@ -213,7 +213,8 @@
   .guide-card{overflow:hidden;border:1px solid var(--line);border-radius:22px;background:var(--white);box-shadow:var(--shadow-sm);transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
   .guide-card:hover{transform:translateY(-4px);border-color:rgba(201,162,51,.62);box-shadow:var(--shadow)}
   .guide-featured{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);min-height:390px;margin-bottom:26px}
-  .guide-featured-image{min-height:360px;background:linear-gradient(90deg,rgba(4,32,19,.08),transparent),url('/domacipece.webp') center/cover}
+  .guide-featured-image{min-height:360px;background-position:center;background-size:cover}
+  .guide-featured-no-image{grid-template-columns:1fr}.guide-featured-no-image .guide-featured-copy{min-height:390px}
   .guide-featured-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:50px}
   .guide-category{display:inline-flex;align-items:center;gap:7px;color:var(--gold-deep);font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
   .guide-category::before{content:"";width:18px;height:2px;border-radius:2px;background:currentColor}
