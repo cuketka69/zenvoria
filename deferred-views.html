@@ -1140,6 +1140,16 @@
             <label class="lbl" for="admArticleTitle">Název článku <span class="admin-help" tabindex="0" data-help="Z názvu se automaticky vytvoří veřejná internetová adresa článku." aria-label="Nápověda k názvu článku">?</span></label>
             <input class="inp" id="admArticleTitle" maxlength="140" required>
           </div>
+          <div class="admin-article-image-field">
+            <label class="lbl">Úvodní obrázek <span class="admin-help" tabindex="0" data-help="Obrázek se zobrazí na kartě článku i na začátku jeho detailu. Doporučený je široký obrázek na šířku." aria-label="Nápověda k úvodnímu obrázku">?</span></label>
+            <div class="admin-article-image-row">
+              <div class="admin-article-image-preview" id="admArticleImagePreview"><img id="admArticleImagePreviewImg" alt="Náhled úvodního obrázku" hidden><span id="admArticleImagePlaceholder">Použije se výchozí obrázek</span></div>
+              <div class="admin-article-image-actions">
+                <label class="btn btn-ghost btn-sm">Vybrat obrázek<input type="file" id="admArticleImageInput" accept="image/jpeg,image/png,image/webp" hidden onchange="onAdminArticleImage(event)"></label>
+                <button type="button" class="btn btn-decline btn-sm" id="admArticleImageRemove" onclick="removeAdminArticleImage()" hidden>Odebrat</button>
+              </div>
+            </div>
+          </div>
           <div class="grid2" style="margin-top:14px">
             <div><label class="lbl" for="admArticleCategory">Kategorie <span class="admin-help" tabindex="0" data-help="Vyberte jednu z kategorií, které jste vytvořili nahoře na stránce." aria-label="Nápověda ke kategorii článku">?</span></label><select class="inp" id="admArticleCategory"><option value="">Nejprve vytvořte kategorii</option></select></div>
             <div><label class="lbl" for="admArticleTime">Doba čtení (minuty) <span class="admin-help" tabindex="0" data-help="Zadejte pouze celé číslo. Na webu se automaticky doplní text minuta nebo minut čtení." aria-label="Nápověda k době čtení">?</span></label><input class="inp" id="admArticleTime" type="number" min="1" max="999" step="1" inputmode="numeric" placeholder="5" required></div>

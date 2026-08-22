@@ -394,7 +394,7 @@ function applyGuideArticles(articles){
   const next={};
   (Array.isArray(articles)?articles:[]).forEach(article=>{
     if(!article||!article.slug||!article.title)return;
-    next[article.slug]={category:article.category||'Začínáme',time:article.time||'5 minut čtení',title:article.title,lead:article.lead||'',body:article.body||'',published:article.published!==false,updatedAt:article.updatedAt||null};
+    next[article.slug]={category:article.category||'',time:article.time||'5 minut čtení',title:article.title,lead:article.lead||'',body:article.body||'',image:article.image||'',published:article.published!==false,updatedAt:article.updatedAt||null};
   });
   GUIDE_ARTICLES=next;
 }
@@ -446,9 +446,11 @@ function renderGuideHubCards(){
   featured.dataset.category=guideCategoryKey(first.category);
   featured.dataset.search=[first.title,first.lead,guideBodyText(first.body)].join(' ');
   featured.innerHTML=`<div class="guide-featured-image" role="img" aria-label="Péče o seniora"></div><div class="guide-featured-copy"><span class="guide-category">${esc(first.category)}</span><h2>${esc(first.title)}</h2><p>${esc(first.lead)}</p><div class="guide-meta"><span>${esc(first.time)}</span><span>Praktický průvodce</span></div><button type="button" class="btn btn-gold" data-guide-slug="${esc(first.slug)}">Přečíst článek</button></div>`;
+  const featuredImage=featured.querySelector('.guide-featured-image');
+  if(featuredImage&&first.image)featuredImage.style.backgroundImage=`linear-gradient(90deg,rgba(4,32,19,.08),transparent),url(${JSON.stringify(first.image)})`;
   featured.querySelector('[data-guide-slug]').onclick=()=>openGuideArticle(first.slug);
   const artClasses=['guide-art-home','guide-art-meds','guide-art-water','guide-art-care','guide-art-rest'];
-  grid.innerHTML=articles.slice(1).map((article,index)=>`<article class="guide-card" data-category="${guideCategoryKey(article.category)}" data-search="${esc([article.title,article.lead,guideBodyText(article.body)].join(' '))}"><div class="guide-card-art ${artClasses[index%artClasses.length]}"><span class="guide-card-number">${String(index+1).padStart(2,'0')}</span></div><div class="guide-card-body"><span class="guide-category">${esc(article.category)}</span><h3>${esc(article.title)}</h3><p>${esc(article.lead)}</p><div class="guide-meta"><span>${esc(article.time)}</span></div><button type="button" class="guide-text-link" data-guide-slug="${esc(article.slug)}">Přečíst článek <span>→</span></button></div></article>`).join('');
+  grid.innerHTML=articles.slice(1).map((article,index)=>`<article class="guide-card" data-category="${guideCategoryKey(article.category)}" data-search="${esc([article.title,article.lead,guideBodyText(article.body)].join(' '))}"><div class="guide-card-art ${artClasses[index%artClasses.length]}">${article.image?`<img src="${esc(article.image)}" alt="" loading="lazy" decoding="async">`:`<span class="guide-card-number">${String(index+1).padStart(2,'0')}</span>`}</div><div class="guide-card-body"><span class="guide-category">${esc(article.category)}</span><h3>${esc(article.title)}</h3><p>${esc(article.lead)}</p><div class="guide-meta"><span>${esc(article.time)}</span></div><button type="button" class="guide-text-link" data-guide-slug="${esc(article.slug)}">Přečíst článek <span>→</span></button></div></article>`).join('');
   grid.querySelectorAll('[data-guide-slug]').forEach(button=>{button.onclick=()=>openGuideArticle(button.dataset.guideSlug);});
   const tipArticle=articles[1]||first;
   const tipTitle=document.getElementById('guideTipTitle'),tipLead=document.getElementById('guideTipLead'),tipLink=document.getElementById('guideTipLink');
@@ -470,7 +472,7 @@ function renderGuide(){
   }
   hub.hidden=true;article.hidden=false;
   document.title=item.title+' — ZENVORIA';
-  content.innerHTML=`<header class="guide-article-head"><span class="guide-category">${esc(item.category)}</span><h1>${esc(item.title)}</h1><p>${esc(item.lead)}</p><div class="guide-meta"><span>${esc(item.time)}</span><span>Ověřeno redakcí ZENVORIA</span></div></header><div class="guide-article-layout"><div class="guide-article-body">${item.body}<div class="guide-medical-note"><b>Upozornění:</b> Článek poskytuje obecné informace a nenahrazuje individuální doporučení lékaře nebo jiného zdravotníka.</div></div><aside class="guide-article-aside"><span>Potřebujete praktickou pomoc?</span><h3>Najděte péči pro svého blízkého</h3><p>Ověřené pečovatelky podle lokality, zkušeností a služeb.</p><button type="button" class="btn btn-gold btn-block" onclick="go('search')">Najít pečovatelku</button></aside></div>`;
+  content.innerHTML=`<header class="guide-article-head"><span class="guide-category">${esc(item.category)}</span><h1>${esc(item.title)}</h1><p>${esc(item.lead)}</p><div class="guide-meta"><span>${esc(item.time)}</span><span>Ověřeno redakcí ZENVORIA</span></div></header>${item.image?`<img class="guide-article-cover" src="${esc(item.image)}" alt="${esc(item.title)}" decoding="async">`:''}<div class="guide-article-layout"><div class="guide-article-body">${item.body}<div class="guide-medical-note"><b>Upozornění:</b> Článek poskytuje obecné informace a nenahrazuje individuální doporučení lékaře nebo jiného zdravotníka.</div></div><aside class="guide-article-aside"><span>Potřebujete praktickou pomoc?</span><h3>Najděte péči pro svého blízkého</h3><p>Ověřené pečovatelky podle lokality, zkušeností a služeb.</p><button type="button" class="btn btn-gold btn-block" onclick="go('search')">Najít pečovatelku</button></aside></div>`;
 }
 function setGuideFilter(category,button){
   guideCategory=category||'all';
@@ -5233,6 +5235,7 @@ let adminGuideArticles=[];
 let adminGuideCategories=[];
 let adminGuideLoaded=false;
 let adminGuideEditingSlug=null;
+let adminGuideDraftImage='';
 async function renderAdminArticles(){
   const list=document.getElementById('admArticleList');
   if(!list)return;
@@ -5311,6 +5314,37 @@ function guideReadingTimeLabel(minutes){
   const unit=minutes===1?'minuta':(minutes>=2&&minutes<=4?'minuty':'minut');
   return `${minutes} ${unit} čtení`;
 }
+function renderAdminArticleImage(){
+  const preview=document.getElementById('admArticleImagePreviewImg'),placeholder=document.getElementById('admArticleImagePlaceholder'),remove=document.getElementById('admArticleImageRemove');
+  if(preview){preview.src=adminGuideDraftImage||'';preview.hidden=!adminGuideDraftImage;}
+  if(placeholder)placeholder.hidden=!!adminGuideDraftImage;
+  if(remove)remove.hidden=!adminGuideDraftImage;
+}
+function onAdminArticleImage(e){
+  const input=e&&e.target,file=input&&input.files&&input.files[0];if(!file)return;
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast('Vyberte obrázek ve formátu JPG, PNG nebo WebP.','declined');input.value='';return;}
+  if(file.size>10*1024*1024){toast('Obrázek může mít nejvýše 10 MB.','declined');input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const image=new Image();
+    image.onload=()=>{
+      const ratio=16/9,sourceRatio=image.width/image.height;
+      let sx=0,sy=0,sw=image.width,sh=image.height;
+      if(sourceRatio>ratio){sw=Math.round(image.height*ratio);sx=Math.round((image.width-sw)/2);}else if(sourceRatio<ratio){sh=Math.round(image.width/ratio);sy=Math.round((image.height-sh)/2);}
+      const width=Math.min(1400,sw),height=Math.round(width/ratio),canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+      canvas.getContext('2d').drawImage(image,sx,sy,sw,sh,0,0,width,height);
+      let data='';for(const quality of [.82,.72,.62]){data=canvas.toDataURL('image/webp',quality);if(data.length<=1350000)break;}
+      if(!data.startsWith('data:image/webp')||data.length>1350000){toast('Obrázek se nepodařilo zmenšit. Vyberte prosím jiný.','declined');input.value='';return;}
+      adminGuideDraftImage=data;renderAdminArticleImage();toast('Úvodní obrázek je připravený. Uložte článek.','success');
+    };
+    image.onerror=()=>{toast('Obrázek se nepodařilo načíst.','declined');input.value='';};
+    image.src=String(reader.result||'');
+  };
+  reader.readAsDataURL(file);
+}
+function removeAdminArticleImage(){
+  adminGuideDraftImage='';const input=document.getElementById('admArticleImageInput');if(input)input.value='';renderAdminArticleImage();
+}
 function showAdminArticleForm(article,isNew){
   const form=document.getElementById('admArticleForm'),placeholder=document.getElementById('admArticlePlaceholder');
   if(!form)return;
@@ -5319,6 +5353,7 @@ function showAdminArticleForm(article,isNew){
   document.getElementById('admArticleFormEyebrow').textContent=isNew?'Nový článek':'Úprava článku';
   document.getElementById('admArticleFormTitle').textContent=isNew?'Nový článek':article.title;
   document.getElementById('admArticleTitle').value=article.title||'';
+  adminGuideDraftImage=article.image||'';const imageInput=document.getElementById('admArticleImageInput');if(imageInput)imageInput.value='';renderAdminArticleImage();
   renderAdminGuideCategories(article.category||'');
   document.getElementById('admArticleTime').value=guideReadingMinutes(article.time);
   document.getElementById('admArticleLead').value=article.lead||'';
@@ -5365,6 +5400,7 @@ function saveAdminArticle(e){
     time:guideReadingTimeLabel(minutes),
     lead:document.getElementById('admArticleLead').value.trim(),
     body:document.getElementById('admArticleBody').innerHTML.trim(),
+    image:adminGuideDraftImage,
     published:document.getElementById('admArticlePublished').checked,
     updatedAt:new Date().toISOString(),
   };

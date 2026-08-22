@@ -466,12 +466,13 @@ function sanitizeGuideArticles(value) {
     const category = trimmedString(raw.category, 60);
     const lead = trimmedString(raw.lead, 500);
     const body = sanitizeGuideArticleBody(raw.body);
+    const imageData = raw.image ? decodeDataUrl(raw.image, { maxBytes: 1024 * 1024, allowedTypes: PUBLIC_IMAGE_MIME_TYPES }) : null;
     if (!title || !category || !lead || !body) continue;
     let slug = slugifyGuideArticle(title);
     while (seen.has(slug)) slug = `${slug.slice(0, 76)}-${out.length + 2}`;
     seen.add(slug);
     out.push({
-      slug, title, lead, body, category,
+      slug, title, lead, body, category, image: imageData ? imageData.dataUrl : '',
       time: guideReadingTimeLabel(raw.time),
       published: raw.published !== false,
       updatedAt: trimmedString(raw.updatedAt, 40) || new Date().toISOString(),
@@ -7438,10 +7439,16 @@ app.get('/api/admin/guide-articles', requireRole('admin'), h(async (_req, res) =
 app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {
   const key = String(req.params.key || '').trim();
   if (!ADMIN_UPDATABLE_SETTING_KEYS.has(key)) return res.status(400).json({ error: 'Tento klíč nastavení nelze upravit.' });
-  const value = sanitizeSettingValue(key, (req.body || {}).value);
+  let value = sanitizeSettingValue(key, (req.body || {}).value);
   if (value == null) return res.status(400).json({ error: 'Neplatná hodnota nastavení.' });
   if (key === 'guideArticles') {
-    const storedCategories = await loadStoredGuideCategories();
+    const [storedCategories, storedArticles] = await Promise.all([loadStoredGuideCategories(), loadStoredGuideArticles()]);
+    const existingImages = new Set((storedArticles.articles || []).map((article) => article.image).filter(Boolean));
+    for (const article of value) {
+      if (!article.image || existingImages.has(article.image)) continue;
+      article.image = await sanitizePublicImageDataUrl(article.image, 1024 * 1024);
+      if (!article.image) return res.status(400).json({ error: 'Úvodní obrázek článku není platný nebo je příliš velký.' });
+    }
     const allowed = new Set(storedCategories.categories);
     if (value.some((article) => !allowed.has(article.category))) return res.status(400).json({ error: 'Každý článek musí používat některou z vytvořených kategorií.' });
   }
