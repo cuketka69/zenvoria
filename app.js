@@ -5415,6 +5415,12 @@ function guideLocalDateTimeValue(value){
   const local=new Date(date.getTime()-date.getTimezoneOffset()*60000);return local.toISOString().slice(0,16);
 }
 function guideScheduledIso(value){const date=value&&new Date(value);return date&&!Number.isNaN(date.getTime())?date.toISOString():'';}
+function toggleAdminArticleSchedule(enabled,fromUser){
+  const wrap=document.getElementById('admArticleScheduleDate'),input=document.getElementById('admArticleScheduledAt');if(wrap)wrap.hidden=!enabled;
+  if(!enabled&&input)input.value='';
+  if(enabled&&fromUser&&input)setTimeout(()=>input.focus(),20);
+  if(fromUser)scheduleAdminArticleAutosave();
+}
 function renderAdminArticleImage(){
   const preview=document.getElementById('admArticleImagePreviewImg'),placeholder=document.getElementById('admArticleImagePlaceholder'),remove=document.getElementById('admArticleImageRemove');
   if(preview){preview.src=adminGuideDraftImage||'';preview.hidden=!adminGuideDraftImage;}
@@ -5458,7 +5464,7 @@ function showAdminArticleForm(article,isNew){
   adminGuideDraftImage=article.image||'';const imageInput=document.getElementById('admArticleImageInput');if(imageInput)imageInput.value='';renderAdminArticleImage();
   renderAdminGuideCategories(article.category||'');
   document.getElementById('admArticleTime').value=guideReadingMinutes(article.time);
-  document.getElementById('admArticleScheduledAt').value=guideLocalDateTimeValue(article.scheduledAt);
+  const scheduleEnabled=!!article.scheduledAt;document.getElementById('admArticleScheduleEnabled').checked=scheduleEnabled;document.getElementById('admArticleScheduledAt').value=scheduleEnabled?guideLocalDateTimeValue(article.scheduledAt):'';toggleAdminArticleSchedule(scheduleEnabled,false);
   document.getElementById('admArticleFeatured').checked=article.featured===true;
   document.getElementById('admArticleLead').value=article.lead||'';
   document.getElementById('admArticleBody').innerHTML=article.body||'<h2>Začněte psát</h2><p>Sem napište obsah článku.</p>';
@@ -5618,13 +5624,15 @@ function collectAdminArticleForm(){
   const title=document.getElementById('admArticleTitle').value.trim();
   const minutes=Number(document.getElementById('admArticleTime').value);
   const published=document.getElementById('admArticlePublished').checked;
+  const scheduleEnabled=document.getElementById('admArticleScheduleEnabled').checked;
   const now=new Date().toISOString();
-  const scheduledAt=guideScheduledIso(document.getElementById('admArticleScheduledAt').value);
+  const scheduledAt=scheduleEnabled?guideScheduledIso(document.getElementById('admArticleScheduledAt').value):'';
   const existingWasScheduled=existing&&existing.scheduledAt&&Date.parse(existing.scheduledAt)>Date.now();
   const publishedAt=published?((existing&&existing.publishedAt&&!(existingWasScheduled&&scheduledAt!==existing.scheduledAt))?existing.publishedAt:(scheduledAt||now)):((existing&&existing.publishedAt)||'');
   return {
     original,
     minutes,
+    scheduleEnabled,
     bodyText:document.getElementById('admArticleBody').innerText.trim(),
     article:{
       slug:slugifyGuideArticle(title),title,
@@ -5666,7 +5674,7 @@ async function autoSaveAdminArticle(){
   adminGuideAutosaveTimer=null;if(adminGuideAutosaveInFlight)return scheduleAdminArticleAutosave();
   const snapshot=collectAdminArticleForm(),article=snapshot.article,status=document.getElementById('admArticleSavedAt');
   const storedArticle=snapshot.original&&adminGuideArticles.find(item=>item.slug===snapshot.original);
-  if(article.published||(storedArticle&&storedArticle.published!==false)||!Number.isInteger(snapshot.minutes)||snapshot.minutes<1||snapshot.minutes>999||!article.title||!article.author||!article.lead||!snapshot.bodyText||!article.category||!adminGuideCategories.includes(article.category)){
+  if(article.published||(storedArticle&&storedArticle.published!==false)||!Number.isInteger(snapshot.minutes)||snapshot.minutes<1||snapshot.minutes>999||(snapshot.scheduleEnabled&&!article.scheduledAt)||!article.title||!article.author||!article.lead||!snapshot.bodyText||!article.category||!adminGuideCategories.includes(article.category)){
     if(status&&!article.published)status.textContent='Koncept se automaticky uloží po vyplnění povinných polí.';return;
   }
   if(adminGuideArticles.some(item=>item.slug===article.slug&&item.slug!==snapshot.original)){if(status)status.textContent='Automatické uložení čeká na jedinečný název článku.';return;}
@@ -5698,6 +5706,7 @@ function saveAdminArticle(e){
   const snapshot=collectAdminArticleForm(),original=snapshot.original,minutes=snapshot.minutes,article=snapshot.article;
   err.textContent='';
   if(!Number.isInteger(minutes)||minutes<1||minutes>999){err.textContent='Doba čtení musí být celé číslo od 1 do 999.';return false;}
+  if(snapshot.scheduleEnabled&&!article.scheduledAt){err.textContent='Vyberte datum a čas naplánovaného zveřejnění.';toast('Vyberte datum a čas zveřejnění.','declined');return false;}
   if(!article.category||!adminGuideCategories.includes(article.category)){err.textContent='Nemáte vybranou kategorii.';toast('Nemáte vybranou kategorii.','declined');return false;}
   if(!article.title||!article.author||!article.lead||!snapshot.bodyText){err.textContent='Vyplňte název, autora, krátký úvod a obsah článku.';return false;}
   if(adminGuideArticles.some(item=>item.slug===article.slug&&item.slug!==original)){err.textContent='Článek se stejným nebo příliš podobným názvem už existuje.';return false;}
