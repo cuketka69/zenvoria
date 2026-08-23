@@ -326,7 +326,7 @@ async function go(v,fromPop){
   if(v==='register')pickRole(regRole);
   if(v==='forgot')resetForgot();
   if(v==='howto')howtoTab('family');
-  if(v==='guide'){await loadGuideArticles();renderGuide();}
+  if(v==='guide'){await loadGuideArticles(true);renderGuide();}
   if(v==='reset-password')resetResetPassword(true);
   if(v==='change-email')resetChangeEmail(true);
   // Při odchodu z reset hesla vyčisti token z URL, ať tam nezůstává viset.
@@ -394,7 +394,7 @@ function applyGuideArticles(articles){
   const next={};
   (Array.isArray(articles)?articles:[]).forEach(article=>{
     if(!article||!article.slug||!article.title)return;
-    next[article.slug]={category:article.category||'',time:article.time||'5 minut čtení',title:article.title,author:article.author||'',lead:article.lead||'',body:article.body||'',image:article.image||'',published:article.published!==false,publishedAt:article.publishedAt||null,updatedAt:article.updatedAt||null};
+    next[article.slug]={category:article.category||'',time:article.time||'5 minut čtení',title:article.title,author:article.author||'',lead:article.lead||'',body:article.body||'',image:article.image||'',published:article.published!==false,featured:article.featured===true,scheduledAt:article.scheduledAt||null,publishedAt:article.publishedAt||null,updatedAt:article.updatedAt||null};
   });
   GUIDE_ARTICLES=next;
 }
@@ -430,7 +430,7 @@ function guideArticleDateMeta(article,includeUpdated){
   return `${published?`<span>${esc(published)}</span>`:''}${includeUpdated&&different&&updated?`<span>${esc(updated)}</span>`:''}`;
 }
 function renderGuideHubCards(){
-  const articles=guideArticleArray(false);
+  const articles=guideArticleArray(false).sort((a,b)=>Number(b.featured)-Number(a.featured));
   const featured=document.getElementById('guideFeatured');
   const grid=document.getElementById('guideGrid');
   const tip=document.querySelector('.guide-month-tip');
@@ -565,7 +565,7 @@ function toggleMenu(open){
 
 /* ---------- KEYBOARD ACTIVATION (role=button) ---------- */
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeVerifyValidModal();closeAccountMenu();closeAllDD();return;}
+  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeVerifyValidModal();closeAdminArticlePreview();closeAccountMenu();closeAllDD();return;}
   if((e.key==='Enter'||e.key===' ')){
     const el=e.target;
     const r=el&&el.getAttribute&&el.getAttribute('role');
@@ -5311,10 +5311,11 @@ function deleteAdminGuideCategory(index){
     const previous=[...adminGuideCategories];adminGuideCategories.splice(index,1);renderAdminGuideCategories();await persistAdminGuideCategories('Kategorie byla smazána.',previous);
   }});
 }
+function guideArticleIsScheduled(article){return !!(article&&article.published!==false&&article.scheduledAt&&Date.parse(article.scheduledAt)>Date.now());}
 function renderAdminArticleList(){
   const list=document.getElementById('admArticleList'),count=document.getElementById('admArticleCount');
   if(!list)return;if(count)count.textContent=adminGuideArticles.length;
-  list.innerHTML=adminGuideArticles.length?adminGuideArticles.map((article,index)=>`<div class="admin-article-row${article.slug===adminGuideEditingSlug?' active':''}"><button type="button" class="admin-article-open" onclick="editAdminArticle('${esc(article.slug)}')"><span class="admin-article-status ${article.published!==false?'published':'draft'}">${article.published!==false?'Publikováno':'Koncept'}</span><b>${esc(article.title)}</b><small>${esc(article.category)} · ${esc(article.time||'')}</small></button><div class="admin-article-order"><button type="button" onclick="moveAdminArticle('${esc(article.slug)}',-1)" aria-label="Posunout článek nahoru" ${index===0?'disabled':''}>↑</button><button type="button" onclick="moveAdminArticle('${esc(article.slug)}',1)" aria-label="Posunout článek dolů" ${index===adminGuideArticles.length-1?'disabled':''}>↓</button></div></div>`).join(''):'<div class="empty">Zatím žádné články. Vytvořte první pomocí tlačítka „Nový článek“.</div>';
+  list.innerHTML=adminGuideArticles.length?adminGuideArticles.map((article,index)=>{const scheduled=guideArticleIsScheduled(article),status=scheduled?'Naplánováno':(article.published!==false?'Publikováno':'Koncept'),statusClass=scheduled?'scheduled':(article.published!==false?'published':'draft');return `<div class="admin-article-row${article.slug===adminGuideEditingSlug?' active':''}"><button type="button" class="admin-article-open" onclick="editAdminArticle('${esc(article.slug)}')"><span class="admin-article-status ${statusClass}">${status}</span><b>${article.featured?'<span aria-label="Hlavní článek">★</span> ':''}${esc(article.title)}</b><small>${esc(article.category)} · ${esc(article.time||'')}</small></button><div class="admin-article-order"><button type="button" onclick="moveAdminArticle('${esc(article.slug)}',-1)" aria-label="Posunout článek nahoru" ${index===0?'disabled':''}>↑</button><button type="button" onclick="moveAdminArticle('${esc(article.slug)}',1)" aria-label="Posunout článek dolů" ${index===adminGuideArticles.length-1?'disabled':''}>↓</button></div></div>`;}).join(''):'<div class="empty">Zatím žádné články. Vytvořte první pomocí tlačítka „Nový článek“.</div>';
 }
 function slugifyGuideArticle(value){
   return String(value||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'clanek';
@@ -5327,6 +5328,11 @@ function guideReadingTimeLabel(minutes){
   const unit=minutes===1?'minuta':(minutes>=2&&minutes<=4?'minuty':'minut');
   return `${minutes} ${unit} čtení`;
 }
+function guideLocalDateTimeValue(value){
+  const date=value&&new Date(value);if(!date||Number.isNaN(date.getTime()))return '';
+  const local=new Date(date.getTime()-date.getTimezoneOffset()*60000);return local.toISOString().slice(0,16);
+}
+function guideScheduledIso(value){const date=value&&new Date(value);return date&&!Number.isNaN(date.getTime())?date.toISOString():'';}
 function renderAdminArticleImage(){
   const preview=document.getElementById('admArticleImagePreviewImg'),placeholder=document.getElementById('admArticleImagePlaceholder'),remove=document.getElementById('admArticleImageRemove');
   if(preview){preview.src=adminGuideDraftImage||'';preview.hidden=!adminGuideDraftImage;}
@@ -5370,12 +5376,14 @@ function showAdminArticleForm(article,isNew){
   adminGuideDraftImage=article.image||'';const imageInput=document.getElementById('admArticleImageInput');if(imageInput)imageInput.value='';renderAdminArticleImage();
   renderAdminGuideCategories(article.category||'');
   document.getElementById('admArticleTime').value=guideReadingMinutes(article.time);
+  document.getElementById('admArticleScheduledAt').value=guideLocalDateTimeValue(article.scheduledAt);
+  document.getElementById('admArticleFeatured').checked=article.featured===true;
   document.getElementById('admArticleLead').value=article.lead||'';
   document.getElementById('admArticleBody').innerHTML=article.body||'<h2>Začněte psát</h2><p>Sem napište obsah článku.</p>';
   document.getElementById('admArticlePublished').checked=article.published!==false;
   const deleteButton=document.getElementById('admArticleDeleteBtn'),previewButton=document.getElementById('admArticlePreviewBtn');
   if(deleteButton){deleteButton.hidden=isNew;if(deleteButton.parentElement)deleteButton.parentElement.hidden=isNew;}
-  if(previewButton){previewButton.hidden=isNew;if(previewButton.parentElement)previewButton.parentElement.hidden=isNew;}
+  if(previewButton){previewButton.hidden=false;if(previewButton.parentElement)previewButton.parentElement.hidden=false;}
   document.getElementById('admArticleErr').textContent='';
   document.getElementById('admArticleSavedAt').textContent=article.updatedAt?('Naposledy upraveno '+new Date(article.updatedAt).toLocaleString('cs-CZ',{dateStyle:'medium',timeStyle:'short'})):'';
   const category=document.getElementById('admArticleCategory');if(category&&category._ddRefresh)category._ddRefresh();
@@ -5383,7 +5391,7 @@ function showAdminArticleForm(article,isNew){
 }
 function newAdminArticle(){
   if(!adminGuideCategories.length){toast('Nejdříve vytvořte alespoň jednu kategorii.','declined');return;}
-  showAdminArticleForm({title:'',slug:'',author:auth.name||'',category:'',time:'5 minut čtení',lead:'',body:'',published:false},true);
+  showAdminArticleForm({title:'',slug:'',author:auth.name||'',category:'',time:'5 minut čtení',lead:'',body:'',published:false,featured:false,scheduledAt:''},true);
   setTimeout(()=>document.getElementById('admArticleTitle')?.focus(),30);
 }
 function editAdminArticle(slug){
@@ -5467,6 +5475,9 @@ function collectAdminArticleForm(){
   const minutes=Number(document.getElementById('admArticleTime').value);
   const published=document.getElementById('admArticlePublished').checked;
   const now=new Date().toISOString();
+  const scheduledAt=guideScheduledIso(document.getElementById('admArticleScheduledAt').value);
+  const existingWasScheduled=existing&&existing.scheduledAt&&Date.parse(existing.scheduledAt)>Date.now();
+  const publishedAt=published?((existing&&existing.publishedAt&&!(existingWasScheduled&&scheduledAt!==existing.scheduledAt))?existing.publishedAt:(scheduledAt||now)):((existing&&existing.publishedAt)||'');
   return {
     original,
     minutes,
@@ -5480,7 +5491,9 @@ function collectAdminArticleForm(){
       body:document.getElementById('admArticleBody').innerHTML.trim(),
       image:adminGuideDraftImage,
       published,
-      publishedAt:(existing&&existing.publishedAt)||(published?now:''),
+      featured:document.getElementById('admArticleFeatured').checked,
+      scheduledAt,
+      publishedAt,
       updatedAt:now,
     },
   };
@@ -5511,6 +5524,7 @@ async function autoSaveAdminArticle(){
     if(status&&!article.published)status.textContent='Koncept se automaticky uloží po vyplnění povinných polí.';return;
   }
   if(adminGuideArticles.some(item=>item.slug===article.slug&&item.slug!==snapshot.original)){if(status)status.textContent='Automatické uložení čeká na jedinečný název článku.';return;}
+  article.featured=!!(storedArticle&&storedArticle.featured);
   const previous=adminGuideArticles.map(item=>({...item}));
   const next=previous.map(item=>({...item}));
   const index=snapshot.original?next.findIndex(item=>item.slug===snapshot.original):-1;
@@ -5541,6 +5555,10 @@ function saveAdminArticle(e){
   if(!article.category||!adminGuideCategories.includes(article.category)){err.textContent='Nemáte vybranou kategorii.';toast('Nemáte vybranou kategorii.','declined');return false;}
   if(!article.title||!article.author||!article.lead||!snapshot.bodyText){err.textContent='Vyplňte název, autora, krátký úvod a obsah článku.';return false;}
   if(adminGuideArticles.some(item=>item.slug===article.slug&&item.slug!==original)){err.textContent='Článek se stejným nebo příliš podobným názvem už existuje.';return false;}
+  if(article.featured&&article.published){
+    const queued=article.scheduledAt&&Date.parse(article.scheduledAt)>Date.now();
+    adminGuideArticles.forEach(item=>{if(!queued||guideArticleIsScheduled(item))item.featured=false;});
+  }
   const index=original?adminGuideArticles.findIndex(item=>item.slug===original):-1;
   if(index>=0)adminGuideArticles.splice(index,1,article);else adminGuideArticles.push(article);
   adminGuideEditingSlug=article.slug;form.dataset.isNew='0';
@@ -5575,9 +5593,19 @@ function moveAdminArticle(slug,direction){
   renderAdminArticleList();persistAdminGuideArticles('Pořadí článků bylo uloženo.');
 }
 function previewAdminArticle(){
-  const article=adminGuideArticles.find(item=>item.slug===adminGuideEditingSlug);if(!article)return;
-  applyGuideArticles(adminGuideArticles);guideArticleSlug=article.slug;go('guide');
+  const form=document.getElementById('admArticleForm'),modal=document.getElementById('admArticlePreviewModal'),frame=document.getElementById('admArticlePreviewFrame');if(!form||form.hidden||!modal||!frame)return;
+  const snapshot=collectAdminArticleForm(),article=snapshot.article;
+  const origin=location.origin,meta=`${article.author?`<span>Autor: ${esc(article.author)}</span>`:''}${guideArticleDateMeta(article,true)}<span>${esc(Number.isInteger(snapshot.minutes)?article.time:'5 minut čtení')}</span>`;
+  const schedule=guideArticleIsScheduled(article)?`<div class="guide-callout"><b>Naplánováno:</b> ${esc(new Date(article.scheduledAt).toLocaleString('cs-CZ',{dateStyle:'long',timeStyle:'short'}))}</div>`:'';
+  frame.srcdoc=`<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${esc(origin)}; font-src ${esc(origin)}; img-src data:; base-uri 'none'; form-action 'none'"><link rel="stylesheet" href="${esc(origin)}/app.css"></head><body><main class="guide-article"><div class="wrap"><header class="guide-article-head"><span class="guide-category">${esc(article.category||'Bez kategorie')}</span><h1>${esc(article.title||'Název článku')}</h1><p>${esc(article.lead||'Krátký úvod článku se zobrazí zde.')}</p><div class="guide-meta">${meta}</div>${schedule}</header>${article.image?`<img class="guide-article-cover" src="${esc(article.image)}" alt="${esc(article.title)}">`:''}<div class="guide-article-layout"><div class="guide-article-body">${article.body||'<p>Obsah článku se zobrazí zde.</p>'}</div><aside class="guide-article-aside"><span>Náhled magazínu</span><h3>Takto článek uvidí čtenáři</h3><p>Rozložení se může přizpůsobit velikosti jejich obrazovky.</p></aside></div></div></main></body></html>`;
+  setAdminArticlePreviewSize('desktop');modal.classList.add('open');document.body.style.overflow='hidden';
 }
+function setAdminArticlePreviewSize(size){
+  const frame=document.getElementById('admArticlePreviewFrame');if(frame)frame.classList.toggle('mobile',size==='mobile');
+  document.querySelectorAll('[data-article-preview-size]').forEach(button=>button.classList.toggle('on',button.dataset.articlePreviewSize===size));
+}
+function closeAdminArticlePreview(){const modal=document.getElementById('admArticlePreviewModal');if(modal)modal.classList.remove('open');document.body.style.overflow=document.querySelector('.modal.open')?'hidden':'';}
+document.addEventListener('click',event=>{const button=event.target.closest&&event.target.closest('[data-article-preview-size]');if(button)setAdminArticlePreviewSize(button.dataset.articlePreviewSize);});
 
 function renderAdminServices(){
   const err=document.getElementById('svcErr');if(err)err.textContent='';

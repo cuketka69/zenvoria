@@ -498,11 +498,15 @@ function sanitizeGuideArticles(value) {
     seen.add(slug);
     const updatedAt = sanitizedIsoDate(raw.updatedAt) || new Date().toISOString();
     const published = raw.published !== false;
-    const publishedAt = sanitizedIsoDate(raw.publishedAt) || (published ? updatedAt : '');
+    const scheduledAt = sanitizedIsoDate(raw.scheduledAt);
+    const publishedAt = sanitizedIsoDate(raw.publishedAt) || (published ? (scheduledAt || updatedAt) : '');
+    const featured = raw.featured === true;
     out.push({
       slug, title, author, lead, body, category, image: imageData ? imageData.dataUrl : '',
       time: guideReadingTimeLabel(raw.time),
       published,
+      featured,
+      scheduledAt,
       publishedAt,
       updatedAt,
     });
@@ -7512,8 +7516,11 @@ async function loadStoredGuideCategories() {
 app.get('/api/guide-articles', h(async (_req, res) => {
   const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
   const allowed = new Set(storedCategories.categories);
+  const now = Date.now();
+  const visible = stored.configured ? stored.articles.filter((article) => article.published && (!article.scheduledAt || Date.parse(article.scheduledAt) <= now) && allowed.has(article.category)) : null;
+  const featuredSlug = visible && visible.filter((article) => article.featured).sort((a, b) => Date.parse(b.scheduledAt || b.publishedAt || b.updatedAt) - Date.parse(a.scheduledAt || a.publishedAt || a.updatedAt))[0]?.slug;
   res.setHeader('Cache-Control', 'no-cache');
-  res.json({ configured: stored.configured, articles: stored.configured ? stored.articles.filter((article) => article.published && allowed.has(article.category)) : null });
+  res.json({ configured: stored.configured, articles: visible ? visible.map((article) => ({ ...article, featured: article.slug === featuredSlug })) : null });
 }));
 
 app.get('/api/admin/guide-articles', requireRole('admin'), h(async (_req, res) => {

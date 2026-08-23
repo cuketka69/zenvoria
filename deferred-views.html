@@ -1132,7 +1132,7 @@
           <div class="admin-article-form-head">
             <div><span class="eyebrow" id="admArticleFormEyebrow">Úprava článku</span><h2 id="admArticleFormTitle">Článek</h2></div>
             <div class="admin-article-form-actions">
-              <div class="admin-action-with-help"><button type="button" class="btn btn-ghost btn-sm" id="admArticlePreviewBtn" onclick="previewAdminArticle()">Náhled</button><span class="admin-help" tabindex="0" data-help="Otevře náhled uložené verze článku." aria-label="Nápověda k náhledu">?</span></div>
+              <div class="admin-action-with-help"><button type="button" class="btn btn-ghost btn-sm" id="admArticlePreviewBtn" onclick="previewAdminArticle()">Náhled</button><span class="admin-help" tabindex="0" data-help="Ukáže aktuální rozepsanou podobu článku na počítači nebo telefonu bez nutnosti jej publikovat." aria-label="Nápověda k náhledu">?</span></div>
               <div class="admin-action-with-help"><button type="button" class="btn btn-decline btn-sm" id="admArticleDeleteBtn" onclick="deleteAdminArticle()">Smazat</button><span class="admin-help" tabindex="0" data-help="Trvale odstraní vybraný článek po potvrzení." aria-label="Nápověda ke smazání">?</span></div>
             </div>
           </div>
@@ -1159,6 +1159,10 @@
             <div><label class="lbl" for="admArticleCategory">Kategorie <span class="admin-help" tabindex="0" data-help="Vyberte jednu z kategorií, které jste vytvořili nahoře na stránce." aria-label="Nápověda ke kategorii článku">?</span></label><select class="inp" id="admArticleCategory"><option value="">Nejprve vytvořte kategorii</option></select></div>
             <div><label class="lbl" for="admArticleTime">Doba čtení (minuty) <span class="admin-help" tabindex="0" data-help="Zadejte pouze celé číslo. Na webu se automaticky doplní text minuta nebo minut čtení." aria-label="Nápověda k době čtení">?</span></label><input class="inp" id="admArticleTime" type="number" min="1" max="999" step="1" inputmode="numeric" placeholder="5" required></div>
           </div>
+          <div class="admin-article-publishing-options">
+            <div><label class="lbl" for="admArticleScheduledAt">Naplánovat zveřejnění <span class="admin-help" tabindex="0" data-help="Pokud zadáte budoucí datum a zapnete publikování, článek se návštěvníkům automaticky zobrazí až v určený čas." aria-label="Nápověda k plánovanému zveřejnění">?</span></label><input class="inp" id="admArticleScheduledAt" type="datetime-local"></div>
+            <label class="admin-featured-toggle"><input type="checkbox" id="admArticleFeatured"><span><b>Hlavní článek</b><small>Zobrazí tento článek jako první velkou kartu. Naplánovaný článek převezme hlavní pozici až při zveřejnění.</small></span><span class="admin-help" tabindex="0" data-help="Ručně určuje hlavní článek magazínu. U okamžitého zveřejnění nahradí současný hlavní článek hned, u plánovaného až v nastavený čas." aria-label="Nápověda k hlavnímu článku">?</span></label>
+          </div>
           <div style="margin-top:14px"><label class="lbl" for="admArticleLead">Krátký úvod <span class="admin-help" tabindex="0" data-help="Stručné shrnutí článku, které se zobrazí na kartě článku a ve výsledcích vyhledávání." aria-label="Nápověda ke krátkému úvodu">?</span></label><textarea class="inp" id="admArticleLead" maxlength="500" rows="3" required></textarea></div>
           <div style="margin-top:14px">
             <label class="lbl" id="admArticleBodyLabel">Obsah článku <span class="admin-help" tabindex="0" data-help="Napište celý článek. Lištou můžete text formátovat, vytvořit seznam, vložit odkaz nebo přidat až 8 obrázků." aria-label="Nápověda k obsahu článku">?</span></label>
@@ -1181,6 +1185,15 @@
         </form>
       </section>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="admArticlePreviewModal" role="dialog" aria-modal="true" aria-labelledby="admArticlePreviewTitle">
+  <div class="modal-scrim" onclick="closeAdminArticlePreview()"></div>
+  <div class="modal-card admin-article-preview-modal-card">
+    <button class="modal-x" type="button" aria-label="Zavřít náhled" onclick="closeAdminArticlePreview()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    <div class="admin-article-preview-head"><div><span class="eyebrow">Náhled článku</span><h3 id="admArticlePreviewTitle">Náhled před publikováním</h3></div><div class="admin-article-preview-switch" role="group" aria-label="Velikost náhledu"><button type="button" class="on" data-article-preview-size="desktop">Počítač</button><button type="button" data-article-preview-size="mobile">Telefon</button></div></div>
+    <div class="admin-article-preview-stage"><iframe id="admArticlePreviewFrame" title="Náhled článku" sandbox=""></iframe></div>
   </div>
 </div>
 
