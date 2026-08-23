@@ -304,7 +304,7 @@
   .admin-article-open b{max-width:100%;overflow:hidden;text-overflow:ellipsis;color:var(--navy-900);font-size:13.5px;white-space:nowrap}
   .admin-article-open small{color:var(--muted);font-size:11px}
   .admin-article-status{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
-  .admin-article-status.published{background:rgba(19,165,82,.12);color:#0d7b40}.admin-article-status.draft{background:var(--cream-2);color:var(--muted)}.admin-article-status.scheduled{background:rgba(201,162,51,.16);color:var(--gold-deep)}
+  .admin-article-status.published{background:var(--gold);color:var(--navy-900)}.admin-article-status.draft{background:var(--cream-2);color:var(--muted)}.admin-article-status.scheduled{background:rgba(201,162,51,.16);color:var(--gold-deep)}
   .admin-article-order{display:flex;flex-direction:column;align-self:center;padding-right:7px}
   .admin-article-order button{width:27px;height:25px;border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
   .admin-article-order button:hover:not(:disabled){background:var(--cream-2);color:var(--navy-900)}.admin-article-order button:disabled{opacity:.25;cursor:default}
