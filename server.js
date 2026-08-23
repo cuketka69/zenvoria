@@ -7513,6 +7513,51 @@ async function loadStoredGuideCategories() {
   return { configured: true, categories: sanitizeGuideCategories(row.value) || [] };
 }
 
+const GUIDE_FEEDBACK_SETTING_KEY = 'guideArticleFeedbackV1';
+const GUIDE_FEEDBACK_MAX_ITEMS = 5000;
+let guideFeedbackWriteQueue = Promise.resolve();
+
+function sanitizeGuideFeedback(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') continue;
+    const slug = slugifyGuideArticle(raw.slug);
+    const voterHash = trimmedString(raw.voterHash, 64);
+    const createdAt = sanitizedIsoDate(raw.createdAt);
+    const helpful = raw.helpful === true ? true : (raw.helpful === false ? false : null);
+    const comment = trimmedString(raw.comment, 500);
+    if (!slug || !/^[a-f0-9]{64}$/.test(voterHash) || helpful === null || !createdAt) continue;
+    out.push({ slug, voterHash, helpful, comment, createdAt });
+  }
+  return out.slice(-GUIDE_FEEDBACK_MAX_ITEMS);
+}
+
+async function loadStoredGuideFeedback() {
+  if (!REST_ENABLED) return [];
+  const rows = await restSelect(T.settings, `key=eq.${GUIDE_FEEDBACK_SETTING_KEY}&limit=1`);
+  return sanitizeGuideFeedback(rows && rows[0] && rows[0].value);
+}
+
+function summarizeGuideFeedback(items, articles) {
+  const articleBySlug = new Map((articles || []).map((article) => [article.slug, article]));
+  const summaries = {};
+  for (const article of articles || []) summaries[article.slug] = { yes: 0, no: 0, total: 0, helpfulPercent: null, comments: [] };
+  for (const item of items) {
+    if (!articleBySlug.has(item.slug)) continue;
+    const summary = summaries[item.slug];
+    summary.total += 1;
+    if (item.helpful) summary.yes += 1; else summary.no += 1;
+    if (item.comment) summary.comments.push({ helpful: item.helpful, comment: item.comment, createdAt: item.createdAt });
+  }
+  Object.values(summaries).forEach((summary) => {
+    summary.helpfulPercent = summary.total ? Math.round((summary.yes / summary.total) * 100) : null;
+    summary.comments.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    summary.comments = summary.comments.slice(0, 50);
+  });
+  return summaries;
+}
+
 app.get('/api/guide-articles', h(async (_req, res) => {
   const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
   const allowed = new Set(storedCategories.categories);
@@ -7524,9 +7569,50 @@ app.get('/api/guide-articles', h(async (_req, res) => {
 }));
 
 app.get('/api/admin/guide-articles', requireRole('admin'), h(async (_req, res) => {
-  const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
+  const [stored, storedCategories, feedback] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories(), loadStoredGuideFeedback()]);
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ ...stored, categories: storedCategories.categories });
+  res.json({ ...stored, categories: storedCategories.categories, feedback: summarizeGuideFeedback(feedback, stored.articles || []) });
+}));
+
+app.get('/api/admin/guide-article-feedback', requireRole('admin'), h(async (_req, res) => {
+  const [stored, feedback] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideFeedback()]);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ feedback: summarizeGuideFeedback(feedback, stored.articles || []) });
+}));
+
+app.post('/api/guide-articles/:slug/feedback', rateLimit('guide-feedback', {
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: 'Příliš mnoho hodnocení. Zkuste to prosím později.',
+}), h(async (req, res) => {
+  if (!REST_ENABLED) return res.status(503).json({ error: 'Hodnocení nyní nelze uložit.' });
+  const slug = slugifyGuideArticle(req.params.slug);
+  const helpful = req.body && req.body.helpful;
+  const comment = trimmedString(req.body && req.body.comment, 500);
+  const voterId = trimmedString(req.body && req.body.voterId, 100);
+  if (helpful !== true && helpful !== false) return res.status(400).json({ error: 'Vyberte Ano nebo Ne.' });
+  if (!/^[A-Za-z0-9_-]{20,100}$/.test(voterId)) return res.status(400).json({ error: 'Hodnocení se nepodařilo ověřit. Obnovte stránku a zkuste to znovu.' });
+  const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
+  const allowed = new Set(storedCategories.categories);
+  const now = Date.now();
+  const article = (stored.articles || []).find((item) => item.slug === slug && item.published && (!item.scheduledAt || Date.parse(item.scheduledAt) <= now) && allowed.has(item.category));
+  if (!article) return res.status(404).json({ error: 'Článek nebyl nalezen.' });
+  const voterHash = crypto.createHash('sha256').update(`guide-feedback:${voterId}`).digest('hex');
+  const entry = { slug, voterHash, helpful, comment, createdAt: new Date().toISOString() };
+  const write = guideFeedbackWriteQueue.then(async () => {
+    const feedback = await loadStoredGuideFeedback();
+    const existingIndex = feedback.findIndex((item) => item.slug === slug && item.voterHash === voterHash);
+    if (existingIndex >= 0) feedback.splice(existingIndex, 1);
+    feedback.push(entry);
+    await supabaseRestRequest('POST', T.settings, {
+      body: { key: GUIDE_FEEDBACK_SETTING_KEY, value: feedback.slice(-GUIDE_FEEDBACK_MAX_ITEMS) },
+      prefer: 'resolution=merge-duplicates,return=minimal',
+    });
+  });
+  guideFeedbackWriteQueue = write.catch(() => {});
+  await write;
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ ok: true });
 }));
 
 app.put('/api/settings/:key', requireRole('admin'), h(async (req, res) => {

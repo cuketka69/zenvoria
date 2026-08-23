@@ -429,6 +429,42 @@ function guideArticleDateMeta(article,includeUpdated){
   const different=article.publishedAt&&article.updatedAt&&new Date(article.updatedAt).toDateString()!==new Date(article.publishedAt).toDateString();
   return `${published?`<span>${esc(published)}</span>`:''}${includeUpdated&&different&&updated?`<span>${esc(updated)}</span>`:''}`;
 }
+function guideFeedbackVoterId(){
+  const key='zv_guide_feedback_voter';
+  try{
+    let value=localStorage.getItem(key);
+    if(!/^[A-Za-z0-9_-]{20,100}$/.test(value||'')){
+      const bytes=new Uint8Array(24);crypto.getRandomValues(bytes);
+      value=Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');localStorage.setItem(key,value);
+    }
+    return value;
+  }catch(e){return Array.from(crypto.getRandomValues(new Uint8Array(24)),byte=>byte.toString(16).padStart(2,'0')).join('');}
+}
+function guideFeedbackStorageKey(slug){return 'zv_guide_feedback_sent_'+slug;}
+function guideFeedbackWasSent(slug){try{return localStorage.getItem(guideFeedbackStorageKey(slug))==='1';}catch(e){return false;}}
+function selectGuideFeedback(value){
+  const form=document.getElementById('guideFeedbackForm');if(!form)return;
+  form.dataset.helpful=value?'1':'0';
+  form.querySelectorAll('[data-guide-feedback-choice]').forEach(button=>{const on=button.dataset.guideFeedbackChoice===(value?'yes':'no');button.classList.toggle('on',on);button.setAttribute('aria-pressed',on?'true':'false');});
+  const details=document.getElementById('guideFeedbackDetails');if(details)details.hidden=false;
+  document.getElementById('guideFeedbackComment')?.focus();
+}
+async function submitGuideFeedback(event){
+  if(event)event.preventDefault();
+  const form=document.getElementById('guideFeedbackForm'),status=document.getElementById('guideFeedbackStatus');if(!form||!guideArticleSlug)return false;
+  if(form.dataset.helpful!=='1'&&form.dataset.helpful!=='0'){if(status)status.textContent='Nejdříve vyberte Ano nebo Ne.';return false;}
+  const button=form.querySelector('button[type="submit"]');if(button)button.disabled=true;if(status)status.textContent='Odesílám…';
+  try{
+    await api('/guide-articles/'+encodeURIComponent(guideArticleSlug)+'/feedback',{method:'POST',body:{helpful:form.dataset.helpful==='1',comment:String(document.getElementById('guideFeedbackComment')?.value||'').trim().slice(0,500),voterId:guideFeedbackVoterId()}});
+    try{localStorage.setItem(guideFeedbackStorageKey(guideArticleSlug),'1');}catch(e){}
+    form.innerHTML='<div class="guide-feedback-thanks"><b>Děkujeme za zpětnou vazbu.</b><span>Pomáhá nám připravovat užitečnější články.</span></div>';
+  }catch(error){if(status)status.textContent=error.message||'Hodnocení se nepodařilo odeslat.';if(button)button.disabled=false;}
+  return false;
+}
+function guideFeedbackHtml(slug){
+  if(guideFeedbackWasSent(slug))return '<section class="guide-feedback"><div class="guide-feedback-thanks"><b>Děkujeme za zpětnou vazbu.</b><span>Pomáhá nám připravovat užitečnější články.</span></div></section>';
+  return `<section class="guide-feedback" aria-labelledby="guideFeedbackTitle"><form id="guideFeedbackForm" onsubmit="return submitGuideFeedback(event)"><h2 id="guideFeedbackTitle">Pomohl vám tento článek?</h2><p>Vaše odpověď nám pomůže zlepšovat Průvodce péčí.</p><div class="guide-feedback-choices"><button type="button" data-guide-feedback-choice="yes" aria-pressed="false" onclick="selectGuideFeedback(true)"><span aria-hidden="true">✓</span> Ano</button><button type="button" data-guide-feedback-choice="no" aria-pressed="false" onclick="selectGuideFeedback(false)"><span aria-hidden="true">×</span> Ne</button></div><div class="guide-feedback-details" id="guideFeedbackDetails" hidden><label for="guideFeedbackComment">Chcete nám napsat více? <small>(nepovinné)</small></label><textarea id="guideFeedbackComment" class="inp" maxlength="500" rows="3" placeholder="Krátká zpětná vazba…"></textarea><button type="submit" class="btn btn-gold">Odeslat hodnocení</button></div><div class="guide-feedback-status" id="guideFeedbackStatus" role="status"></div></form></section>`;
+}
 function renderGuideHubCards(){
   const articles=guideArticleArray(false).sort((a,b)=>Number(b.featured)-Number(a.featured));
   const featured=document.getElementById('guideFeatured');
@@ -482,7 +518,7 @@ function renderGuide(){
   }
   hub.hidden=true;article.hidden=false;
   document.title=item.title+' — ZENVORIA';
-  content.innerHTML=`<header class="guide-article-head"><span class="guide-category">${esc(item.category)}</span><h1>${esc(item.title)}</h1><p>${esc(item.lead)}</p><div class="guide-meta">${item.author?`<span>Autor: ${esc(item.author)}</span>`:''}${guideArticleDateMeta(item,true)}<span>${esc(item.time)}</span><span>Ověřeno redakcí ZENVORIA</span></div></header>${item.image?`<img class="guide-article-cover" src="${esc(item.image)}" alt="${esc(item.title)}" decoding="async">`:''}<div class="guide-article-layout"><div class="guide-article-body">${item.body}<div class="guide-medical-note"><b>Upozornění:</b> Článek poskytuje obecné informace a nenahrazuje individuální doporučení lékaře nebo jiného zdravotníka.</div></div><aside class="guide-article-aside"><span>Potřebujete praktickou pomoc?</span><h3>Najděte péči pro svého blízkého</h3><p>Ověřené pečovatelky podle lokality, zkušeností a služeb.</p><button type="button" class="btn btn-gold btn-block" onclick="go('search')">Najít pečovatelku</button></aside></div>`;
+  content.innerHTML=`<header class="guide-article-head"><span class="guide-category">${esc(item.category)}</span><h1>${esc(item.title)}</h1><p>${esc(item.lead)}</p><div class="guide-meta">${item.author?`<span>Autor: ${esc(item.author)}</span>`:''}${guideArticleDateMeta(item,true)}<span>${esc(item.time)}</span><span>Ověřeno redakcí ZENVORIA</span></div></header>${item.image?`<img class="guide-article-cover" src="${esc(item.image)}" alt="${esc(item.title)}" decoding="async">`:''}<div class="guide-article-layout"><div class="guide-article-body">${item.body}<div class="guide-medical-note"><b>Upozornění:</b> Článek poskytuje obecné informace a nenahrazuje individuální doporučení lékaře nebo jiného zdravotníka.</div>${guideFeedbackHtml(guideArticleSlug)}</div><aside class="guide-article-aside"><span>Potřebujete praktickou pomoc?</span><h3>Najděte péči pro svého blízkého</h3><p>Ověřené pečovatelky podle lokality, zkušeností a služeb.</p><button type="button" class="btn btn-gold btn-block" onclick="go('search')">Najít pečovatelku</button></aside></div>`;
 }
 function setGuideFilter(category,button){
   guideCategory=category||'all';
@@ -5243,6 +5279,7 @@ const SERVICE_DEFAULT_ICON='M9 11l3 3L22 4M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2
 /* ---- ADMIN: články Průvodce péčí ---- */
 let adminGuideArticles=[];
 let adminGuideCategories=[];
+let adminGuideFeedback={};
 let adminGuideLoaded=false;
 let adminGuideEditingSlug=null;
 let adminGuideDraftImage='';
@@ -5258,10 +5295,11 @@ async function renderAdminArticles(){
       const data=await api('/admin/guide-articles');
       adminGuideArticles=data&&data.configured?(data.articles||[]):guideArticleArray(true);
       adminGuideCategories=data&&Array.isArray(data.categories)?data.categories:[];
+      adminGuideFeedback=data&&data.feedback&&typeof data.feedback==='object'?data.feedback:{};
       adminGuideLoaded=true;
       if(data&&data.configured)applyGuideArticles(adminGuideArticles);
     }catch(e){
-      adminGuideArticles=guideArticleArray(true);adminGuideCategories=[];adminGuideLoaded=true;
+      adminGuideArticles=guideArticleArray(true);adminGuideCategories=[];adminGuideFeedback={};adminGuideLoaded=true;
       toast('Články z databáze se nepodařilo načíst: '+(e.message||''),'declined');
     }
   }
@@ -5316,6 +5354,18 @@ function renderAdminArticleList(){
   const list=document.getElementById('admArticleList'),count=document.getElementById('admArticleCount');
   if(!list)return;if(count)count.textContent=adminGuideArticles.length;
   list.innerHTML=adminGuideArticles.length?adminGuideArticles.map((article,index)=>{const scheduled=guideArticleIsScheduled(article),status=scheduled?'Naplánováno':(article.published!==false?'Publikováno':'Koncept'),statusClass=scheduled?'scheduled':(article.published!==false?'published':'draft');return `<div class="admin-article-row${article.slug===adminGuideEditingSlug?' active':''}"><button type="button" class="admin-article-open" onclick="editAdminArticle('${esc(article.slug)}')"><span class="admin-article-status ${statusClass}">${status}</span><b>${article.featured?'<span aria-label="Hlavní článek">★</span> ':''}${esc(article.title)}</b><small>${esc(article.category)} · ${esc(article.time||'')}</small></button><div class="admin-article-order"><button type="button" onclick="moveAdminArticle('${esc(article.slug)}',-1)" aria-label="Posunout článek nahoru" ${index===0?'disabled':''}>↑</button><button type="button" onclick="moveAdminArticle('${esc(article.slug)}',1)" aria-label="Posunout článek dolů" ${index===adminGuideArticles.length-1?'disabled':''}>↓</button></div></div>`;}).join(''):'<div class="empty">Zatím žádné články. Vytvořte první pomocí tlačítka „Nový článek“.</div>';
+}
+function renderAdminArticleFeedback(slug,isNew){
+  const box=document.getElementById('admArticleFeedback');if(!box)return;
+  if(isNew){box.hidden=true;box.innerHTML='';return;}
+  const data=adminGuideFeedback[slug]||{yes:0,no:0,total:0,helpfulPercent:null,comments:[]};box.hidden=false;
+  const percent=data.helpfulPercent==null?'—':data.helpfulPercent+' %';
+  box.innerHTML=`<div class="admin-feedback-head"><div><h3>Užitečnost článku <span class="admin-help" tabindex="0" data-help="Výsledky odpovědí čtenářů na otázku Pomohl vám tento článek? Jeden návštěvník může své hodnocení později změnit." aria-label="Nápověda k hodnocení článku">?</span></h3><p>Odpovědi a nepovinné komentáře od čtenářů.</p></div><div class="admin-feedback-actions"><strong>${esc(percent)}</strong><button type="button" class="btn btn-ghost btn-sm" onclick="refreshAdminArticleFeedback(this)">Obnovit</button></div></div><div class="admin-feedback-stats"><span><b>${Number(data.yes)||0}</b>Ano</span><span><b>${Number(data.no)||0}</b>Ne</span><span><b>${Number(data.total)||0}</b>Celkem</span></div><div class="admin-feedback-comments">${data.comments&&data.comments.length?`<h4>Poslední komentáře</h4>${data.comments.map(item=>`<div><span class="${item.helpful?'yes':'no'}">${item.helpful?'Ano':'Ne'}</span><p>${esc(item.comment)}</p><time>${esc(new Date(item.createdAt).toLocaleString('cs-CZ',{dateStyle:'medium',timeStyle:'short'}))}</time></div>`).join('')}`:'<p class="empty">Zatím bez slovní zpětné vazby.</p>'}</div>`;
+}
+async function refreshAdminArticleFeedback(button){
+  if(button)button.disabled=true;
+  try{const data=await api('/admin/guide-article-feedback');adminGuideFeedback=data&&data.feedback&&typeof data.feedback==='object'?data.feedback:{};renderAdminArticleFeedback(adminGuideEditingSlug,false);toast('Hodnocení bylo obnoveno.','success');}
+  catch(error){toast('Hodnocení se nepodařilo načíst: '+(error.message||''),'declined');if(button)button.disabled=false;}
 }
 function slugifyGuideArticle(value){
   return String(value||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'clanek';
@@ -5381,6 +5431,7 @@ function showAdminArticleForm(article,isNew){
   document.getElementById('admArticleLead').value=article.lead||'';
   document.getElementById('admArticleBody').innerHTML=article.body||'<h2>Začněte psát</h2><p>Sem napište obsah článku.</p>';
   document.getElementById('admArticlePublished').checked=article.published!==false;
+  renderAdminArticleFeedback(article.slug,isNew);
   const deleteButton=document.getElementById('admArticleDeleteBtn'),previewButton=document.getElementById('admArticlePreviewBtn');
   if(deleteButton){deleteButton.hidden=isNew;if(deleteButton.parentElement)deleteButton.parentElement.hidden=isNew;}
   if(previewButton){previewButton.hidden=false;if(previewButton.parentElement)previewButton.parentElement.hidden=false;}
