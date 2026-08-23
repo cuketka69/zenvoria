@@ -444,16 +444,16 @@ function guideReadingTimeLabel(value) {
 }
 function sanitizeGuideArticleBody(value) {
   return sanitizeHtml(String(value || '').slice(0, GUIDE_ARTICLE_BODY_MAX_CHARS), {
-    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'hr', 'label', 'input', 'figure', 'figcaption', 'img'],
+    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'hr', 'label', 'input', 'figure', 'figcaption', 'img', 'details', 'summary'],
     allowedAttributes: {
       a: ['href', 'target', 'rel'],
-      div: ['class', 'role', 'tabindex', 'contenteditable'], p: ['class'], span: ['class', 'role', 'tabindex', 'aria-label'],
+      div: ['class', 'role', 'tabindex', 'contenteditable'], p: ['class'], span: ['class', 'role', 'tabindex', 'aria-label'], details: ['open'],
       figure: ['class'], figcaption: ['class'],
       input: ['type', 'checked', 'disabled'],
       img: ['src', 'alt', 'class', 'loading', 'decoding'],
     },
     allowedClasses: {
-      div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist', 'guide-image-gallery', 'guide-image-placeholder', 'guide-alternating-section', 'guide-alternating-copy', 'guide-alternating-recommendation', 'guide-alternating-conclusion', 'guide-steps', 'guide-step', 'guide-step-copy', 'guide-steps-recommendation', 'guide-steps-conclusion'],
+      div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist', 'guide-image-gallery', 'guide-image-placeholder', 'guide-alternating-section', 'guide-alternating-copy', 'guide-alternating-recommendation', 'guide-alternating-conclusion', 'guide-steps', 'guide-step', 'guide-step-copy', 'guide-steps-recommendation', 'guide-steps-conclusion', 'guide-practical-recommendation', 'guide-practical-faq', 'guide-practical-conclusion'],
       p: ['guide-source'],
       span: ['guide-image-placeholder-icon', 'guide-image-placeholder-copy', 'guide-image-placeholder-remove'],
       figure: ['guide-inline-figure', 'guide-image-left', 'guide-image-center', 'guide-image-right', 'guide-image-small', 'guide-image-medium', 'guide-image-full'], figcaption: ['guide-inline-caption'],
@@ -484,9 +484,9 @@ function sanitizeGuideArticleBody(value) {
 
 function sanitizeGuideRevisionBody(value) {
   return sanitizeHtml(String(value || '').slice(0, 80000), {
-    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'hr', 'label', 'input', 'figcaption'],
-    allowedAttributes: { a: ['href', 'target', 'rel'], div: ['class', 'role', 'tabindex', 'contenteditable'], p: ['class'], span: ['class', 'role', 'tabindex', 'aria-label'], input: ['type', 'checked', 'disabled'], figcaption: ['class'] },
-    allowedClasses: { div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist', 'guide-image-placeholder', 'guide-alternating-section', 'guide-alternating-copy', 'guide-alternating-recommendation', 'guide-alternating-conclusion', 'guide-steps', 'guide-step', 'guide-step-copy', 'guide-steps-recommendation', 'guide-steps-conclusion'], p: ['guide-source'], span: ['guide-image-placeholder-icon', 'guide-image-placeholder-copy', 'guide-image-placeholder-remove'], figcaption: ['guide-inline-caption'] },
+    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'hr', 'label', 'input', 'figcaption', 'details', 'summary'],
+    allowedAttributes: { a: ['href', 'target', 'rel'], div: ['class', 'role', 'tabindex', 'contenteditable'], p: ['class'], span: ['class', 'role', 'tabindex', 'aria-label'], input: ['type', 'checked', 'disabled'], figcaption: ['class'], details: ['open'] },
+    allowedClasses: { div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist', 'guide-image-placeholder', 'guide-alternating-section', 'guide-alternating-copy', 'guide-alternating-recommendation', 'guide-alternating-conclusion', 'guide-steps', 'guide-step', 'guide-step-copy', 'guide-steps-recommendation', 'guide-steps-conclusion', 'guide-practical-recommendation', 'guide-practical-faq', 'guide-practical-conclusion'], p: ['guide-source'], span: ['guide-image-placeholder-icon', 'guide-image-placeholder-copy', 'guide-image-placeholder-remove'], figcaption: ['guide-inline-caption'] },
     allowedSchemes: ['http', 'https', 'mailto'],
     transformTags: {
       a: (_tagName, attribs) => ({ tagName: 'a', attribs: { href: attribs.href || '#', target: '_blank', rel: 'noopener' } }),
@@ -508,7 +508,7 @@ function sanitizeGuideArticleRevisions(value) {
     const createdAt = sanitizedIsoDate(raw.createdAt);
     const savedBy = trimmedString(raw.savedBy, 120);
     if (!title || !lead || !body || !createdAt) continue;
-    out.push({ title, author, category, lead, body, template: ['alternating', 'steps'].includes(raw.template) ? raw.template : 'classic', time: guideReadingTimeLabel(raw.time), featured: raw.featured === true, published: raw.published !== false, createdAt, savedBy });
+    out.push({ title, author, category, lead, body, template: ['alternating', 'steps', 'practical'].includes(raw.template) ? raw.template : 'classic', time: guideReadingTimeLabel(raw.time), featured: raw.featured === true, published: raw.published !== false, createdAt, savedBy });
   }
   return out;
 }
@@ -536,7 +536,7 @@ function sanitizeGuideArticles(value) {
     const relatedSlugs = Array.isArray(raw.relatedSlugs) ? [...new Set(raw.relatedSlugs.filter((item) => typeof item === 'string').map(slugifyGuideArticle))].slice(0, 6) : [];
     const revisions = sanitizeGuideArticleRevisions(raw.revisions);
     out.push({
-      slug, title, author, lead, body, category, image: imageData ? imageData.dataUrl : '', template: ['alternating', 'steps'].includes(raw.template) ? raw.template : 'classic',
+      slug, title, author, lead, body, category, image: imageData ? imageData.dataUrl : '', template: ['alternating', 'steps', 'practical'].includes(raw.template) ? raw.template : 'classic',
       time: guideReadingTimeLabel(raw.time),
       published,
       featured,
