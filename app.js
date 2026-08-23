@@ -5416,13 +5416,24 @@ function guideLocalDateTimeValue(value){
 }
 function guideScheduledIso(value){const date=value&&new Date(value);return date&&!Number.isNaN(date.getTime())?date.toISOString():'';}
 function toggleAdminArticleSchedule(enabled,fromUser){
-  const wrap=document.getElementById('admArticleScheduleDate'),input=document.getElementById('admArticleScheduledAt');if(wrap)wrap.hidden=!enabled;
+  const checkbox=document.getElementById('admArticleScheduleEnabled'),wrap=document.getElementById('admArticleScheduleDate'),input=document.getElementById('admArticleScheduledAt');
+  if(checkbox&&checkbox.disabled)enabled=false;
+  if(wrap)wrap.hidden=!enabled;
   if(!enabled&&input)input.value='';
   syncAdminArticleScheduleInput();
   if(enabled&&fromUser&&input)setTimeout(()=>input.focus(),20);
   if(fromUser)scheduleAdminArticleAutosave();
 }
 function syncAdminArticleScheduleInput(){const input=document.getElementById('admArticleScheduledAt');if(input)input.classList.toggle('is-empty',!input.value);}
+function updateAdminArticleScheduleAvailability(){
+  const form=document.getElementById('admArticleForm'),checkbox=document.getElementById('admArticleScheduleEnabled'),toggle=document.getElementById('admArticleScheduleToggle'),hint=document.getElementById('admArticleScheduleHint');
+  if(!form||!checkbox)return;
+  const locked=form.dataset.livePublished==='1';
+  checkbox.disabled=locked;checkbox.setAttribute('aria-disabled',locked?'true':'false');
+  if(toggle)toggle.classList.toggle('locked',locked);
+  if(hint)hint.textContent=locked?'Článek je již veřejný. Pro nové naplánování ho nejprve uložte jako koncept.':'Po zapnutí vyberete datum a čas zveřejnění.';
+  if(locked){checkbox.checked=false;toggleAdminArticleSchedule(false,false);}
+}
 function renderAdminArticleImage(){
   const preview=document.getElementById('admArticleImagePreviewImg'),placeholder=document.getElementById('admArticleImagePlaceholder'),remove=document.getElementById('admArticleImageRemove');
   if(preview){preview.src=adminGuideDraftImage||'';preview.hidden=!adminGuideDraftImage;}
@@ -5457,7 +5468,8 @@ function removeAdminArticleImage(){
 function showAdminArticleForm(article,isNew){
   const form=document.getElementById('admArticleForm'),placeholder=document.getElementById('admArticlePlaceholder');
   if(!form)return;clearTimeout(adminGuideAutosaveTimer);adminGuideAutosaveTimer=null;
-  if(placeholder)placeholder.hidden=true;form.hidden=false;form.dataset.isNew=isNew?'1':'0';
+  const scheduledTime=article.scheduledAt&&Date.parse(article.scheduledAt),isLivePublished=!isNew&&article.published!==false&&(!scheduledTime||scheduledTime<=Date.now());
+  if(placeholder)placeholder.hidden=true;form.hidden=false;form.dataset.isNew=isNew?'1':'0';form.dataset.livePublished=isLivePublished?'1':'0';
   adminGuideEditingSlug=isNew?null:article.slug;
   document.getElementById('admArticleFormEyebrow').textContent=isNew?'Nový článek':'Úprava článku';
   document.getElementById('admArticleFormTitle').textContent=isNew?'Nový článek':article.title;
@@ -5466,7 +5478,7 @@ function showAdminArticleForm(article,isNew){
   adminGuideDraftImage=article.image||'';const imageInput=document.getElementById('admArticleImageInput');if(imageInput)imageInput.value='';renderAdminArticleImage();
   renderAdminGuideCategories(article.category||'');
   document.getElementById('admArticleTime').value=guideReadingMinutes(article.time);
-  const scheduleEnabled=!!article.scheduledAt;document.getElementById('admArticleScheduleEnabled').checked=scheduleEnabled;document.getElementById('admArticleScheduledAt').value=scheduleEnabled?guideLocalDateTimeValue(article.scheduledAt):'';toggleAdminArticleSchedule(scheduleEnabled,false);
+  const scheduleEnabled=!isLivePublished&&!!article.scheduledAt;document.getElementById('admArticleScheduleEnabled').checked=scheduleEnabled;document.getElementById('admArticleScheduledAt').value=scheduleEnabled?guideLocalDateTimeValue(article.scheduledAt):'';toggleAdminArticleSchedule(scheduleEnabled,false);updateAdminArticleScheduleAvailability();
   document.getElementById('admArticleFeatured').checked=article.featured===true;
   document.getElementById('admArticleLead').value=article.lead||'';
   document.getElementById('admArticleBody').innerHTML=article.body||'<h2>Začněte psát</h2><p>Sem napište obsah článku.</p>';
