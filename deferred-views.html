@@ -1170,20 +1170,38 @@
           <div style="margin-top:14px">
             <label class="lbl" id="admArticleBodyLabel">Obsah článku <span class="admin-help" tabindex="0" data-help="Napište celý článek. Lištou můžete text formátovat, vytvořit seznam, vložit odkaz nebo přidat až 8 obrázků." aria-label="Nápověda k obsahu článku">?</span></label>
             <div class="article-editor-toolbar" role="toolbar" aria-label="Formátování textu">
-              <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('bold')" title="Tučně"><b>B</b></button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('italic')" title="Kurzíva"><i>I</i></button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('formatBlock','h2')" title="Nadpis">Nadpis</button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('formatBlock','p')" title="Odstavec">Odstavec</button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('insertUnorderedList')" title="Odrážkový seznam">• Seznam</button>
-              <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorLink()" title="Vložit odkaz">Odkaz</button>
-              <button type="button" data-guide-body-image-button title="Vložit obrázek do článku">Obrázek</button>
-              <button type="button" onclick="chooseAdminArticleGallery()" title="Vložit galerii více obrázků">Galerie</button>
-              <button type="button" onclick="openAdminArticleMediaLibrary()" title="Vybrat dříve nahraný obrázek">Knihovna</button>
-              <button type="button" onclick="insertAdminArticleCallout('tip')" title="Vložit zvýrazněný tip">Tip</button>
-              <button type="button" onclick="insertAdminArticleCallout('important')" title="Vložit důležitou informaci">Důležité</button>
-              <button type="button" onclick="insertAdminArticleCallout('warn')" title="Vložit upozornění">Upozornění</button>
+              <span class="article-editor-group" aria-label="Formát textu">
+                <button type="button" data-editor-command="bold" onmousedown="event.preventDefault()" onclick="guideEditorCommand('bold')" title="Tučně"><b>B</b><span>Tučně</span></button>
+                <button type="button" data-editor-command="italic" onmousedown="event.preventDefault()" onclick="guideEditorCommand('italic')" title="Kurzíva"><i>I</i><span>Kurzíva</span></button>
+                <button type="button" data-editor-format="h2" onmousedown="event.preventDefault()" onclick="guideEditorCommand('formatBlock','h2')" title="Hlavní nadpis kapitoly"><b>H2</b><span>Nadpis</span></button>
+                <button type="button" data-editor-format="h3" onmousedown="event.preventDefault()" onclick="guideEditorCommand('formatBlock','h3')" title="Menší podnadpis"><b>H3</b><span>Podnadpis</span></button>
+                <button type="button" data-editor-format="p" onmousedown="event.preventDefault()" onclick="guideEditorCommand('formatBlock','p')" title="Běžný odstavec"><span aria-hidden="true">¶</span><span>Odstavec</span></button>
+                <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorLink()" title="Vložit odkaz"><span aria-hidden="true">↗</span><span>Odkaz</span></button>
+              </span>
+              <span class="article-editor-group" aria-label="Seznamy">
+                <button type="button" data-editor-command="insertUnorderedList" onmousedown="event.preventDefault()" onclick="guideEditorCommand('insertUnorderedList')" title="Odrážkový seznam"><span aria-hidden="true">•</span><span>Odrážky</span></button>
+                <button type="button" data-editor-command="insertOrderedList" onmousedown="event.preventDefault()" onclick="guideEditorCommand('insertOrderedList')" title="Číslovaný seznam"><span aria-hidden="true">1.</span><span>Číslování</span></button>
+                <button type="button" onclick="insertAdminArticleBlock('checklist')" title="Vložit praktický checklist"><span aria-hidden="true">☑</span><span>Checklist</span></button>
+              </span>
+              <span class="article-editor-group" aria-label="Redakční prvky">
+                <button type="button" onclick="insertAdminArticleCallout('tip')" title="Vložit praktický tip"><span aria-hidden="true">✓</span><span>Tip</span></button>
+                <button type="button" onclick="insertAdminArticleCallout('important')" title="Vložit důležitou informaci"><span aria-hidden="true">i</span><span>Důležité</span></button>
+                <button type="button" onclick="insertAdminArticleCallout('warn')" title="Vložit upozornění"><span aria-hidden="true">!</span><span>Upozornění</span></button>
+                <button type="button" data-editor-format="blockquote" onmousedown="event.preventDefault()" onclick="guideEditorCommand('formatBlock','blockquote')" title="Formátovat odstavec jako citaci"><span aria-hidden="true">“</span><span>Citace</span></button>
+                <button type="button" onclick="insertAdminArticleBlock('source')" title="Vložit řádek pro odborný zdroj"><span aria-hidden="true">⌕</span><span>Zdroj</span></button>
+                <button type="button" onclick="insertAdminArticleBlock('separator')" title="Vložit oddělovací čáru"><span aria-hidden="true">—</span><span>Oddělovač</span></button>
+              </span>
+              <span class="article-editor-group" aria-label="Obrázky">
+                <button type="button" data-guide-body-image-button title="Vybrat a vložit jeden obrázek"><span aria-hidden="true">▧</span><span>Obrázek</span></button>
+                <button type="button" onclick="chooseAdminArticleGallery()" title="Vybrat a vložit více obrázků"><span aria-hidden="true">▦</span><span>Galerie</span></button>
+                <button type="button" onclick="openAdminArticleMediaLibrary()" title="Použít dříve nahraný obrázek"><span aria-hidden="true">◫</span><span>Knihovna</span></button>
+              </span>
               <input type="file" id="admArticleBodyImageInput" accept="image/jpeg,image/png,image/webp" multiple hidden>
-              <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('removeFormat')" title="Zrušit formátování">Vyčistit</button>
+              <span class="article-editor-group" aria-label="Historie úprav">
+                <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('undo')" title="Vrátit poslední změnu"><span aria-hidden="true">↶</span><span>Zpět</span></button>
+                <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('redo')" title="Znovu provést vrácenou změnu"><span aria-hidden="true">↷</span><span>Znovu</span></button>
+                <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('removeFormat')" title="Odstranit formátování označeného textu"><span aria-hidden="true">Tx</span><span>Vyčistit</span></button>
+              </span>
             </div>
             <div class="article-rich-editor" id="admArticleBody" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="admArticleBodyLabel"></div>
             <div class="article-image-tools" id="admArticleImageTools" hidden>

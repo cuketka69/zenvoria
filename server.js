@@ -444,7 +444,7 @@ function guideReadingTimeLabel(value) {
 }
 function sanitizeGuideArticleBody(value) {
   return sanitizeHtml(String(value || '').slice(0, GUIDE_ARTICLE_BODY_MAX_CHARS), {
-    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'label', 'input', 'figure', 'figcaption', 'img'],
+    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'hr', 'label', 'input', 'figure', 'figcaption', 'img'],
     allowedAttributes: {
       a: ['href', 'target', 'rel'],
       div: ['class'], p: ['class'], span: ['class'],
@@ -483,7 +483,7 @@ function sanitizeGuideArticleBody(value) {
 
 function sanitizeGuideRevisionBody(value) {
   return sanitizeHtml(String(value || '').slice(0, 80000), {
-    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'label', 'input', 'figcaption'],
+    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'hr', 'label', 'input', 'figcaption'],
     allowedAttributes: { a: ['href', 'target', 'rel'], div: ['class'], p: ['class'], span: ['class'], input: ['type', 'checked', 'disabled'], figcaption: ['class'] },
     allowedClasses: { div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist'], p: ['guide-source'], figcaption: ['guide-inline-caption'] },
     allowedSchemes: ['http', 'https', 'mailto'],
