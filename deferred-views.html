@@ -1171,7 +1171,7 @@
             <label class="lbl" id="admArticleBodyLabel">Obsah článku <span class="admin-help" tabindex="0" data-help="Napište celý článek. Lištou můžete text formátovat, vytvořit seznam, vložit odkaz nebo přidat až 8 obrázků." aria-label="Nápověda k obsahu článku">?</span></label>
             <div class="article-editor-toolbar" role="toolbar" aria-label="Formátování textu">
               <span class="article-editor-group" aria-label="Šablona článku">
-                <button type="button" onclick="applyAdminArticleTemplate()" title="Vložit připravenou strukturu článku"><span aria-hidden="true">▤</span><span>Šablona</span></button>
+                <button type="button" onclick="openAdminArticleTemplateLibrary()" title="Vybrat připravenou strukturu článku"><span aria-hidden="true">▤</span><span>Šablona</span></button>
               </span>
               <span class="article-editor-group" aria-label="Formát textu">
                 <button type="button" data-editor-command="bold" onmousedown="event.preventDefault()" onclick="guideEditorCommand('bold')" title="Tučně"><b>B</b><span>Tučně</span></button>
@@ -1229,6 +1229,21 @@
           <div class="admin-article-savebar"><span id="admArticleSavedAt"></span><div class="admin-action-with-help"><button type="submit" class="btn btn-gold" id="admArticleSaveBtn">Uložit článek</button><span class="admin-help" tabindex="0" data-help="Uloží všechny změny článku. Veřejně se zobrazí pouze tehdy, když je zapnuté publikování." aria-label="Nápověda k uložení">?</span></div></div>
         </form>
       </section>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="admArticleTemplateModal" role="dialog" aria-modal="true" aria-labelledby="admArticleTemplateTitle">
+  <div class="modal-scrim" onclick="closeAdminArticleTemplateLibrary()"></div>
+  <div class="modal-card admin-article-template-modal-card">
+    <button class="modal-x" type="button" aria-label="Zavřít výběr šablony" onclick="closeAdminArticleTemplateLibrary()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    <span class="eyebrow">Šablony článků</span><h3 id="admArticleTemplateTitle">Vyberte strukturu článku</h3>
+    <p>Šablona připraví obsahové bloky. Texty i obrázky potom jednoduše nahradíte vlastními.</p>
+    <div class="admin-article-template-grid">
+      <button type="button" class="admin-article-template-card" onclick="selectAdminArticleTemplate('classic')">
+        <span class="admin-template-wireframe" aria-hidden="true"><i class="admin-template-cover"></i><i class="admin-template-copy"></i><i class="admin-template-copy short"></i><i class="admin-template-layout"><i></i><i></i></i></span>
+        <span><b>Klasický článek</b><small>Hlavní obrázek, textové sekce, citace, obrázek v textu a boční obsah.</small></span>
+      </button>
     </div>
   </div>
 </div>
