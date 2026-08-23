@@ -8078,6 +8078,24 @@ function sendSeoPage(req, res, opts) {
   if (html) return res.type('html').send(html);
   return sendIndex(req, res);
 }
+
+function sendNotFoundPage(req, res, { kind = 'page' } = {}) {
+  const sk = countryForReq(req) === 'sk';
+  const isArticle = kind === 'article';
+  const title = sk
+    ? (isArticle ? 'Článok sa nenašiel' : 'Stránka sa nenašla')
+    : (isArticle ? 'Článek nebyl nalezen' : 'Stránka nebyla nalezena');
+  const message = sk
+    ? (isArticle ? 'Článok mohol byť odstránený, skrytý alebo jeho adresa už nie je aktuálna.' : 'Odkaz môže byť neaktuálny alebo bola stránka presunutá.')
+    : (isArticle ? 'Článek mohl být odstraněn, skryt nebo jeho adresa už není aktuální.' : 'Odkaz může být neaktuální nebo byla stránka přesunuta.');
+  const guideLabel = sk ? 'Prejsť do Sprievodcu starostlivosťou' : 'Přejít do Průvodce péčí';
+  const homeLabel = sk ? 'Späť na hlavnú stránku' : 'Zpět na hlavní stránku';
+  const html = `<!doctype html><html lang="${sk ? 'sk' : 'cs'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)} — ZENVORIA</title><style>
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#f5f1e8;color:#082f1e}body{min-height:100vh;display:flex;flex-direction:column}header{display:flex;height:82px;align-items:center;padding:0 clamp(24px,5vw,76px);border-bottom:1px solid rgba(8,47,30,.12);background:#fff}header a{display:inline-flex;align-items:center;gap:12px;color:#082f1e;font-size:21px;font-weight:800;letter-spacing:.08em;text-decoration:none}header img{width:42px;height:42px;object-fit:contain}.nf-main{position:relative;display:grid;flex:1;place-items:center;overflow:hidden;padding:56px 24px}.nf-main:before,.nf-main:after{position:absolute;border:1px solid rgba(201,162,51,.23);border-radius:50%;content:""}.nf-main:before{width:440px;height:440px;top:-230px;right:-130px;box-shadow:0 0 0 65px rgba(201,162,51,.045)}.nf-main:after{width:300px;height:300px;bottom:-190px;left:-90px}.nf-card{position:relative;z-index:1;width:min(680px,100%);padding:clamp(35px,6vw,62px);border:1px solid rgba(8,47,30,.14);border-radius:28px;background:#fff;text-align:center;box-shadow:0 24px 65px rgba(8,47,30,.11)}.nf-code{display:inline-flex;align-items:center;gap:12px;color:#a98213;font-size:13px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}.nf-code:before,.nf-code:after{width:28px;height:1px;background:#c9a233;content:""}.nf-icon{display:grid;width:82px;height:82px;margin:24px auto;place-items:center;border-radius:50%;background:#edf4ef;color:#0a5a34}.nf-card h1{margin:0;font-family:Georgia,serif;font-size:clamp(36px,7vw,55px);line-height:1.08}.nf-card p{max-width:520px;margin:18px auto 0;color:#6e756f;font-size:17px;line-height:1.7}.nf-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:30px}.nf-btn{display:inline-flex;min-height:48px;align-items:center;justify-content:center;padding:12px 20px;border:1px solid #c9a233;border-radius:12px;background:#c9a233;color:#082f1e;font-size:14px;font-weight:800;text-decoration:none}.nf-btn.secondary{border-color:rgba(8,47,30,.2);background:#fff}.nf-btn:hover{filter:brightness(1.05);transform:translateY(-1px)}@media(max-width:560px){header{height:70px}.nf-main{padding:30px 16px}.nf-card{padding:34px 22px;border-radius:22px}.nf-actions{flex-direction:column}.nf-btn{width:100%}}
+  </style></head><body><header><a href="/"><img src="/logo.webp" alt="">ZENVORIA</a></header><main class="nf-main"><section class="nf-card"><span class="nf-code">404</span><div class="nf-icon"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3h9l4 4v14H6V3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M15 3v5h4M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="m16.5 16.5 3 3m0-3-3 3" stroke="#c9a233" stroke-width="1.7" stroke-linecap="round"/></svg></div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p><div class="nf-actions"><a class="nf-btn" href="/pruvodce-pece">${escapeHtml(guideLabel)}</a><a class="nf-btn secondary" href="/">${escapeHtml(homeLabel)}</a></div></section></main></body></html>`;
+  res.setHeader('Cache-Control', 'no-cache');
+  return res.status(404).type('html').send(html);
+}
 async function getPublicCaregivers(country) {
   // veřejné SEO cesty (sitemap, vyhledávací stránka) musí zůstat dostupné i při výpadku DB —
   // radši prázdný seznam než 500 chyba pro crawler/vyhledávač
@@ -8130,10 +8148,10 @@ app.get(['/pruvodce-pece', '/pruvodce-pece/:slug'], h(async (req, res) => {
   try {
     const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
     const allowed = new Set(storedCategories.categories);
-    if (stored.configured && slug) storedArticle = stored.articles.find((article) => article.slug === slug && article.published && allowed.has(article.category)) || null;
-    if (stored.configured && slug && !storedArticle) return res.status(404).type('text').send('Článek nebyl nalezen.');
+    if (stored.configured && slug) storedArticle = stored.articles.find((article) => article.slug === slug && article.published && (!article.scheduledAt || Date.parse(article.scheduledAt) <= Date.now()) && allowed.has(article.category)) || null;
+    if (stored.configured && slug && !storedArticle) return sendNotFoundPage(req, res, { kind: 'article' });
   } catch (e) { /* při výpadku databáze vrátíme běžnou stránku průvodce bez článků */ }
-  if (slug && !storedArticle) return res.status(404).type('text').send('Článek nebyl nalezen.');
+  if (slug && !storedArticle) return sendNotFoundPage(req, res, { kind: 'article' });
   const meta = storedArticle ? [storedArticle.title, storedArticle.lead] : null;
   const canonical = `${APP_ORIGIN}/pruvodce-pece${slug ? `/${slug}` : ''}`;
   const title = meta ? `${meta[0]} — Průvodce péčí ZENVORIA` : 'Průvodce péčí o seniory — ZENVORIA';
@@ -8453,7 +8471,7 @@ app.use(express.static(ROOT, {
 }));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
-  sendIndex(req, res);
+  sendNotFoundPage(req, res);
 });
 
 /* vypršelé zkušební PREMIUM (trial_until v minulosti) → zpět na START */
