@@ -466,7 +466,7 @@ function guideFeedbackHtml(slug){
   return `<section class="guide-feedback" aria-labelledby="guideFeedbackTitle"><form id="guideFeedbackForm" onsubmit="return submitGuideFeedback(event)"><h2 id="guideFeedbackTitle">Pomohl vám tento článek?</h2><p>Vaše odpověď nám pomůže zlepšovat Průvodce péčí.</p><div class="guide-feedback-choices"><button type="button" data-guide-feedback-choice="yes" aria-pressed="false" onclick="selectGuideFeedback(true)"><span aria-hidden="true">✓</span> Ano</button><button type="button" data-guide-feedback-choice="no" aria-pressed="false" onclick="selectGuideFeedback(false)"><span aria-hidden="true">×</span> Ne</button></div><div class="guide-feedback-details" id="guideFeedbackDetails" hidden><label for="guideFeedbackComment">Chcete nám napsat více? <small>(nepovinné)</small></label><textarea id="guideFeedbackComment" class="inp" maxlength="500" rows="3" placeholder="Krátká zpětná vazba…"></textarea><button type="submit" class="btn btn-gold">Odeslat hodnocení</button></div><div class="guide-feedback-status" id="guideFeedbackStatus" role="status"></div></form></section>`;
 }
 function prepareGuideArticleBody(body){
-  const wrapper=document.createElement('div');wrapper.innerHTML=body||'';const headings=[...wrapper.querySelectorAll('h2,h3')],used=new Set();
+  const wrapper=document.createElement('div');wrapper.innerHTML=body||'';wrapper.querySelectorAll('.guide-image-placeholder').forEach(item=>item.remove());const headings=[...wrapper.querySelectorAll('h2,h3')],used=new Set();
   const links=headings.map((heading,index)=>{let id=guideCategoryKey(heading.textContent)||'cast-'+(index+1),suffix=2;while(used.has(id))id=(guideCategoryKey(heading.textContent)||'cast-'+(index+1))+'-'+suffix++;used.add(id);heading.id=id;return {id,label:heading.textContent.trim(),level:heading.tagName==='H3'?3:2};}).filter(item=>item.label);
   const toc=links.length>=2?`<nav class="guide-toc" aria-label="Obsah článku"><b>Obsah článku</b><ol>${links.map(link=>`<li class="level-${link.level}"><a href="#${esc(link.id)}">${esc(link.label)}</a></li>`).join('')}</ol></nav>`:'';
   return {html:wrapper.innerHTML,toc};
@@ -5425,6 +5425,18 @@ function toggleAdminArticleSchedule(enabled,fromUser){
   if(fromUser)scheduleAdminArticleAutosave();
 }
 function syncAdminArticleScheduleInput(){const input=document.getElementById('admArticleScheduledAt');if(input)input.classList.toggle('is-empty',!input.value);}
+function adminGuideArticleTemplateHtml(){
+  const imagePlaceholder=()=>'<div class="guide-image-placeholder" contenteditable="false" role="button" tabindex="0"><span class="guide-image-placeholder-icon" aria-hidden="true">+</span><span class="guide-image-placeholder-copy"><b>Vložit obrázek</b><span>Klikněte a vyberte JPG, PNG nebo WebP</span></span><span class="guide-image-placeholder-remove" role="button" tabindex="0" aria-label="Odstranit místo pro obrázek">×</span></div>';
+  return `<h2>Úvod</h2><p>Krátce vysvětlete, s čím tento článek čtenáři pomůže a co se v něm dozví.</p><div class="guide-callout guide-callout-tip"><strong>Tip:</strong> Doplňte krátkou praktickou radu.</div>${imagePlaceholder()}<h2>Postup krok za krokem</h2><h3>1. První krok</h3><p>Popište první krok jednoduše a konkrétně.</p><h3>2. Druhý krok</h3><p>Navazujte dalším krokem a přidejte vše, co má čtenář zkontrolovat.</p>${imagePlaceholder()}<h3>3. Dokončení</h3><p>Vysvětlete poslední krok a co se stane po jeho dokončení.</p><h2>Na co si dát pozor</h2><div class="guide-callout guide-callout-warn"><strong>Upozornění:</strong> Doplňte důležitou informaci nebo častou chybu.</div><h2>Shrnutí</h2><p>Na závěr stručně zopakujte nejdůležitější body článku.</p>`;
+}
+function setAdminArticleTemplate(){
+  const editor=document.getElementById('admArticleBody');if(!editor)return;editor.innerHTML=adminGuideArticleTemplateHtml();selectAdminArticleFigure(null);adminGuideEditorRange=null;editor.focus();scheduleAdminArticleAutosave();toast('Šablona článku byla vložena.','success');
+}
+function applyAdminArticleTemplate(){
+  const editor=document.getElementById('admArticleBody');if(!editor)return;
+  if(!editor.textContent.trim()){setAdminArticleTemplate();return;}
+  askConfirm({title:'Vložit šablonu článku?',message:'Současný obsah editoru bude nahrazen připravenou strukturou článku. Ostatní údaje formuláře zůstanou beze změny.',confirmLabel:'Vložit šablonu',onConfirm:setAdminArticleTemplate});
+}
 function updateAdminArticleScheduleAvailability(){
   const form=document.getElementById('admArticleForm'),checkbox=document.getElementById('admArticleScheduleEnabled'),toggle=document.getElementById('admArticleScheduleToggle'),hint=document.getElementById('admArticleScheduleHint');
   if(!form||!checkbox)return;
@@ -5481,7 +5493,7 @@ function showAdminArticleForm(article,isNew){
   const scheduleEnabled=!isLivePublished&&!!article.scheduledAt;document.getElementById('admArticleScheduleEnabled').checked=scheduleEnabled;document.getElementById('admArticleScheduledAt').value=scheduleEnabled?guideLocalDateTimeValue(article.scheduledAt):'';toggleAdminArticleSchedule(scheduleEnabled,false);updateAdminArticleScheduleAvailability();
   document.getElementById('admArticleFeatured').checked=article.featured===true;
   document.getElementById('admArticleLead').value=article.lead||'';
-  document.getElementById('admArticleBody').innerHTML=article.body||'<h2>Začněte psát</h2><p>Sem napište obsah článku.</p>';
+  document.getElementById('admArticleBody').innerHTML=article.body||(isNew?adminGuideArticleTemplateHtml():'<h2>Začněte psát</h2><p>Sem napište obsah článku.</p>');
   selectAdminArticleFigure(null);updateGuideEditorToolbar();renderAdminRelatedArticles(article.relatedSlugs||[],article.slug);renderAdminArticleRevisions(article,isNew);
   document.getElementById('admArticlePublished').checked=article.published!==false;
   renderAdminArticleFeedback(article.slug,isNew);
@@ -5520,6 +5532,11 @@ function chooseAdminArticleBodyImage(){
   if(!editor||!input)return;
   if(editor.querySelectorAll('img.guide-inline-image').length>=8){toast('Do jednoho článku můžete vložit nejvýše 8 obrázků.','declined');return;}
   captureAdminGuideEditorRange();adminGuideImageInputMode='single';input.multiple=false;input.value='';input.click();
+}
+function chooseAdminArticlePlaceholderImage(placeholder){
+  const editor=document.getElementById('admArticleBody'),input=document.getElementById('admArticleBodyImageInput');if(!editor||!input||!placeholder||!editor.contains(placeholder))return;
+  if(editor.querySelectorAll('img.guide-inline-image').length>=8){toast('Do jednoho článku můžete vložit nejvýše 8 obrázků.','declined');return;}
+  const range=document.createRange();range.selectNode(placeholder);adminGuideEditorRange=range;adminGuideImageInputMode='single';input.multiple=false;input.value='';input.click();
 }
 function chooseAdminArticleGallery(){
   const editor=document.getElementById('admArticleBody'),input=document.getElementById('admArticleBodyImageInput');if(!editor||!input)return;
@@ -5633,10 +5650,19 @@ async function insertAdminArticleLibraryImage(item){
   if(!item)return;try{const response=await fetch(item.src),blob=await response.blob(),file=new File([blob],'obrazek.'+(blob.type==='image/png'?'png':blob.type==='image/jpeg'?'jpg':'webp'),{type:blob.type});adminGuideImageInputMode='single';closeAdminArticleMediaLibrary();await onAdminArticleBodyImages([file]);}catch(error){toast('Obrázek z knihovny se nepodařilo vložit.','declined');}
 }
 document.addEventListener('click',event=>{
+  const removePlaceholder=event.target.closest&&event.target.closest('#admArticleBody .guide-image-placeholder-remove');
+  if(removePlaceholder){event.preventDefault();removePlaceholder.closest('.guide-image-placeholder')?.remove();scheduleAdminArticleAutosave();return;}
+  const imagePlaceholder=event.target.closest&&event.target.closest('#admArticleBody .guide-image-placeholder');
+  if(imagePlaceholder){event.preventDefault();chooseAdminArticlePlaceholderImage(imagePlaceholder);return;}
   const button=event.target.closest&&event.target.closest('[data-guide-body-image-button]');
   if(button){event.preventDefault();chooseAdminArticleBodyImage();return;}
   const figure=event.target.closest&&event.target.closest('#admArticleBody .guide-inline-figure');if(figure){selectAdminArticleFigure(figure);return;}
   if(!event.target.closest?.('#admArticleImageTools'))selectAdminArticleFigure(null);
+});
+document.addEventListener('keydown',event=>{
+  const removePlaceholder=event.target.closest&&event.target.closest('#admArticleBody .guide-image-placeholder-remove'),imagePlaceholder=event.target.closest&&event.target.closest('#admArticleBody .guide-image-placeholder');
+  if((event.key==='Enter'||event.key===' ')&&removePlaceholder){event.preventDefault();removePlaceholder.closest('.guide-image-placeholder')?.remove();scheduleAdminArticleAutosave();}
+  else if((event.key==='Enter'||event.key===' ')&&imagePlaceholder){event.preventDefault();chooseAdminArticlePlaceholderImage(imagePlaceholder);}
 });
 document.addEventListener('change',event=>{
   if(event.target&&event.target.id==='admArticleBodyImageInput'){const files=[...(event.target.files||[])];event.target.value='';onAdminArticleBodyImages(files);}
@@ -5653,6 +5679,7 @@ function collectAdminArticleForm(){
   const title=document.getElementById('admArticleTitle').value.trim();
   const minutes=Number(document.getElementById('admArticleTime').value);
   const published=document.getElementById('admArticlePublished').checked;
+  const bodyEditor=document.getElementById('admArticleBody'),cleanBody=bodyEditor.cloneNode(true);cleanBody.querySelectorAll('.guide-image-placeholder').forEach(item=>item.remove());
   const scheduleEnabled=document.getElementById('admArticleScheduleEnabled').checked;
   const now=new Date().toISOString();
   const scheduledAt=scheduleEnabled?guideScheduledIso(document.getElementById('admArticleScheduledAt').value):'';
@@ -5662,14 +5689,14 @@ function collectAdminArticleForm(){
     original,
     minutes,
     scheduleEnabled,
-    bodyText:document.getElementById('admArticleBody').innerText.trim(),
+    bodyText:cleanBody.textContent.trim(),
     article:{
       slug:slugifyGuideArticle(title),title,
       author:document.getElementById('admArticleAuthor').value.trim(),
       category:document.getElementById('admArticleCategory').value,
       time:guideReadingTimeLabel(minutes),
       lead:document.getElementById('admArticleLead').value.trim(),
-      body:document.getElementById('admArticleBody').innerHTML.trim(),
+      body:(published?cleanBody.innerHTML:bodyEditor.innerHTML).trim(),
       image:adminGuideDraftImage,
       published,
       featured:document.getElementById('admArticleFeatured').checked,

@@ -447,14 +447,15 @@ function sanitizeGuideArticleBody(value) {
     allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'hr', 'label', 'input', 'figure', 'figcaption', 'img'],
     allowedAttributes: {
       a: ['href', 'target', 'rel'],
-      div: ['class'], p: ['class'], span: ['class'],
+      div: ['class', 'role', 'tabindex', 'contenteditable'], p: ['class'], span: ['class', 'role', 'tabindex', 'aria-label'],
       figure: ['class'], figcaption: ['class'],
       input: ['type', 'checked', 'disabled'],
       img: ['src', 'alt', 'class', 'loading', 'decoding'],
     },
     allowedClasses: {
-      div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist', 'guide-image-gallery'],
+      div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist', 'guide-image-gallery', 'guide-image-placeholder'],
       p: ['guide-source'],
+      span: ['guide-image-placeholder-icon', 'guide-image-placeholder-copy', 'guide-image-placeholder-remove'],
       figure: ['guide-inline-figure', 'guide-image-left', 'guide-image-center', 'guide-image-right', 'guide-image-small', 'guide-image-medium', 'guide-image-full'], figcaption: ['guide-inline-caption'],
       img: ['guide-inline-image'],
     },
@@ -484,8 +485,8 @@ function sanitizeGuideArticleBody(value) {
 function sanitizeGuideRevisionBody(value) {
   return sanitizeHtml(String(value || '').slice(0, 80000), {
     allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'hr', 'label', 'input', 'figcaption'],
-    allowedAttributes: { a: ['href', 'target', 'rel'], div: ['class'], p: ['class'], span: ['class'], input: ['type', 'checked', 'disabled'], figcaption: ['class'] },
-    allowedClasses: { div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist'], p: ['guide-source'], figcaption: ['guide-inline-caption'] },
+    allowedAttributes: { a: ['href', 'target', 'rel'], div: ['class', 'role', 'tabindex', 'contenteditable'], p: ['class'], span: ['class', 'role', 'tabindex', 'aria-label'], input: ['type', 'checked', 'disabled'], figcaption: ['class'] },
+    allowedClasses: { div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist', 'guide-image-placeholder'], p: ['guide-source'], span: ['guide-image-placeholder-icon', 'guide-image-placeholder-copy', 'guide-image-placeholder-remove'], figcaption: ['guide-inline-caption'] },
     allowedSchemes: ['http', 'https', 'mailto'],
     transformTags: {
       a: (_tagName, attribs) => ({ tagName: 'a', attribs: { href: attribs.href || '#', target: '_blank', rel: 'noopener' } }),

@@ -1170,6 +1170,9 @@
           <div style="margin-top:14px">
             <label class="lbl" id="admArticleBodyLabel">Obsah článku <span class="admin-help" tabindex="0" data-help="Napište celý článek. Lištou můžete text formátovat, vytvořit seznam, vložit odkaz nebo přidat až 8 obrázků." aria-label="Nápověda k obsahu článku">?</span></label>
             <div class="article-editor-toolbar" role="toolbar" aria-label="Formátování textu">
+              <span class="article-editor-group" aria-label="Šablona článku">
+                <button type="button" onclick="applyAdminArticleTemplate()" title="Vložit připravenou strukturu článku"><span aria-hidden="true">▤</span><span>Šablona</span></button>
+              </span>
               <span class="article-editor-group" aria-label="Formát textu">
                 <button type="button" data-editor-command="bold" onmousedown="event.preventDefault()" onclick="guideEditorCommand('bold')" title="Tučně"><b>B</b><span>Tučně</span></button>
                 <button type="button" data-editor-command="italic" onmousedown="event.preventDefault()" onclick="guideEditorCommand('italic')" title="Kurzíva"><i>I</i><span>Kurzíva</span></button>
