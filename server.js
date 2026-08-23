@@ -453,9 +453,9 @@ function sanitizeGuideArticleBody(value) {
       img: ['src', 'alt', 'class', 'loading', 'decoding'],
     },
     allowedClasses: {
-      div: ['guide-callout', 'guide-callout-warn', 'guide-checklist'],
+      div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist', 'guide-image-gallery'],
       p: ['guide-source'],
-      figure: ['guide-inline-figure'], figcaption: ['guide-inline-caption'],
+      figure: ['guide-inline-figure', 'guide-image-left', 'guide-image-center', 'guide-image-right', 'guide-image-small', 'guide-image-medium', 'guide-image-full'], figcaption: ['guide-inline-caption'],
       img: ['guide-inline-image'],
     },
     allowedSchemes: ['http', 'https', 'mailto'],
@@ -480,6 +480,37 @@ function sanitizeGuideArticleBody(value) {
     exclusiveFilter: (frame) => frame.tag === 'img' && !frame.attribs.src,
   }).trim();
 }
+
+function sanitizeGuideRevisionBody(value) {
+  return sanitizeHtml(String(value || '').slice(0, 80000), {
+    allowedTags: ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'div', 'span', 'br', 'label', 'input', 'figcaption'],
+    allowedAttributes: { a: ['href', 'target', 'rel'], div: ['class'], p: ['class'], span: ['class'], input: ['type', 'checked', 'disabled'], figcaption: ['class'] },
+    allowedClasses: { div: ['guide-callout', 'guide-callout-tip', 'guide-callout-important', 'guide-callout-warn', 'guide-checklist'], p: ['guide-source'], figcaption: ['guide-inline-caption'] },
+    allowedSchemes: ['http', 'https', 'mailto'],
+    transformTags: {
+      a: (_tagName, attribs) => ({ tagName: 'a', attribs: { href: attribs.href || '#', target: '_blank', rel: 'noopener' } }),
+      input: (_tagName, attribs) => ({ tagName: 'input', attribs: { type: 'checkbox', ...(attribs.checked != null ? { checked: '' } : {}), disabled: '' } }),
+    },
+  }).trim();
+}
+
+function sanitizeGuideArticleRevisions(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const raw of value.slice(-5)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const title = trimmedString(raw.title, 140);
+    const author = trimmedString(raw.author, 120);
+    const category = trimmedString(raw.category, 60);
+    const lead = trimmedString(raw.lead, 500);
+    const body = sanitizeGuideRevisionBody(raw.body);
+    const createdAt = sanitizedIsoDate(raw.createdAt);
+    const savedBy = trimmedString(raw.savedBy, 120);
+    if (!title || !lead || !body || !createdAt) continue;
+    out.push({ title, author, category, lead, body, time: guideReadingTimeLabel(raw.time), featured: raw.featured === true, published: raw.published !== false, createdAt, savedBy });
+  }
+  return out;
+}
 function sanitizeGuideArticles(value) {
   if (!Array.isArray(value)) return null;
   const seen = new Set();
@@ -501,6 +532,8 @@ function sanitizeGuideArticles(value) {
     const scheduledAt = sanitizedIsoDate(raw.scheduledAt);
     const publishedAt = sanitizedIsoDate(raw.publishedAt) || (published ? (scheduledAt || updatedAt) : '');
     const featured = raw.featured === true;
+    const relatedSlugs = Array.isArray(raw.relatedSlugs) ? [...new Set(raw.relatedSlugs.filter((item) => typeof item === 'string').map(slugifyGuideArticle))].slice(0, 6) : [];
+    const revisions = sanitizeGuideArticleRevisions(raw.revisions);
     out.push({
       slug, title, author, lead, body, category, image: imageData ? imageData.dataUrl : '',
       time: guideReadingTimeLabel(raw.time),
@@ -509,9 +542,13 @@ function sanitizeGuideArticles(value) {
       scheduledAt,
       publishedAt,
       updatedAt,
+      relatedSlugs,
+      revisions,
     });
     if (out.length >= 100) break;
   }
+  const validSlugs = new Set(out.map((article) => article.slug));
+  out.forEach((article) => { article.relatedSlugs = article.relatedSlugs.filter((slug) => slug !== article.slug && validSlugs.has(slug)); });
   return out;
 }
 function sanitizeSettingValue(key, value) {
@@ -7565,7 +7602,10 @@ app.get('/api/guide-articles', h(async (_req, res) => {
   const visible = stored.configured ? stored.articles.filter((article) => article.published && (!article.scheduledAt || Date.parse(article.scheduledAt) <= now) && allowed.has(article.category)) : null;
   const featuredSlug = visible && visible.filter((article) => article.featured).sort((a, b) => Date.parse(b.scheduledAt || b.publishedAt || b.updatedAt) - Date.parse(a.scheduledAt || a.publishedAt || a.updatedAt))[0]?.slug;
   res.setHeader('Cache-Control', 'no-cache');
-  res.json({ configured: stored.configured, articles: visible ? visible.map((article) => ({ ...article, featured: article.slug === featuredSlug })) : null });
+  res.json({ configured: stored.configured, articles: visible ? visible.map((article) => {
+    const { revisions: _privateRevisions, ...publicArticle } = article;
+    return { ...publicArticle, featured: article.slug === featuredSlug };
+  }) : null });
 }));
 
 app.get('/api/admin/guide-articles', requireRole('admin'), h(async (_req, res) => {

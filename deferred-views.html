@@ -1174,18 +1174,47 @@
               <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('insertUnorderedList')" title="Odrážkový seznam">• Seznam</button>
               <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorLink()" title="Vložit odkaz">Odkaz</button>
               <button type="button" data-guide-body-image-button title="Vložit obrázek do článku">Obrázek</button>
-              <input type="file" id="admArticleBodyImageInput" accept="image/jpeg,image/png,image/webp" hidden>
+              <button type="button" onclick="chooseAdminArticleGallery()" title="Vložit galerii více obrázků">Galerie</button>
+              <button type="button" onclick="openAdminArticleMediaLibrary()" title="Vybrat dříve nahraný obrázek">Knihovna</button>
+              <button type="button" onclick="insertAdminArticleCallout('tip')" title="Vložit zvýrazněný tip">Tip</button>
+              <button type="button" onclick="insertAdminArticleCallout('important')" title="Vložit důležitou informaci">Důležité</button>
+              <button type="button" onclick="insertAdminArticleCallout('warn')" title="Vložit upozornění">Upozornění</button>
+              <input type="file" id="admArticleBodyImageInput" accept="image/jpeg,image/png,image/webp" multiple hidden>
               <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('removeFormat')" title="Zrušit formátování">Vyčistit</button>
             </div>
             <div class="article-rich-editor" id="admArticleBody" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="admArticleBodyLabel"></div>
+            <div class="article-image-tools" id="admArticleImageTools" hidden>
+              <b>Vybraný obrázek</b>
+              <span class="article-image-tool-group"><button type="button" onclick="setAdminArticleImageAlign('left')">Vlevo</button><button type="button" onclick="setAdminArticleImageAlign('center')">Na střed</button><button type="button" onclick="setAdminArticleImageAlign('right')">Vpravo</button></span>
+              <span class="article-image-tool-group"><button type="button" onclick="setAdminArticleImageSize('small')">Malý</button><button type="button" onclick="setAdminArticleImageSize('medium')">Střední</button><button type="button" onclick="setAdminArticleImageSize('full')">Velký</button></span>
+              <button type="button" onclick="replaceAdminArticleSelectedImage()">Vyměnit</button>
+              <button type="button" class="danger" onclick="removeAdminArticleSelectedImage()">Odstranit</button>
+            </div>
+            <p class="admin-article-drop-note">Obrázky můžete také přetáhnout myší přímo do editoru. Maximálně 8 obrázků v jednom článku.</p>
           </div>
+          <section class="admin-related-articles">
+            <h3>Související články <span class="admin-help" tabindex="0" data-help="Vyberte až 6 dalších článků, které se čtenáři nabídnou pod tímto článkem." aria-label="Nápověda k souvisejícím článkům">?</span></h3>
+            <p>Na konci článku nabídnou čtenářům další vhodné čtení.</p>
+            <div id="admArticleRelatedList" class="admin-related-list"></div>
+          </section>
           <label class="admin-publish-toggle"><input type="checkbox" id="admArticlePublished"><span><b>Publikovaný článek <span class="admin-help" tabindex="0" data-help="Zapnuto znamená, že článek po ručním uložení uvidí návštěvníci. Vypnutý koncept se během psaní automaticky ukládá." aria-label="Nápověda k publikování">?</span></b><small>Neveřejný koncept se automaticky ukládá. Změny veřejného článku potvrdíte tlačítkem Uložit článek.</small></span></label>
+          <section class="admin-article-revisions" id="admArticleRevisions" hidden></section>
           <section class="admin-article-feedback" id="admArticleFeedback" hidden></section>
           <div class="set-err" id="admArticleErr"></div>
           <div class="admin-article-savebar"><span id="admArticleSavedAt"></span><div class="admin-action-with-help"><button type="submit" class="btn btn-gold" id="admArticleSaveBtn">Uložit článek</button><span class="admin-help" tabindex="0" data-help="Uloží všechny změny článku. Veřejně se zobrazí pouze tehdy, když je zapnuté publikování." aria-label="Nápověda k uložení">?</span></div></div>
         </form>
       </section>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="admArticleMediaModal" role="dialog" aria-modal="true" aria-labelledby="admArticleMediaTitle">
+  <div class="modal-scrim" onclick="closeAdminArticleMediaLibrary()"></div>
+  <div class="modal-card admin-article-media-modal-card">
+    <button class="modal-x" type="button" aria-label="Zavřít knihovnu obrázků" onclick="closeAdminArticleMediaLibrary()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    <span class="eyebrow">Knihovna médií</span><h3 id="admArticleMediaTitle">Dříve nahrané obrázky</h3>
+    <p>Vyberte obrázek z existujících článků a vložte jej na aktuální místo.</p>
+    <div class="admin-article-media-grid" id="admArticleMediaGrid"></div>
   </div>
 </div>
 
