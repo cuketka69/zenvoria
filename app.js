@@ -5418,9 +5418,11 @@ function guideScheduledIso(value){const date=value&&new Date(value);return date&
 function toggleAdminArticleSchedule(enabled,fromUser){
   const wrap=document.getElementById('admArticleScheduleDate'),input=document.getElementById('admArticleScheduledAt');if(wrap)wrap.hidden=!enabled;
   if(!enabled&&input)input.value='';
+  syncAdminArticleScheduleInput();
   if(enabled&&fromUser&&input)setTimeout(()=>input.focus(),20);
   if(fromUser)scheduleAdminArticleAutosave();
 }
+function syncAdminArticleScheduleInput(){const input=document.getElementById('admArticleScheduledAt');if(input)input.classList.toggle('is-empty',!input.value);}
 function renderAdminArticleImage(){
   const preview=document.getElementById('admArticleImagePreviewImg'),placeholder=document.getElementById('admArticleImagePlaceholder'),remove=document.getElementById('admArticleImageRemove');
   if(preview){preview.src=adminGuideDraftImage||'';preview.hidden=!adminGuideDraftImage;}
