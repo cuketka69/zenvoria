@@ -264,8 +264,11 @@
 <div class="view" id="view-search">
   <div class="wrap">
     <div class="page-head">
-      <h1>Hledat pečovatelku</h1>
-      <p>Najděte ověřenou pečovatelku ve svém okolí.</p>
+      <div>
+        <h1>Hledat pečovatelku</h1>
+        <p>Najděte ověřenou pečovatelku ve svém okolí.</p>
+      </div>
+      <button type="button" class="btn btn-gold care-match-open" onclick="openCareMatcher()">Pomozte mi vybrat</button>
     </div>
     <div class="search-bar">
       <div class="field">
@@ -309,6 +312,8 @@
     <div class="care-grid" id="careGrid"></div>
   </div>
 </div>
+
+<div class="care-compare-bar" id="careCompareBar" hidden aria-live="polite"></div>
 
 <!-- ============ JAK TO FUNGUJE ============ -->
 <div class="view" id="view-howto">
@@ -498,6 +503,36 @@
 <div id="deferredViews"></div>
 
 </main>
+
+<div class="modal" id="careMatcherModal" role="dialog" aria-modal="true" aria-labelledby="careMatcherTitle">
+  <div class="modal-scrim" onclick="closeCareMatcher()"></div>
+  <div class="modal-card care-match-modal">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeCareMatcher()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    <span class="care-match-kicker">CHYTRÉ DOPORUČENÍ</span>
+    <h3 id="careMatcherTitle">Jakou péči hledáte?</h3>
+    <p class="msub">Podle vašich potřeb vybereme nejvhodnější ověřené profily.</p>
+    <form onsubmit="return runCareMatcher(event)">
+      <div class="grid2 care-match-fields">
+        <div><label class="lbl" for="matchService">Druh péče</label><select class="inp" id="matchService"></select></div>
+        <div><label class="lbl" for="matchLocation">Lokalita</label><input class="inp" id="matchLocation" placeholder="Např. Praha"></div>
+        <div><label class="lbl" for="matchBudget">Cena nejvýše za hodinu</label><input class="inp" id="matchBudget" type="number" min="1" step="10"></div>
+        <div><label class="lbl" for="matchExperience">Minimální praxe</label><select class="inp" id="matchExperience"><option value="0">Nerozhoduje</option><option value="2">Alespoň 2 roky</option><option value="5">Alespoň 5 let</option><option value="10">Alespoň 10 let</option></select></div>
+      </div>
+      <button class="btn btn-gold btn-block" type="submit">Najít nejlepší shody</button>
+    </form>
+    <div id="careMatcherResults" class="care-match-results" hidden></div>
+  </div>
+</div>
+
+<div class="modal" id="careCompareModal" role="dialog" aria-modal="true" aria-labelledby="careCompareTitle">
+  <div class="modal-scrim" onclick="closeCareCompare()"></div>
+  <div class="modal-card care-compare-modal">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeCareCompare()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    <span class="care-match-kicker">POROVNÁNÍ PROFILŮ</span>
+    <h3 id="careCompareTitle">Pečovatelky vedle sebe</h3>
+    <div id="careCompareContent" class="care-compare-content"></div>
+  </div>
+</div>
 
 <!-- ============ RATING MODAL ============ -->
 <div class="modal" id="ratingModal" role="dialog" aria-modal="true" aria-labelledby="ratingTitle">

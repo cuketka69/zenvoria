@@ -888,6 +888,15 @@
           <div class="panel-h"><b>Oblíbené pečovatelky</b><span class="count" id="famFavCount">0</span></div>
           <div id="famFavorites"></div>
         </div>
+        <div class="panel" id="famCareTeamPanel">
+          <div class="panel-h"><b>Sdílená péče v rodině</b><span class="count" id="famCareTeamCount">0</span></div>
+          <p class="panel-note">Pozvěte blízkého s rodinným účtem. Objednávky a záznam péče uvidí až po přijetí pozvánky.</p>
+          <form class="care-team-form" onsubmit="return inviteFamilyMember(event)">
+            <input class="inp" id="careTeamEmail" type="email" autocomplete="email" placeholder="E-mail blízkého" required>
+            <button class="btn btn-gold" type="submit">Pozvat</button>
+          </form>
+          <div id="famCareTeamList"></div>
+        </div>
         <div class="panel">
           <div class="panel-h"><b>Doporučené pečovatelky</b></div>
           <div id="famRecommended"></div>

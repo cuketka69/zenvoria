@@ -4271,6 +4271,48 @@ async function findUserByEmail(email) {
   return rows && rows[0];
 }
 
+const FAMILY_CARE_TEAMS_KEY = 'familyCareTeamsV1';
+const ORDER_CARE_NOTES_KEY = 'orderCareNotesV1';
+async function loadSettingArray(key) {
+  const rows = await restSelect(T.settings, `key=eq.${encodeURIComponent(key)}&limit=1`);
+  return rows && rows[0] && Array.isArray(rows[0].value) ? rows[0].value : [];
+}
+async function saveSettingArray(key, value) {
+  await supabaseRestRequest('POST', T.settings, { body: { key, value }, prefer: 'resolution=merge-duplicates,return=minimal' });
+}
+function cleanFamilyTeams(rows) {
+  return (Array.isArray(rows) ? rows : []).map((team) => ({
+    ownerEmail: trimmedString(team && team.ownerEmail, 320).toLowerCase(),
+    ownerName: trimmedString(team && team.ownerName, 120),
+    members: (Array.isArray(team && team.members) ? team.members : []).map((m) => ({
+      email: trimmedString(m && m.email, 320).toLowerCase(), name: trimmedString(m && m.name, 120),
+      status: m && m.status === 'active' ? 'active' : 'pending', createdAt: m && m.createdAt || null,
+    })).filter((m) => m.email).slice(0, 5),
+  })).filter((t) => t.ownerEmail);
+}
+async function familyTeamContext(email, suppliedTeams) {
+  const me = String(email || '').trim().toLowerCase();
+  const teams = cleanFamilyTeams(suppliedTeams || await loadSettingArray(FAMILY_CARE_TEAMS_KEY));
+  const own = teams.find((t) => t.ownerEmail === me) || { ownerEmail: me, ownerName: '', members: [] };
+  const invitations = teams.filter((t) => t.members.some((m) => m.email === me && m.status === 'pending')).map((t) => ({ ownerEmail: t.ownerEmail, ownerName: t.ownerName }));
+  const memberships = teams.filter((t) => t.members.some((m) => m.email === me && m.status === 'active')).map((t) => ({ ownerEmail: t.ownerEmail, ownerName: t.ownerName }));
+  return { owner: { email: own.ownerEmail, name: own.ownerName }, members: own.members, invitations, memberships, teams };
+}
+async function familyAccessibleEmails(email, suppliedTeams) {
+  const ctx = await familyTeamContext(email, suppliedTeams);
+  return [...new Set([String(email || '').toLowerCase(), ...ctx.memberships.map((m) => m.ownerEmail)])];
+}
+async function familyCanAccessOrder(email, order, suppliedTeams) {
+  if (!order) return false;
+  return (await familyAccessibleEmails(email, suppliedTeams)).includes(String(order.family_email || '').toLowerCase());
+}
+function publicFamilyTeamContext(ctx) {
+  return { owner: ctx.owner, members: ctx.members, invitations: ctx.invitations, memberships: ctx.memberships };
+}
+function cleanCareNotes(rows) {
+  return (Array.isArray(rows) ? rows : []).map((n) => ({ id: Number(n && n.id), oid: Number(n && n.oid), authorEmail: trimmedString(n && n.authorEmail, 320).toLowerCase(), authorName: trimmedString(n && n.authorName, 120), authorRole: trimmedString(n && n.authorRole, 20), text: trimmedString(n && n.text, 1000), createdAt: n && n.createdAt || null })).filter((n) => n.id > 0 && n.oid > 0 && n.text).slice(-5000);
+}
+
 app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(async (req, res) => {
   const { name, titul, email, password, role, phone } = req.body || {};
   const safeName = trimmedString(name, 120);
@@ -4629,6 +4671,54 @@ app.patch('/api/users/me/photo', requireAuth, h(async (req, res) => {
   res.json({ ok: true, photo });
 }));
 
+/* ---------------- SDÍLENÁ PÉČE V RODINĚ ---------------- */
+app.post('/api/family-care-team/invite', requireRole('family'), rateLimit('family-team', RATE_LIMITS.profile || RATE_LIMITS.register), h(async (req, res) => {
+  const me = String(req.session.email || '').toLowerCase();
+  const email = trimmedString(req.body && req.body.email, 320).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Zadejte platný e-mail.' });
+  if (email === me) return res.status(400).json({ error: 'Nemůžete pozvat vlastní účet.' });
+  const invited = await findUserByEmail(email);
+  if (!invited || invited.role !== 'family' || invited.status === 'suspended') return res.status(404).json({ error: 'Rodinný účet s tímto e-mailem nebyl nalezen.' });
+  const teams = cleanFamilyTeams(await loadSettingArray(FAMILY_CARE_TEAMS_KEY));
+  let own = teams.find((t) => t.ownerEmail === me);
+  if (!own) { own = { ownerEmail: me, ownerName: req.session.name || me, members: [] }; teams.push(own); }
+  if (own.members.some((m) => m.email === email)) return res.status(409).json({ error: 'Tento člověk už pozvánku má.' });
+  if (own.members.length >= 5) return res.status(400).json({ error: 'Ke sdílené péči lze přidat nejvýše 5 lidí.' });
+  own.members.push({ email, name: invited.name || email, status: 'pending', createdAt: new Date().toISOString() });
+  await saveSettingArray(FAMILY_CARE_TEAMS_KEY, teams);
+  await createNotification(invited.id, { type: 'family-care-team', title: 'Pozvánka ke sdílené péči', body: `${req.session.name || me} vás zve ke společnému přehledu péče.`, link: 'fam-dash' });
+  res.json({ ok: true, team: publicFamilyTeamContext(await familyTeamContext(me, teams)) });
+}));
+app.post('/api/family-care-team/accept', requireRole('family'), h(async (req, res) => {
+  const me = String(req.session.email || '').toLowerCase(), ownerEmail = trimmedString(req.body && req.body.ownerEmail, 320).toLowerCase();
+  const teams = cleanFamilyTeams(await loadSettingArray(FAMILY_CARE_TEAMS_KEY));
+  const team = teams.find((t) => t.ownerEmail === ownerEmail), member = team && team.members.find((m) => m.email === me);
+  if (!member || member.status !== 'pending') return res.status(404).json({ error: 'Pozvánka nebyla nalezena.' });
+  member.status = 'active'; await saveSettingArray(FAMILY_CARE_TEAMS_KEY, teams);
+  const owner = await findUserByEmail(ownerEmail);
+  if (owner) await createNotification(owner.id, { type: 'family-care-team', title: 'Pozvánka byla přijata', body: `${req.session.name || me} se zapojil(a) do sdílené péče.`, link: 'fam-dash' });
+  res.json({ ok: true, team: publicFamilyTeamContext(await familyTeamContext(me, teams)) });
+}));
+app.post('/api/family-care-team/decline', requireRole('family'), h(async (req, res) => {
+  const me = String(req.session.email || '').toLowerCase(), ownerEmail = trimmedString(req.body && req.body.ownerEmail, 320).toLowerCase();
+  const teams = cleanFamilyTeams(await loadSettingArray(FAMILY_CARE_TEAMS_KEY));
+  const team = teams.find((t) => t.ownerEmail === ownerEmail);
+  if (!team || !team.members.some((m) => m.email === me && m.status === 'pending')) return res.status(404).json({ error: 'Pozvánka nebyla nalezena.' });
+  team.members = team.members.filter((m) => m.email !== me); await saveSettingArray(FAMILY_CARE_TEAMS_KEY, teams);
+  res.json({ ok: true, team: publicFamilyTeamContext(await familyTeamContext(me, teams)) });
+}));
+app.post('/api/family-care-team/remove', requireRole('family'), h(async (req, res) => {
+  const me = String(req.session.email || '').toLowerCase();
+  const memberEmail = trimmedString(req.body && req.body.memberEmail, 320).toLowerCase();
+  const ownerEmail = trimmedString(req.body && req.body.ownerEmail, 320).toLowerCase();
+  const teams = cleanFamilyTeams(await loadSettingArray(FAMILY_CARE_TEAMS_KEY));
+  const team = ownerEmail ? teams.find((t) => t.ownerEmail === ownerEmail) : teams.find((t) => t.ownerEmail === me);
+  const target = ownerEmail ? me : memberEmail;
+  if (!team || (ownerEmail && !team.members.some((m) => m.email === me)) || (!ownerEmail && team.ownerEmail !== me)) return res.status(403).json({ error: 'Tuto sdílenou péči nemůžete změnit.' });
+  team.members = team.members.filter((m) => m.email !== target); await saveSettingArray(FAMILY_CARE_TEAMS_KEY, teams);
+  res.json({ ok: true, team: publicFamilyTeamContext(await familyTeamContext(me, teams)) });
+}));
+
 /* ---------------- BOOTSTRAP (vše pro render) ---------------- */
 app.get('/api/bootstrap', h(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -4636,6 +4726,12 @@ app.get('/api/bootstrap', h(async (req, res) => {
     ? 'guest'
     : (req.session.role === 'admin' ? 'admin' : (req.session.role === 'caregiver' ? 'caregiver' : 'family'));
   const ownCaregiver = viewer === 'caregiver' ? await currentCaregiverRow(req) : null;
+  const familyTeams = viewer === 'family' ? cleanFamilyTeams(await loadSettingArray(FAMILY_CARE_TEAMS_KEY)) : [];
+  const familyContext = viewer === 'family' ? await familyTeamContext(req.session.email, familyTeams) : null;
+  const familyEmails = viewer === 'family' ? await familyAccessibleEmails(req.session.email, familyTeams) : [];
+  const familyEmailFilter = familyEmails.length === 1
+    ? `family_email=eq.${encodeURIComponent(familyEmails[0])}`
+    : `family_email=in.(${familyEmails.map((email) => `"${email.replace(/"/g, '')}"`).join(',')})`;
   const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows, reportRows, favoriteRows, unreadNotifRows, recurringRows] =
     await Promise.all([
       viewer === 'guest'
@@ -4646,7 +4742,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
       viewer === 'admin'
         ? restSelect(T.orders, 'select=*&order=oid.desc')
         : (viewer === 'family'
-          ? restSelect(T.orders, `family_email=eq.${encodeURIComponent(req.session.email)}&order=oid.desc`)
+          ? restSelect(T.orders, `${familyEmailFilter}&order=oid.desc`)
           : (viewer === 'caregiver' && ownCaregiver
             ? restSelect(T.orders, `cid=eq.${Number(ownCaregiver.id)}&order=oid.desc&limit=200`)
             : [])),
@@ -4692,6 +4788,10 @@ app.get('/api/bootstrap', h(async (req, res) => {
       req.session ? restSelect(T.notifications, `user_id=eq.${encodeURIComponent(req.session.uid)}&read_at=is.null&select=id`) : [],
       viewer === 'family' ? restSelect(T.recurringBookings, `family_email=eq.${encodeURIComponent(req.session.email)}&status=eq.active&order=id.desc`) : [],
     ]);
+
+  const allCareNotes = req.session ? cleanCareNotes(await loadSettingArray(ORDER_CARE_NOTES_KEY)) : [];
+  const visibleOrderIds = new Set((orders || []).map((o) => Number(o.oid)));
+  const careNotesForViewer = allCareNotes.filter((n) => visibleOrderIds.has(Number(n.oid)));
 
   // cgReviews: { [caregiverId]: [{init,name,stars,text}] } + obecné recenze (caregiver_id null)
   const cgReviews = {};
@@ -4763,6 +4863,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     caregivers: caregiversForViewer,
     orders: (orders || []).map((o) => ({
       ...mapOrder(o),
+      shared: viewer === 'family' && String(o.family_email || '').toLowerCase() !== String(req.session.email || '').toLowerCase(),
       rated: reviewedOids.has(Number(o.oid)),
       ratedFamily: ratedFamilyOids ? ratedFamilyOids.has(Number(o.oid)) : undefined,
       cgPhoto: cgPhotoById[o.cid] || null,
@@ -4782,6 +4883,8 @@ app.get('/api/bootstrap', h(async (req, res) => {
       : [],
     reports: viewer === 'admin' ? await mapReportsForAdmin(reportRows) : [],
     favorites: viewer === 'family' ? (favoriteRows || []).map((f) => Number(f.caregiver_id)) : [],
+    familyCareTeam: viewer === 'family' ? publicFamilyTeamContext(familyContext) : null,
+    careNotes: careNotesForViewer.map((n) => ({ id: n.id, oid: n.oid, authorName: n.authorName, authorRole: n.authorRole, text: n.text, createdAt: n.createdAt })),
     unreadNotifCount: req.session ? (unreadNotifRows || []).length : 0,
     recurringBookings: viewer === 'family'
       ? (recurringRows || []).map((r) => ({ id: Number(r.id), cid: Number(r.cid), service: r.service, hours: r.hours, addr: r.addr, weekday: r.weekday, time: r.time, occurrences: r.occurrences, createdAt: r.created_at }))
@@ -5049,7 +5152,7 @@ async function loadOrderReceiptData(req, oid) {
   const o = rows && rows[0];
   if (!o) return { error: 'Objednávka nenalezena.', status: 404 };
   const isAdmin = req.session.role === 'admin';
-  const isFamily = req.session.email && o.family_email && req.session.email.toLowerCase() === o.family_email.toLowerCase();
+  const isFamily = req.session.role === 'family' && await familyCanAccessOrder(req.session.email, o);
   let isCaregiver = false;
   if (!isAdmin && !isFamily && req.session.role === 'caregiver' && o.cid != null) {
     const own = await currentCaregiverRow(req);
@@ -5133,6 +5236,23 @@ function buildOrderReceiptPdf(d) {
     } catch (err) { reject(err); }
   });
 }
+app.post('/api/orders/:oid/care-notes', requireAuth, rateLimit('care-notes', RATE_LIMITS.orders), h(async (req, res) => {
+  const oid = Number(req.params.oid), text = trimmedString(req.body && req.body.text, 1000);
+  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).json({ error: 'Neplatná objednávka.' });
+  if (text.length < 3) return res.status(400).json({ error: 'Napište alespoň krátký záznam.' });
+  const rows = await restSelect(T.orders, `oid=eq.${oid}&select=oid,cid,family_email,status&limit=1`), order = rows && rows[0];
+  if (!order) return res.status(404).json({ error: 'Objednávka nebyla nalezena.' });
+  let allowed = req.session.role === 'admin';
+  if (req.session.role === 'family') allowed = await familyCanAccessOrder(req.session.email, order);
+  if (req.session.role === 'caregiver') { const own = await currentCaregiverRow(req); allowed = !!own && Number(own.id) === Number(order.cid); }
+  if (!allowed) return res.status(403).json({ error: 'K této objednávce nemáte přístup.' });
+  if (!['confirmed', 'done'].includes(order.status)) return res.status(400).json({ error: 'Záznam lze přidat až k potvrzené nebo dokončené péči.' });
+  const notes = cleanCareNotes(await loadSettingArray(ORDER_CARE_NOTES_KEY));
+  const note = { id: notes.reduce((m, n) => Math.max(m, n.id), 0) + 1, oid, authorEmail: req.session.email, authorName: req.session.name || req.session.email, authorRole: req.session.role, text, createdAt: new Date().toISOString() };
+  notes.push(note); await saveSettingArray(ORDER_CARE_NOTES_KEY, notes);
+  res.status(201).json({ ok: true, note: { id: note.id, oid: note.oid, authorName: note.authorName, authorRole: note.authorRole, text: note.text, createdAt: note.createdAt } });
+}));
+
 app.get('/api/orders/:oid/receipt.pdf', requireAuth, h(async (req, res) => {
   const oid = Number(req.params.oid);
   const d = await loadOrderReceiptData(req, oid);
