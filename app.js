@@ -394,7 +394,7 @@ function applyGuideArticles(articles){
   const next={};
   (Array.isArray(articles)?articles:[]).forEach(article=>{
     if(!article||!article.slug||!article.title)return;
-    next[article.slug]={category:article.category||'',time:article.time||'5 minut čtení',title:article.title,author:article.author||'',lead:article.lead||'',body:article.body||'',image:article.image||'',template:['alternating','steps','practical'].includes(article.template)?article.template:'classic',published:article.published!==false,featured:article.featured===true,scheduledAt:article.scheduledAt||null,publishedAt:article.publishedAt||null,updatedAt:article.updatedAt||null,relatedSlugs:Array.isArray(article.relatedSlugs)?article.relatedSlugs:[],revisions:Array.isArray(article.revisions)?article.revisions:[]};
+    next[article.slug]={category:article.category||'',time:article.time||'5 minut čtení',title:article.title,author:article.author||'',lead:article.lead||'',seoTitle:article.seoTitle||'',seoDescription:article.seoDescription||'',body:article.body||'',image:article.image||'',template:['alternating','steps','practical'].includes(article.template)?article.template:'classic',published:article.published!==false,featured:article.featured===true,scheduledAt:article.scheduledAt||null,publishedAt:article.publishedAt||null,updatedAt:article.updatedAt||null,relatedSlugs:Array.isArray(article.relatedSlugs)?article.relatedSlugs:[],revisions:Array.isArray(article.revisions)?article.revisions:[]};
   });
   GUIDE_ARTICLES=next;
 }
@@ -474,7 +474,7 @@ function prepareGuideArticleBody(body){
   const toc=links.length>=2?`<nav class="guide-toc" aria-label="Obsah článku"><b>Obsah článku</b><ol>${links.map(link=>`<li class="level-${link.level}"><a href="#${esc(link.id)}">${esc(link.label)}</a></li>`).join('')}</ol></nav>`:'';
   return {html:wrapper.innerHTML,toc,practicalRecommendation,practicalConclusion};
 }
-function guideAsideCtaHtml(preview){return `<div class="guide-aside-cta"><span>${preview?'Náhled magazínu':'Potřebujete praktickou pomoc?'}</span><h3>${preview?'Takto článek uvidí čtenáři':'Najděte péči pro svého blízkého'}</h3><p>${preview?'Obsah se automaticky vytvoří z nadpisů článku.':'Ověřené pečovatelky podle lokality, zkušeností a služeb.'}</p>${preview?'':'<button type="button" class="btn btn-gold btn-block" onclick="go(\'search\')">Najít pečovatelku</button>'}</div>`;}
+function guideAsideCtaHtml(preview){return `<div class="guide-aside-cta"><span>${preview?'Náhled magazínu':'Potřebujete praktickou pomoc?'}</span><h3>${preview?'Takto článek uvidí čtenáři':'Najděte péči pro svého blízkého'}</h3><p>${preview?'Obsah se automaticky vytvoří z nadpisů článku.':'Ověřené pečovatelky podle lokality, zkušeností a služeb.'}</p>${preview?'':'<button type="button" class="btn btn-gold btn-block" onclick="trackGuideArticleEvent(\'cta\');go(\'search\')">Najít pečovatelku</button>'}</div>`;}
 function guideArticleAsideHtml(toc,preview){
   return `<aside class="guide-article-aside">${toc||''}${guideAsideCtaHtml(preview)}</aside>`;
 }
@@ -482,6 +482,24 @@ function guidePracticalAsideHtml(prepared,preview){return `<aside class="guide-a
 function guideRelatedHtml(item){
   const related=(item.relatedSlugs||[]).map(slug=>GUIDE_ARTICLES[slug]&&({slug,...GUIDE_ARTICLES[slug]})).filter(Boolean).slice(0,6);if(!related.length)return '';
   return `<section class="guide-related"><span class="eyebrow">Další čtení</span><h2>Související články</h2><div class="guide-related-grid">${related.map(article=>`<button type="button" data-related-guide-slug="${esc(article.slug)}">${article.image?`<img src="${esc(article.image)}" alt="" loading="lazy">`:''}<span><small>${esc(article.category)}</small><b>${esc(article.title)}</b><em>${esc(article.time)}</em></span></button>`).join('')}</div></section>`;
+}
+function setGuideSeoMeta(item){
+  const title=item?(item.seoTitle||item.title+' — ZENVORIA'):'Průvodce péčí — ZENVORIA';
+  const description=item?(item.seoDescription||item.lead):'Průvodce péčí ZENVORIA s články a praktickými návody zveřejněnými naším týmem.';
+  document.title=title;
+  let meta=document.querySelector('meta[name="description"]');if(!meta){meta=document.createElement('meta');meta.name='description';document.head.appendChild(meta);}meta.content=description;
+  [['og:title',title],['og:description',description]].forEach(([property,value])=>{let el=document.querySelector(`meta[property="${property}"]`);if(!el){el=document.createElement('meta');el.setAttribute('property',property);document.head.appendChild(el);}el.content=value;});
+}
+function guideArticleChromeHtml(item){
+  return `<div class="guide-article-chrome"><nav class="guide-breadcrumbs" aria-label="Drobečková navigace"><button type="button" onclick="openGuideHome()">Průvodce péčí</button><span aria-hidden="true">›</span><span>${esc(item.category)}</span><span aria-hidden="true">›</span><strong aria-current="page">${esc(item.title)}</strong></nav><button type="button" class="guide-print-button" onclick="window.print()" aria-label="Vytisknout článek nebo uložit jako PDF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M7 14h10v7H7v-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M17 11h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Vytisknout / uložit PDF</button></div>`;
+}
+function trackGuideArticleEvent(action){
+  if(!guideArticleSlug||!['view','cta'].includes(action))return;
+  if(action==='view'){
+    const key='zv_guide_view_'+guideArticleSlug;
+    try{if(sessionStorage.getItem(key)==='1')return;sessionStorage.setItem(key,'1');}catch(e){}
+  }
+  api('/guide-articles/'+encodeURIComponent(guideArticleSlug)+'/stats',{method:'POST',body:{action}}).catch(()=>{});
 }
 function renderGuideHubCards(){
   const articles=guideArticleArray(false).sort((a,b)=>Number(b.featured)-Number(a.featured));
@@ -530,27 +548,28 @@ function renderGuide(){
   const item=guideArticleSlug&&GUIDE_ARTICLES[guideArticleSlug];
   if(!item){
     guideArticleSlug=null;hub.hidden=false;article.hidden=true;content.innerHTML='';
-    document.title='Průvodce péčí — ZENVORIA';
+    setGuideSeoMeta(null);
     renderGuideHubCards();
     filterGuideArticles();return;
   }
   hub.hidden=true;article.hidden=false;
-  document.title=item.title+' — ZENVORIA';
+  setGuideSeoMeta(item);
   const prepared=prepareGuideArticleBody(item.body),wideTemplate=['alternating','steps'].includes(item.template),practical=item.template==='practical';
   const headInner=`<span class="guide-category">${esc(item.category)}</span><h1>${esc(item.title)}</h1><p>${esc(item.lead)}</p><div class="guide-meta">${item.author?`<span>Autor: ${esc(item.author)}</span>`:''}${guideArticleDateMeta(item,true)}<span>${esc(item.time)}</span><span>Ověřeno redakcí ZENVORIA</span></div>`;
   const note=`<div class="guide-medical-note"><b>Upozornění:</b> Článek poskytuje obecné informace a nenahrazuje individuální doporučení lékaře nebo jiného zdravotníka.</div>`;
   if(practical){
     const hero=`<header class="guide-article-head guide-practical-head${item.image?'':' no-image'}"><div>${headInner}</div>${item.image?`<img src="${esc(item.image)}" alt="${esc(item.title)}" decoding="async">`:''}</header>`;
     const layout=`<div class="guide-article-layout guide-practical-layout"><div class="guide-article-body">${prepared.html}</div>${guidePracticalAsideHtml(prepared,false)}</div>`;
-    content.innerHTML=`${hero}${layout}${guideRelatedHtml(item)}${prepared.practicalConclusion||''}${note}${guideFeedbackHtml(guideArticleSlug)}`;
+    content.innerHTML=`${guideArticleChromeHtml(item)}${hero}${layout}${guideRelatedHtml(item)}${prepared.practicalConclusion||''}${note}${guideFeedbackHtml(guideArticleSlug)}`;
   }else{
     const articleEnd=`${note}${guideRelatedHtml(item)}${guideFeedbackHtml(guideArticleSlug)}`;
     const articleLayout=wideTemplate?`<div class="guide-article-layout guide-layout-alternating"><div class="guide-article-body guide-body-alternating">${prepared.html}${articleEnd}</div></div>`:`<div class="guide-article-layout">${guideArticleAsideHtml(prepared.toc,false)}<div class="guide-article-body">${prepared.html}${articleEnd}</div></div>`;
-    content.innerHTML=`<header class="guide-article-head">${headInner}</header>${item.image&&!wideTemplate?`<img class="guide-article-cover" src="${esc(item.image)}" alt="${esc(item.title)}" decoding="async">`:''}${articleLayout}`;
+    content.innerHTML=`${guideArticleChromeHtml(item)}<header class="guide-article-head">${headInner}</header>${item.image&&!wideTemplate?`<img class="guide-article-cover" src="${esc(item.image)}" alt="${esc(item.title)}" decoding="async">`:''}${articleLayout}`;
   }
   content.querySelectorAll('[data-related-guide-slug]').forEach(button=>button.onclick=()=>openGuideArticle(button.dataset.relatedGuideSlug));
   content.querySelectorAll('.guide-toc a').forEach(link=>link.onclick=event=>{event.preventDefault();content.querySelector(link.getAttribute('href'))?.scrollIntoView({behavior:'smooth',block:'start'});});
-  content.querySelectorAll('.guide-steps-conclusion a[href="#search"]').forEach(link=>link.onclick=event=>{event.preventDefault();go('search');});
+  content.querySelectorAll('.guide-steps-conclusion a[href="#search"]').forEach(link=>link.onclick=event=>{event.preventDefault();trackGuideArticleEvent('cta');go('search');});
+  trackGuideArticleEvent('view');
 }
 function setGuideFilter(category,button){
   guideCategory=category||'all';
@@ -5315,6 +5334,7 @@ const SERVICE_DEFAULT_ICON='M9 11l3 3L22 4M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2
 let adminGuideArticles=[];
 let adminGuideCategories=[];
 let adminGuideFeedback={};
+let adminGuideStats={};
 let adminGuideLoaded=false;
 let adminGuideEditingSlug=null;
 let adminGuideDraftImage='';
@@ -5323,6 +5343,8 @@ let adminGuideSelectedFigure=null;
 let adminGuideImageInputMode='single';
 let adminGuideAutosaveTimer=null;
 let adminGuideAutosaveInFlight=false;
+let adminGuideDraggedBlock=null;
+let adminGuideBlockOrganizer=false;
 async function renderAdminArticles(){
   const list=document.getElementById('admArticleList');
   if(!list)return;
@@ -5333,10 +5355,11 @@ async function renderAdminArticles(){
       adminGuideArticles=data&&data.configured?(data.articles||[]):guideArticleArray(true);
       adminGuideCategories=data&&Array.isArray(data.categories)?data.categories:[];
       adminGuideFeedback=data&&data.feedback&&typeof data.feedback==='object'?data.feedback:{};
+      adminGuideStats=data&&data.stats&&typeof data.stats==='object'?data.stats:{};
       adminGuideLoaded=true;
       if(data&&data.configured)applyGuideArticles(adminGuideArticles);
     }catch(e){
-      adminGuideArticles=guideArticleArray(true);adminGuideCategories=[];adminGuideFeedback={};adminGuideLoaded=true;
+      adminGuideArticles=guideArticleArray(true);adminGuideCategories=[];adminGuideFeedback={};adminGuideStats={};adminGuideLoaded=true;
       toast('Články z databáze se nepodařilo načíst: '+(e.message||''),'declined');
     }
   }
@@ -5396,8 +5419,9 @@ function renderAdminArticleFeedback(slug,isNew){
   const box=document.getElementById('admArticleFeedback');if(!box)return;
   if(isNew){box.hidden=true;box.innerHTML='';return;}
   const data=adminGuideFeedback[slug]||{yes:0,no:0,total:0,helpfulPercent:null,comments:[]};box.hidden=false;
+  const stats=adminGuideStats[slug]||{views:0,ctaClicks:0};
   const percent=data.helpfulPercent==null?'—':data.helpfulPercent+' %';
-  box.innerHTML=`<div class="admin-feedback-head"><div><h3>Užitečnost článku <span class="admin-help" tabindex="0" data-help="Výsledky odpovědí čtenářů na otázku Pomohl vám tento článek? Jeden návštěvník může své hodnocení později změnit." aria-label="Nápověda k hodnocení článku">?</span></h3><p>Odpovědi a nepovinné komentáře od čtenářů.</p></div><div class="admin-feedback-actions"><strong>${esc(percent)}</strong><button type="button" class="btn btn-ghost btn-sm" onclick="refreshAdminArticleFeedback(this)">Obnovit</button></div></div><div class="admin-feedback-stats"><span><b>${Number(data.yes)||0}</b>Ano</span><span><b>${Number(data.no)||0}</b>Ne</span><span><b>${Number(data.total)||0}</b>Celkem</span></div><div class="admin-feedback-comments">${data.comments&&data.comments.length?`<h4>Poslední komentáře</h4>${data.comments.map(item=>`<div><span class="${item.helpful?'yes':'no'}">${item.helpful?'Ano':'Ne'}</span><p>${esc(item.comment)}</p><time>${esc(new Date(item.createdAt).toLocaleString('cs-CZ',{dateStyle:'medium',timeStyle:'short'}))}</time></div>`).join('')}`:'<p class="empty">Zatím bez slovní zpětné vazby.</p>'}</div>`;
+  box.innerHTML=`<div class="admin-feedback-head"><div><h3>Výkon a užitečnost článku <span class="admin-help" tabindex="0" data-help="Zobrazení se počítá jednou za relaci prohlížeče. Kliknutí ukazují použití tlačítka Najít pečovatelku. Hodnocení pochází z otázky pod článkem." aria-label="Nápověda ke statistikám článku">?</span></h3><p>Návštěvnost, hlavní akce a zpětná vazba čtenářů.</p></div><div class="admin-feedback-actions"><strong>${esc(percent)}</strong><button type="button" class="btn btn-ghost btn-sm" onclick="refreshAdminArticleFeedback(this)">Obnovit</button></div></div><div class="admin-feedback-stats"><span><b>${Number(stats.views)||0}</b>Zobrazení</span><span><b>${Number(stats.ctaClicks)||0}</b>Kliknutí na hledání</span><span><b>${Number(data.yes)||0}</b>Ano</span><span><b>${Number(data.no)||0}</b>Ne</span><span><b>${Number(data.total)||0}</b>Hodnocení celkem</span></div><div class="admin-feedback-comments">${data.comments&&data.comments.length?`<h4>Poslední komentáře</h4>${data.comments.map(item=>`<div><span class="${item.helpful?'yes':'no'}">${item.helpful?'Ano':'Ne'}</span><p>${esc(item.comment)}</p><time>${esc(new Date(item.createdAt).toLocaleString('cs-CZ',{dateStyle:'medium',timeStyle:'short'}))}</time></div>`).join('')}`:'<p class="empty">Zatím bez slovní zpětné vazby.</p>'}</div>`;
 }
 function renderAdminRelatedArticles(selectedSlugs,currentSlug){
   const list=document.getElementById('admArticleRelatedList');if(!list)return;const selected=new Set(Array.isArray(selectedSlugs)?selectedSlugs:[]),options=adminGuideArticles.filter(article=>article.slug!==currentSlug);
@@ -5412,17 +5436,38 @@ function renderAdminArticleRevisions(article,isNew){
 function restoreAdminArticleRevision(index){
   const article=adminGuideArticles.find(item=>item.slug===adminGuideEditingSlug),revision=article&&article.revisions&&article.revisions[index];if(!revision)return;
   askConfirm({title:'Obnovit tuto verzi?',message:'Aktuální rozepsané změny ve formuláři budou nahrazeny vybranou verzí. Obnovení potvrdíte tlačítkem Uložit článek.',confirmLabel:'Obnovit verzi',onConfirm:()=>{
-    document.getElementById('admArticleTitle').value=revision.title||article.title;document.getElementById('admArticleAuthor').value=revision.author||article.author;document.getElementById('admArticleLead').value=revision.lead||'';document.getElementById('admArticleBody').innerHTML=revision.body||'';document.getElementById('admArticleForm').dataset.articleTemplate=revision.template||article.template||'classic';document.getElementById('admArticleTime').value=guideReadingMinutes(revision.time);document.getElementById('admArticleFeatured').checked=revision.featured===true;document.getElementById('admArticlePublished').checked=revision.published!==false;
+    document.getElementById('admArticleTitle').value=revision.title||article.title;document.getElementById('admArticleAuthor').value=revision.author||article.author;document.getElementById('admArticleLead').value=revision.lead||'';document.getElementById('admArticleSeoTitle').value=revision.seoTitle||'';document.getElementById('admArticleSeoDescription').value=revision.seoDescription||'';document.getElementById('admArticleBody').innerHTML=revision.body||'';document.getElementById('admArticleForm').dataset.articleTemplate=revision.template||article.template||'classic';document.getElementById('admArticleTime').value=guideReadingMinutes(revision.time);document.getElementById('admArticleFeatured').checked=revision.featured===true;document.getElementById('admArticlePublished').checked=revision.published!==false;updateAdminArticleSeoPreview();
     const category=document.getElementById('admArticleCategory');category.value=adminGuideCategories.includes(revision.category)?revision.category:article.category;if(category._ddRefresh)category._ddRefresh();selectAdminArticleFigure(null);scheduleAdminArticleAutosave();toast('Verze byla vložena do editoru. Pro potvrzení článek uložte.','success');
   }});
 }
 async function refreshAdminArticleFeedback(button){
   if(button)button.disabled=true;
-  try{const data=await api('/admin/guide-article-feedback');adminGuideFeedback=data&&data.feedback&&typeof data.feedback==='object'?data.feedback:{};renderAdminArticleFeedback(adminGuideEditingSlug,false);toast('Hodnocení bylo obnoveno.','success');}
+  try{const data=await api('/admin/guide-article-feedback');adminGuideFeedback=data&&data.feedback&&typeof data.feedback==='object'?data.feedback:{};adminGuideStats=data&&data.stats&&typeof data.stats==='object'?data.stats:{};renderAdminArticleFeedback(adminGuideEditingSlug,false);toast('Statistiky byly obnoveny.','success');}
   catch(error){toast('Hodnocení se nepodařilo načíst: '+(error.message||''),'declined');if(button)button.disabled=false;}
 }
 function slugifyGuideArticle(value){
   return String(value||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'clanek';
+}
+function updateAdminArticleSeoPreview(){
+  const title=String(document.getElementById('admArticleSeoTitle')?.value||''),description=String(document.getElementById('admArticleSeoDescription')?.value||''),articleTitle=String(document.getElementById('admArticleTitle')?.value||'').trim(),lead=String(document.getElementById('admArticleLead')?.value||'').trim();
+  const titleCount=document.getElementById('admArticleSeoTitleCount'),descriptionCount=document.getElementById('admArticleSeoDescriptionCount');if(titleCount){titleCount.textContent=title.length+'/60';titleCount.classList.toggle('over',title.length>60);}if(descriptionCount){descriptionCount.textContent=description.length+'/160';descriptionCount.classList.toggle('over',description.length>160);}
+  const previewTitle=document.getElementById('admArticleSeoPreviewTitle'),previewDescription=document.getElementById('admArticleSeoPreviewDescription'),previewSlug=document.getElementById('admArticleSeoSlug');if(previewTitle)previewTitle.textContent=title.trim()||articleTitle||'Název článku';if(previewDescription)previewDescription.textContent=description.trim()||lead||'Krátký popis článku.';if(previewSlug)previewSlug.textContent=slugifyGuideArticle(articleTitle);
+}
+function validateAdminArticleSnapshot(snapshot){
+  const article=snapshot.article,errors=[],warnings=[],wrapper=document.createElement('div');wrapper.innerHTML=article.body||'';
+  if(!article.title)errors.push('Chybí název článku.');if(!article.author)errors.push('Chybí autor článku.');if(!article.category||!adminGuideCategories.includes(article.category))errors.push('Není vybraná platná kategorie.');if(!article.lead)errors.push('Chybí krátký úvod.');if(!snapshot.bodyText)errors.push('Chybí obsah článku.');if(!Number.isInteger(snapshot.minutes)||snapshot.minutes<1||snapshot.minutes>999)errors.push('Doba čtení musí být celé číslo od 1 do 999.');if(snapshot.scheduleEnabled&&!article.scheduledAt)errors.push('Chybí datum a čas naplánovaného zveřejnění.');
+  const words=snapshot.bodyText.split(/\s+/).filter(Boolean).length;if(words&&words<150)warnings.push(`Článek je poměrně krátký (${words} slov).`);if(snapshot.bodyText&&!wrapper.querySelector('h2'))warnings.push('Obsah neobsahuje žádný hlavní nadpis H2.');if(!article.image)warnings.push('Článek nemá nastavený úvodní obrázek.');
+  wrapper.querySelectorAll('img').forEach((image,index)=>{if(!String(image.getAttribute('alt')||'').trim())warnings.push(`Obrázek ${index+1} nemá vyplněný alternativní popis.`);});
+  wrapper.querySelectorAll('a').forEach((link,index)=>{const href=String(link.getAttribute('href')||'').trim();if(!href||href==='#')errors.push(`Odkaz ${index+1} nemá platnou adresu.`);else if(!href.startsWith('#')&&!/^(https?:|mailto:|tel:)/i.test(href))errors.push(`Odkaz ${index+1} používá nepovolenou adresu.`);});
+  if(article.seoTitle&&article.seoTitle.length>60)warnings.push('SEO název je delší než doporučených 60 znaků.');if(article.seoDescription&&article.seoDescription.length>160)warnings.push('SEO popis je delší než doporučených 160 znaků.');if(!article.seoTitle)warnings.push('SEO název není vlastní; použije se název článku.');if(!article.seoDescription)warnings.push('SEO popis není vlastní; použije se krátký úvod.');
+  return {errors,warnings,ok:errors.length===0};
+}
+function renderAdminArticleValidation(result,focus){
+  const box=document.getElementById('admArticleValidation');if(!box)return;box.hidden=false;box.classList.toggle('has-errors',result.errors.length>0);box.innerHTML=`<div class="admin-validation-head"><span aria-hidden="true">${result.errors.length?'!':'✓'}</span><div><h3>${result.errors.length?'Článek ještě není připravený':'Povinná kontrola je v pořádku'}</h3><p>${result.errors.length?result.errors.length+' položek je potřeba opravit.':'Můžete jej uložit nebo publikovat.'}</p></div></div>${result.errors.length?`<div class="admin-validation-list errors"><b>Nutné opravit</b><ul>${result.errors.map(item=>`<li>${esc(item)}</li>`).join('')}</ul></div>`:''}${result.warnings.length?`<div class="admin-validation-list warnings"><b>Doporučení</b><ul>${result.warnings.map(item=>`<li>${esc(item)}</li>`).join('')}</ul></div>`:''}`;if(focus)box.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function runAdminArticleValidation(focus){const form=document.getElementById('admArticleForm');if(!form||form.hidden)return null;const result=validateAdminArticleSnapshot(collectAdminArticleForm());renderAdminArticleValidation(result,focus);return result;}
+function toggleAdminArticleBlockOrganizer(force){
+  const editor=document.getElementById('admArticleBody'),button=document.getElementById('admArticleReorderBtn');if(!editor)return;const wasActive=adminGuideBlockOrganizer;adminGuideBlockOrganizer=typeof force==='boolean'?force:!adminGuideBlockOrganizer;editor.classList.toggle('block-organizer',adminGuideBlockOrganizer);editor.contentEditable=adminGuideBlockOrganizer?'false':'true';[...editor.children].forEach(block=>block.draggable=adminGuideBlockOrganizer);if(button){button.classList.toggle('on',adminGuideBlockOrganizer);button.setAttribute('aria-pressed',adminGuideBlockOrganizer?'true':'false');}if(adminGuideBlockOrganizer&&!wasActive)toast('Přetáhněte zvýrazněné bloky do požadovaného pořadí.','success');else if(wasActive&&!adminGuideBlockOrganizer)scheduleAdminArticleAutosave();
 }
 function guideReadingMinutes(value){
   const match=String(value||'').match(/^\s*(\d+)(?:\s|$)/),minutes=match?Number(match[1]):5;
@@ -5521,7 +5566,10 @@ function showAdminArticleForm(article,isNew){
   const scheduleEnabled=!isLivePublished&&!!article.scheduledAt;document.getElementById('admArticleScheduleEnabled').checked=scheduleEnabled;document.getElementById('admArticleScheduledAt').value=scheduleEnabled?guideLocalDateTimeValue(article.scheduledAt):'';toggleAdminArticleSchedule(scheduleEnabled,false);updateAdminArticleScheduleAvailability();
   document.getElementById('admArticleFeatured').checked=article.featured===true;
   document.getElementById('admArticleLead').value=article.lead||'';
+  document.getElementById('admArticleSeoTitle').value=article.seoTitle||'';
+  document.getElementById('admArticleSeoDescription').value=article.seoDescription||'';
   document.getElementById('admArticleBody').innerHTML=article.body||(isNew?adminGuideArticleTemplateHtml(form.dataset.articleTemplate):'<h2>Začněte psát</h2><p>Sem napište obsah článku.</p>');
+  toggleAdminArticleBlockOrganizer(false);updateAdminArticleSeoPreview();const validation=document.getElementById('admArticleValidation');if(validation){validation.hidden=true;validation.innerHTML='';}
   selectAdminArticleFigure(null);updateGuideEditorToolbar();renderAdminRelatedArticles(article.relatedSlugs||[],article.slug);renderAdminArticleRevisions(article,isNew);
   document.getElementById('admArticlePublished').checked=article.published!==false;
   renderAdminArticleFeedback(article.slug,isNew);
@@ -5535,7 +5583,7 @@ function showAdminArticleForm(article,isNew){
 }
 function newAdminArticle(){
   if(!adminGuideCategories.length){toast('Nejdříve vytvořte alespoň jednu kategorii.','declined');return;}
-  showAdminArticleForm({title:'',slug:'',author:auth.name||'',category:'',time:'5 minut čtení',lead:'',body:'',template:'classic',published:false,featured:false,scheduledAt:'',relatedSlugs:[],revisions:[]},true);
+  showAdminArticleForm({title:'',slug:'',author:auth.name||'',category:'',time:'5 minut čtení',lead:'',seoTitle:'',seoDescription:'',body:'',template:'classic',published:false,featured:false,scheduledAt:'',relatedSlugs:[],revisions:[]},true);
   setTimeout(()=>document.getElementById('admArticleTitle')?.focus(),30);
 }
 function editAdminArticle(slug){
@@ -5696,11 +5744,14 @@ document.addEventListener('change',event=>{
   if(event.target&&event.target.id==='admArticleBodyImageInput'){const files=[...(event.target.files||[])];event.target.value='';onAdminArticleBodyImages(files);}
   else if(event.target&&event.target.closest&&event.target.closest('#admArticleForm'))scheduleAdminArticleAutosave();
 });
-document.addEventListener('input',event=>{if(event.target&&event.target.closest&&event.target.closest('#admArticleForm'))scheduleAdminArticleAutosave();});
+document.addEventListener('input',event=>{if(event.target&&event.target.closest&&event.target.closest('#admArticleForm')){if(['admArticleTitle','admArticleLead'].includes(event.target.id))updateAdminArticleSeoPreview();scheduleAdminArticleAutosave();}});
 document.addEventListener('selectionchange',()=>{const editor=document.getElementById('admArticleBody'),selection=window.getSelection();if(editor&&selection&&selection.anchorNode&&editor.contains(selection.anchorNode))updateGuideEditorToolbar();});
+document.addEventListener('dragstart',event=>{if(!adminGuideBlockOrganizer)return;const editor=document.getElementById('admArticleBody'),block=event.target.closest?.('#admArticleBody > *');if(!editor||!block||block.parentElement!==editor)return;adminGuideDraggedBlock=block;block.classList.add('block-dragging');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/x-zenvoria-article-block','1');});
 document.addEventListener('dragover',event=>{if(event.target.closest?.('#admArticleBody')&&event.dataTransfer?.types.includes('Files')){event.preventDefault();document.getElementById('admArticleBody')?.classList.add('dragging');}});
+document.addEventListener('dragover',event=>{if(!adminGuideDraggedBlock)return;const editor=document.getElementById('admArticleBody'),target=event.target.closest?.('#admArticleBody > *');if(!editor||!target||target===adminGuideDraggedBlock||target.parentElement!==editor)return;event.preventDefault();const rect=target.getBoundingClientRect(),after=event.clientY>rect.top+rect.height/2;editor.insertBefore(adminGuideDraggedBlock,after?target.nextSibling:target);});
 document.addEventListener('dragleave',event=>{if(event.target.closest?.('#admArticleBody'))document.getElementById('admArticleBody')?.classList.remove('dragging');});
-document.addEventListener('drop',event=>{const editor=event.target.closest?.('#admArticleBody');if(!editor)return;event.preventDefault();editor.classList.remove('dragging');const files=[...(event.dataTransfer?.files||[])].filter(file=>file.type.startsWith('image/'));if(!files.length){toast('Přetáhněte obrázek ve formátu JPG, PNG nebo WebP.','declined');return;}const pointRange=document.caretRangeFromPoint&&document.caretRangeFromPoint(event.clientX,event.clientY);adminGuideEditorRange=pointRange&&editor.contains(pointRange.commonAncestorContainer)?pointRange:null;adminGuideImageInputMode=files.length>1?'gallery':'single';onAdminArticleBodyImages(files);});
+document.addEventListener('drop',event=>{const editor=event.target.closest?.('#admArticleBody');if(!editor)return;event.preventDefault();editor.classList.remove('dragging');if(adminGuideDraggedBlock){scheduleAdminArticleAutosave();return;}const files=[...(event.dataTransfer?.files||[])].filter(file=>file.type.startsWith('image/'));if(!files.length){toast('Přetáhněte obrázek ve formátu JPG, PNG nebo WebP.','declined');return;}const pointRange=document.caretRangeFromPoint&&document.caretRangeFromPoint(event.clientX,event.clientY);adminGuideEditorRange=pointRange&&editor.contains(pointRange.commonAncestorContainer)?pointRange:null;adminGuideImageInputMode=files.length>1?'gallery':'single';onAdminArticleBodyImages(files);});
+document.addEventListener('dragend',()=>{if(!adminGuideDraggedBlock)return;adminGuideDraggedBlock.classList.remove('block-dragging');adminGuideDraggedBlock=null;scheduleAdminArticleAutosave();});
 function collectAdminArticleForm(){
   const original=adminGuideEditingSlug;
   const existing=original?adminGuideArticles.find(item=>item.slug===original):null;
@@ -5724,6 +5775,8 @@ function collectAdminArticleForm(){
       category:document.getElementById('admArticleCategory').value,
       time:guideReadingTimeLabel(minutes),
       lead:document.getElementById('admArticleLead').value.trim(),
+      seoTitle:document.getElementById('admArticleSeoTitle').value.trim(),
+      seoDescription:document.getElementById('admArticleSeoDescription').value.trim(),
       body:(published?cleanBody.innerHTML:bodyEditor.innerHTML).trim(),
       template:['classic','alternating','steps','practical'].includes(document.getElementById('admArticleForm').dataset.articleTemplate)?document.getElementById('admArticleForm').dataset.articleTemplate:'classic',
       image:adminGuideDraftImage,
@@ -5790,14 +5843,16 @@ function saveAdminArticle(e){
   const form=document.getElementById('admArticleForm'),err=document.getElementById('admArticleErr');
   const snapshot=collectAdminArticleForm(),original=snapshot.original,minutes=snapshot.minutes,article=snapshot.article;
   err.textContent='';
+  const validation=validateAdminArticleSnapshot(snapshot);if(article.published)renderAdminArticleValidation(validation,!validation.ok);
   if(!Number.isInteger(minutes)||minutes<1||minutes>999){err.textContent='Doba čtení musí být celé číslo od 1 do 999.';return false;}
   if(snapshot.scheduleEnabled&&!article.scheduledAt){err.textContent='Vyberte datum a čas naplánovaného zveřejnění.';toast('Vyberte datum a čas zveřejnění.','declined');return false;}
   if(!article.category||!adminGuideCategories.includes(article.category)){err.textContent='Nemáte vybranou kategorii.';toast('Nemáte vybranou kategorii.','declined');return false;}
   if(!article.title||!article.author||!article.lead||!snapshot.bodyText){err.textContent='Vyplňte název, autora, krátký úvod a obsah článku.';return false;}
   if(adminGuideArticles.some(item=>item.slug===article.slug&&item.slug!==original)){err.textContent='Článek se stejným nebo příliš podobným názvem už existuje.';return false;}
+  if(article.published&&!validation.ok){err.textContent='Před publikováním opravte chyby uvedené v kontrole článku.';toast('Článek ještě není připravený k publikování.','declined');return false;}
   const existing=original&&adminGuideArticles.find(item=>item.slug===original);
   if(existing){
-    const revision={title:existing.title,author:existing.author,category:existing.category,time:existing.time,lead:existing.lead,body:existing.body,template:existing.template||'classic',featured:existing.featured===true,published:existing.published!==false,createdAt:new Date().toISOString(),savedBy:auth.name||auth.email||'Správce'};
+    const revision={title:existing.title,author:existing.author,category:existing.category,time:existing.time,lead:existing.lead,seoTitle:existing.seoTitle||'',seoDescription:existing.seoDescription||'',body:existing.body,template:existing.template||'classic',featured:existing.featured===true,published:existing.published!==false,createdAt:new Date().toISOString(),savedBy:auth.name||auth.email||'Správce'};
     article.revisions=[...(existing.revisions||[]),revision].slice(-5);
   }
   if(article.featured&&article.published){

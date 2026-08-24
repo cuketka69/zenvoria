@@ -504,11 +504,13 @@ function sanitizeGuideArticleRevisions(value) {
     const author = trimmedString(raw.author, 120);
     const category = trimmedString(raw.category, 60);
     const lead = trimmedString(raw.lead, 500);
+    const seoTitle = trimmedString(raw.seoTitle, 70);
+    const seoDescription = trimmedString(raw.seoDescription, 180);
     const body = sanitizeGuideRevisionBody(raw.body);
     const createdAt = sanitizedIsoDate(raw.createdAt);
     const savedBy = trimmedString(raw.savedBy, 120);
     if (!title || !lead || !body || !createdAt) continue;
-    out.push({ title, author, category, lead, body, template: ['alternating', 'steps', 'practical'].includes(raw.template) ? raw.template : 'classic', time: guideReadingTimeLabel(raw.time), featured: raw.featured === true, published: raw.published !== false, createdAt, savedBy });
+    out.push({ title, author, category, lead, seoTitle, seoDescription, body, template: ['alternating', 'steps', 'practical'].includes(raw.template) ? raw.template : 'classic', time: guideReadingTimeLabel(raw.time), featured: raw.featured === true, published: raw.published !== false, createdAt, savedBy });
   }
   return out;
 }
@@ -522,6 +524,8 @@ function sanitizeGuideArticles(value) {
     const author = trimmedString(raw.author, 120);
     const category = trimmedString(raw.category, 60);
     const lead = trimmedString(raw.lead, 500);
+    const seoTitle = trimmedString(raw.seoTitle, 70);
+    const seoDescription = trimmedString(raw.seoDescription, 180);
     const body = sanitizeGuideArticleBody(raw.body);
     const imageData = raw.image ? decodeDataUrl(raw.image, { maxBytes: 1024 * 1024, allowedTypes: PUBLIC_IMAGE_MIME_TYPES }) : null;
     if (!title || !category || !lead || !body) continue;
@@ -536,7 +540,7 @@ function sanitizeGuideArticles(value) {
     const relatedSlugs = Array.isArray(raw.relatedSlugs) ? [...new Set(raw.relatedSlugs.filter((item) => typeof item === 'string').map(slugifyGuideArticle))].slice(0, 6) : [];
     const revisions = sanitizeGuideArticleRevisions(raw.revisions);
     out.push({
-      slug, title, author, lead, body, category, image: imageData ? imageData.dataUrl : '', template: ['alternating', 'steps', 'practical'].includes(raw.template) ? raw.template : 'classic',
+      slug, title, author, lead, seoTitle, seoDescription, body, category, image: imageData ? imageData.dataUrl : '', template: ['alternating', 'steps', 'practical'].includes(raw.template) ? raw.template : 'classic',
       time: guideReadingTimeLabel(raw.time),
       published,
       featured,
@@ -7596,6 +7600,29 @@ function summarizeGuideFeedback(items, articles) {
   return summaries;
 }
 
+const GUIDE_STATS_SETTING_KEY = 'guideArticleStatsV1';
+let guideStatsWriteQueue = Promise.resolve();
+function sanitizeGuideStats(value) {
+  const out = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
+  for (const [rawSlug, raw] of Object.entries(value).slice(0, 100)) {
+    const slug = slugifyGuideArticle(rawSlug);
+    if (!slug || !raw || typeof raw !== 'object') continue;
+    out[slug] = { views: Math.max(0, Math.min(1000000000, Math.floor(Number(raw.views) || 0))), ctaClicks: Math.max(0, Math.min(1000000000, Math.floor(Number(raw.ctaClicks) || 0))), updatedAt: sanitizedIsoDate(raw.updatedAt) || '' };
+  }
+  return out;
+}
+async function loadStoredGuideStats() {
+  if (!REST_ENABLED) return {};
+  const rows = await restSelect(T.settings, `key=eq.${GUIDE_STATS_SETTING_KEY}&limit=1`);
+  return sanitizeGuideStats(rows && rows[0] && rows[0].value);
+}
+function summarizeGuideStats(stats, articles) {
+  const result = {};
+  for (const article of articles || []) { const item = stats[article.slug] || {}; result[article.slug] = { views: Number(item.views) || 0, ctaClicks: Number(item.ctaClicks) || 0 }; }
+  return result;
+}
+
 app.get('/api/guide-articles', h(async (_req, res) => {
   const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
   const allowed = new Set(storedCategories.categories);
@@ -7610,15 +7637,38 @@ app.get('/api/guide-articles', h(async (_req, res) => {
 }));
 
 app.get('/api/admin/guide-articles', requireRole('admin'), h(async (_req, res) => {
-  const [stored, storedCategories, feedback] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories(), loadStoredGuideFeedback()]);
+  const [stored, storedCategories, feedback, stats] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories(), loadStoredGuideFeedback(), loadStoredGuideStats()]);
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ ...stored, categories: storedCategories.categories, feedback: summarizeGuideFeedback(feedback, stored.articles || []) });
+  res.json({ ...stored, categories: storedCategories.categories, feedback: summarizeGuideFeedback(feedback, stored.articles || []), stats: summarizeGuideStats(stats, stored.articles || []) });
 }));
 
 app.get('/api/admin/guide-article-feedback', requireRole('admin'), h(async (_req, res) => {
-  const [stored, feedback] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideFeedback()]);
+  const [stored, feedback, stats] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideFeedback(), loadStoredGuideStats()]);
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ feedback: summarizeGuideFeedback(feedback, stored.articles || []) });
+  res.json({ feedback: summarizeGuideFeedback(feedback, stored.articles || []), stats: summarizeGuideStats(stats, stored.articles || []) });
+}));
+
+app.post('/api/guide-articles/:slug/stats', rateLimit('guide-stats', {
+  windowMs: 60 * 60 * 1000,
+  max: 240,
+  message: 'Příliš mnoho požadavků. Zkuste to prosím později.',
+}), h(async (req, res) => {
+  if (!REST_ENABLED) return res.status(503).json({ error: 'Statistiky nyní nelze uložit.' });
+  const slug = slugifyGuideArticle(req.params.slug), action = trimmedString(req.body && req.body.action, 20);
+  if (!['view', 'cta'].includes(action)) return res.status(400).json({ error: 'Neplatná statistická událost.' });
+  const [stored, storedCategories] = await Promise.all([loadStoredGuideArticles(), loadStoredGuideCategories()]);
+  const allowed = new Set(storedCategories.categories), now = Date.now();
+  const article = (stored.articles || []).find((item) => item.slug === slug && item.published && (!item.scheduledAt || Date.parse(item.scheduledAt) <= now) && allowed.has(item.category));
+  if (!article) return res.status(404).json({ error: 'Článek nebyl nalezen.' });
+  const write = guideStatsWriteQueue.then(async () => {
+    const stats = await loadStoredGuideStats(), current = stats[slug] || { views: 0, ctaClicks: 0 };
+    if (action === 'view') current.views = Math.min(1000000000, (Number(current.views) || 0) + 1);
+    else current.ctaClicks = Math.min(1000000000, (Number(current.ctaClicks) || 0) + 1);
+    current.updatedAt = new Date().toISOString(); stats[slug] = current;
+    await supabaseRestRequest('POST', T.settings, { body: { key: GUIDE_STATS_SETTING_KEY, value: stats }, prefer: 'resolution=merge-duplicates,return=minimal' });
+  });
+  guideStatsWriteQueue = write.catch(() => {}); await write;
+  res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true });
 }));
 
 app.post('/api/guide-articles/:slug/feedback', rateLimit('guide-feedback', {
@@ -8153,15 +8203,15 @@ app.get(['/pruvodce-pece', '/pruvodce-pece/:slug'], h(async (req, res) => {
     if (stored.configured && slug && !storedArticle) return sendNotFoundPage(req, res, { kind: 'article' });
   } catch (e) { /* při výpadku databáze vrátíme běžnou stránku průvodce bez článků */ }
   if (slug && !storedArticle) return sendNotFoundPage(req, res, { kind: 'article' });
-  const meta = storedArticle ? [storedArticle.title, storedArticle.lead] : null;
+  const meta = storedArticle ? [storedArticle.seoTitle || storedArticle.title, storedArticle.seoDescription || storedArticle.lead] : null;
   const canonical = `${APP_ORIGIN}/pruvodce-pece${slug ? `/${slug}` : ''}`;
-  const title = meta ? `${meta[0]} — Průvodce péčí ZENVORIA` : 'Průvodce péčí o seniory — ZENVORIA';
+  const title = meta ? (storedArticle.seoTitle ? meta[0] : `${meta[0]} — Průvodce péčí ZENVORIA`) : 'Průvodce péčí o seniory — ZENVORIA';
   const description = meta ? meta[1] : 'Průvodce péčí ZENVORIA s články a praktickými návody zveřejněnými naším týmem.';
   sendSeoPage(req, res, {
     title,
     description,
     canonical,
-    jsonLd: meta ? [ORG_JSON_LD, { '@context': 'https://schema.org', '@type': 'Article', headline: meta[0], description: meta[1], mainEntityOfPage: canonical, publisher: { '@type': 'Organization', name: 'ZENVORIA', url: APP_ORIGIN } }] : [ORG_JSON_LD, { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Průvodce péčí', description, url: canonical }],
+    jsonLd: meta ? [ORG_JSON_LD, { '@context': 'https://schema.org', '@type': 'Article', headline: storedArticle.title, description: meta[1], mainEntityOfPage: canonical, publisher: { '@type': 'Organization', name: 'ZENVORIA', url: APP_ORIGIN } }] : [ORG_JSON_LD, { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Průvodce péčí', description, url: canonical }],
     ssrHtml: extractViewHtml(INDEX_HTML || '', 'view-guide'),
   });
 }));

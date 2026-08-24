@@ -1132,6 +1132,7 @@
           <div class="admin-article-form-head">
             <div><span class="eyebrow" id="admArticleFormEyebrow">Úprava článku</span><h2 id="admArticleFormTitle">Článek</h2></div>
             <div class="admin-article-form-actions">
+              <div class="admin-action-with-help"><button type="button" class="btn btn-ghost btn-sm" onclick="runAdminArticleValidation(true)">Kontrola článku</button><span class="admin-help" tabindex="0" data-help="Zkontroluje povinné údaje, délku SEO textů, nadpisy, odkazy a popisy obrázků ještě před publikováním." aria-label="Nápověda ke kontrole článku">?</span></div>
               <div class="admin-action-with-help"><button type="button" class="btn btn-ghost btn-sm" id="admArticlePreviewBtn" onclick="previewAdminArticle()">Náhled</button><span class="admin-help" tabindex="0" data-help="Ukáže aktuální rozepsanou podobu článku na počítači nebo telefonu bez nutnosti jej publikovat." aria-label="Nápověda k náhledu">?</span></div>
               <div class="admin-action-with-help"><button type="button" class="btn btn-decline btn-sm" id="admArticleDeleteBtn" onclick="deleteAdminArticle()">Smazat</button><span class="admin-help" tabindex="0" data-help="Trvale odstraní vybraný článek po potvrzení." aria-label="Nápověda ke smazání">?</span></div>
             </div>
@@ -1167,6 +1168,14 @@
             <label class="admin-featured-toggle"><input type="checkbox" id="admArticleFeatured"><span><b>Hlavní článek</b><small>Zobrazí tento článek jako první velkou kartu. Naplánovaný článek převezme hlavní pozici až při zveřejnění.</small></span><span class="admin-help" tabindex="0" data-help="Ručně určuje hlavní článek magazínu. U okamžitého zveřejnění nahradí současný hlavní článek hned, u plánovaného až v nastavený čas." aria-label="Nápověda k hlavnímu článku">?</span></label>
           </div>
           <div style="margin-top:14px"><label class="lbl" for="admArticleLead">Krátký úvod <span class="admin-help" tabindex="0" data-help="Stručné shrnutí článku, které se zobrazí na kartě článku a ve výsledcích vyhledávání." aria-label="Nápověda ke krátkému úvodu">?</span></label><textarea class="inp" id="admArticleLead" maxlength="500" rows="3" required></textarea></div>
+          <section class="admin-article-seo">
+            <div class="admin-section-heading"><div><h3>SEO nastavení <span class="admin-help" tabindex="0" data-help="Název a popis pro vyhledávače. Když je necháte prázdné, použije se název článku a krátký úvod." aria-label="Nápověda k SEO nastavení">?</span></h3><p>Upravte, jak se článek může zobrazit ve výsledcích vyhledávání.</p></div></div>
+            <div class="grid2">
+              <div><label class="lbl" for="admArticleSeoTitle">SEO název <small id="admArticleSeoTitleCount">0/60</small></label><input class="inp" id="admArticleSeoTitle" maxlength="70" placeholder="Pokud nevyplníte, použije se název článku" oninput="updateAdminArticleSeoPreview()"></div>
+              <div><label class="lbl" for="admArticleSeoDescription">SEO popis <small id="admArticleSeoDescriptionCount">0/160</small></label><textarea class="inp" id="admArticleSeoDescription" maxlength="180" rows="3" placeholder="Pokud nevyplníte, použije se krátký úvod" oninput="updateAdminArticleSeoPreview()"></textarea></div>
+            </div>
+            <div class="admin-seo-preview" aria-label="Náhled výsledku vyhledávání"><small>zenvoria.cz › pruvodce-pece › <span id="admArticleSeoSlug">clanek</span></small><b id="admArticleSeoPreviewTitle">Název článku</b><p id="admArticleSeoPreviewDescription">Krátký popis článku.</p></div>
+          </section>
           <div style="margin-top:14px">
             <label class="lbl" id="admArticleBodyLabel">Obsah článku <span class="admin-help" tabindex="0" data-help="Napište celý článek. Lištou můžete text formátovat, vytvořit seznam, vložit odkaz nebo přidat až 8 obrázků." aria-label="Nápověda k obsahu článku">?</span></label>
             <div class="article-editor-toolbar" role="toolbar" aria-label="Formátování textu">
@@ -1204,6 +1213,7 @@
                 <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('undo')" title="Vrátit poslední změnu"><span aria-hidden="true">↶</span><span>Zpět</span></button>
                 <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('redo')" title="Znovu provést vrácenou změnu"><span aria-hidden="true">↷</span><span>Znovu</span></button>
                 <button type="button" onmousedown="event.preventDefault()" onclick="guideEditorCommand('removeFormat')" title="Odstranit formátování označeného textu"><span aria-hidden="true">Tx</span><span>Vyčistit</span></button>
+                <button type="button" id="admArticleReorderBtn" onclick="toggleAdminArticleBlockOrganizer()" title="Přeskládat hlavní bloky článku přetažením"><span aria-hidden="true">↕</span><span>Přeskládat</span></button>
               </span>
             </div>
             <div class="article-rich-editor" id="admArticleBody" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="admArticleBodyLabel"></div>
@@ -1222,6 +1232,7 @@
             <p>Na konci článku nabídnou čtenářům další vhodné čtení.</p>
             <div id="admArticleRelatedList" class="admin-related-list"></div>
           </section>
+          <section class="admin-article-validation" id="admArticleValidation" hidden aria-live="polite"></section>
           <label class="admin-publish-toggle"><input type="checkbox" id="admArticlePublished"><span><b>Publikovaný článek <span class="admin-help" tabindex="0" data-help="Zapnuto znamená, že článek po ručním uložení uvidí návštěvníci. Vypnutý koncept se během psaní automaticky ukládá." aria-label="Nápověda k publikování">?</span></b><small>Neveřejný koncept se automaticky ukládá. Změny veřejného článku potvrdíte tlačítkem Uložit článek.</small></span></label>
           <section class="admin-article-revisions" id="admArticleRevisions" hidden></section>
           <section class="admin-article-feedback" id="admArticleFeedback" hidden></section>
