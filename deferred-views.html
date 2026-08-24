@@ -1281,6 +1281,27 @@
   </div>
 </div>
 
+<div class="modal" id="admArticleImageDetailsModal" role="dialog" aria-modal="true" aria-labelledby="admArticleImageDetailsTitle">
+  <div class="modal-scrim" onclick="closeAdminArticleImageDetails(true)"></div>
+  <form class="modal-card admin-article-image-details-card" onsubmit="return submitAdminArticleImageDetails(event)">
+    <button class="modal-x" type="button" aria-label="Zrušit vložení obrázku" onclick="closeAdminArticleImageDetails(true)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    <span class="eyebrow">Vložení obrázku</span><h3 id="admArticleImageDetailsTitle">Popište obrázek</h3>
+    <p>Popis pomáhá lidem, kteří používají čtečku obrazovky, a zlepšuje srozumitelnost článku.</p>
+    <div class="admin-image-details-layout">
+      <img id="admArticleImageDetailsPreview" alt="Náhled vkládaného obrázku">
+      <div>
+        <label class="lbl" for="admArticleImageAlt">Alternativní popis <span aria-hidden="true">*</span></label>
+        <input class="inp" id="admArticleImageAlt" maxlength="180" placeholder="Například: Pečovatelka pomáhá seniorce vstát z křesla" autocomplete="off">
+        <small>Stručně popište, co je na obrázku důležité.</small>
+        <label class="lbl admin-image-caption-label" for="admArticleImageCaption">Viditelný popisek <em>nepovinné</em></label>
+        <input class="inp" id="admArticleImageCaption" maxlength="180" placeholder="Text, který se zobrazí pod obrázkem" autocomplete="off">
+      </div>
+    </div>
+    <div class="set-err" id="admArticleImageDetailsErr" role="alert"></div>
+    <div class="admin-image-details-actions"><button type="button" class="btn btn-ghost" onclick="closeAdminArticleImageDetails(true)">Zrušit</button><button type="submit" class="btn btn-gold">Vložit obrázek</button></div>
+  </form>
+</div>
+
 <div class="modal" id="admArticlePreviewModal" role="dialog" aria-modal="true" aria-labelledby="admArticlePreviewTitle">
   <div class="modal-scrim" onclick="closeAdminArticlePreview()"></div>
   <div class="modal-card admin-article-preview-modal-card">

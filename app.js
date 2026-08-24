@@ -652,7 +652,7 @@ function toggleMenu(open){
 
 /* ---------- KEYBOARD ACTIVATION (role=button) ---------- */
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeVerifyValidModal();closeAdminArticlePreview();closeAdminArticleMediaLibrary();closeAccountMenu();closeAllDD();return;}
+  if(e.key==='Escape'){toggleMenu(false);closeRating();closeConfirm();closePay();closeVerifyValidModal();closeAdminArticlePreview();closeAdminArticleMediaLibrary();closeAdminArticleImageDetails(true);closeAccountMenu();closeAllDD();return;}
   if((e.key==='Enter'||e.key===' ')){
     const el=e.target;
     const r=el&&el.getAttribute&&el.getAttribute('role');
@@ -5341,6 +5341,7 @@ let adminGuideDraftImage='';
 let adminGuideEditorRange=null;
 let adminGuideSelectedFigure=null;
 let adminGuideImageInputMode='single';
+let adminGuideImageDetailsResolve=null;
 let adminGuideAutosaveTimer=null;
 let adminGuideAutosaveInFlight=false;
 let adminGuideDraggedBlock=null;
@@ -5658,6 +5659,20 @@ function createAdminArticleFigure(data,{alt='',caption=''}={}){
   const figure=document.createElement('figure');figure.className='guide-inline-figure guide-image-center guide-image-full';figure.appendChild(image);
   if(caption){const figcaption=document.createElement('figcaption');figcaption.className='guide-inline-caption';figcaption.textContent=caption;figure.appendChild(figcaption);}return figure;
 }
+function requestAdminArticleImageDetails(data){
+  const modal=document.getElementById('admArticleImageDetailsModal'),preview=document.getElementById('admArticleImageDetailsPreview'),alt=document.getElementById('admArticleImageAlt'),caption=document.getElementById('admArticleImageCaption'),err=document.getElementById('admArticleImageDetailsErr');
+  if(!modal||!preview||!alt||!caption)return Promise.resolve(null);
+  if(adminGuideImageDetailsResolve)closeAdminArticleImageDetails(true);
+  preview.src=data;alt.value='';caption.value='';if(err)err.textContent='';modal.classList.add('open');document.body.style.overflow='hidden';setTimeout(()=>alt.focus(),40);
+  return new Promise(resolve=>{adminGuideImageDetailsResolve=resolve;});
+}
+function closeAdminArticleImageDetails(cancelled){
+  const modal=document.getElementById('admArticleImageDetailsModal');if(modal)modal.classList.remove('open');document.body.style.overflow=document.querySelector('.modal.open')?'hidden':'';
+  const resolve=adminGuideImageDetailsResolve;adminGuideImageDetailsResolve=null;if(resolve)resolve(cancelled?null:{alt:String(document.getElementById('admArticleImageAlt')?.value||'').trim().slice(0,180),caption:String(document.getElementById('admArticleImageCaption')?.value||'').trim().slice(0,180)});
+}
+function submitAdminArticleImageDetails(event){
+  if(event)event.preventDefault();const alt=String(document.getElementById('admArticleImageAlt')?.value||'').trim(),err=document.getElementById('admArticleImageDetailsErr');if(!alt){if(err)err.textContent='Napište krátký alternativní popis obrázku.';document.getElementById('admArticleImageAlt')?.focus();return false;}if(err)err.textContent='';closeAdminArticleImageDetails(false);return false;
+}
 function finishAdminGuideInsert(node){
   const editor=document.getElementById('admArticleBody'),range=adminGuideInsertionRange(),paragraph=document.createElement('p');paragraph.appendChild(document.createElement('br'));
   range.deleteContents();const fragment=document.createDocumentFragment();fragment.append(node,paragraph);range.insertNode(fragment);
@@ -5676,8 +5691,8 @@ async function onAdminArticleBodyImages(files){
     if(adminGuideImageInputMode==='gallery'&&data.length>1){
       const gallery=document.createElement('div');gallery.className='guide-image-gallery';data.forEach((src,index)=>gallery.appendChild(createAdminArticleFigure(src,{alt:chosen[index].name.replace(/\.[^.]+$/,'')})));finishAdminGuideInsert(gallery);toast(`Galerie s ${data.length} obrázky byla vložena.`,'success');
     }else{
-      const alt=String(prompt('Alternativní popis obrázku pro čtečky obrazovky:','')||'').trim().slice(0,180),caption=String(prompt('Viditelný popisek pod obrázkem (nepovinné):','')||'').trim().slice(0,180);
-      finishAdminGuideInsert(createAdminArticleFigure(data[0],{alt,caption}));toast('Obrázek byl vložen.','success');
+      const details=await requestAdminArticleImageDetails(data[0]);if(!details){adminGuideEditorRange=null;return;}
+      finishAdminGuideInsert(createAdminArticleFigure(data[0],details));toast('Obrázek byl vložen.','success');
     }
   }catch(error){adminGuideEditorRange=null;toast(error.message||'Obrázek se nepodařilo vložit.','declined');}
 }
