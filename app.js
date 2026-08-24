@@ -2705,7 +2705,8 @@ const NAV_CAREGIVER=[
   {v:'cg-requests',label:'Poptávky',fn:"go('cg-requests')"},
   {v:'cg-calendar',label:'Kalendář',fn:"go('cg-calendar')"},
   {v:'cg-verify',label:'Ověření',fn:"go('cg-verify')"},
-  {v:'cg-profile',label:'Můj profil',fn:"go('cg-profile')"}
+  {v:'cg-profile',label:'Můj profil',fn:"go('cg-profile')"},
+  {v:'guide',label:'Průvodce péčí',fn:"openGuideHome()"}
 ];
 /* horní navigace admina drží jen denní provozní položky — zbytek (Pečovatelky, Rodiny, Tarify,
    Správa služeb, Statistiky, Audit logy, Sociální sítě, Kontaktní údaje, Platby, AI chat, hromadné
@@ -2714,13 +2715,15 @@ const NAV_ADMIN=[
   {v:'admin-dash',label:'Přehled',fn:"go('admin-dash')"},
   {v:'admin-verify',label:'Žádosti o ověření',fn:"go('admin-verify')"},
   {v:'admin-orders',label:'Objednávky',fn:"go('admin-orders')"},
-  {v:'admin-chats',label:'Konverzace',fn:"go('admin-chats')"}
+  {v:'admin-chats',label:'Konverzace',fn:"go('admin-chats')"},
+  {v:'guide',label:'Průvodce péčí',fn:"openGuideHome()"}
 ];
 const NAV_FAMILY=[
   {v:'fam-dash',label:'Přehled',fn:"go('fam-dash')"},
   {v:'search',label:'Hledat péči',fn:"go('search')"},
   {v:'bookings',label:'Moje objednávky',fn:"go('bookings')"},
-  {v:'chat',label:'Zprávy',fn:"go('chat')"}
+  {v:'chat',label:'Zprávy',fn:"go('chat')"},
+  {v:'guide',label:'Průvodce péčí',fn:"openGuideHome()"}
 ];
 /* kam přesměrovat po přihlášení / kliknutí na logo */
 function landingView(){
