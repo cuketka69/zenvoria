@@ -534,6 +534,24 @@
   </div>
 </div>
 
+<div class="modal" id="carePlanModal" role="dialog" aria-modal="true" aria-labelledby="carePlanTitle">
+  <div class="modal-scrim" onclick="closeCarePlanModal()"></div>
+  <div class="modal-card care-plan-modal">
+    <button class="modal-x" aria-label="Zavřít" onclick="closeCarePlanModal()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    <span class="care-match-kicker">PLÁN PÉČE</span><h3 id="carePlanTitle">Pokyny pro péči</h3>
+    <p class="msub">Údaje uvidí pouze vlastník, oprávnění členové rodiny a pečovatelka u potvrzené objednávky.</p>
+    <form onsubmit="return saveCarePlan(event)">
+      <div class="grid2"><div><label class="lbl">Jméno klienta</label><input class="inp" id="carePlanClient" maxlength="120"></div><div><label class="lbl">Denní režim</label><input class="inp" id="carePlanRoutine" maxlength="500"></div></div>
+      <label class="lbl">Potřeby a důležité pokyny</label><textarea class="inp" id="carePlanNeeds" maxlength="1500"></textarea>
+      <label class="lbl">Omezení a čemu se vyhnout</label><textarea class="inp" id="carePlanLimits" maxlength="1000"></textarea>
+      <h4>Nouzový kontakt</h4><div class="grid2"><div><label class="lbl">Jméno</label><input class="inp" id="careEmergencyName" maxlength="120"></div><div><label class="lbl">Telefon</label><input class="inp" id="careEmergencyPhone" maxlength="30"></div></div>
+      <label class="lbl">Vztah ke klientovi</label><input class="inp" id="careEmergencyRelation" maxlength="80">
+      <label class="lbl">Výchozí checklist návštěvy (jeden úkol na řádek)</label><textarea class="inp" id="carePlanChecklist" maxlength="1500"></textarea>
+      <button class="btn btn-gold btn-block" type="submit">Uložit plán péče</button>
+    </form>
+  </div>
+</div>
+
 <!-- ============ RATING MODAL ============ -->
 <div class="modal" id="ratingModal" role="dialog" aria-modal="true" aria-labelledby="ratingTitle">
   <div class="modal-scrim" onclick="closeRating()"></div>

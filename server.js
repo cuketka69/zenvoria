@@ -4273,6 +4273,8 @@ async function findUserByEmail(email) {
 
 const FAMILY_CARE_TEAMS_KEY = 'familyCareTeamsV1';
 const ORDER_CARE_NOTES_KEY = 'orderCareNotesV1';
+const FAMILY_CARE_PROFILES_KEY = 'familyCareProfilesV1';
+const ORDER_CARE_OPS_KEY = 'orderCareOpsV1';
 async function loadSettingArray(key) {
   const rows = await restSelect(T.settings, `key=eq.${encodeURIComponent(key)}&limit=1`);
   return rows && rows[0] && Array.isArray(rows[0].value) ? rows[0].value : [];
@@ -4286,7 +4288,7 @@ function cleanFamilyTeams(rows) {
     ownerName: trimmedString(team && team.ownerName, 120),
     members: (Array.isArray(team && team.members) ? team.members : []).map((m) => ({
       email: trimmedString(m && m.email, 320).toLowerCase(), name: trimmedString(m && m.name, 120),
-      status: m && m.status === 'active' ? 'active' : 'pending', createdAt: m && m.createdAt || null,
+      status: m && m.status === 'active' ? 'active' : 'pending', role: m && m.role === 'editor' ? 'editor' : 'viewer', createdAt: m && m.createdAt || null,
     })).filter((m) => m.email).slice(0, 5),
   })).filter((t) => t.ownerEmail);
 }
@@ -4295,7 +4297,7 @@ async function familyTeamContext(email, suppliedTeams) {
   const teams = cleanFamilyTeams(suppliedTeams || await loadSettingArray(FAMILY_CARE_TEAMS_KEY));
   const own = teams.find((t) => t.ownerEmail === me) || { ownerEmail: me, ownerName: '', members: [] };
   const invitations = teams.filter((t) => t.members.some((m) => m.email === me && m.status === 'pending')).map((t) => ({ ownerEmail: t.ownerEmail, ownerName: t.ownerName }));
-  const memberships = teams.filter((t) => t.members.some((m) => m.email === me && m.status === 'active')).map((t) => ({ ownerEmail: t.ownerEmail, ownerName: t.ownerName }));
+  const memberships = teams.filter((t) => t.members.some((m) => m.email === me && m.status === 'active')).map((t) => { const member = t.members.find((m) => m.email === me); return { ownerEmail: t.ownerEmail, ownerName: t.ownerName, role: member && member.role === 'editor' ? 'editor' : 'viewer' }; });
   return { owner: { email: own.ownerEmail, name: own.ownerName }, members: own.members, invitations, memberships, teams };
 }
 async function familyAccessibleEmails(email, suppliedTeams) {
@@ -4306,11 +4308,25 @@ async function familyCanAccessOrder(email, order, suppliedTeams) {
   if (!order) return false;
   return (await familyAccessibleEmails(email, suppliedTeams)).includes(String(order.family_email || '').toLowerCase());
 }
+async function familyCanEditOrder(email, order, suppliedTeams) {
+  if (!order) return false;
+  const me = String(email || '').toLowerCase(), owner = String(order.family_email || '').toLowerCase();
+  if (me === owner) return true;
+  const teams = cleanFamilyTeams(suppliedTeams || await loadSettingArray(FAMILY_CARE_TEAMS_KEY));
+  const team = teams.find((t) => t.ownerEmail === owner);
+  return !!team && team.members.some((m) => m.email === me && m.status === 'active' && m.role === 'editor');
+}
 function publicFamilyTeamContext(ctx) {
   return { owner: ctx.owner, members: ctx.members, invitations: ctx.invitations, memberships: ctx.memberships };
 }
 function cleanCareNotes(rows) {
   return (Array.isArray(rows) ? rows : []).map((n) => ({ id: Number(n && n.id), oid: Number(n && n.oid), authorEmail: trimmedString(n && n.authorEmail, 320).toLowerCase(), authorName: trimmedString(n && n.authorName, 120), authorRole: trimmedString(n && n.authorRole, 20), text: trimmedString(n && n.text, 1000), createdAt: n && n.createdAt || null })).filter((n) => n.id > 0 && n.oid > 0 && n.text).slice(-5000);
+}
+function cleanCareProfiles(rows) {
+  return (Array.isArray(rows) ? rows : []).map((p) => ({ ownerEmail: trimmedString(p && p.ownerEmail, 320).toLowerCase(), client: trimmedString(p && p.client, 120), routine: trimmedString(p && p.routine, 500), needs: trimmedString(p && p.needs, 1500), limits: trimmedString(p && p.limits, 1000), emergencyName: trimmedString(p && p.emergencyName, 120), emergencyPhone: trimmedString(p && p.emergencyPhone, 30), emergencyRelation: trimmedString(p && p.emergencyRelation, 80), checklist: (Array.isArray(p && p.checklist) ? p.checklist : []).map((x) => trimmedString(x, 180)).filter(Boolean).slice(0, 20), updatedAt: p && p.updatedAt || null })).filter((p) => p.ownerEmail);
+}
+function cleanCareOps(rows) {
+  return (Array.isArray(rows) ? rows : []).map((o) => ({ oid: Number(o && o.oid), checklist: (Array.isArray(o && o.checklist) ? o.checklist : []).map((x) => ({ id: Number(x.id), text: trimmedString(x.text, 180), done: !!x.done, doneBy: trimmedString(x.doneBy, 120), doneAt: x.doneAt || null })).filter((x) => x.id > 0 && x.text).slice(0, 30), pinHash: trimmedString(o && o.pinHash, 128), pinCreatedAt: o && o.pinCreatedAt || null, checkInAt: o && o.checkInAt || null, checkOutAt: o && o.checkOutAt || null, attachments: (Array.isArray(o && o.attachments) ? o.attachments : []).map((a) => ({ id: Number(a.id), name: trimmedString(a.name, 120), type: trimmedString(a.type, 80), data: typeof a.data === 'string' ? a.data : '', authorName: trimmedString(a.authorName, 120), createdAt: a.createdAt || null })).filter((a) => a.id > 0 && a.data).slice(0, 5) })).filter((o) => o.oid > 0);
 }
 
 app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(async (req, res) => {
@@ -4718,6 +4734,68 @@ app.post('/api/family-care-team/remove', requireRole('family'), h(async (req, re
   team.members = team.members.filter((m) => m.email !== target); await saveSettingArray(FAMILY_CARE_TEAMS_KEY, teams);
   res.json({ ok: true, team: publicFamilyTeamContext(await familyTeamContext(me, teams)) });
 }));
+app.post('/api/family-care-team/role', requireRole('family'), h(async (req, res) => {
+  const me = String(req.session.email || '').toLowerCase(), memberEmail = trimmedString(req.body && req.body.memberEmail, 320).toLowerCase();
+  const role = req.body && req.body.role === 'editor' ? 'editor' : 'viewer';
+  const teams = cleanFamilyTeams(await loadSettingArray(FAMILY_CARE_TEAMS_KEY)), team = teams.find((t) => t.ownerEmail === me), member = team && team.members.find((m) => m.email === memberEmail && m.status === 'active');
+  if (!member) return res.status(404).json({ error: 'Aktivní člen nebyl nalezen.' });
+  member.role = role; await saveSettingArray(FAMILY_CARE_TEAMS_KEY, teams);
+  res.json({ ok: true, team: publicFamilyTeamContext(await familyTeamContext(me, teams)) });
+}));
+app.post('/api/family-care-profile', requireRole('family'), h(async (req, res) => {
+  const me = String(req.session.email || '').toLowerCase(), b = req.body || {};
+  const profiles = cleanCareProfiles(await loadSettingArray(FAMILY_CARE_PROFILES_KEY));
+  const profile = { ownerEmail: me, client: trimmedString(b.client, 120), routine: trimmedString(b.routine, 500), needs: trimmedString(b.needs, 1500), limits: trimmedString(b.limits, 1000), emergencyName: trimmedString(b.emergencyName, 120), emergencyPhone: trimmedString(b.emergencyPhone, 30), emergencyRelation: trimmedString(b.emergencyRelation, 80), checklist: (Array.isArray(b.checklist) ? b.checklist : []).map((x) => trimmedString(x, 180)).filter(Boolean).slice(0, 20), updatedAt: new Date().toISOString() };
+  if (profile.emergencyPhone && !/^[0-9+\s/()-]{6,30}$/.test(profile.emergencyPhone)) return res.status(400).json({ error: 'Zadejte platný telefon nouzového kontaktu.' });
+  const i = profiles.findIndex((p) => p.ownerEmail === me); if (i >= 0) profiles[i] = profile; else profiles.push(profile);
+  await saveSettingArray(FAMILY_CARE_PROFILES_KEY, profiles); res.json({ ok: true, profile: { ...profile, ownerEmail: undefined } });
+}));
+app.post('/api/orders/:oid/care-ops', requireAuth, rateLimit('care-ops', RATE_LIMITS.orders), h(async (req, res) => {
+  const oid = Number(req.params.oid), action = trimmedString(req.body && req.body.action, 30);
+  const orderRows = await restSelect(T.orders, `oid=eq.${oid}&select=oid,cid,family_email,status&limit=1`), order = orderRows && orderRows[0];
+  if (!order) return res.status(404).json({ error: 'Objednávka nebyla nalezena.' });
+  const ownCg = req.session.role === 'caregiver' ? await currentCaregiverRow(req) : null;
+  const isCaregiver = !!ownCg && Number(ownCg.id) === Number(order.cid);
+  const canView = req.session.role === 'admin' || isCaregiver || (req.session.role === 'family' && await familyCanAccessOrder(req.session.email, order));
+  const canEdit = req.session.role === 'admin' || isCaregiver || (req.session.role === 'family' && await familyCanEditOrder(req.session.email, order));
+  if (!canView) return res.status(403).json({ error: 'K této objednávce nemáte přístup.' });
+  if (['generate-pin', 'check-in', 'check-out'].includes(action) && !['confirmed', 'done'].includes(order.status)) return res.status(400).json({ error: 'PIN návštěvy je dostupný až po potvrzení objednávky.' });
+  const rows = cleanCareOps(await loadSettingArray(ORDER_CARE_OPS_KEY)); let op = rows.find((x) => x.oid === oid);
+  if (!op) {
+    const profiles = cleanCareProfiles(await loadSettingArray(FAMILY_CARE_PROFILES_KEY)), profile = profiles.find((p) => p.ownerEmail === String(order.family_email || '').toLowerCase());
+    op = { oid, checklist: (profile && profile.checklist || []).map((text, i) => ({ id: i + 1, text, done: false, doneBy: '', doneAt: null })), pinHash: '', pinCreatedAt: null, checkInAt: null, checkOutAt: null, attachments: [] }; rows.push(op);
+  }
+  let generatedPin = null;
+  if (action === 'generate-pin') {
+    if (req.session.role !== 'family' || String(order.family_email).toLowerCase() !== String(req.session.email).toLowerCase()) return res.status(403).json({ error: 'PIN může vytvořit pouze vlastník objednávky.' });
+    generatedPin = String(crypto.randomInt(0, 10000)).padStart(4, '0'); op.pinHash = crypto.createHash('sha256').update(generatedPin).digest('hex'); op.pinCreatedAt = new Date().toISOString(); op.checkInAt = null; op.checkOutAt = null;
+  } else if (action === 'check-in' || action === 'check-out') {
+    if (!isCaregiver) return res.status(403).json({ error: 'Příchod a odchod potvrzuje pečovatelka.' });
+    const codeHash = crypto.createHash('sha256').update(trimmedString(req.body && req.body.pin, 10)).digest('hex');
+    if (!op.pinHash || codeHash !== op.pinHash) return res.status(400).json({ error: 'Zadaný PIN není správný.' });
+    if (action === 'check-in') { if (op.checkInAt) return res.status(409).json({ error: 'Příchod už byl potvrzen.' }); op.checkInAt = new Date().toISOString(); }
+    else { if (!op.checkInAt) return res.status(400).json({ error: 'Nejprve potvrďte příchod.' }); if (op.checkOutAt) return res.status(409).json({ error: 'Odchod už byl potvrzen.' }); op.checkOutAt = new Date().toISOString(); }
+  } else if (action === 'add-task') {
+    if (!canEdit) return res.status(403).json({ error: 'Checklist nemůžete upravit.' }); const text = trimmedString(req.body && req.body.text, 180); if (!text) return res.status(400).json({ error: 'Napište úkol.' });
+    op.checklist.push({ id: op.checklist.reduce((m, x) => Math.max(m, x.id), 0) + 1, text, done: false, doneBy: '', doneAt: null });
+  } else if (action === 'toggle-task') {
+    if (!canEdit) return res.status(403).json({ error: 'Checklist nemůžete upravit.' }); const task = op.checklist.find((x) => x.id === Number(req.body && req.body.taskId)); if (!task) return res.status(404).json({ error: 'Úkol nebyl nalezen.' }); task.done = !task.done; task.doneBy = task.done ? (req.session.name || req.session.email) : ''; task.doneAt = task.done ? new Date().toISOString() : null;
+  } else if (action === 'attachment') {
+    if (!canEdit) return res.status(403).json({ error: 'Přílohu nemůžete vložit.' }); if (op.attachments.length >= 5) return res.status(400).json({ error: 'K objednávce lze přidat nejvýše 5 příloh.' });
+    const data = await sanitizeFileDataUrl(req.body && req.body.data, 2 * 1024 * 1024); if (!data) return res.status(400).json({ error: 'Použijte JPG, PNG, WebP nebo PDF do 2 MB.' });
+    op.attachments.push({ id: op.attachments.reduce((m, x) => Math.max(m, x.id), 0) + 1, name: trimmedString(req.body && req.body.name, 120) || 'Příloha', type: trimmedString(req.body && req.body.type, 80), data, authorName: req.session.name || req.session.email, createdAt: new Date().toISOString() });
+  } else return res.status(400).json({ error: 'Neplatná akce.' });
+  await saveSettingArray(ORDER_CARE_OPS_KEY, rows);
+  if (action === 'check-in' || action === 'check-out') { const family = await findUserByEmail(order.family_email); if (family) await createNotification(family.id, { type: 'visit-status', title: action === 'check-in' ? 'Pečovatelka potvrdila příchod' : 'Pečovatelka potvrdila odchod', body: `Objednávka č. ${oid} · ${new Date().toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}`, link: 'bookings' }); }
+  res.json({ ok: true, generatedPin, operation: { ...op, pinHash: undefined, attachments: op.attachments.map((a) => ({ ...a, data: undefined, url: `/api/orders/${oid}/attachments/${a.id}` })) } });
+}));
+app.get('/api/orders/:oid/attachments/:id', requireAuth, h(async (req, res) => {
+  const oid = Number(req.params.oid), id = Number(req.params.id), orderRows = await restSelect(T.orders, `oid=eq.${oid}&select=oid,cid,family_email&limit=1`), order = orderRows && orderRows[0];
+  if (!order) return res.status(404).send('Nenalezeno'); const ownCg = req.session.role === 'caregiver' ? await currentCaregiverRow(req) : null;
+  const allowed = req.session.role === 'admin' || (!!ownCg && Number(ownCg.id) === Number(order.cid)) || (req.session.role === 'family' && await familyCanAccessOrder(req.session.email, order));
+  if (!allowed) return res.status(403).send('Zakázáno'); const ops = cleanCareOps(await loadSettingArray(ORDER_CARE_OPS_KEY)), a = (ops.find((x) => x.oid === oid) || { attachments: [] }).attachments.find((x) => x.id === id); if (!a) return res.status(404).send('Nenalezeno');
+  const parsed = decodeDataUrl(a.data, { maxBytes: 2 * 1024 * 1024, allowedTypes: VERIFICATION_FILE_MIME_TYPES }); if (!parsed) return res.status(404).send('Nenalezeno'); res.setHeader('Cache-Control', 'private, no-store'); res.setHeader('Content-Disposition', `attachment; filename="${a.name.replace(/["\r\n]/g, '')}"`); res.type(parsed.mime).send(parsed.bytes);
+}));
 
 /* ---------------- BOOTSTRAP (vše pro render) ---------------- */
 app.get('/api/bootstrap', h(async (req, res) => {
@@ -4792,6 +4870,11 @@ app.get('/api/bootstrap', h(async (req, res) => {
   const allCareNotes = req.session ? cleanCareNotes(await loadSettingArray(ORDER_CARE_NOTES_KEY)) : [];
   const visibleOrderIds = new Set((orders || []).map((o) => Number(o.oid)));
   const careNotesForViewer = allCareNotes.filter((n) => visibleOrderIds.has(Number(n.oid)));
+  const profileVisibleOrders = viewer === 'caregiver' ? (orders || []).filter((o) => ['confirmed', 'done'].includes(o.status)) : (orders || []);
+  const visibleFamilyEmails = new Set(profileVisibleOrders.map((o) => String(o.family_email || '').toLowerCase()).filter(Boolean));
+  if (viewer === 'family') visibleFamilyEmails.add(String(req.session.email || '').toLowerCase());
+  const careProfilesForViewer = req.session ? cleanCareProfiles(await loadSettingArray(FAMILY_CARE_PROFILES_KEY)).filter((p) => visibleFamilyEmails.has(p.ownerEmail)) : [];
+  const careOpsForViewer = req.session ? cleanCareOps(await loadSettingArray(ORDER_CARE_OPS_KEY)).filter((o) => visibleOrderIds.has(o.oid)) : [];
 
   // cgReviews: { [caregiverId]: [{init,name,stars,text}] } + obecné recenze (caregiver_id null)
   const cgReviews = {};
@@ -4885,6 +4968,8 @@ app.get('/api/bootstrap', h(async (req, res) => {
     favorites: viewer === 'family' ? (favoriteRows || []).map((f) => Number(f.caregiver_id)) : [],
     familyCareTeam: viewer === 'family' ? publicFamilyTeamContext(familyContext) : null,
     careNotes: careNotesForViewer.map((n) => ({ id: n.id, oid: n.oid, authorName: n.authorName, authorRole: n.authorRole, text: n.text, createdAt: n.createdAt })),
+    familyCareProfiles: careProfilesForViewer.reduce((out, p) => { out[p.ownerEmail] = { ...p, ownerEmail: undefined }; return out; }, {}),
+    orderCareOps: careOpsForViewer.map((o) => ({ ...o, pinHash: undefined, attachments: o.attachments.map((a) => ({ id: a.id, name: a.name, type: a.type, authorName: a.authorName, createdAt: a.createdAt, url: `/api/orders/${o.oid}/attachments/${a.id}` })) })),
     unreadNotifCount: req.session ? (unreadNotifRows || []).length : 0,
     recurringBookings: viewer === 'family'
       ? (recurringRows || []).map((r) => ({ id: Number(r.id), cid: Number(r.cid), service: r.service, hours: r.hours, addr: r.addr, weekday: r.weekday, time: r.time, occurrences: r.occurrences, createdAt: r.created_at }))
@@ -5243,13 +5328,18 @@ app.post('/api/orders/:oid/care-notes', requireAuth, rateLimit('care-notes', RAT
   const rows = await restSelect(T.orders, `oid=eq.${oid}&select=oid,cid,family_email,status&limit=1`), order = rows && rows[0];
   if (!order) return res.status(404).json({ error: 'Objednávka nebyla nalezena.' });
   let allowed = req.session.role === 'admin';
-  if (req.session.role === 'family') allowed = await familyCanAccessOrder(req.session.email, order);
+  if (req.session.role === 'family') allowed = await familyCanEditOrder(req.session.email, order);
   if (req.session.role === 'caregiver') { const own = await currentCaregiverRow(req); allowed = !!own && Number(own.id) === Number(order.cid); }
   if (!allowed) return res.status(403).json({ error: 'K této objednávce nemáte přístup.' });
   if (!['confirmed', 'done'].includes(order.status)) return res.status(400).json({ error: 'Záznam lze přidat až k potvrzené nebo dokončené péči.' });
   const notes = cleanCareNotes(await loadSettingArray(ORDER_CARE_NOTES_KEY));
   const note = { id: notes.reduce((m, n) => Math.max(m, n.id), 0) + 1, oid, authorEmail: req.session.email, authorName: req.session.name || req.session.email, authorRole: req.session.role, text, createdAt: new Date().toISOString() };
   notes.push(note); await saveSettingArray(ORDER_CARE_NOTES_KEY, notes);
+  if (req.session.role === 'caregiver') {
+    const family = await findUserByEmail(order.family_email); if (family) await createNotification(family.id, { type: 'care-note', title: 'Nový záznam průběhu péče', body: `${note.authorName} přidal(a) záznam k objednávce č. ${oid}.`, link: 'bookings' });
+  } else {
+    const caregiver = await restSelect(T.caregivers, `id=eq.${Number(order.cid)}&select=user_id&limit=1`); if (caregiver && caregiver[0] && caregiver[0].user_id) await createNotification(caregiver[0].user_id, { type: 'care-note', title: 'Nový záznam od rodiny', body: `Rodina přidala záznam k objednávce č. ${oid}.`, link: 'cg-calendar' });
+  }
   res.status(201).json({ ok: true, note: { id: note.id, oid: note.oid, authorName: note.authorName, authorRole: note.authorRole, text: note.text, createdAt: note.createdAt } });
 }));
 
@@ -7299,6 +7389,15 @@ function buildIcsCalendar(caregiverName, events) {
   lines.push('END:VCALENDAR');
   return lines.join('\r\n');
 }
+app.get('/api/family/calendar.ics', requireRole('family'), h(async (req, res) => {
+  const emails = await familyAccessibleEmails(req.session.email);
+  const filter = emails.length === 1 ? `family_email=eq.${encodeURIComponent(emails[0])}` : `family_email=in.(${emails.map((e) => `"${e.replace(/"/g, '')}"`).join(',')})`;
+  const [orders, caregivers] = await Promise.all([restSelect(T.orders, `${filter}&status=in.(pending,confirmed)&order=date.asc`), restSelect(T.caregivers, 'select=id,name')]);
+  const names = {}; (caregivers || []).forEach((c) => { names[Number(c.id)] = c.name; });
+  const events = (orders || []).map((o) => ({ oid: o.oid, date: o.date, time: o.time, hours: Number(o.hours) || 1, summary: `ZENVORIA — ${names[Number(o.cid)] || 'péče'}`, description: `Služba: ${o.service || ''}`, location: o.addr || '' }));
+  const ics = buildIcsCalendar(req.session.name || 'Rodinný kalendář', events); res.setHeader('Cache-Control', 'private, no-store'); res.setHeader('Content-Disposition', 'attachment; filename="zenvoria-rodina.ics"'); res.type('text/calendar; charset=utf-8').send(ics);
+}));
+
 // vrátí (a při první potřebě vygeneruje) soukromý token pro export kalendáře — nejde uhodnout, funguje bez přihlášení
 app.get('/api/caregivers/me/calendar-token', requireRole('caregiver'), h(async (req, res) => {
   const own = await currentCaregiverRow(req);

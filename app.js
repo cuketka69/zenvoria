@@ -1668,6 +1668,7 @@ function renderCare(){
       </div>
       <div class="care-tags">
         ${cgBadges(c)}
+        ${availabilityFilterIds&&availabilityFilterIds.has(c.id)?'<span class="chip chip-live">Volná ve zvoleném termínu</span>':''}
         ${oor?`<span class="chip chip-warn">Mimo dojezd (do ${c.radius} km)</span>`:''}
         ${c.services.map(s=>`<span class="chip">${sName(s)}</span>`).join('')}
         ${c.kmPrice>0?`<span class="chip">${carSVG()} ${c.kmPrice} Kč/km</span>`:''}
@@ -3171,7 +3172,6 @@ document.addEventListener('input',e=>{
 const TODAY=new Date();
 let calMonth=TODAY.getMonth(),calYear=TODAY.getFullYear();
 const MONTHS=['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
-const BOOKED_DAYS=[20,24,28]; // demo: naplánované služby v květnu 2026
 function renderCalendar(){
   if(!document.getElementById('calTitle')||!document.getElementById('calDays'))return;
   document.getElementById('calTitle').textContent=MONTHS[calMonth]+' '+calYear;
@@ -3180,16 +3180,22 @@ function renderCalendar(){
   const dim=new Date(calYear,calMonth+1,0).getDate();
   let html='';
   for(let i=0;i<offset;i++)html+='<div class="day muted" aria-hidden="true"></div>';
-  const showDots=(calMonth===4&&calYear===2026);
+  const monthOrders=ORDERS.filter(o=>{const dt=new Date(o.date+'T00:00:00');return dt.getMonth()===calMonth&&dt.getFullYear()===calYear&&!['cancelled','declined'].includes(o.status);});
   for(let d=1;d<=dim;d++){
-    const has=showDots&&BOOKED_DAYS.includes(d);
+    const dayOrders=monthOrders.filter(o=>Number(String(o.date).slice(8,10))===d),has=dayOrders.length>0;
     const today=(d===TODAY.getDate()&&calMonth===TODAY.getMonth()&&calYear===TODAY.getFullYear());
     const lbl=has?`${d}. ${MONTHS[calMonth].toLowerCase()} ${calYear} — naplánovaná služba`:`${d}. ${MONTHS[calMonth].toLowerCase()} ${calYear}`;
-    html+=`<div class="day ${has?'has':''} ${today?'today':''}" ${has?'role="button" tabindex="0"':''} aria-label="${lbl}" onclick="${has?`toast('Máte naplánovanou službu ${d}. ${MONTHS[calMonth].toLowerCase()}')`:''}">${d}</div>`;
+    html+=`<div class="day ${has?'has':''} ${today?'today':''}" ${has?'role="button" tabindex="0"':''} aria-label="${lbl}" onclick="${has?`openFamilyOrder(${dayOrders[0].oid})`:''}">${d}</div>`;
   }
   document.getElementById('calDays').innerHTML=html;
   renderOrders('up');
   renderRecurringBookings();
+  renderFamilyMonthSummary();
+}
+function renderFamilyMonthSummary(){
+  const el=document.getElementById('familyMonthSummary');if(!el)return;const now=new Date(),rows=ORDERS.filter(o=>{const d=new Date(o.date+'T00:00:00');return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()&&!['cancelled','declined'].includes(o.status);});
+  const done=rows.filter(o=>o.status==='done'),minutes=done.reduce((s,o)=>{const op=careOp(o.oid),actual=op.checkInAt&&op.checkOutAt?(new Date(op.checkOutAt)-new Date(op.checkInAt))/60000:null;return s+(actual>0?actual:Number(o.hours||0)*60);},0),cost=done.reduce((s,o)=>s+orderPrice(o),0),tasks=ORDER_CARE_OPS.filter(op=>rows.some(o=>o.oid===op.oid)).flatMap(op=>op.checklist||[]),completed=tasks.filter(t=>t.done).length;
+  el.innerHTML=`<div><span>Návštěvy tento měsíc</span><b>${rows.length}</b></div><div><span>Skutečný čas péče</span><b>${Math.round(minutes/6)/10} h</b></div><div><span>Náklady na dokončenou péči</span><b>${cost.toLocaleString('cs-CZ')} Kč</b></div><div><span>Splněné úkoly</span><b>${completed}/${tasks.length}</b></div>`;
 }
 const RB_WEEKDAY_NAMES=['pondělí','úterý','středu','čtvrtek','pátek','sobotu','neděli'];
 function renderRecurringBookings(){
@@ -3310,6 +3316,7 @@ function renderFamilyDash(){
   const rec=CAREGIVERS.slice().filter(c=>c.verified&&!c.suspended&&hasPerm(c,'publishServices')).sort((a,b)=>(hasPerm(b,'priorityRanking')?1:0)-(hasPerm(a,'priorityRanking')?1:0)||b.rating-a.rating).slice(0,3);
   document.getElementById('famRecommended').innerHTML=rec.map(cgRow).join('');
   renderFamilyCareTeam();
+  renderFamilyCarePlan();
 }
 
 function renderFamilyCareTeam(){
@@ -3318,7 +3325,7 @@ function renderFamilyCareTeam(){
   const members=team.members||[],invitations=team.invitations||[],memberships=team.memberships||[];
   if(count)count.textContent=members.filter(m=>m.status==='active').length;
   const incoming=invitations.map(i=>`<div class="care-team-row invitation"><div><b>${esc(i.ownerName||i.ownerEmail)}</b><span>Vás zve ke sdílené péči</span></div><div><button class="btn btn-sm btn-gold" onclick="respondFamilyInvite(${jsq(i.ownerEmail)},true)">Přijmout</button><button class="btn btn-sm btn-ghost" onclick="respondFamilyInvite(${jsq(i.ownerEmail)},false)">Odmítnout</button></div></div>`).join('');
-  const own=members.map(m=>`<div class="care-team-row"><div><b>${esc(m.name||m.email)}</b><span>${m.status==='active'?'Má přístup k objednávkám a záznamům':'Pozvánka čeká na přijetí'}</span></div><div><span class="status ${m.status==='active'?'ok':'pending'}">${m.status==='active'?'Zapojen(a)':'Čeká'}</span><button class="care-team-remove" onclick="removeFamilyMember(${jsq(m.email)})" aria-label="Odebrat">×</button></div></div>`).join('');
+  const own=members.map(m=>`<div class="care-team-row"><div><b>${esc(m.name||m.email)}</b><span>${m.status==='active'?(m.role==='editor'?'Může upravovat péči a checklisty':'Může pouze prohlížet'):'Pozvánka čeká na přijetí'}</span></div><div>${m.status==='active'?`<select class="inp care-team-role" onchange="setFamilyMemberRole(${jsq(m.email)},this.value)"><option value="viewer" ${m.role!=='editor'?'selected':''}>Pouze čtenář</option><option value="editor" ${m.role==='editor'?'selected':''}>Správce péče</option></select>`:`<span class="status pending">Čeká</span>`}<button class="care-team-remove" onclick="removeFamilyMember(${jsq(m.email)})" aria-label="Odebrat">×</button></div></div>`).join('');
   const joined=memberships.map(m=>`<div class="care-team-row"><div><b>Péče rodiny ${esc(m.ownerName||m.ownerEmail)}</b><span>Sdílené objednávky se zobrazují ve vašem přehledu</span></div><button class="btn btn-sm btn-ghost" onclick="leaveFamilyTeam(${jsq(m.ownerEmail)})">Opustit</button></div>`).join('');
   list.innerHTML=(incoming||own||joined)?incoming+own+joined:'<div class="empty">Zatím zde nemáte nikoho zapojeného.</div>';
 }
@@ -3330,6 +3337,18 @@ function inviteFamilyMember(event){
 function respondFamilyInvite(ownerEmail,accept){apiSync(api('/family-care-team/'+(accept?'accept':'decline'),{method:'POST',body:{ownerEmail}}).then(r=>{FAMILY_CARE_TEAM=r.team||FAMILY_CARE_TEAM;renderFamilyCareTeam();toast(accept?'Sdílená péče byla zapnuta.':'Pozvánka byla odmítnuta.','success');if(accept)bootstrap().then(()=>renderFamilyDash());}));}
 function removeFamilyMember(email){askConfirm({title:'Odebrat člena rodiny?',message:'Člen přestane vidět sdílené objednávky a záznamy péče.',confirmLabel:'Odebrat',onConfirm:()=>apiSync(api('/family-care-team/remove',{method:'POST',body:{memberEmail:email}}).then(r=>{FAMILY_CARE_TEAM=r.team||FAMILY_CARE_TEAM;renderFamilyCareTeam();toast('Člen byl odebrán.','success');}))});}
 function leaveFamilyTeam(ownerEmail){askConfirm({title:'Opustit sdílenou péči?',message:'Přestanete vidět objednávky a záznamy této rodiny.',confirmLabel:'Opustit',onConfirm:()=>apiSync(api('/family-care-team/remove',{method:'POST',body:{ownerEmail}}).then(r=>{FAMILY_CARE_TEAM=r.team||FAMILY_CARE_TEAM;bootstrap().then(()=>renderFamilyDash());toast('Sdílená péče byla ukončena.','success');}))});}
+function setFamilyMemberRole(memberEmail,role){apiSync(api('/family-care-team/role',{method:'POST',body:{memberEmail,role}}).then(r=>{FAMILY_CARE_TEAM=r.team||FAMILY_CARE_TEAM;renderFamilyCareTeam();toast('Oprávnění člena bylo změněno.','success');}));}
+function ownCareProfile(){return FAMILY_CARE_PROFILES[String(auth.email||'').toLowerCase()]||{};}
+function renderFamilyCarePlan(){
+  const el=document.getElementById('famCarePlanPreview');if(!el)return;const p=ownCareProfile();
+  el.innerHTML=p.client?`<div class="care-plan-preview"><h3>${esc(p.client)}</h3>${p.routine?`<p><b>Denní režim:</b> ${esc(p.routine)}</p>`:''}${p.needs?`<p><b>Pokyny:</b> ${esc(p.needs)}</p>`:''}${p.emergencyName?`<div class="care-emergency"><b>Nouzový kontakt</b><span>${esc(p.emergencyName)}${p.emergencyRelation?' · '+esc(p.emergencyRelation):''}</span><a href="tel:${esc(p.emergencyPhone||'')}">${esc(p.emergencyPhone||'')}</a></div>`:''}<small>Plán byl aktualizován ${p.updatedAt?new Date(p.updatedAt).toLocaleDateString('cs-CZ'):'—'}.</small></div>`:'<div class="empty">Doplňte režim, pokyny, nouzový kontakt a výchozí úkoly návštěvy.</div>';
+}
+function openCarePlanModal(){
+  const p=ownCareProfile(),values={carePlanClient:p.client,carePlanRoutine:p.routine,carePlanNeeds:p.needs,carePlanLimits:p.limits,careEmergencyName:p.emergencyName,careEmergencyPhone:p.emergencyPhone,careEmergencyRelation:p.emergencyRelation,carePlanChecklist:(p.checklist||[]).join('\n')};
+  Object.entries(values).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val||'';});document.getElementById('carePlanModal').classList.add('open');document.body.style.overflow='hidden';
+}
+function closeCarePlanModal(){const m=document.getElementById('carePlanModal');if(m)m.classList.remove('open');document.body.style.overflow='';}
+function saveCarePlan(event){event.preventDefault();const val=id=>(document.getElementById(id).value||'').trim();const body={client:val('carePlanClient'),routine:val('carePlanRoutine'),needs:val('carePlanNeeds'),limits:val('carePlanLimits'),emergencyName:val('careEmergencyName'),emergencyPhone:val('careEmergencyPhone'),emergencyRelation:val('careEmergencyRelation'),checklist:val('carePlanChecklist').split(/\r?\n/).map(x=>x.trim()).filter(Boolean)};apiSync(api('/family-care-profile',{method:'POST',body}).then(r=>{FAMILY_CARE_PROFILES[String(auth.email).toLowerCase()]=r.profile||body;closeCarePlanModal();renderFamilyCarePlan();toast('Plán péče byl uložen.','success');}));return false;}
 
 /* ====================================================================
    OVĚŘENÍ PEČOVATELEK + ADMIN PANEL
@@ -6736,6 +6755,9 @@ let NOTIFICATIONS=[];
 let RECURRING_BOOKINGS=[];
 let FAMILY_CARE_TEAM={owner:null,members:[],invitations:[],memberships:[]};
 let CARE_NOTES=[];
+let FAMILY_CARE_PROFILES={};
+let ORDER_CARE_OPS=[];
+let CARE_VISIT_PINS={};
 let CARE_COMPARE_IDS=[];
 let CARE_MATCH_SCORES={};
 let unreadNotifCount=0;
@@ -7416,7 +7438,7 @@ function renderEarnings(){
 let curOrder=null;
 function openFamilyOrder(oid){
   const o=ORDERS.find(x=>x.oid===oid);if(!o)return;const c=cg(o.cid);
-  curOrder={oid:o.oid,cid:o.cid,viewer:'family',shared:!!o.shared,title:sNames(o.service),status:o.status,rated:!!o.rated,
+  curOrder={oid:o.oid,cid:o.cid,familyEmail:o.familyEmail,viewer:'family',shared:!!o.shared,title:sNames(o.service),status:o.status,rated:!!o.rated,
     cpName:c.name,cpInit:c.init,cpPhoto:c.photo||o.cgPhoto||null,cpRole:'Pečovatelka',cpChatRole:'caregiver',
     dateLabel:fmtDate(o.date),timeLabel:timeRange(o.time,o.hours),hours:o.hours,price:orderPrice(o),
     rate:c.rate,km:o.km||0,transport:(c.kmPrice&&o.km)?c.kmPrice*o.km:0,addr:o.addr,note:o.note,
@@ -7426,7 +7448,7 @@ function openFamilyOrder(oid){
 function openCgOrder(i){
   const j=CG_SCHEDULE.slice().sort((a,b)=>a.date.localeCompare(b.date))[i];if(!j)return;
   const o=j.oid?ORDERS.find(x=>x.oid===j.oid):null;
-  curOrder={oid:j.oid||null,cid:j.cid||null,viewer:'caregiver',title:sNames(j.service),status:(o&&o.status)||'confirmed',
+  curOrder={oid:j.oid||null,cid:j.cid||null,familyEmail:o&&o.familyEmail,viewer:'caregiver',title:sNames(j.service),status:(o&&o.status)||'confirmed',
     ratedFamily:!!(o&&o.ratedFamily),
     cpName:j.fam,cpInit:j.init,cpPhoto:j.photo||null,cpRole:'Klient',cpChatRole:'family',cpPublicId:j.famPublicId||(o&&o.famPublicId)||null,
     dateLabel:fmtDate(j.date),timeLabel:timeRange(j.time,j.hours),hours:j.hours,price:j.hours*cgProfile.rate,
@@ -7508,7 +7530,8 @@ function markOrderDone(oid){
 function careNotesHtml(o){
   if(!o.oid)return'';
   const rows=CARE_NOTES.filter(n=>Number(n.oid)===Number(o.oid)).sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));
-  const canWrite=['confirmed','done'].includes(o.status);
+  const membership=(FAMILY_CARE_TEAM.memberships||[]).find(m=>String(m.ownerEmail).toLowerCase()===String(o.familyEmail||'').toLowerCase());
+  const canWrite=['confirmed','done'].includes(o.status)&&(o.viewer==='caregiver'||!o.shared||(membership&&membership.role==='editor'));
   return `<section class="care-notes"><div class="care-notes-head"><div><h3>Záznam průběhu péče</h3><p>Krátké provozní informace pro pečovatelku a zapojené členy rodiny. Neuvádějte citlivé diagnózy.</p></div><span>${rows.length}</span></div><div class="care-notes-list">${rows.length?rows.map(n=>`<article><div><b>${esc(n.authorName)}</b><time>${new Date(n.createdAt).toLocaleString('cs-CZ')}</time></div><p>${esc(n.text)}</p></article>`).join(''):'<div class="empty">Zatím zde není žádný záznam.</div>'}</div>${canWrite?`<form class="care-note-form" onsubmit="return submitCareNote(event,${o.oid})"><textarea class="inp" id="careNoteText" maxlength="1000" placeholder="Např. péče proběhla podle domluvy, další návštěva…" required></textarea><button class="btn btn-gold" type="submit">Přidat záznam</button></form>`:''}</section>`;
 }
 function submitCareNote(event,oid){
@@ -7517,6 +7540,22 @@ function submitCareNote(event,oid){
   apiSync(api('/orders/'+oid+'/care-notes',{method:'POST',body:{text}}).then(r=>{if(r&&r.note)CARE_NOTES.push(r.note);renderOrderDetail();toast('Záznam péče byl přidán.','success');}));
   return false;
 }
+function careOp(oid){return ORDER_CARE_OPS.find(x=>Number(x.oid)===Number(oid))||{oid:Number(oid),checklist:[],attachments:[],checkInAt:null,checkOutAt:null,pinCreatedAt:null};}
+function carePlanForOrder(o){return FAMILY_CARE_PROFILES[String(o.familyEmail||'').toLowerCase()]||{};}
+function visitManagementHtml(o){
+  if(!o.oid)return'';const op=careOp(o.oid),plan=carePlanForOrder(o),pin=CARE_VISIT_PINS[o.oid],visitActive=['confirmed','done'].includes(o.status);
+  const membership=(FAMILY_CARE_TEAM.memberships||[]).find(m=>String(m.ownerEmail).toLowerCase()===String(o.familyEmail||'').toLowerCase()),canEdit=o.viewer==='caregiver'||!o.shared||(membership&&membership.role==='editor');
+  const tasks=(op.checklist&&op.checklist.length)?op.checklist:(plan.checklist||[]).map((text,i)=>({id:i+1,text,done:false})),atts=op.attachments||[];
+  const checkControls=!visitActive?'':(o.viewer==='caregiver'?`<div class="visit-pin-entry"><input class="inp" id="visitPin${o.oid}" inputmode="numeric" maxlength="4" placeholder="4místný PIN"><button class="btn btn-gold" onclick="visitCheck(${o.oid},'${op.checkInAt?'check-out':'check-in'}')" ${op.checkOutAt?'disabled':''}>${op.checkOutAt?'Návštěva ukončena':(op.checkInAt?'Potvrdit odchod':'Potvrdit příchod')}</button></div>`:(!o.shared?`<button class="btn btn-ghost btn-sm" onclick="generateVisitPin(${o.oid})">${op.pinCreatedAt?'Vygenerovat nový PIN':'Vytvořit PIN návštěvy'}</button>${pin?`<div class="visit-pin-code"><span>PIN pro pečovatelku</span><b>${pin}</b></div>`:''}`:''));
+  return `<section class="visit-management"><div class="care-notes-head"><div><h3>Průběh návštěvy</h3><p>PIN potvrzuje skutečný příchod a odchod. Checklist sdílí rodina s pečovatelkou.</p></div></div><div class="visit-status"><span class="${op.checkInAt?'done':''}">Příchod <b>${op.checkInAt?new Date(op.checkInAt).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'}):'čeká'}</b></span><span class="${op.checkOutAt?'done':''}">Odchod <b>${op.checkOutAt?new Date(op.checkOutAt).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'}):'čeká'}</b></span></div>${checkControls}<div class="visit-checklist"><h4>Kontrolní seznam</h4>${tasks.length?tasks.map(t=>`<label><input type="checkbox" ${t.done?'checked':''} ${canEdit?'':'disabled'} onchange="toggleVisitTask(${o.oid},${t.id})"><span>${esc(t.text)}${t.doneBy?`<small>Splnil(a): ${esc(t.doneBy)}</small>`:''}</span></label>`).join(''):'<div class="empty">Zatím žádné úkoly.</div>'}${canEdit?`<form onsubmit="return addVisitTask(event,${o.oid})"><input class="inp" id="visitTask${o.oid}" maxlength="180" placeholder="Přidat úkol návštěvy"><button class="btn btn-ghost btn-sm">Přidat</button></form>`:''}</div><div class="visit-attachments"><h4>Přílohy k objednávce</h4>${atts.length?atts.map(a=>`<a href="${a.url}" target="_blank" rel="noopener">${esc(a.name)} <small>${esc(a.authorName||'')}</small></a>`).join(''):'<div class="empty">Zatím žádné přílohy.</div>'}${canEdit?`<button class="btn btn-ghost btn-sm" onclick="document.getElementById('visitFile${o.oid}').click()">Vložit přílohu</button><input id="visitFile${o.oid}" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden onchange="uploadVisitAttachment(this,${o.oid})">`:''}</div>${plan.emergencyName?`<div class="care-emergency"><b>Nouzový kontakt</b><span>${esc(plan.emergencyName)}${plan.emergencyRelation?' · '+esc(plan.emergencyRelation):''}</span><a href="tel:${esc(plan.emergencyPhone||'')}">${esc(plan.emergencyPhone||'')}</a></div>`:''}</section>`;
+}
+function syncCareOp(r){if(!r||!r.operation)return;const i=ORDER_CARE_OPS.findIndex(x=>Number(x.oid)===Number(r.operation.oid));if(i>=0)ORDER_CARE_OPS[i]=r.operation;else ORDER_CARE_OPS.push(r.operation);if(curOrder)renderOrderDetail();}
+function generateVisitPin(oid){apiSync(api('/orders/'+oid+'/care-ops',{method:'POST',body:{action:'generate-pin'}}).then(r=>{CARE_VISIT_PINS[oid]=r.generatedPin;syncCareOp(r);toast('PIN návštěvy byl vytvořen. Sdělte ho pečovatelce při příchodu.','success');}));}
+function visitCheck(oid,action){const pin=(document.getElementById('visitPin'+oid)||{}).value||'';apiSync(api('/orders/'+oid+'/care-ops',{method:'POST',body:{action,pin}}).then(r=>{syncCareOp(r);toast(action==='check-in'?'Příchod byl potvrzen.':'Odchod byl potvrzen.','success');}));}
+function addVisitTask(event,oid){event.preventDefault();const el=document.getElementById('visitTask'+oid),text=(el.value||'').trim();if(!text)return false;apiSync(api('/orders/'+oid+'/care-ops',{method:'POST',body:{action:'add-task',text}}).then(r=>{syncCareOp(r);toast('Úkol byl přidán.','success');}));return false;}
+function toggleVisitTask(oid,taskId){apiSync(api('/orders/'+oid+'/care-ops',{method:'POST',body:{action:'toggle-task',taskId}}).then(syncCareOp));}
+function uploadVisitAttachment(input,oid){const file=input.files&&input.files[0];if(!file)return;if(file.size>2*1024*1024){toast('Soubor může mít nejvýše 2 MB.','declined');input.value='';return;}const reader=new FileReader();reader.onload=()=>apiSync(api('/orders/'+oid+'/care-ops',{method:'POST',body:{action:'attachment',name:file.name,type:file.type,data:reader.result}}).then(r=>{syncCareOp(r);toast('Příloha byla bezpečně uložena.','success');}));reader.onerror=()=>toast('Soubor se nepodařilo načíst.','declined');reader.readAsDataURL(file);}
+async function findReplacement(oid){const o=ORDERS.find(x=>x.oid===oid);if(!o)return;activeFilter=String(o.service||'').split(',')[0]||'';CARE_MATCH_SCORES={};CAREGIVERS.filter(c=>c.id!==o.cid&&c.verified&&!c.suspended&&hasPerm(c,'publishServices')).forEach(c=>{let score=55+(c.services.includes(activeFilter)?25:0)+Math.round(c.rating*3);CARE_MATCH_SCORES[c.id]=Math.min(99,score);});go('search');renderFilters();const on=document.getElementById('availFilterOn');if(on){on.checked=true;document.getElementById('availFilterRow').hidden=false;document.getElementById('availDate').value=o.date;document.getElementById('availTime').value=o.time;document.getElementById('availHours').value=String(o.hours);await applyAvailabilityFilter();}else renderCare();toast('Zobrazujeme dostupné náhradní pečovatelky pro původní termín.','success');}
 function renderOrderDetail(){
   const o=curOrder;if(!o)return;
   document.getElementById('odBack').setAttribute('onclick',`go('${o.back}')`);
@@ -7559,7 +7598,7 @@ function renderOrderDetail(){
       :`<button class="btn btn-navy btn-block" style="margin-top:10px" onclick="openRating(${o.cid},${o.oid})">Ohodnotit péči</button>`)
       +`<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="rebookOrder(${o.oid},false)">Objednat znovu</button><button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="rebookOrder(${o.oid},true)">Nastavit pravidelnou péči</button>`;
   }else if(declined){
-    action=`<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="rebookOrder(${o.oid},false)">Objednat znovu</button>`;
+    action=`<button class="btn btn-gold btn-block" style="margin-top:10px" onclick="findReplacement(${o.oid})">Najít náhradní pečovatelku</button><button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="rebookOrder(${o.oid},false)">Objednat znovu</button>`;
   }else if(o.status==='confirmed'){
     action=`<button class="btn btn-navy btn-block" style="margin-top:10px" onclick="markOrderDone(${o.oid})">Označit jako dokončené</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="cancelOrder(${o.oid})">Zrušit objednávku</button>`;
@@ -7585,11 +7624,14 @@ function renderOrderDetail(){
         <div class="r"><span class="l">Adresa</span><span class="v">${esc(o.addr)}</span></div>
         ${o.note?`<div class="r"><span class="l">Poznámka</span><span class="v">${esc(o.note)}</span></div>`:''}
       </div>
+      ${(()=>{const p=carePlanForOrder(o);return p.client?`<div class="pdiv"></div><section class="order-care-plan"><h3>Plán péče · ${esc(p.client)}</h3>${p.routine?`<p><b>Denní režim:</b> ${esc(p.routine)}</p>`:''}${p.needs?`<p><b>Důležité pokyny:</b> ${esc(p.needs)}</p>`:''}${p.limits?`<p><b>Omezení:</b> ${esc(p.limits)}</p>`:''}</section>`:'';})()}
       <div class="pdiv"></div>
       <h3>Průběh objednávky</h3>
       <div class="timeline">${tl}</div>
       <div class="pdiv"></div>
       ${careNotesHtml(o)}
+      <div class="pdiv"></div>
+      ${visitManagementHtml(o)}
     </div>
     <div class="pcard book-aside">
       <h3 style="margin-bottom:14px">Souhrn</h3>
@@ -8665,6 +8707,8 @@ async function bootstrap(){
   FAVORITES=d.favorites||[];
   FAMILY_CARE_TEAM=d.familyCareTeam||{owner:null,members:[],invitations:[],memberships:[]};
   CARE_NOTES=d.careNotes||[];
+  FAMILY_CARE_PROFILES=d.familyCareProfiles||{};
+  ORDER_CARE_OPS=d.orderCareOps||[];
   unreadNotifCount=Number(d.unreadNotifCount)||0;
   RECURRING_BOOKINGS=d.recurringBookings||[];
   // konverzace se načítají zvlášť přes /api/conversations (ne z bootstrapu) —

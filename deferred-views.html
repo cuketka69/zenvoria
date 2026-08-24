@@ -67,7 +67,8 @@
 <!-- ============ BOOKINGS / CALENDAR ============ -->
 <div class="view" id="view-bookings">
   <div class="wrap">
-    <div class="page-head" style="display:flex;align-items:center;gap:14px"><img src="/calendar.webp" alt="" width="38" height="40" loading="lazy" decoding="async" style="flex:0 0 auto"><div><h1>Moje objednávky</h1><p>Přehled vašich naplánovaných i minulých služeb.</p></div></div>
+    <div class="page-head booking-page-head"><div style="display:flex;align-items:center;gap:14px"><img src="/calendar.webp" alt="" width="38" height="40" loading="lazy" decoding="async" style="flex:0 0 auto"><div><h1>Moje objednávky</h1><p>Přehled vašich naplánovaných i minulých služeb.</p></div></div><button class="btn btn-ghost" onclick="window.open('/api/family/calendar.ics','_blank')">Přidat do kalendáře</button></div>
+    <div class="care-month-summary" id="familyMonthSummary"></div>
     <div class="cal-grid">
       <div class="cal">
         <div class="cal-head">
@@ -873,6 +874,10 @@
         <div class="panel" id="famReviewsPanel" hidden>
           <div class="panel-h"><b>Hodnocení od pečovatelek</b></div>
           <div id="famReviewsList"></div>
+        </div>
+        <div class="panel" id="famCarePlanPanel">
+          <div class="panel-h"><b>Plán péče</b><button class="btn btn-sm btn-ghost" onclick="openCarePlanModal()">Upravit</button></div>
+          <div id="famCarePlanPreview"></div>
         </div>
       </div>
       <div>
