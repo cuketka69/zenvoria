@@ -847,6 +847,15 @@
 </div>
 
 <!-- ============ RODINA · PŘEHLED ============ -->
+<!-- ============ DENÍK PÉČE (rodina) ============ -->
+<div class="view" id="view-care-journal">
+  <div class="wrap">
+    <div class="page-head booking-page-head"><div><h1>Deník péče</h1><p>Zápisy pečovatelek z jednotlivých návštěv: nálada, jídlo, aktivity, léky a vzkazy pro vás.</p></div><select class="inp cj-month-sel" id="cjMonthSel" aria-label="Filtrovat podle měsíce" onchange="cjMonth=this.value;renderCareJournal()"></select></div>
+    <div id="careJournalSummary"></div>
+    <div class="cj-list" id="careJournalBody"></div>
+  </div>
+</div>
+
 <div class="view" id="view-fam-dash">
   <div class="wrap">
     <div class="dash-head">

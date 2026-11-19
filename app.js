@@ -253,7 +253,7 @@ async function copyLegalLink(){
 /* ---------- NAV ---------- */
 /* stránky dostupné i bez přihlášení — vše ostatní nepřihlášeného návštěvníka pošle na Domů */
 const GUEST_ALLOWED_VIEWS=new Set(['home','search','howto','guide','profile','pricing','legal','login','register','forgot','reset-password','change-email']);
-const FAMILY_ONLY_VIEWS=new Set(['fam-dash','bookings','booking']);
+const FAMILY_ONLY_VIEWS=new Set(['fam-dash','bookings','booking','care-journal']);
 async function go(v,fromPop){
   if(!auth.loggedIn&&!GUEST_ALLOWED_VIEWS.has(v))v='home';
   // přihlášený uživatel nemá důvod vidět přihlašovací/registrační stránky — pošli ho na jeho vlastní přehled
@@ -302,6 +302,7 @@ async function go(v,fromPop){
   if(v==='cg-stats')renderCgStats();
   if(v==='chat')enterChat();
   if(v==='fam-dash')renderFamilyDash();
+  if(v==='care-journal')renderCareJournal();
   if(v==='admin-dash')renderAdminDash();
   if(v==='admin-verify')renderAdminVerify();
   if(v==='admin-caregivers')renderAdminCaregivers();
@@ -2422,7 +2423,7 @@ const DEFERRED_VIEW_IDS=new Set([
   'cg-dashboard','cg-requests','cg-calendar','cg-profile','cg-verify','cg-stats',
   'chat',
   'order-detail','login','forgot','reset-password','change-email','register',
-  'fam-dash','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-articles','admin-payments','admin-invoices','admin-reports','admin-trust','admin-helpchat',
+  'fam-dash','care-journal','admin-dash','admin-verify','admin-caregivers','admin-users','admin-orders','admin-audit','admin-broadcast','admin-plans','admin-social','admin-chats','admin-stats','admin-services','admin-articles','admin-payments','admin-invoices','admin-reports','admin-trust','admin-helpchat',
   'pricing','settings'
 ]);
 let deferredViewsLoaded=false;
@@ -2818,6 +2819,7 @@ const NAV_FAMILY=[
   {v:'fam-dash',label:'Přehled',fn:"go('fam-dash')"},
   {v:'search',label:'Hledat péči',fn:"go('search')"},
   {v:'bookings',label:'Moje objednávky',fn:"go('bookings')"},
+  {v:'care-journal',label:'Deník péče',fn:"go('care-journal')"},
   {v:'chat',label:'Zprávy',fn:"go('chat')"},
   {v:'guide',label:'Průvodce péčí',fn:"openGuideHome()"}
 ];
@@ -6755,6 +6757,7 @@ let NOTIFICATIONS=[];
 let RECURRING_BOOKINGS=[];
 let FAMILY_CARE_TEAM={owner:null,members:[],invitations:[],memberships:[]};
 let CARE_NOTES=[];
+let CARE_JOURNAL=[];
 let FAMILY_CARE_PROFILES={};
 let ORDER_CARE_OPS=[];
 let CARE_VISIT_PINS={};
@@ -7555,6 +7558,80 @@ function visitCheck(oid,action){const pin=(document.getElementById('visitPin'+oi
 function addVisitTask(event,oid){event.preventDefault();const el=document.getElementById('visitTask'+oid),text=(el.value||'').trim();if(!text)return false;apiSync(api('/orders/'+oid+'/care-ops',{method:'POST',body:{action:'add-task',text}}).then(r=>{syncCareOp(r);toast('Úkol byl přidán.','success');}));return false;}
 function toggleVisitTask(oid,taskId){apiSync(api('/orders/'+oid+'/care-ops',{method:'POST',body:{action:'toggle-task',taskId}}).then(syncCareOp));}
 function uploadVisitAttachment(input,oid){const file=input.files&&input.files[0];if(!file)return;if(file.size>2*1024*1024){toast('Soubor může mít nejvýše 2 MB.','declined');input.value='';return;}const reader=new FileReader();reader.onload=()=>apiSync(api('/orders/'+oid+'/care-ops',{method:'POST',body:{action:'attachment',name:file.name,type:file.type,data:reader.result}}).then(r=>{syncCareOp(r);toast('Příloha byla bezpečně uložena.','success');}));reader.onerror=()=>toast('Soubor se nepodařilo načíst.','declined');reader.readAsDataURL(file);}
+/* ---------- DENÍK PÉČE (zápis z návštěvy + časová osa pro rodinu) ---------- */
+const CJ_MOODS={good:{icon:'😊',label:'Dobrá nálada'},ok:{icon:'😐',label:'Běžná nálada'},bad:{icon:'😟',label:'Horší nálada'}};
+const CJ_LEVELS={all:'vše',part:'část',none:'nic'};
+const CJ_MEDS={given:'Léky podány',missed:'Léky nepodány',none:'Bez léků'};
+const CJ_ACTIVITIES={hygiena:'Hygiena',jidlo:'Příprava jídla',prochazka:'Procházka',cviceni:'Cvičení',spolecnost:'Společnost a rozhovor',domacnost:'Domácnost',nakup:'Nákup',lekar:'Doprovod k lékaři',odpocinek:'Odpočinek'};
+let cjPhotoData=null,cjRemovePhoto=false,cjMonth='';
+function careJournalFor(oid){return CARE_JOURNAL.find(e=>Number(e.oid)===Number(oid))||null;}
+function cjEntrySummaryHtml(e){
+  const m=CJ_MOODS[e.mood]||CJ_MOODS.ok,acts=(e.activities||[]).map(a=>`<span class="cj-chip">${esc(CJ_ACTIVITIES[a]||a)}</span>`).join('');
+  const facts=[e.food?`<span><b>Jídlo:</b> ${CJ_LEVELS[e.food]}</span>`:'',e.drink?`<span><b>Pití:</b> ${CJ_LEVELS[e.drink]}</span>`:'',e.meds?`<span class="cj-meds-${e.meds}"><b>${CJ_MEDS[e.meds]}</b>${e.medsNote?' · '+esc(e.medsNote):''}</span>`:''].filter(Boolean).join('');
+  return `<div class="cj-entry-head"><span class="cj-mood cj-mood-${e.mood}" title="${m.label}">${m.icon}</span><div><b>${m.label}</b><small>${esc(e.authorName||'')} · ${new Date(e.updatedAt||e.createdAt).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})}</small></div></div>
+    ${facts?`<div class="cj-facts">${facts}</div>`:''}${acts?`<div class="cj-chips">${acts}</div>`:''}
+    ${e.message?`<p class="cj-message">${esc(e.message)}</p>`:''}
+    ${e.photoUrl?`<a href="${esc(e.photoUrl)}" target="_blank" rel="noopener" class="cj-photo"><img src="${esc(e.photoUrl)}" alt="Fotka z návštěvy" loading="lazy"></a>`:''}`;
+}
+function cjRadioGroup(name,opts,val){return `<div class="cj-seg" role="radiogroup">${Object.entries(opts).map(([k,l])=>`<label><input type="radio" name="${name}" value="${k}" ${val===k?'checked':''}><span>${l}</span></label>`).join('')}</div>`;}
+function careJournalHtml(o){
+  if(!o.oid||!['confirmed','done'].includes(o.status))return'';
+  const e=careJournalFor(o.oid),isCg=o.viewer==='caregiver';
+  if(!e&&!isCg)return `<section class="care-journal"><div class="care-notes-head"><div><h3>Zápis z návštěvy</h3><p>Po návštěvě sem pečovatelka zapíše, jak se senior měl, co jedl a co spolu dělali.</p></div></div><div class="empty">Zápis zatím nebyl vyplněn.</div></section><div class="pdiv"></div>`;
+  const form=isCg?`<details class="cj-form-wrap" ${e?'':'open'}><summary class="btn btn-ghost btn-sm">${e?'Upravit zápis':'Vyplnit zápis z návštěvy'}</summary>
+    <form class="cj-form" onsubmit="return submitCareJournal(event,${o.oid})">
+      <label class="cj-label">Jak se senior cítil? *</label>
+      <div class="cj-seg cj-seg-mood" role="radiogroup">${Object.entries(CJ_MOODS).map(([k,m])=>`<label><input type="radio" name="cjMood" value="${k}" ${e&&e.mood===k?'checked':''} required><span>${m.icon} ${m.label}</span></label>`).join('')}</div>
+      <div class="cj-row"><div><label class="cj-label">Snědl(a)</label>${cjRadioGroup('cjFood',CJ_LEVELS,e&&e.food)}</div><div><label class="cj-label">Vypil(a)</label>${cjRadioGroup('cjDrink',CJ_LEVELS,e&&e.drink)}</div></div>
+      <label class="cj-label">Co jste spolu dělali</label>
+      <div class="cj-acts">${Object.entries(CJ_ACTIVITIES).map(([k,l])=>`<label><input type="checkbox" name="cjAct" value="${k}" ${e&&(e.activities||[]).includes(k)?'checked':''}><span>${l}</span></label>`).join('')}</div>
+      <label class="cj-label">Léky</label>${cjRadioGroup('cjMeds',CJ_MEDS,e&&e.meds)}
+      <input class="inp" id="cjMedsNote" maxlength="300" placeholder="Poznámka k lékům (nepovinné)" value="${esc(e&&e.medsNote||'')}">
+      <label class="cj-label" for="cjMessage">Vzkaz pro rodinu</label>
+      <textarea class="inp" id="cjMessage" maxlength="1500" rows="3" placeholder="Jak návštěva proběhla, co je potřeba dokoupit… Neuvádějte citlivé diagnózy.">${esc(e&&e.message||'')}</textarea>
+      <label class="cj-label">Fotka (nepovinné)</label>
+      <div class="cj-photo-row"><input type="file" id="cjPhoto" accept="image/jpeg,image/png,image/webp" onchange="cjPickPhoto(this)">${e&&e.photoUrl?`<label class="cj-remove"><input type="checkbox" id="cjRemovePhoto" onchange="cjRemovePhoto=this.checked"> Odebrat stávající fotku</label>`:''}</div>
+      <small class="cj-hint">Fotku pořizujte jen se souhlasem seniora a bez citlivých detailů.</small>
+      <div><button class="btn btn-gold" type="submit" id="cjSubmit">${e?'Uložit změny':'Uložit zápis'}</button></div>
+    </form></details>`:'';
+  return `<section class="care-journal"><div class="care-notes-head"><div><h3>Zápis z návštěvy</h3><p>${isCg?'Krátký zápis uvidí rodina i přizvaní členové sdílené péče. Rodina dostane upozornění.':'Zápis vyplnila pečovatelka po návštěvě.'}</p></div></div>${e?`<div class="cj-entry">${cjEntrySummaryHtml(e)}</div>`:''}${form}</section><div class="pdiv"></div>`;
+}
+/* fotku zmenšíme v prohlížeči (max 1600 px, JPEG) — šetří data i místo v databázi */
+function cjPickPhoto(input){
+  cjPhotoData=null;const file=input.files&&input.files[0];if(!file)return;
+  if(!/^image\/(jpeg|png|webp)$/.test(file.type)){toast('Použijte fotku JPG, PNG nebo WebP.','declined');input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=()=>{const img=new Image();img.onload=()=>{const max=1600,sc=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);cjPhotoData=c.toDataURL('image/jpeg',0.82);};img.onerror=()=>{toast('Fotku se nepodařilo načíst.','declined');input.value='';};img.src=reader.result;};
+  reader.onerror=()=>toast('Fotku se nepodařilo načíst.','declined');reader.readAsDataURL(file);
+}
+function submitCareJournal(event,oid){
+  event.preventDefault();const f=event.target,val=n=>{const el=f.querySelector(`input[name="${n}"]:checked`);return el?el.value:'';};
+  const body={mood:val('cjMood'),food:val('cjFood'),drink:val('cjDrink'),meds:val('cjMeds'),activities:[...f.querySelectorAll('input[name="cjAct"]:checked')].map(x=>x.value),medsNote:(document.getElementById('cjMedsNote').value||'').trim(),message:(document.getElementById('cjMessage').value||'').trim()};
+  if(!body.mood){toast('Vyberte, jak se senior cítil.','declined');return false;}
+  if(cjPhotoData)body.photo=cjPhotoData;else if(cjRemovePhoto)body.removePhoto=true;
+  const btn=document.getElementById('cjSubmit');if(btn)btn.disabled=true;
+  Promise.resolve(apiSync(api('/orders/'+oid+'/care-journal',{method:'POST',body}).then(r=>{
+    if(r&&r.entry){const i=CARE_JOURNAL.findIndex(x=>Number(x.oid)===Number(oid));if(i>=0)CARE_JOURNAL[i]=r.entry;else CARE_JOURNAL.push(r.entry);}
+    cjPhotoData=null;cjRemovePhoto=false;renderOrderDetail();toast('Zápis z návštěvy byl uložen. Rodina dostala upozornění.','success');
+  }))).finally(()=>{if(btn)btn.disabled=false;});
+  return false;
+}
+function renderCareJournal(){
+  const root=document.getElementById('careJournalBody');if(!root)return;
+  const rows=CARE_JOURNAL.map(e=>({e,o:ORDERS.find(o=>Number(o.oid)===Number(e.oid))})).filter(x=>x.o).sort((a,b)=>String(b.o.date+(b.o.time||'')).localeCompare(String(a.o.date+(a.o.time||''))));
+  const months=[...new Set(rows.map(x=>x.o.date.slice(0,7)))];
+  if(cjMonth&&!months.includes(cjMonth))cjMonth='';
+  const sel=document.getElementById('cjMonthSel');
+  if(sel)sel.innerHTML=`<option value="">Všechny měsíce</option>`+months.map(m=>{const [y,mo]=m.split('-');return `<option value="${m}" ${m===cjMonth?'selected':''}>${new Date(Number(y),Number(mo)-1,1).toLocaleDateString('cs-CZ',{month:'long',year:'numeric'})}</option>`;}).join('');
+  const shown=cjMonth?rows.filter(x=>x.o.date.startsWith(cjMonth)):rows;
+  const sumEl=document.getElementById('careJournalSummary');
+  if(sumEl){
+    const cnt={good:0,ok:0,bad:0};shown.forEach(x=>cnt[x.e.mood]=(cnt[x.e.mood]||0)+1);
+    const missed=shown.filter(x=>x.e.meds==='missed').length,strip=shown.slice(0,30).reverse().map(x=>`<span class="cj-mood-dot cj-mood-${x.e.mood}" title="${fmtDate(x.o.date)} · ${CJ_MOODS[x.e.mood].label}">${CJ_MOODS[x.e.mood].icon}</span>`).join('');
+    sumEl.innerHTML=shown.length?`<div class="care-month-summary"><div><span>Zápisů</span><b>${shown.length}</b></div><div><span>${CJ_MOODS.good.icon} Dobrá nálada</span><b>${cnt.good}</b></div><div><span>${CJ_MOODS.bad.icon} Horší nálada</span><b>${cnt.bad}</b></div><div><span>Nepodané léky</span><b>${missed}</b></div></div>${strip?`<div class="cj-mood-strip" aria-label="Nálada v čase (od nejstarší)">${strip}</div>`:''}`:'';
+  }
+  root.innerHTML=shown.length?shown.map(({e,o})=>{const c=cg(o.cid)||{};return `<article class="cj-card"><div class="cj-card-meta"><div><b>${fmtDate(o.date)}</b><span>${esc(sNames(o.service))} · ${esc(c.name||e.authorName||'')}</span></div><button class="btn btn-ghost btn-sm" onclick="openFamilyOrder(${o.oid})">Detail návštěvy</button></div>${cjEntrySummaryHtml(e)}</article>`;}).join(''):`<div class="empty">${rows.length?'V tomto měsíci není žádný zápis.':'Zatím tu nejsou žádné zápisy. Pečovatelka je vyplní po každé návštěvě a vy dostanete upozornění.'}</div>`;
+}
 async function findReplacement(oid){const o=ORDERS.find(x=>x.oid===oid);if(!o)return;activeFilter=String(o.service||'').split(',')[0]||'';CARE_MATCH_SCORES={};CAREGIVERS.filter(c=>c.id!==o.cid&&c.verified&&!c.suspended&&hasPerm(c,'publishServices')).forEach(c=>{let score=55+(c.services.includes(activeFilter)?25:0)+Math.round(c.rating*3);CARE_MATCH_SCORES[c.id]=Math.min(99,score);});go('search');renderFilters();const on=document.getElementById('availFilterOn');if(on){on.checked=true;document.getElementById('availFilterRow').hidden=false;document.getElementById('availDate').value=o.date;document.getElementById('availTime').value=o.time;document.getElementById('availHours').value=String(o.hours);await applyAvailabilityFilter();}else renderCare();toast('Zobrazujeme dostupné náhradní pečovatelky pro původní termín.','success');}
 function renderOrderDetail(){
   const o=curOrder;if(!o)return;
@@ -7629,7 +7706,7 @@ function renderOrderDetail(){
       <h3>Průběh objednávky</h3>
       <div class="timeline">${tl}</div>
       <div class="pdiv"></div>
-      ${careNotesHtml(o)}
+      ${careJournalHtml(o)}${careNotesHtml(o)}
       <div class="pdiv"></div>
       ${visitManagementHtml(o)}
     </div>
@@ -8707,6 +8784,7 @@ async function bootstrap(){
   FAVORITES=d.favorites||[];
   FAMILY_CARE_TEAM=d.familyCareTeam||{owner:null,members:[],invitations:[],memberships:[]};
   CARE_NOTES=d.careNotes||[];
+  CARE_JOURNAL=d.careJournal||[];
   FAMILY_CARE_PROFILES=d.familyCareProfiles||{};
   ORDER_CARE_OPS=d.orderCareOps||[];
   unreadNotifCount=Number(d.unreadNotifCount)||0;

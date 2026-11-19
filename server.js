@@ -4875,6 +4875,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
   if (viewer === 'family') visibleFamilyEmails.add(String(req.session.email || '').toLowerCase());
   const careProfilesForViewer = req.session ? cleanCareProfiles(await loadSettingArray(FAMILY_CARE_PROFILES_KEY)).filter((p) => visibleFamilyEmails.has(p.ownerEmail)) : [];
   const careOpsForViewer = req.session ? cleanCareOps(await loadSettingArray(ORDER_CARE_OPS_KEY)).filter((o) => visibleOrderIds.has(o.oid)) : [];
+  const careJournalForViewer = req.session ? cleanCareJournal(await loadSettingArray(CARE_JOURNAL_KEY)).filter((e) => visibleOrderIds.has(e.oid)) : [];
 
   // cgReviews: { [caregiverId]: [{init,name,stars,text}] } + obecné recenze (caregiver_id null)
   const cgReviews = {};
@@ -4968,6 +4969,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     favorites: viewer === 'family' ? (favoriteRows || []).map((f) => Number(f.caregiver_id)) : [],
     familyCareTeam: viewer === 'family' ? publicFamilyTeamContext(familyContext) : null,
     careNotes: careNotesForViewer.map((n) => ({ id: n.id, oid: n.oid, authorName: n.authorName, authorRole: n.authorRole, text: n.text, createdAt: n.createdAt })),
+    careJournal: careJournalForViewer.map(publicCareJournalEntry),
     familyCareProfiles: careProfilesForViewer.reduce((out, p) => { out[p.ownerEmail] = { ...p, ownerEmail: undefined }; return out; }, {}),
     orderCareOps: careOpsForViewer.map((o) => ({ ...o, pinHash: undefined, attachments: o.attachments.map((a) => ({ id: a.id, name: a.name, type: a.type, authorName: a.authorName, createdAt: a.createdAt, url: `/api/orders/${o.oid}/attachments/${a.id}` })) })),
     unreadNotifCount: req.session ? (unreadNotifRows || []).length : 0,
@@ -5341,6 +5343,90 @@ app.post('/api/orders/:oid/care-notes', requireAuth, rateLimit('care-notes', RAT
     const caregiver = await restSelect(T.caregivers, `id=eq.${Number(order.cid)}&select=user_id&limit=1`); if (caregiver && caregiver[0] && caregiver[0].user_id) await createNotification(caregiver[0].user_id, { type: 'care-note', title: 'Nový záznam od rodiny', body: `Rodina přidala záznam k objednávce č. ${oid}.`, link: 'cg-calendar' });
   }
   res.status(201).json({ ok: true, note: { id: note.id, oid: note.oid, authorName: note.authorName, authorRole: note.authorRole, text: note.text, createdAt: note.createdAt } });
+}));
+
+/* ---------------- DENÍK PÉČE (strukturovaný zápis z návštěvy) ----------------
+   Jeden zápis na objednávku, píše ho pečovatelka objednávky (případně admin).
+   Fotky se ukládají každá do vlastního řádku settings (klíč CARE_JOURNAL_PHOTO_PREFIX + id),
+   aby se seznam zápisů načítal v bootstrapu bez velkých dat. */
+const CARE_JOURNAL_KEY = 'careJournalV1';
+const CARE_JOURNAL_PHOTO_PREFIX = 'careJournalPhotoV1:';
+const CARE_JOURNAL_MOODS = ['good', 'ok', 'bad'];
+const CARE_JOURNAL_LEVELS = ['all', 'part', 'none'];
+const CARE_JOURNAL_MEDS = ['given', 'missed', 'none'];
+const CARE_JOURNAL_ACTIVITIES = ['hygiena', 'jidlo', 'prochazka', 'cviceni', 'spolecnost', 'domacnost', 'nakup', 'lekar', 'odpocinek'];
+function pickEnum(value, allowed) { const v = String(value || ''); return allowed.includes(v) ? v : ''; }
+function cleanCareJournal(rows) {
+  return (Array.isArray(rows) ? rows : []).map((e) => ({
+    id: Number(e && e.id), oid: Number(e && e.oid),
+    authorEmail: trimmedString(e && e.authorEmail, 320).toLowerCase(), authorName: trimmedString(e && e.authorName, 120),
+    mood: pickEnum(e && e.mood, CARE_JOURNAL_MOODS), food: pickEnum(e && e.food, CARE_JOURNAL_LEVELS), drink: pickEnum(e && e.drink, CARE_JOURNAL_LEVELS),
+    activities: [...new Set((Array.isArray(e && e.activities) ? e.activities : []).filter((a) => CARE_JOURNAL_ACTIVITIES.includes(a)))],
+    meds: pickEnum(e && e.meds, CARE_JOURNAL_MEDS), medsNote: trimmedString(e && e.medsNote, 300),
+    message: trimmedString(e && e.message, 1500), hasPhoto: !!(e && e.hasPhoto),
+    createdAt: e && e.createdAt || null, updatedAt: e && e.updatedAt || null,
+  })).filter((e) => e.id > 0 && e.oid > 0 && e.mood).slice(-10000);
+}
+function publicCareJournalEntry(e) {
+  return { id: e.id, oid: e.oid, authorName: e.authorName, mood: e.mood, food: e.food, drink: e.drink, activities: e.activities, meds: e.meds, medsNote: e.medsNote, message: e.message, photoUrl: e.hasPhoto ? `/api/orders/${e.oid}/care-journal/photo?v=${encodeURIComponent(e.updatedAt || e.createdAt || '')}` : null, createdAt: e.createdAt, updatedAt: e.updatedAt };
+}
+async function notifyFamilyOfJournal(order, entry, isUpdate) {
+  const owner = String(order.family_email || '').toLowerCase();
+  const teams = cleanFamilyTeams(await loadSettingArray(FAMILY_CARE_TEAMS_KEY));
+  const team = teams.find((t) => t.ownerEmail === owner);
+  const emails = [owner, ...(team ? team.members.filter((m) => m.status === 'active').map((m) => m.email) : [])];
+  for (const email of [...new Set(emails)]) {
+    const user = await findUserByEmail(email);
+    if (user) await createNotification(user.id, { type: 'care-journal', title: isUpdate ? 'Zápis z návštěvy byl upraven' : 'Nový zápis z návštěvy', body: `${entry.authorName} · objednávka č. ${order.oid}`, link: 'care-journal' });
+  }
+}
+app.post('/api/orders/:oid/care-journal', requireAuth, rateLimit('care-journal', RATE_LIMITS.orders), h(async (req, res) => {
+  const oid = Number(req.params.oid), b = req.body || {};
+  if (!Number.isInteger(oid) || oid <= 0) return res.status(400).json({ error: 'Neplatná objednávka.' });
+  const rows = await restSelect(T.orders, `oid=eq.${oid}&select=oid,cid,family_email,status&limit=1`), order = rows && rows[0];
+  if (!order) return res.status(404).json({ error: 'Objednávka nebyla nalezena.' });
+  let allowed = req.session.role === 'admin';
+  if (req.session.role === 'caregiver') { const own = await currentCaregiverRow(req); allowed = !!own && Number(own.id) === Number(order.cid); }
+  if (!allowed) return res.status(403).json({ error: 'Zápis z návštěvy vyplňuje pečovatelka této objednávky.' });
+  if (!['confirmed', 'done'].includes(order.status)) return res.status(400).json({ error: 'Zápis lze vyplnit až u potvrzené nebo dokončené péče.' });
+  const mood = pickEnum(b.mood, CARE_JOURNAL_MOODS);
+  if (!mood) return res.status(400).json({ error: 'Vyberte, jak se senior cítil.' });
+  let photo = null;
+  if (b.photo) {
+    photo = await sanitizePublicImageDataUrl(b.photo, 4 * 1024 * 1024);
+    if (!photo) return res.status(400).json({ error: 'Fotka musí být JPG, PNG nebo WebP do 4 MB.' });
+  }
+  const journal = cleanCareJournal(await loadSettingArray(CARE_JOURNAL_KEY));
+  const now = new Date().toISOString();
+  let entry = journal.find((e) => e.oid === oid);
+  const isUpdate = !!entry;
+  if (!entry) { entry = { id: journal.reduce((m, e) => Math.max(m, e.id), 0) + 1, oid, createdAt: now, hasPhoto: false }; journal.push(entry); }
+  Object.assign(entry, {
+    authorEmail: String(req.session.email || '').toLowerCase(), authorName: req.session.name || req.session.email, mood,
+    food: pickEnum(b.food, CARE_JOURNAL_LEVELS), drink: pickEnum(b.drink, CARE_JOURNAL_LEVELS),
+    activities: [...new Set((Array.isArray(b.activities) ? b.activities : []).filter((a) => CARE_JOURNAL_ACTIVITIES.includes(a)))],
+    meds: pickEnum(b.meds, CARE_JOURNAL_MEDS), medsNote: trimmedString(b.medsNote, 300), message: trimmedString(b.message, 1500), updatedAt: now,
+  });
+  const photoKey = CARE_JOURNAL_PHOTO_PREFIX + entry.id;
+  if (photo) { await saveSettingArray(photoKey, [{ data: photo }]); entry.hasPhoto = true; }
+  else if (b.removePhoto && entry.hasPhoto) { await restDelete(T.settings, `key=eq.${encodeURIComponent(photoKey)}`); entry.hasPhoto = false; }
+  await saveSettingArray(CARE_JOURNAL_KEY, cleanCareJournal(journal));
+  try { await notifyFamilyOfJournal(order, entry, isUpdate); } catch (e) { console.warn('[care-journal] notifikace selhala:', e.message); }
+  res.status(isUpdate ? 200 : 201).json({ ok: true, entry: publicCareJournalEntry(entry) });
+}));
+app.get('/api/orders/:oid/care-journal/photo', requireAuth, h(async (req, res) => {
+  const oid = Number(req.params.oid), orderRows = await restSelect(T.orders, `oid=eq.${oid}&select=oid,cid,family_email&limit=1`), order = orderRows && orderRows[0];
+  if (!order) return res.status(404).send('Nenalezeno');
+  const ownCg = req.session.role === 'caregiver' ? await currentCaregiverRow(req) : null;
+  const allowed = req.session.role === 'admin' || (!!ownCg && Number(ownCg.id) === Number(order.cid)) || (req.session.role === 'family' && await familyCanAccessOrder(req.session.email, order));
+  if (!allowed) return res.status(403).send('Zakázáno');
+  const entry = cleanCareJournal(await loadSettingArray(CARE_JOURNAL_KEY)).find((e) => e.oid === oid);
+  if (!entry || !entry.hasPhoto) return res.status(404).send('Nenalezeno');
+  const stored = (await loadSettingArray(CARE_JOURNAL_PHOTO_PREFIX + entry.id))[0];
+  const parsed = stored && decodeDataUrl(stored.data, { maxBytes: 4 * 1024 * 1024, allowedTypes: PUBLIC_IMAGE_MIME_TYPES });
+  if (!parsed) return res.status(404).send('Nenalezeno');
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  res.type(parsed.mime).send(parsed.bytes);
 }));
 
 app.get('/api/orders/:oid/receipt.pdf', requireAuth, h(async (req, res) => {
