@@ -3186,14 +3186,61 @@ app.post('/api/presence/ping', requireAuth, h(async (req, res) => {
   res.json({ ok: true, at: now });
 }));
 
-// veřejné: stav pečovatelky (podle jejího caregiver id)
+/* veřejný profil ukazuje aktivitu jen hrubě (kvůli soukromí pečovatelek — žádný přesný čas):
+   online | recent (do hodiny) | today | yesterday | week (do 7 dní) | null (déle → nic nezobrazit).
+   Den se počítá v pražském čase, ať „včera“ sedí i kolem půlnoci. */
+function pragueDayKey(ms) { return new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); }
+function activityBucket(lastSeen, live) {
+  const p = presenceOf(lastSeen, live);
+  if (p.online) return 'online';
+  if (!p.lastSeen) return null;
+  const t = Date.parse(p.lastSeen), now = Date.now(), diff = now - t;
+  if (diff < 60 * 60 * 1000) return 'recent';
+  if (pragueDayKey(t) === pragueDayKey(now)) return 'today';
+  if (pragueDayKey(t) === pragueDayKey(now - 24 * 60 * 60 * 1000)) return 'yesterday';
+  if (diff < 7 * 24 * 60 * 60 * 1000) return 'week';
+  return null;
+}
+/* jak rychle pečovatelka obvykle odpovídá rodinám: medián doby od první nezodpovězené zprávy protistrany
+   do její odpovědi za posledních 60 dní (min. 3 odpovědi). Výsledek je hrubý a hodinu se cachuje. */
+const responseTimeCache = new Map();
+async function caregiverResponseBucket(uid) {
+  if (!uid) return null;
+  const hit = responseTimeCache.get(String(uid));
+  if (hit && Date.now() - hit.at < 60 * 60 * 1000) return hit.bucket;
+  let bucket = null;
+  try {
+    const convs = await restSelect(T.conversations, `or=(user_a.eq.${encodeURIComponent(uid)},user_b.eq.${encodeURIComponent(uid)})&select=id&limit=200`);
+    const ids = (convs || []).map((c) => Number(c.id)).filter((n) => Number.isInteger(n) && n > 0);
+    if (ids.length) {
+      const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+      const msgs = await restSelect(T.messages, `conversation_id=in.(${ids.join(',')})&created_at=gte.${encodeURIComponent(since)}&select=conversation_id,sender_id,created_at&order=created_at.asc&limit=3000`);
+      const waiting = new Map(), samples = [];
+      for (const m of msgs || []) {
+        const cid = Number(m.conversation_id), t = Date.parse(m.created_at);
+        if (!Number.isFinite(t)) continue;
+        if (String(m.sender_id) === String(uid)) { if (waiting.has(cid)) { samples.push(t - waiting.get(cid)); waiting.delete(cid); } }
+        else if (!waiting.has(cid)) waiting.set(cid, t);
+      }
+      if (samples.length >= 3) {
+        samples.sort((a, b) => a - b);
+        const median = samples[Math.floor(samples.length / 2)], h = 60 * 60 * 1000;
+        bucket = median <= h ? 'hour' : (median <= 3 * h ? 'hours' : (median <= 24 * h ? 'day' : null));
+      }
+    }
+  } catch (e) { console.warn('[presence] response time:', e.message); }
+  responseTimeCache.set(String(uid), { at: Date.now(), bucket });
+  return bucket;
+}
+// veřejné: stav pečovatelky (podle jejího caregiver id) — jen hrubé údaje, bez přesného času
 app.get('/api/presence/caregiver/:id', h(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const id = Number(req.params.id);
-  if (!Number.isInteger(id) || id <= 0) return res.json({ online: false, lastSeen: null });
+  if (!Number.isInteger(id) || id <= 0) return res.json({ online: false, activity: null, response: null });
   const rows = await restSelect(T.caregivers, `id=eq.${id}&select=user_id&limit=1`);
   const uid = rows && rows[0] ? rows[0].user_id : null;
-  return res.json(presenceOf(await lastSeenByUserId(uid), uid && userOnline(uid)));
+  const activity = uid ? activityBucket(await lastSeenByUserId(uid), userOnline(uid)) : null;
+  return res.json({ online: activity === 'online', activity, response: uid ? await caregiverResponseBucket(uid) : null });
 }));
 
 // v chatu: stav protistran konverzací (jen pro přihlášené účastníky)
@@ -4152,6 +4199,11 @@ const JS_SK_TRANSLATIONS = [
   ["<b>Zapněte si upozornění</b>", "<b>Zapnite si upozornenia</b>"],
   ["onclick=\"enablePush()\">Zapnout</button>", "onclick=\"enablePush()\">Zapnúť</button>"],
   ["onclick=\"dismissPushPrompt()\">Teď ne</button>", "onclick=\"dismissPushPrompt()\">Teraz nie</button>"],
+  // profil pečovatelky — aktivita a doba odpovědi
+  ["const PROFILE_RESPONSE_SHORT={hour:'do hodiny',hours:'do pár hodin',day:'do 24 hodin'};", "const PROFILE_RESPONSE_SHORT={hour:'do hodiny',hours:'do pár hodín',day:'do 24 hodín'};"],
+  ["const PROFILE_ACTIVITY_TXT={online:'Online teď',recent:'Aktivní před chvílí',today:'Aktivní dnes',yesterday:'Aktivní včera',week:'Aktivní tento týden'};", "const PROFILE_ACTIVITY_TXT={online:'Online teraz',recent:'Aktívna pred chvíľou',today:'Aktívna dnes',yesterday:'Aktívna včera',week:'Aktívna tento týždeň'};"],
+  ["const PROFILE_RESPONSE_TXT={hour:'Obvykle odpovídá do hodiny',hours:'Obvykle odpovídá do pár hodin',day:'Obvykle odpovídá do 24 hodin'};", "const PROFILE_RESPONSE_TXT={hour:'Zvyčajne odpovedá do hodiny',hours:'Zvyčajne odpovedá do pár hodín',day:'Zvyčajne odpovedá do 24 hodín'};"],
+  ["title=\"Online teď\" hidden></span>", "title=\"Online teraz\" hidden></span>"],
 ];
 function translateAppJsToSk(src) {
   let out = src;

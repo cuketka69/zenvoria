@@ -2125,3 +2125,8 @@ html[data-theme=dark] .mfa-box{background:#123323;color:#EAF2EC}
 .mfa-backup ul{list-style:none;padding:0;margin:0 0 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.mfa-backup code{font-size:15px;letter-spacing:1px}
 .mfa-notice{margin-bottom:22px}
 @media (max-width:480px){.mfa-inline-form .inp{max-width:none;flex:1 1 100%}}
+.pava-wrap{position:relative;flex:0 0 auto}
+.pava-dot{position:absolute;right:6px;bottom:6px;width:18px;height:18px;border-radius:50%;background:#2FB463;border:3px solid var(--white);box-shadow:0 0 0 3px rgba(47,180,99,.22)}
+.profile-presence{flex-wrap:wrap;gap:6px 16px}.profile-presence .pres-item{display:inline-flex;align-items:center;gap:7px}
+.profile-presence .pres-resp{color:var(--muted);font-weight:500}.profile-presence .pres-resp svg{color:#C9A233}
+html[data-theme=dark] .presence.is-online{color:#6FD99A}

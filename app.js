@@ -1777,13 +1777,13 @@ async function openProfile(id,fromPop){
   grid.innerHTML=`
     <div class="pcard">
       <div class="phead">
-        ${avaHtml(c.init,c.photo)}
+        <div class="pava-wrap">${avaHtml(c.init,c.photo)}<span class="pava-dot" id="profileAvaDot" title="Online teď" hidden></span></div>
         <div>
           <h1>${esc(dispName(c))}</h1>
           <div class="pmeta">
             <span class="stars">${starsRow(5)} <b style="color:var(--navy-900)">${c.rating}</b> <span style="color:var(--muted)">(${c.reviews} hodnocení)</span></span>
           </div>
-          <div class="presence" id="profilePresence" hidden><span class="pres-dot"></span><span class="pres-txt"></span></div>
+          <div class="presence profile-presence" id="profilePresence" hidden></div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             ${cgBadges(c)}
             ${c.cert?`<span class="chip">${capSVG()} Ověřené vzdělání</span>`:''}
@@ -1821,7 +1821,7 @@ async function openProfile(id,fromPop){
       <div class="row"><span class="l">Doprava</span><span class="r">${kmLabel(c)}</span></div>
       <div class="row"><span class="l">Dojezd</span><span class="r">${esc(c.loc)} do ${c.radius} km</span></div>
       <div class="row"><span class="l">Dostupnost</span><span class="r" style="color:var(--gold-deep)">Tento týden</span></div>
-      <div class="row"><span class="l">Reakce</span><span class="r">do 2 hodin</span></div>
+      <div class="row" id="profileRespRow" hidden><span class="l">Reakce</span><span class="r" id="profileRespVal"></span></div>
       <div class="total-row"><span class="l">${c.priceType==='indiv'?'Cena':'Od'}</span><span class="big">${c.priceType==='indiv'?'Dohodou':priceShort(c).replace(/<b>|<\/b>/g,'')}</span></div>
       <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openBooking(${c.id})">Objednat službu</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="openChat(${c.id},${jsq(c.name)},${jsq(c.init)},'caregiver')">Napsat zprávu</button>
@@ -1866,10 +1866,27 @@ async function fetchCaregiverPresence(id){
   try{const r=await fetch('/api/presence/caregiver/'+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw 0;return await r.json();}
   catch(e){return null;}
 }
+/* veřejný profil: lidský text místo přesného času + zelená tečka u fotky + jak rychle odpovídá */
+const PROFILE_ACTIVITY_TXT={online:'Online teď',recent:'Aktivní před chvílí',today:'Aktivní dnes',yesterday:'Aktivní včera',week:'Aktivní tento týden'};
+const PROFILE_RESPONSE_TXT={hour:'Obvykle odpovídá do hodiny',hours:'Obvykle odpovídá do pár hodin',day:'Obvykle odpovídá do 24 hodin'};
+const PROFILE_RESPONSE_SHORT={hour:'do hodiny',hours:'do pár hodin',day:'do 24 hodin'};
+function applyProfilePresence(p){
+  const el=document.getElementById('profilePresence'),dot=document.getElementById('profileAvaDot');
+  const act=p&&PROFILE_ACTIVITY_TXT[p.activity]?p.activity:null,resp=p&&PROFILE_RESPONSE_TXT[p.response]?p.response:null;
+  if(dot){dot.hidden=act!=='online';}
+  const rr=document.getElementById('profileRespRow'),rv=document.getElementById('profileRespVal');
+  if(rr&&rv){rr.hidden=!resp;rv.textContent=resp?PROFILE_RESPONSE_SHORT[resp]:'';}
+  if(!el)return;
+  if(!act&&!resp){el.hidden=true;return;}
+  const fresh=act==='online'||act==='recent';
+  el.classList.toggle('is-online',fresh);el.classList.toggle('is-offline',!fresh);
+  el.innerHTML=(act?`<span class="pres-item"><span class="pres-dot ${fresh?'is-online':'is-offline'}" aria-hidden="true"></span><span class="pres-txt">${PROFILE_ACTIVITY_TXT[act]}</span></span>`:'')
+    +(resp?`<span class="pres-item pres-resp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>${PROFILE_RESPONSE_TXT[resp]}</span>`:'');
+  el.hidden=false;
+}
 async function refreshProfilePresence(id){
-  const el=document.getElementById('profilePresence');
-  if(!el||state.caregiverId!==id||activeView()!=='profile')return;
-  applyPresence(el,await fetchCaregiverPresence(id));
+  if(state.caregiverId!==id||activeView()!=='profile')return;
+  applyProfilePresence(await fetchCaregiverPresence(id));
 }
 function startProfilePresence(id){
   if(profilePresenceTimer){clearInterval(profilePresenceTimer);profilePresenceTimer=null;}
