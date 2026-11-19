@@ -1442,6 +1442,33 @@ function renderHome(){
   });
 }
 
+/* ---------- HERO: hloubka za myší a při scrollu ----------
+   fotka v oblouku, její mosazný rám a linky se posouvají každá jinak rychle → jemný prostorový dojem.
+   Jen na zařízeních s myší; při „omezit pohyb“ se nic nehýbe a vlnění linek se zastaví. */
+(function initHeroMotion(){
+  const hero=document.querySelector('.zv-hero');if(!hero)return;
+  setTimeout(()=>document.documentElement.classList.add('zv-intro'),6000); // pojistka, kdyby se načítání zaseklo
+  const arch=hero.querySelector('.zv-arch'),frame=hero.querySelector('.zv-arch-frame'),lines=hero.querySelector('.zv-lines');
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce){if(lines&&lines.pauseAnimations)lines.pauseAnimations();return;}
+  const fine=window.matchMedia&&window.matchMedia('(pointer: fine)').matches;
+  let tx=0,ty=0,cx=0,cy=0,raf=0,visible=true;
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  function frameTick(){
+    cx=lerp(cx,tx,.07);cy=lerp(cy,ty,.07);
+    const sy=Math.min(window.scrollY,hero.offsetHeight);
+    if(arch)arch.style.transform=`translate3d(${(-cx*10).toFixed(2)}px,${(-cy*8-sy*.08).toFixed(2)}px,0)`;
+    if(frame)frame.style.transform=`translate3d(${(cx*9).toFixed(2)}px,${(cy*7+sy*.03).toFixed(2)}px,0)`;
+    if(lines)lines.style.transform=`translate3d(${(cx*5).toFixed(2)}px,${(cy*4+sy*.05).toFixed(2)}px,0)`;
+    raf=(visible&&(Math.abs(cx-tx)>.001||Math.abs(cy-ty)>.001))?requestAnimationFrame(frameTick):0;
+  }
+  const kick=()=>{if(!raf&&visible)raf=requestAnimationFrame(frameTick);};
+  if(fine)hero.addEventListener('pointermove',e=>{const r=hero.getBoundingClientRect();tx=((e.clientX-r.left)/r.width-.5)*2;ty=((e.clientY-r.top)/r.height-.5)*2;kick();},{passive:true});
+  if(fine)hero.addEventListener('pointerleave',()=>{tx=0;ty=0;kick();});
+  window.addEventListener('scroll',()=>{if(visible)requestAnimationFrame(frameTick);},{passive:true});
+  if('IntersectionObserver'in window)new IntersectionObserver(es=>{visible=es[0].isIntersecting;if(lines&&lines.pauseAnimations){visible?lines.unpauseAnimations():lines.pauseAnimations();}},{threshold:0}).observe(hero);
+})();
+
 /* ---------- SEARCH RENDER ---------- */
 let activeFilter='';
 /* vzdálenost od zadané lokality — vyplní se jen když uživatel vybere návrh se souřadnicemi (vlastní adresní DB) */
@@ -9280,6 +9307,8 @@ async function initApp(){
 function hideAppLoader(){
   const el=document.getElementById('appLoader');
   if(el){el.classList.add('hide');el.setAttribute('aria-hidden','true');}
+  // úvodní animace hero se spustí až teď, ne schovaná pod načítací obrazovkou
+  requestAnimationFrame(()=>document.documentElement.classList.add('zv-intro'));
 }
 
 /* ---------- OVĚŘENÍ E-MAILU ---------- */

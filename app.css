@@ -2280,3 +2280,44 @@ footer h5{font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:600;lett
 #view-home .zv-aud .aud{background-image:none}
 #view-home .zv-aud .aud .btn{width:auto}
 @media (max-width:900px){.zv-lines .zv-line-fine{display:none}}
+
+/* =====================================================================
+   HERO — ANIMACE (redesign v2)
+   1) úvod jednou: nadpis vyjede po řádcích, oblouk se otevře zdola jako
+      okno a fotka se usadí, mosazný rám se dokreslí, linky se protáhnou
+   2) živé linky: pomalé vlnění (SVG <animate>) + světelný záblesk po mosazi
+   3) hloubka: fotka, rám a linky se jemně posouvají za myší a při scrollu (JS)
+   ===================================================================== */
+.zv-title .zv-l{display:block;overflow:hidden;padding-bottom:.1em;margin-bottom:-.1em}
+.zv-title .zv-l>span{display:inline-block;transform:translateY(108%);animation:zvRise 1.15s cubic-bezier(.2,.75,.1,1) forwards}
+.zv-title .zv-l:nth-child(2)>span{animation-delay:.14s}
+@keyframes zvRise{to{transform:none}}
+.zv-lead,.zv-hero-cta{opacity:0;animation:zvFade .9s ease .65s forwards}
+.zv-hero-cta{animation-delay:.8s}
+@keyframes zvFade{to{opacity:1}}
+.zv-promise{opacity:0;animation:zvFade 1s ease 1.3s forwards}
+
+/* oblouk: místo posunutého ::before rámu je rám SVG, aby se dal „kreslit“ */
+.zv-arch::before{content:none}
+.zv-arch{will-change:transform}
+.zv-arch-frame{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:0}
+.zv-arch-frame path{fill:none;stroke:rgba(214,183,118,.85);stroke-width:1;vector-effect:non-scaling-stroke;stroke-dasharray:1;stroke-dashoffset:1;animation:zvDraw 2.2s cubic-bezier(.65,0,.25,1) .9s forwards}
+.zv-arch img{position:relative;z-index:1;clip-path:inset(100% 0 0 0 round 999px 999px 22px 22px);transform:scale(1.14);animation:zvOpen 1.5s cubic-bezier(.75,0,.2,1) .25s forwards,zvSettle 2.6s cubic-bezier(.2,.7,.1,1) .25s forwards}
+@keyframes zvOpen{to{clip-path:inset(0 0 0 0 round 999px 999px 22px 22px)}}
+@keyframes zvSettle{to{transform:scale(1)}}
+
+/* linky: rychlejší a jistější tah, pak záblesk světla, který po mosazi občas přeběhne */
+.zv-lines path{animation-duration:1.9s;animation-delay:.6s}
+.zv-lines path:nth-child(2){animation-delay:.8s}
+.zv-lines .zv-line-fine{animation-delay:1.1s}
+.zv-lines .zv-glint{stroke:#F7E7BE;stroke-width:2.4;opacity:0;stroke-linecap:round;stroke-dasharray:.06 1.94;stroke-dashoffset:.06;filter:drop-shadow(0 0 6px rgba(247,231,190,.85));animation:zvGlint 7.5s cubic-bezier(.45,0,.25,1) 2.8s infinite}
+@keyframes zvGlint{0%{stroke-dashoffset:.06;opacity:0}6%{opacity:1}46%{opacity:1}52%{stroke-dashoffset:-1;opacity:0}100%{stroke-dashoffset:-1;opacity:0}}
+.zv-lines{will-change:transform}
+
+@media (prefers-reduced-motion:reduce){
+  .zv-title .zv-l>span,.zv-arch img{animation:none;transform:none;clip-path:none}
+  .zv-lead,.zv-hero-cta,.zv-promise{animation:none;opacity:1}
+  .zv-arch-frame path{animation:none;stroke-dashoffset:0}
+  .zv-lines .zv-glint{display:none}
+}
+html.js:not(.zv-intro) .zv-hero,html.js:not(.zv-intro) .zv-hero *{animation-play-state:paused!important}

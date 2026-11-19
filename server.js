@@ -3287,7 +3287,7 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
 // jde o doslovná nahrazení celých frází v rámci index.html, ne o obecnou i18n vrstvu
 const HOME_SK_TRANSLATIONS = [
   // redesign úvodní stránky (2026-11) — musí být před obecnými kratšími frázemi
-  ["<h1>Péče, která drží za ruku.</h1>", "<h1>Starostlivosť, ktorá drží za ruku.</h1>"],
+  ["<span>Péče, která</span>", "<span>Starostlivosť, ktorá</span>"],
   ["Ověřené pečovatelky pro vaše blízké. Doklady i reference kontrolujeme za vás a po každé návštěvě uvidíte v deníku péče, jak se váš blízký měl.", "Overené opatrovateľky pre vašich blízkych. Doklady aj referencie kontrolujeme za vás a po každej návšteve uvidíte v denníku starostlivosti, ako sa váš blízky mal."],
   ["alt=\"Pečovatelka drží za ruku starší paní v obývacím pokoji\"", "alt=\"Opatrovateľka drží za ruku staršiu pani v obývačke\""],
   [">Průvodce péčí<", ">Sprievodca starostlivosťou<"],
