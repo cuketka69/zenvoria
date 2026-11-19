@@ -3286,6 +3286,21 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
 // zbytek appky (deferred-views.html, app.js) čeká na další fázi lokalizace (viz plán SK verze);
 // jde o doslovná nahrazení celých frází v rámci index.html, ne o obecnou i18n vrstvu
 const HOME_SK_TRANSLATIONS = [
+  // redesign úvodní stránky (2026-11) — musí být před obecnými kratšími frázemi
+  ["<h1>Péče, která drží za ruku.</h1>", "<h1>Starostlivosť, ktorá drží za ruku.</h1>"],
+  ["Ověřené pečovatelky pro vaše blízké. Doklady i reference kontrolujeme za vás a po každé návštěvě uvidíte v deníku péče, jak se váš blízký měl.", "Overené opatrovateľky pre vašich blízkych. Doklady aj referencie kontrolujeme za vás a po každej návšteve uvidíte v denníku starostlivosti, ako sa váš blízky mal."],
+  ["alt=\"Pečovatelka drží za ruku starší paní v obývacím pokoji\"", "alt=\"Opatrovateľka drží za ruku staršiu pani v obývačke\""],
+  [">Průvodce péčí<", ">Sprievodca starostlivosťou<"],
+  ["<b>Ověřené pečovatelky</b><span>Kontrolujeme doklady, vzdělání i reference.</span>", "<b>Overené opatrovateľky</b><span>Kontrolujeme doklady, vzdelanie aj referencie.</span>"],
+  ["<b>Bezpečná péče</b><span>Příchod a odchod potvrzuje PIN, platby jdou přes nás.</span>", "<b>Bezpečná starostlivosť</b><span>Príchod a odchod potvrdzuje PIN, platby idú cez nás.</span>"],
+  ["<b>Klid pro blízké</b><span>Zápis z každé návštěvy a upozornění do telefonu.</span>", "<b>Pokoj pre blízkych</b><span>Zápis z každej návštevy a upozornenia do telefónu.</span>"],
+  ["Dobrá péče začíná důvěrou. Proto každou pečovatelku poznáme dřív, než přijde k vám domů.", "Dobrá starostlivosť začína dôverou. Preto každú opatrovateľku spoznáme skôr, než príde k vám domov."],
+  ["ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Ověřujeme totožnost, vzdělání i zkušenosti a po celou dobu péče jsme vám k dispozici.", "ZENVORIA prepája rodiny s preverenými a certifikovanými opatrovateľkami. Overujeme totožnosť, vzdelanie aj skúsenosti a počas celej starostlivosti sme vám k dispozícii."],
+  ["Pečovatelky si u nás samy plánují čas, své služby a ceny. Vy vidíte jejich hodnocení od jiných rodin a vybíráte podle toho, co váš blízký opravdu potřebuje.", "Opatrovateľky si u nás samy plánujú čas, svoje služby a ceny. Vy vidíte ich hodnotenia od iných rodín a vyberáte podľa toho, čo váš blízky naozaj potrebuje."],
+  ["Dvě strany jedné péče", "Dve strany jednej starostlivosti"],
+  ["{c} Chat a deník péče", "{c} Chat a denník starostlivosti"],
+  ["Od osobní péče po doprovod k lékaři. Vyberte si přesně to, co je třeba.", "Od osobnej starostlivosti po sprievod k lekárovi. Vyberte si presne to, čo treba."],
+  [">Všechny služby<", ">Všetky služby<"],
   // <head> SEO
   ['ZENVORIA — Péče s lidskostí | Ověřené pečovatelky pro seniory', 'ZENVORIA — Starostlivosť s ľudskosťou | Overené opatrovateľky pre seniorov'],
   ['ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Najděte ověřenou pečovatelku pro své blízké — jednoduše, bezpečně a s lidským přístupem.', 'ZENVORIA prepája rodiny s preverenými a certifikovanými opatrovateľkami. Nájdite overenú opatrovateľku pre svojich blízkych — jednoducho, bezpečne a s ľudským prístupom.'],
@@ -4212,6 +4227,10 @@ const JS_SK_TRANSLATIONS = [
   ["const PROFILE_ACTIVITY_TXT={online:'Online teď',recent:'Aktivní před chvílí',today:'Aktivní dnes',yesterday:'Aktivní včera',week:'Aktivní tento týden'};", "const PROFILE_ACTIVITY_TXT={online:'Online teraz',recent:'Aktívna pred chvíľou',today:'Aktívna dnes',yesterday:'Aktívna včera',week:'Aktívna tento týždeň'};"],
   ["const PROFILE_RESPONSE_TXT={hour:'Obvykle odpovídá do hodiny',hours:'Obvykle odpovídá do pár hodin',day:'Obvykle odpovídá do 24 hodin'};", "const PROFILE_RESPONSE_TXT={hour:'Zvyčajne odpovedá do hodiny',hours:'Zvyčajne odpovedá do pár hodín',day:'Zvyčajne odpovedá do 24 hodín'};"],
   ["title=\"Online teď\" hidden></span>", "title=\"Online teraz\" hidden></span>"],
+  // redesign úvodní stránky — služby a hodnoty
+  ["<button class=\"zv-textlink\" onclick=\"fillThen(this,()=>filterByService('${s.id}'))\">Zobrazit pečovatelky</button>", "<button class=\"zv-textlink\" onclick=\"fillThen(this,()=>filterByService('${s.id}'))\">Zobraziť opatrovateľky</button>"],
+  ["const VALUES=['Lidskost','Důvěra','Respekt','Bezpečí','Profesionalita'];", "const VALUES=['Ľudskosť','Dôvera','Rešpekt','Bezpečie','Profesionalita'];"],
+  ["const VAL_SUBS=['Empatie a srdce','Prověřeno a ověřeno','Důstojnost vždy','Pojištěno a chráněno','Zkušenost a péče'];", "const VAL_SUBS=['Empatia a srdce','Preverené a overené','Dôstojnosť vždy','Poistené a chránené','Skúsenosť a starostlivosť'];"],
 ];
 function translateAppJsToSk(src) {
   let out = src;

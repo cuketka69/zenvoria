@@ -42,8 +42,8 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%230A5A34'/%3E%3Cpath d='M24 9 L38 18 V36 a2 2 0 0 1-2 2 H12 a2 2 0 0 1-2-2 V18 Z' stroke='%23C9A233' stroke-width='2' fill='none'/%3E%3Ccircle cx='24' cy='22' r='3' stroke='%23C9A233' stroke-width='2' fill='none'/%3E%3Cpath d='M24 25 c-4 0-6.5 2.5-6.5 6.5 h13 c0-4-2.5-6.5-6.5-6.5Z' stroke='%23C9A233' stroke-width='2' fill='none'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="/hero.webp" fetchpriority="high">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="/lidkost.webp" fetchpriority="high">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
@@ -123,7 +123,7 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
   <div class="scrim" onclick="toggleMenu(false)"></div>
   <div class="panel">
     <div class="mm-head">
-      <span class="word" style="font-family:'Playfair Display',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
+      <span class="word" style="font-family:'Marcellus',serif;font-weight:700;letter-spacing:.16em;color:var(--navy-900)">ZENVORIA</span>
       <button class="mm-close" aria-label="Zavřít menu" onclick="toggleMenu(false)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
@@ -146,95 +146,67 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
 
 <!-- ============ HOME ============ -->
 <div class="view active" id="view-home">
-  <section class="hero">
-    <div class="hero-bg" id="heroBg"></div>
-    <div class="wrap hero-grid">
-      <div>
+  <section class="zv-hero">
+   <div class="zv-stage">
+    <svg class="zv-lines" viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path pathLength="1" d="M-40 742 C 260 612, 520 880, 870 712 S 1270 470, 1480 566"/>
+      <path pathLength="1" d="M-40 806 C 300 676, 548 944, 902 772 S 1296 548, 1480 644"/>
+      <path pathLength="1" class="zv-line-fine" d="M1010 -30 C 1060 150, 1290 260, 1480 150"/>
+    </svg>
+    <div class="wrap zv-hero-grid">
+      <div class="zv-hero-text">
         <div id="homeGreeting" class="home-greeting" hidden></div>
-        <span class="eyebrow">Péče s lidskostí</span>
-        <h1>Ověřené pečovatelky <em>na dosah.</em> Klid pro seniory i rodiny.</h1>
-        <p class="lead">ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Jednoduše, bezpečně a s lidským přístupem.</p>
-        <div class="hero-cta">
+        <h1>Péče, která drží za ruku.</h1>
+        <p class="zv-lead">Ověřené pečovatelky pro vaše blízké. Doklady i reference kontrolujeme za vás a po každé návštěvě uvidíte v deníku péče, jak se váš blízký měl.</p>
+        <div class="zv-hero-cta">
           <button class="btn btn-gold btn-cta" onclick="go('search')">Najít pečovatelku</button>
-          <button class="btn btn-ghost" onclick="fillThen(this,()=>{go('howto')})">Jak to funguje</button>
-          <button class="btn btn-ghost hero-guide-btn" onclick="openGuideHome()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5v-16Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Průvodce péčí</button>
+          <button class="zv-textlink" onclick="go('howto')">Jak to funguje</button>
+          <button class="zv-textlink" onclick="openGuideHome()">Průvodce péčí</button>
         </div>
+      </div>
+      <figure class="zv-arch">
+        <img src="/lidkost.webp" alt="Pečovatelka drží za ruku starší paní v obývacím pokoji" width="1536" height="1024" fetchpriority="high" decoding="async">
+      </figure>
+    </div>
+   </div>
+    <div class="wrap">
+      <ul class="zv-promise">
+        <li><b>Ověřené pečovatelky</b><span>Kontrolujeme doklady, vzdělání i reference.</span></li>
+        <li><b>Bezpečná péče</b><span>Příchod a odchod potvrzuje PIN, platby jdou přes nás.</span></li>
+        <li><b>Klid pro blízké</b><span>Zápis z každé návštěvy a upozornění do telefonu.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="zv-about" id="onas">
+    <div class="wrap zv-about-grid">
+      <h2>Dobrá péče začíná důvěrou. Proto každou pečovatelku poznáme dřív, než přijde k vám domů.</h2>
+      <div class="zv-about-body">
+        <p>ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Ověřujeme totožnost, vzdělání i zkušenosti a po celou dobu péče jsme vám k dispozici.</p>
+        <p>Pečovatelky si u nás samy plánují čas, své služby a ceny. Vy vidíte jejich hodnocení od jiných rodin a vybíráte podle toho, co váš blízký opravdu potřebuje.</p>
+        <button class="btn btn-gold" onclick="go('search')">Najít pečovatelku</button>
       </div>
     </div>
   </section>
 
-  <!-- důvěra: karty přesahující na pomezí hero a sekce „O nás" -->
-  <div class="trust-band">
+  <section class="zv-aud" aria-labelledby="zvAudTitle">
     <div class="wrap">
-      <div class="trust-row">
-        <div class="trust">
-          <div class="ic">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3Z" stroke="#C9A233" stroke-width="1.6"/><path d="m9 12 2 2 4-4" stroke="#C9A233" stroke-width="1.6" stroke-linecap="round"/></svg>
-          </div>
-          <div><b>Ověřené pečovatelky</b><span>Doklady i reference</span></div>
-        </div>
-        <div class="trust">
-          <div class="ic">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z" stroke="#C9A233" stroke-width="1.6"/></svg>
-          </div>
-          <div><b>Bezpečná péče</b><span>Pojištění i platby</span></div>
-        </div>
-        <div class="trust">
-          <div class="ic">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z" stroke="#C9A233" stroke-width="1.6" stroke-linejoin="round"/></svg>
-          </div>
-          <div><b>Klid pro blízké</b><span>Přehled 24/7</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- o nás -->
-  <section class="block about" id="onas">
-    <div class="wrap">
-      <div class="sec-head">
-        <span class="eyebrow">O nás</span>
-        <h2>Péče s lidským přístupem od roku 2026.</h2>
-      </div>
-      <p class="about-lead">
-        ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Věříme, že kvalitní péče o seniory
-        stojí na <b style="color:var(--navy-900)">důvěře, lidskosti a bezpečí</b> — proto každou pečovatelku pečlivě
-        ověřujeme, kontrolujeme doklady i reference a stojíme při vás na každém kroku.
-      </p>
-      <div class="about-logo">
-        <img src="/onas.webp" alt="ZENVORIA" loading="lazy">
-      </div>
-      <div style="text-align:center;margin-top:34px">
-        <button class="btn btn-gold btn-cta btn-cta-lg" onclick="go('search')">Najít pečovatelku</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- audience -->
-  <section class="block aud-section">
-    <div class="aud-bg" id="audBg"></div>
-    <div class="wrap">
-      <div class="sec-head">
-        <span class="eyebrow">Pro koho je aplikace</span>
-        <h2>Spojujeme dvě strany jedné péče</h2>
-      </div>
-      <div class="aud-grid">
+      <h2 id="zvAudTitle" class="zv-sec-title">Dvě strany jedné péče</h2>
+      <div class="zv-aud-grid">
         <div class="aud fam">
-          <div class="ic-circ"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="#0A5A34" stroke-width="1.5"/><circle cx="17" cy="9" r="2.4" stroke="#0A5A34" stroke-width="1.5"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M15 19c0-2 1.5-3.5 4-3.5" stroke="#0A5A34" stroke-width="1.5" stroke-linecap="round"/></svg></div>
           <h3>Pro rodiny</h3>
           <p class="aud-sub">Najděte ověřenou péči pro své blízké.</p>
           <ul>
             <li>{c} Hledání ověřených pečovatelek</li>
             <li>{c} Hodnocení a recenze</li>
             <li>{c} Online rezervace služeb</li>
-            <li>{c} Chat a videohovor</li>
+            <li>{c} Chat a deník péče</li>
             <li>{c} SOS kontakt 24/7</li>
             <li>{c} Přehled objednávek a plateb</li>
           </ul>
-          <button class="btn btn-navy" onclick="go('search')">Najít péči</button>
+          <button class="btn btn-gold" onclick="go('search')">Najít péči</button>
         </div>
         <div class="aud car">
-          <div class="ic-circ"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="#C9A233" stroke-width="1.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#C9A233" stroke-width="1.5" stroke-linecap="round"/></svg></div>
           <h3>Pro pečovatelky</h3>
           <p class="aud-sub">Pomáhejte a vydělávejte s důvěrou.</p>
           <ul>
@@ -245,35 +217,29 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
             <li>{cg} Hodnocení a recenze</li>
             <li>{cg} Podpora a vzdělávání</li>
           </ul>
-          <button class="btn btn-gold" onclick="go('register');pickRole('caregiver')">Stát se pečovatelkou</button>
+          <button class="btn btn-ghost" onclick="go('register');pickRole('caregiver')">Stát se pečovatelkou</button>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- services -->
-  <section class="block" id="howto" style="background:var(--cream)">
+  <section class="zv-services" id="howto">
     <div class="wrap">
-      <div class="sec-head">
-        <span class="eyebrow">Služby v aplikaci</span>
-        <h2>Vše, co vaši blízcí potřebují</h2>
-        <p>Od osobní péče po doprovod k lékaři — vyberte si přesně to, co je třeba.</p>
+      <div class="zv-sec-head">
+        <h2 class="zv-sec-title">Vše, co vaši blízcí potřebují</h2>
+        <p>Od osobní péče po doprovod k lékaři. Vyberte si přesně to, co je třeba.</p>
       </div>
-      <div class="serv-grid" id="servGrid"></div>
-      <div style="text-align:center;margin-top:38px">
-        <button class="btn btn-gold" onclick="go('search')">Všechny služby <span style="display:inline-block;margin-left:4px">→</span></button>
+      <div class="serv-grid zv-serv-grid" id="servGrid"></div>
+      <div class="zv-center">
+        <button class="btn btn-ghost" onclick="go('search')">Všechny služby</button>
       </div>
     </div>
   </section>
 
-  <!-- values -->
-  <section class="block values-block" style="background:linear-gradient(rgba(12,28,19,.84),rgba(8,20,13,.9)),url('hands.webp') center/cover">
+  <section class="zv-values">
     <div class="wrap">
-      <div class="sec-head">
-        <span class="eyebrow">Naše hodnoty</span>
-        <h2>Péčí s lidskostí.</h2>
-      </div>
-      <div class="values" id="valuesRow"></div>
+      <h2 class="zv-sec-title">Péče s lidskostí</h2>
+      <div class="zv-values-row" id="valuesRow"></div>
     </div>
   </section>
 

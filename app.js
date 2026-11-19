@@ -1353,18 +1353,8 @@ function initReveal(){
       io.observe(el);
     });
   }
-  // hero — postupný nástup po načtení
-  ['.hero .eyebrow','.hero h1','.hero p.lead','.hero-cta'].forEach(function(sel,i){
-    const el=document.querySelector(sel);
-    if(el&&!el.dataset.rev){el.dataset.rev='1';el.classList.add('reveal');el.style.transitionDelay=(i*0.12)+'s';io.observe(el);}
-  });
-  tag('.trust-band .trust','reveal',true);
-  tag('#view-home .sec-head','reveal',false);
-  tag('.about-lead','reveal',false);
-  tag('.about-logo','reveal',false);
-  tag('.svc-card','reveal-scale',true);
-  tag('#view-home .aud','reveal',true);
-  tag('.val','reveal',true);
+  // úvodní stránka má jediný řízený moment — vykreslení mosazných linek v hero (CSS); sekce už postupně „nenajíždějí“
+  void tag;
   // navbar — stín při scrollu (navěsit jen jednou)
   const hdr=document.querySelector('header.nav');
   if(hdr&&!hdr.dataset.scrollBound){hdr.dataset.scrollBound='1';window.addEventListener('scroll',function(){hdr.classList.toggle('scrolled',window.scrollY>60);},{passive:true});}
@@ -1438,22 +1428,17 @@ const SVC_IMG={lekar:'doktor',domaci:'domacipece',pomoc:'pomocvdomacnosti',rehab
 const MAIN_SERVICES=['osobni','lekar','domaci','nakupy','nocni','nemocnice'];
 function renderHome(){
   document.getElementById('servGrid').innerHTML=MAIN_SERVICES.map(id=>SERVICES.find(s=>s.id===id)).filter(Boolean).map(s=>
-    `<div class="svc-card">
-      <div class="svc-top">
-        <div class="svc-img" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp'),linear-gradient(135deg,#1a5236,#0c2419)"></div>
-      </div>
-      <div class="svc-body">
-        <h4>${s.name}</h4>
-        <p>${s.desc||''}</p>
-        <button class="svc-btn" onclick="fillThen(this,()=>filterByService('${s.id}'))">Zobrazit pečovatelky <span>→</span></button>
-      </div>
-    </div>`).join('');
+    `<article class="svc-card zv-svc">
+      <div class="zv-svc-img" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp'),linear-gradient(135deg,#1F4A39,#0D2A20)"></div>
+      <h3>${esc(s.name)}</h3>
+      <p>${esc(s.desc||'')}</p>
+      <button class="zv-textlink" onclick="fillThen(this,()=>filterByService('${s.id}'))">Zobrazit pečovatelky</button>
+    </article>`).join('');
   document.getElementById('valuesRow').innerHTML=VALUES.map((v,i)=>
-    `<div class="val"><div class="vc">${sIcon(VAL_ICONS[i])}</div><b>${v}</b><span class="vsub">${VAL_SUBS[i]||''}</span></div>`).join('');
-  // audience check icons
+    `<div class="zv-val"><b>${v}</b><span>${VAL_SUBS[i]||''}</span></div>`).join('');
+  // body seznamů u „Pro rodiny / Pro pečovatelky“ — tenká mosazná linka místo ikon
   document.querySelectorAll('#view-home .aud li').forEach(li=>{
-    const chk='<span class="chk"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m5 12 5 5 9-11" stroke="#C9A233" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
-    li.innerHTML=li.innerHTML.replace('{c}',chk).replace('{cg}',chk);
+    li.innerHTML=li.innerHTML.replace('{c}','<span class="zv-dash" aria-hidden="true"></span>').replace('{cg}','<span class="zv-dash" aria-hidden="true"></span>');
   });
 }
 
@@ -2377,7 +2362,7 @@ function updateSummary(){
     <h3>Souhrn objednávky</h3>
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
       ${avaHtml(c.init,c.photo,'width:46px;height:46px;font-size:16px')}
-      <div><div style="font-family:'Playfair Display',serif;font-size:16px;color:#fff">${esc(c.name)}</div>
+      <div><div style="font-family:'Marcellus',serif;font-size:16px;color:#fff">${esc(c.name)}</div>
       <div style="font-size:12.5px;color:#A2B0A6">${esc(c.loc)} · ${starFillSVG(11)} ${c.rating}</div></div>
     </div>
     <div class="row"><span class="l">Služba</span><span class="r">${state.bkServices.map(sName).join(', ')}</span></div>
