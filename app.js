@@ -2555,6 +2555,7 @@ function loginAs(name,email,role,photo,publicId,emailVerified,titul){
 async function logout(){
   await unbindPushOnLogout();
   try{await api('/auth/logout',{method:'POST'});}catch(e){}
+  try{const client=await initSupabaseAuth();if(client)await client.auth.signOut();}catch(e){}
   auth.loggedIn=false;auth.name='';auth.titul='';auth.email='';auth.role='family';auth.publicId=null;auth.emailVerified=true;
   teardownRealtime();CONVERSATIONS=[];
   closeAccountMenu();
@@ -8751,6 +8752,24 @@ function sendChat(e){
    API KLIENT + NAPOJENÍ NA SERVER (Supabase přes náš /api)
    Data žijí v databázi; persist() už nepíše do localStorage.
    ==================================================================== */
+let supabaseClient=null;
+let supabaseConfigPromise=null;
+async function initSupabaseAuth(){
+  if(supabaseClient)return supabaseClient;
+  if(!supabaseConfigPromise){
+    supabaseConfigPromise=fetch('/api/config',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);
+  }
+  const cfg=await supabaseConfigPromise;
+  if(cfg&&cfg.supabaseUrl&&cfg.supabasePublishableKey&&window.supabase&&typeof window.supabase.createClient==='function'){
+    supabaseClient=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  }
+  return supabaseClient;
+}
+async function supabaseAccessToken(){
+  const client=await initSupabaseAuth();
+  if(!client)return '';
+  try{const r=await client.auth.getSession();return r&&r.data&&r.data.session&&r.data.session.access_token||'';}catch(e){return '';}
+}
 function getCookie(name){
   const safe=String(name||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const m=document.cookie.match(new RegExp('(?:^|; )'+safe+'=([^;]*)'));
@@ -8759,6 +8778,8 @@ function getCookie(name){
 async function api(path,opts){
   const method=((opts&&opts.method)||'GET').toUpperCase();
   const headers=Object.assign({'Content-Type':'application/json'},(opts&&opts.headers)||{});
+  const accessToken=await supabaseAccessToken();
+  if(accessToken&&!headers.Authorization)headers.Authorization=`Bearer ${accessToken}`;
   if(['POST','PUT','PATCH','DELETE'].includes(method)){
     const csrf=getCookie('zv_csrf');
     if(csrf)headers['X-CSRF-Token']=csrf;
@@ -9036,6 +9057,7 @@ function initNativeApp(){
   }catch(e){}
 }
 async function initApp(){
+  await initSupabaseAuth();
   // appka přebírá vykreslování — statický obsah pro boty bez JS (viz server.js) už není potřeba
   const ssr=document.getElementById('ssrContent');
   if(ssr)ssr.remove();

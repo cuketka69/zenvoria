@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
+const { createClient } = require('@supabase/supabase-js');
 const compression = require('compression');
 const PDFDocument = require('pdfkit');
 const sharp = require('sharp');
@@ -60,11 +61,22 @@ const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SECRET_KEY ||
   process.env.SUPABASE_KEY ||
   '';
+const SUPABASE_PUBLISHABLE_KEY =
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  '';
 
 const SUPABASE_REST_TIMEOUT_MS = parseInt(process.env.SUPABASE_REST_TIMEOUT_MS || '10000', 10);
 
 // REST je aktivní jen když máme URL i klíč (jinak server běží, ale data se nezapíšou)
 const REST_ENABLED = !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+const SUPABASE_AUTH_ENABLED = !!(SUPABASE_URL && (SUPABASE_SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY));
+const supabaseAuthClient = SUPABASE_AUTH_ENABLED
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+  : null;
 
 // session secret pro podpis cookie (na produkci nastav vlastní; jinak náhodný za běhu —
 // funguje to, ale při každém restartu/redeploy se odhlásí úplně všichni, protože starý podpis přestane sedět)
@@ -2794,6 +2806,30 @@ function loadSession(req, _res, next) {
   }
   next();
 }
+async function loadSupabaseSession(req, _res, next) {
+  const header = String(req.headers.authorization || '');
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!match || !supabaseAuthClient) return next();
+  try {
+    const { data, error } = await supabaseAuthClient.auth.getUser(match[1]);
+    if (error || !data || !data.user) return next();
+    const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(data.user.id)}&limit=1`);
+    const user = rows && rows[0];
+    if (!user || user.status === 'suspended') return next();
+    req.session = {
+      uid: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      emailVerified: !!user.email_verified,
+      csrf: null,
+    };
+    req.authSource = 'supabase';
+  } catch (e) {
+    console.warn('[auth] Supabase bearer validation failed:', e.message);
+  }
+  next();
+}
 async function enforceActiveSession(req, res, next) {
   if (!req.session || !req.session.uid) return next();
   try {
@@ -2850,7 +2886,7 @@ function trustedRequestOrigin(req) {
   }
 }
 function requireCsrf(req, res, next) {
-  if (!req.session) return next();
+  if (!req.session || req.authSource === 'supabase') return next();
   const method = String(req.method || 'GET').toUpperCase();
   if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return next();
   if (!req.path.startsWith('/api/')) return next();
@@ -2971,7 +3007,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src 'self' https://api.stripe.com https://tiles.openfreemap.org; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com;");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; worker-src 'self' blob:; connect-src 'self' https://api.stripe.com https://tiles.openfreemap.org https://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com;");
   next();
 });
 
@@ -3076,6 +3112,7 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
 app.use(express.json({ limit: '30mb' }));
 app.use(cookieParser());
 app.use(loadSession);
+app.use(loadSupabaseSession);
 app.use(enforceActiveSession);
 app.use(refreshSessionCookie);
 app.use(requireCsrf);
@@ -3091,6 +3128,11 @@ app.get('/api/health', (_req, res) => res.json({
   rest: REST_ENABLED,
   stripeConfigured: isStripeEnabled(),
   openaiConfigured: isOpenAiEnabled(),
+}));
+
+app.get('/api/config', (_req, res) => res.json({
+  supabaseUrl: SUPABASE_URL || null,
+  supabasePublishableKey: SUPABASE_PUBLISHABLE_KEY || null,
 }));
 
 /* ---------------- VERZE (auto-reload klientů po deployi) ---------------- */
