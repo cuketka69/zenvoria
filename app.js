@@ -2897,7 +2897,8 @@ function renderNav(){
   }).join('');
   document.getElementById('navlinks').innerHTML=html;
   document.getElementById('mmLinks').innerHTML=html;
-  document.getElementById('navCta').hidden=isCg||isAdmin;
+  // přihlášená rodina má „Hledat péči“ přímo v menu — zlaté tlačítko navíc by lištu přeplnilo
+  document.getElementById('navCta').hidden=isCg||isAdmin||auth.loggedIn;
   const dot=document.getElementById('notifDot');
   if(dot)dot.hidden=!(chatUnread()>0||(isCg&&CG_REQUESTS.length>0)||(isAdmin&&pendingVerCount()>0));
 }
