@@ -265,9 +265,13 @@ function sanitizedIsoDate(value) {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : '';
 }
 
+// bezpečný seznam hodnot pro PostgREST in.() — e-mail se znaky & % ( ) by jinak přidal do dotazu vlastní parametry
+function pgInList(values) {
+  return (values || []).map((v) => `"${encodeURIComponent(String(v).replace(/["\\]/g, ''))}"`).join(',');
+}
 function isEmail(value) {
   const v = trimmedString(value, 320).toLowerCase();
-  return !!v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  return !!v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) && !/["(),&%<>\\;]/.test(v);
 }
 
 function normalizeEmailList(list, { maxItems = 200 } = {}) {
@@ -2991,7 +2995,12 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
     if (stripeWebhookSecret) {
       event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], stripeWebhookSecret);
     } else {
-      event = JSON.parse(req.body.toString('utf8')); // fallback bez ověření (jen pro lokální testy)
+      // bez webhook secretu nelze ověřit podpis → tělu nevěříme a stejnou událost si načteme přímo ze Stripe API.
+      // Podvržená událost (např. „zaplaceno PREMIUM“) tak neexistuje a nic se nestane.
+      const claimed = JSON.parse(req.body.toString('utf8'));
+      if (!claimed || typeof claimed.id !== 'string' || !/^evt_[A-Za-z0-9]+$/.test(claimed.id)) throw new Error('neplatné ID události');
+      event = await stripe.events.retrieve(claimed.id);
+      console.warn('[stripe] webhook bez STRIPE_WEBHOOK_SECRET — událost ověřena načtením ze Stripe API. Doporučeno nastavit webhook secret.');
     }
   } catch (err) {
     console.error('[stripe] webhook podpis selhal:', err.message);
@@ -3003,7 +3012,11 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
       case 'checkout.session.completed': {
         const email = (o.client_reference_id || (o.customer_details && o.customer_details.email) || '').toLowerCase();
         const plan = (o.metadata && o.metadata.plan === 'start') ? 'start' : 'premium';
+        const before = o.customer ? await restSelect(T.caregivers, `stripe_customer_id=eq.${encodeURIComponent(o.customer)}&select=stripe_subscription_id&limit=1`).catch(() => []) : [];
+        const prevSub = before && before[0] && before[0].stripe_subscription_id;
         const r = await setCaregiverPlan({ email, customerId: o.customer, subscriptionId: o.subscription, plan, status: 'active' });
+        // přechod mezi tarify: původní předplatné zrušit až teď, kdy je nové opravdu zaplacené
+        if (prevSub && o.subscription && prevSub !== o.subscription) { try { await stripe.subscriptions.cancel(prevSub); } catch (e) { /* už zrušené */ } }
         // e-mail o aktivaci jen při skutečném přechodu na tento tarif
         if (r && r.prevPlan !== plan && r.row.email) {
           const price = await planPrice(plan, r.row.country);
@@ -3016,7 +3029,7 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
       case 'customer.subscription.created': {
         const plan = (o.metadata && o.metadata.plan === 'start') ? 'start' : 'premium';
         const active = ['active', 'trialing', 'past_due'].includes(o.status);
-        const trialUntil = o.trial_end ? new Date(o.trial_end * 1000).toISOString() : null;
+        const trialUntil = o.status === 'trialing' && o.trial_end ? new Date(o.trial_end * 1000).toISOString() : null;
         const r = await setCaregiverPlan({ customerId: o.customer, subscriptionId: o.id, plan: active ? plan : null, status: o.status, trialUntil });
         // upozornění na problém s platbou (jen při přechodu do past_due/unpaid)
         if (r && r.row.email && ['past_due', 'unpaid'].includes(o.status) && !['past_due', 'unpaid'].includes(r.prevStatus || '')) {
@@ -3040,6 +3053,8 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
         const cgRows = await restSelect(T.caregivers, `stripe_customer_id=eq.${encodeURIComponent(customerId)}&limit=1`);
         const cg = cgRows && cgRows[0];
         if (!cg) { console.warn('[stripe] faktura: pečovatelka nenalezena pro customer', customerId); break; }
+        const dup = o.id ? await restSelect(T.invoices, `stripe_invoice_id=eq.${encodeURIComponent(o.id)}&select=id&limit=1`) : [];
+        if (dup && dup.length) break; // opakované doručení stejné události — faktura už existuje
         const lineItem = o.lines && o.lines.data && o.lines.data[0];
         const planFromLine = lineItem && lineItem.price && lineItem.price.metadata && lineItem.price.metadata.plan;
         const plan = planFromLine === 'start' ? 'start' : (cg.plan === 'start' ? 'start' : 'premium');
@@ -3156,9 +3171,21 @@ app.get('/api/u/:token', h(async (req, res) => {
         }));
       } catch (e) { /* statistiky nejsou kritické */ }
     }
+    // kontakt (e-mail, telefon) jen pro správce, majitele účtu a pečovatelku, která má s rodinou potvrzenou/dokončenou objednávku —
+    // odkaz na profil se sdílí, takže by jinak kdokoli s odkazem viděl e-mail a telefon rodiny
+    let showContact = !!(req.session && (req.session.role === 'admin' || String(req.session.uid) === String(u.id)));
+    if (!showContact && req.session && req.session.role === 'caregiver' && u.role === 'family' && u.email) {
+      try {
+        const cgRow = await currentCaregiverRow(req);
+        if (cgRow) {
+          const rel = await restSelect(T.orders, `cid=eq.${Number(cgRow.id)}&family_email=eq.${encodeURIComponent(String(u.email).toLowerCase())}&status=in.(confirmed,done)&select=oid&limit=1`);
+          showContact = !!(rel && rel.length);
+        }
+      } catch (e) { showContact = false; }
+    }
     return res.json({ kind: 'account', profile: {
       name: u.name || '', titul: u.titul || null, init: u.init || '', photo: u.photo || null,
-      role: u.role || 'family', memberSince: u.joined || null, email: u.email || null, phone: u.phone || null,
+      role: u.role || 'family', memberSince: u.joined || null, email: showContact ? (u.email || null) : null, phone: showContact ? (u.phone || null) : null,
       ordersCount, rating, reviewsCount, reviews,
     } });
   }
@@ -3256,6 +3283,10 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const items = Array.isArray(req.body && req.body.items) ? req.body.items.slice(0, 50) : [];
   const out = [];
+  // přesnou poslední aktivitu smí vidět jen protistrana z vlastních konverzací — ne kdokoli o komkoli
+  const me = String(req.session.uid || '');
+  const myConvs = await restSelect(T.conversations, `or=(user_a.eq.${encodeURIComponent(me)},user_b.eq.${encodeURIComponent(me)})&select=user_a,user_b&limit=500`).catch(() => []);
+  const partners = new Set((myConvs || []).map((c) => String(c.user_a) === me ? String(c.user_b) : String(c.user_a)));
   for (const it of items) {
     const name = trimmedString(it && it.name, 120);
     const role = trimmedString(it && it.role, 20) || 'caregiver';
@@ -3268,6 +3299,7 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
       const u = await restSelect(T.users, `name=eq.${encodeURIComponent(name)}&role=eq.${encodeURIComponent(role)}&select=id&limit=1`);
       uid = u && u[0] ? u[0].id : null;
     }
+    if (!uid || !partners.has(String(uid))) { out.push({ name, role, online: false, lastSeen: null }); continue; }
     out.push(Object.assign({ name, role }, presenceOf(await lastSeenByUserId(uid), uid && userOnline(uid))));
   }
   res.json({ items: out });
@@ -4278,13 +4310,14 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 // vzdálenost (km) od zadaného bodu ke každé ověřené pečovatelce, u které už máme geokódovanou lokalitu
-app.get('/api/caregivers/distances', h(async (req, res) => {
+app.get('/api/caregivers/distances', rateLimit('distances', { windowMs: 60 * 1000, max: 20, message: 'Příliš mnoho dotazů. Zkuste to prosím za chvíli.' }), h(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const lat = Number(req.query.lat);
   const lng = Number(req.query.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Neplatné souřadnice.' });
   const rows = await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&lat=not.is.null&lng=not.is.null&country=eq.${countryForReq(req)}&select=id,lat,lng`);
-  const distances = (rows || []).map((c) => ({ id: Number(c.id), km: Math.round(haversineKm(lat, lng, c.lat, c.lng) * 10) / 10 }));
+  // jen celé kilometry (min. 1) — z přesných vzdáleností ze tří bodů by šlo dopočítat, kde pečovatelka bydlí
+  const distances = (rows || []).map((c) => ({ id: Number(c.id), km: Math.max(1, Math.round(haversineKm(lat, lng, c.lat, c.lng))) }));
   distances.sort((a, b) => a.km - b.km);
   res.json({ distances });
 }));
@@ -4886,6 +4919,36 @@ app.post('/api/auth/change-email/send-code', rateLimit('change-email-code', RATE
   res.json({ ok: true });
 }));
 
+/* Data jsou v mnoha tabulkách vázaná na e-mail (objednávky, profil pečovatelky, recenze, oblíbené,
+   žádosti o ověření, sdílená péče…). Při změně e-mailu je nutné přepsat VŠE — jinak by data zůstala
+   „viset“ na starém e-mailu a kdo by se na něj znovu zaregistroval, dostal by se k cizím objednávkám
+   nebo by převzal ověřený profil pečovatelky. */
+async function migrateUserEmail(oldEmailRaw, newEmailRaw) {
+  const oldEmail = String(oldEmailRaw || '').trim().toLowerCase(), newEmail = String(newEmailRaw || '').trim().toLowerCase();
+  if (!oldEmail || !newEmail || oldEmail === newEmail) return;
+  const q = encodeURIComponent(oldEmail);
+  const upd = (table, col) => restUpdate(table, `${col}=eq.${q}`, { [col]: newEmail }, { prefer: 'return=minimal' }).catch((e) => console.warn(`[email-migrate] ${table}.${col}:`, e.message));
+  await Promise.all([
+    upd(T.orders, 'family_email'), upd(T.familyReviews, 'family_email'), upd(T.favorites, 'family_email'),
+    upd(T.recurringBookings, 'family_email'), upd(T.reviews, 'family_email'), upd(T.helpChats, 'user_email'),
+    upd(T.verifications, 'email'), upd(T.caregivers, 'email'),
+  ]);
+  // nastavení uložená jako pole v settings (sdílená péče, plány péče)
+  try {
+    const teams = cleanFamilyTeams(await loadSettingArray(FAMILY_CARE_TEAMS_KEY));
+    let changed = false;
+    teams.forEach((t) => {
+      if (t.ownerEmail === oldEmail) { t.ownerEmail = newEmail; changed = true; }
+      t.members.forEach((m) => { if (m.email === oldEmail) { m.email = newEmail; changed = true; } });
+    });
+    if (changed) await saveSettingArray(FAMILY_CARE_TEAMS_KEY, teams);
+    const profiles = cleanCareProfiles(await loadSettingArray(FAMILY_CARE_PROFILES_KEY));
+    if (profiles.some((p) => p.ownerEmail === oldEmail)) {
+      profiles.forEach((p) => { if (p.ownerEmail === oldEmail) p.ownerEmail = newEmail; });
+      await saveSettingArray(FAMILY_CARE_PROFILES_KEY, profiles);
+    }
+  } catch (e) { console.warn('[email-migrate] settings:', e.message); }
+}
 app.post('/api/auth/change-email/confirm', rateLimit('change-email-code', RATE_LIMITS.changeEmailCode), h(async (req, res) => {
   const token = trimmedString(req.body && req.body.token, 512);
   const code = trimmedString(req.body && req.body.code, 12);
@@ -4931,6 +4994,7 @@ app.post('/api/auth/change-email/confirm', rateLimit('change-email-code', RATE_L
     return res.status(409).json({ error: 'Tento e-mail uz je registrovany.' });
   }
   await restUpdate(T.users, `id=eq.${user.id}`, { email: payload.newEmail }, { prefer: 'return=minimal' });
+  await migrateUserEmail(user.email, payload.newEmail);
   await updateEmailChangeRecord(state.record, {
     usedAt: new Date().toISOString(),
     verifiedAt: new Date().toISOString(),
@@ -5067,6 +5131,7 @@ app.post('/api/family-care-profile', requireRole('family'), h(async (req, res) =
   const i = profiles.findIndex((p) => p.ownerEmail === me); if (i >= 0) profiles[i] = profile; else profiles.push(profile);
   await saveSettingArray(FAMILY_CARE_PROFILES_KEY, profiles); res.json({ ok: true, profile: { ...profile, ownerEmail: undefined } });
 }));
+const visitPinFailures = new Map(); // oid → počet chybných PINů (vynuluje se novým PINem)
 app.post('/api/orders/:oid/care-ops', requireAuth, rateLimit('care-ops', RATE_LIMITS.orders), h(async (req, res) => {
   const oid = Number(req.params.oid), action = trimmedString(req.body && req.body.action, 30);
   const orderRows = await restSelect(T.orders, `oid=eq.${oid}&select=oid,cid,family_email,status&limit=1`), order = orderRows && orderRows[0];
@@ -5085,11 +5150,14 @@ app.post('/api/orders/:oid/care-ops', requireAuth, rateLimit('care-ops', RATE_LI
   let generatedPin = null;
   if (action === 'generate-pin') {
     if (req.session.role !== 'family' || String(order.family_email).toLowerCase() !== String(req.session.email).toLowerCase()) return res.status(403).json({ error: 'PIN může vytvořit pouze vlastník objednávky.' });
-    generatedPin = String(crypto.randomInt(0, 10000)).padStart(4, '0'); op.pinHash = crypto.createHash('sha256').update(generatedPin).digest('hex'); op.pinCreatedAt = new Date().toISOString(); op.checkInAt = null; op.checkOutAt = null;
+    generatedPin = String(crypto.randomInt(0, 10000)).padStart(4, '0'); visitPinFailures.delete(oid); op.pinHash = crypto.createHash('sha256').update(generatedPin).digest('hex'); op.pinCreatedAt = new Date().toISOString(); op.checkInAt = null; op.checkOutAt = null;
   } else if (action === 'check-in' || action === 'check-out') {
     if (!isCaregiver) return res.status(403).json({ error: 'Příchod a odchod potvrzuje pečovatelka.' });
     const codeHash = crypto.createHash('sha256').update(trimmedString(req.body && req.body.pin, 10)).digest('hex');
-    if (!op.pinHash || codeHash !== op.pinHash) return res.status(400).json({ error: 'Zadaný PIN není správný.' });
+    // 4místný PIN má jen 10 000 možností → po 5 chybách se zamkne, dokud rodina nevytvoří nový
+    if ((visitPinFailures.get(oid) || 0) >= 5) return res.status(429).json({ error: 'PIN byl zadán 5× špatně a je zablokovaný. Požádejte rodinu o nový PIN.' });
+    if (!op.pinHash || codeHash !== op.pinHash) { visitPinFailures.set(oid, (visitPinFailures.get(oid) || 0) + 1); return res.status(400).json({ error: 'Zadaný PIN není správný.' }); }
+    visitPinFailures.delete(oid);
     if (action === 'check-in') { if (op.checkInAt) return res.status(409).json({ error: 'Příchod už byl potvrzen.' }); op.checkInAt = new Date().toISOString(); }
     else { if (!op.checkInAt) return res.status(400).json({ error: 'Nejprve potvrďte příchod.' }); if (op.checkOutAt) return res.status(409).json({ error: 'Odchod už byl potvrzen.' }); op.checkOutAt = new Date().toISOString(); }
   } else if (action === 'add-task') {
@@ -5126,7 +5194,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
   const familyEmails = viewer === 'family' ? await familyAccessibleEmails(req.session.email, familyTeams) : [];
   const familyEmailFilter = familyEmails.length === 1
     ? `family_email=eq.${encodeURIComponent(familyEmails[0])}`
-    : `family_email=in.(${familyEmails.map((email) => `"${email.replace(/"/g, '')}"`).join(',')})`;
+    : `family_email=in.(${pgInList(familyEmails)})`;
   const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows, reportRows, favoriteRows, unreadNotifRows, recurringRows] =
     await Promise.all([
       viewer === 'guest'
@@ -5216,6 +5284,14 @@ app.get('/api/bootstrap', h(async (req, res) => {
     const includePrivate = viewer === 'caregiver' && ownCaregiver && Number(c.id) === Number(ownCaregiver.id);
     const row = mapCaregiverForViewer(c, { viewer, includePrivate, perms: planPerms });
     if (viewer === 'admin') row.adminNote = userAdminNoteByEmail[String(c.email || '').toLowerCase()] || '';
+    if (viewer !== 'admin' && !includePrivate) {
+      // telefon pečovatelky neposíláme do prohlížeče cizím lidem (dřív ho dostal každý návštěvník webu)
+      delete row.phone;
+      // neověřené / pozastavené uchazečky: jen to, co je potřeba pro zobrazení jména u starších objednávek
+      if (!c.verified || c.suspended) {
+        return { id: row.id, name: row.name, titul: row.titul, init: row.init, photo: row.photo, verified: !!row.verified, suspended: !!row.suspended, services: [], rate: row.rate, rating: 0, reviews: 0, exp: 0, loc: '', bio: '', perms: {} };
+      }
+    }
     return row;
   });
   const broadcastsForViewer = (broadcasts || []).filter((b) => {
@@ -5246,7 +5322,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
       } catch (e) { /* fotky nejsou kritické */ }
     }
     if (emails.size) {
-      const list = [...emails].map((e) => `"${e}"`).join(',');
+      const list = pgInList([...emails]);
       try {
         const rows = await restSelect(T.users, `email=in.(${list})&select=email,photo,public_id`);
         (rows || []).forEach((u) => { if (u.photo) famPhotoByEmail[u.email] = u.photo; if (u.public_id) famPublicIdByEmail[u.email] = u.public_id; });
@@ -5947,6 +6023,10 @@ app.get('/api/orders/:oid/receipt', requireAuth, h(async (req, res) => {
 
 // rodina smí objednávku jen zrušit (z pending/confirmed) nebo označit jako dokončenou (jen z confirmed) —
 // nesmí si sama „přeskočit" přijetí pečovatelkou tím, že si status nastaví přímo na confirmed/pending/declined
+function orderStartPassed(order) {
+  const t = Date.parse(`${order && order.date}T${(order && order.time) || '00:00'}:00Z`);
+  return Number.isFinite(t) && Date.now() >= t - 2 * 60 * 60 * 1000;
+}
 const FAMILY_ALLOWED_ORDER_TRANSITIONS = { cancelled: ['pending', 'confirmed'], done: ['confirmed'] };
 app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
   const b = req.body || {};
@@ -5968,6 +6048,8 @@ app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
       if (!fromAllowed || !fromAllowed.includes(order.status)) {
         return res.status(400).json({ error: 'Tuto změnu stavu nelze provést.' });
       }
+      // „dokončeno“ (a tím i možnost recenze) až po začátku péče — ne předem
+      if (b.status === 'done' && !orderStartPassed(order)) return res.status(400).json({ error: 'Péči lze označit jako dokončenou až po jejím začátku.' });
     }
     patch.status = b.status;
   }
@@ -6001,6 +6083,11 @@ app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
   }
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   const rows = await restUpdate(T.orders, `oid=eq.${oid}`, patch);
+  // zrušená objednávka: smazat čekající poptávku i termín v kalendáři pečovatelky (jinak by ji šlo znovu „přijmout“)
+  if (patch.status === 'cancelled') {
+    await restDelete(T.requests, `oid=eq.${oid}`, { prefer: 'return=minimal' }).catch(() => {});
+    await restDelete(T.schedule, `oid=eq.${oid}`, { prefer: 'return=minimal' }).catch(() => {});
+  }
   if (isAdmin) fireAudit('admin.order.update', { req, actor: auditActor(req), targetType: 'order', targetId: oid, status: 'success', metadata: { fields: Object.keys(patch) } });
   res.json({ order: rows && rows[0] ? mapOrder(rows[0]) : null });
 }));
@@ -6078,7 +6165,13 @@ app.post('/api/requests/:id/accept', requireRole('caregiver', 'admin'), h(async 
   }
   const conflict = await findScheduleConflict(r.cid, r.date, r.time, r.hours, r.oid);
   if (conflict) return res.status(409).json({ error: `Na tento termín už máte potvrzenou jinou objednávku (#${conflict.oid}). Nejdřív ji zrušte nebo tuto poptávku odmítněte.` });
-  if (r.oid != null) await restUpdate(T.orders, `oid=eq.${r.oid}`, { status: 'confirmed' }, { prefer: 'return=minimal' });
+  if (r.oid != null) {
+    const claimed = await restUpdate(T.orders, `oid=eq.${Number(r.oid)}&status=eq.pending`, { status: 'confirmed' });
+    if (!claimed || !claimed.length) {
+      await restDelete(T.requests, `id=eq.${id}`).catch(() => {});
+      return res.status(409).json({ error: 'Objednávka už nečeká na potvrzení (rodina ji mezitím zrušila nebo už byla vyřízena).' });
+    }
+  }
   await restInsert(T.schedule, { cid: r.cid, oid: r.oid != null ? r.oid : null, fam: r.fam, init: r.init, service: r.service, date: r.date, time: r.time, hours: r.hours }, { prefer: 'return=minimal' });
   await restDelete(T.requests, `id=eq.${id}`);
   await notifyOrderStatus(r, true);
@@ -6098,7 +6191,10 @@ app.post('/api/requests/:id/decline', requireRole('caregiver', 'admin'), h(async
       return res.status(403).json({ error: 'Tuto poptávku nemůžete odmítnout.' });
     }
   }
-  if (r.oid != null) await restUpdate(T.orders, `oid=eq.${r.oid}`, { status: 'declined' }, { prefer: 'return=minimal' });
+  if (r.oid != null) {
+    const claimed = await restUpdate(T.orders, `oid=eq.${Number(r.oid)}&status=eq.pending`, { status: 'declined' });
+    if (!claimed || !claimed.length) { await restDelete(T.requests, `id=eq.${id}`).catch(() => {}); return res.json({ ok: true }); }
+  }
   await restDelete(T.requests, `id=eq.${id}`);
   await notifyOrderStatus(r, false);
   res.json({ ok: true });
@@ -6112,6 +6208,7 @@ app.post('/api/orders/:oid/restore', requireRole('caregiver', 'admin'), h(async 
   const order = rows && rows[0];
   if (!order) return res.status(404).json({ error: 'Objednávka nenalezena.' });
   if (order.status !== 'declined') return res.status(400).json({ error: 'Obnovit lze jen odmítnutou objednávku.' });
+  if (orderStartPassed(order)) return res.status(400).json({ error: 'Termín této objednávky už proběhl — obnovit lze jen budoucí objednávku.' });
   if (req.session.role !== 'admin') {
     const ownCaregiver = await currentCaregiverRow(req);
     if (!ownCaregiver || Number(order.cid) !== Number(ownCaregiver.id)) {
@@ -6160,6 +6257,7 @@ app.post('/api/orders/:oid/complete', requireRole('caregiver', 'admin'), h(async
   const order = rows && rows[0];
   if (!order) return res.status(404).json({ error: 'Objednávka nenalezena.' });
   if (order.status !== 'confirmed') return res.status(400).json({ error: 'Dokončit lze jen potvrzenou objednávku.' });
+  if (!orderStartPassed(order) && req.session.role !== 'admin') return res.status(400).json({ error: 'Péči lze označit jako dokončenou až po jejím začátku.' });
   if (req.session.role !== 'admin') {
     const ownCaregiver = await currentCaregiverRow(req);
     if (!ownCaregiver || Number(order.cid) !== Number(ownCaregiver.id)) {
@@ -6408,8 +6506,9 @@ app.post('/api/reviews', requireRole('family'), requireVerifiedEmail, rateLimit(
   const caregiverId = Number(b.caregiverId);
   const oid = Number(b.oid);
   const stars = Number(b.stars);
-  const init = trimmedString(b.init || (req.session.name || '').split(/\s+/).map((p) => p[0]).join('').slice(0, 2), 4).toUpperCase();
-  const name = trimmedString(b.name || req.session.name, 120);
+  // jméno pod recenzí vždy ze session — klient ho nesmí podvrhnout (např. „Tým Zenvoria“)
+  const init = trimmedString((req.session.name || '').split(/\s+/).map((p) => p[0]).join('').slice(0, 2), 4).toUpperCase();
+  const name = trimmedString(req.session.name, 120);
   const text = trimmedString(b.text, 2000);
   if (!Number.isInteger(caregiverId) || caregiverId <= 0 || !Number.isInteger(stars)) return res.status(400).json({ error: 'Neúplná recenze.' });
   if (!Number.isInteger(oid) || oid <= 0) return res.status(400).json({ error: 'Recenzi lze napsat jen k dokončené objednávce.' });
@@ -6568,7 +6667,7 @@ app.get('/api/admin/trust-signals', requireRole('admin'), h(async (req, res) => 
   });
   const emails = Object.keys(byEmail);
   if (emails.length) {
-    const list = emails.map((e) => `"${e}"`).join(',');
+    const list = pgInList(emails);
     const users = await restSelect(T.users, `email=in.(${list})&select=email,name,role,status`);
     (users || []).forEach((u) => {
       const row = byEmail[u.email];
@@ -6907,7 +7006,7 @@ app.post('/api/conversations', requireAuth, requireVerifiedEmail, rateLimit('con
       const otherRows = await restSelect(T.users, `id=eq.${encodeURIComponent(other)}&select=role&limit=1`);
       const otherRole = otherRows && otherRows[0] && otherRows[0].role;
       const isValidPair = (req.session.role === 'family' && otherRole === 'caregiver') || (req.session.role === 'caregiver' && otherRole === 'family');
-      if (!isValidPair) return res.status(403).json({ error: 'Konverzaci lze založit jen mezi rodinou a pečovatelkou.' });
+      if (!isValidPair) return res.status(404).json({ error: 'Protistrana nebyla nalezena.' }); // stejná odpověď jako „neexistuje“ — neprozrazovat existenci ani roli účtu
     }
     if (req.session.role === 'caregiver') {
       const ownCg = await currentCaregiverRow(req);
@@ -6937,7 +7036,7 @@ app.get('/api/conversations/:id/messages', requireAuth, requireConversationParti
 }));
 
 // odeslání zprávy
-app.post('/api/conversations/:id/messages', requireAuth, requireConversationParticipant, h(async (req, res) => {
+app.post('/api/conversations/:id/messages', requireAuth, requireConversationParticipant, rateLimit('chat-messages', { windowMs: 60 * 1000, max: 30, message: 'Posíláte zprávy příliš rychle. Zkuste to prosím za chvíli.' }), h(async (req, res) => {
   const b = req.body || {};
   const me = String(req.session.uid || '');
   const conv = req.conversation;
@@ -6960,7 +7059,7 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
     const tlat = Number.isFinite(Number(b.term.lat)) ? Number(b.term.lat) : null;
     const tlng = Number.isFinite(Number(b.term.lng)) ? Number(b.term.lng) : null;
     const tpostal = trimmedString(b.term.postal_code, 10) || null;
-    term = { date: tdate, time: ttime, hours: thours, service: tservice, addr: taddr, lat: tlat, lng: tlng, postal_code: tpostal, note: trimmedString(b.term.note, 500), km: Math.max(0, Number(b.term.km) || 0), status: 'proposed', orderId: null };
+    term = { date: tdate, time: ttime, hours: thours, service: tservice, addr: taddr, lat: tlat, lng: tlng, postal_code: tpostal, note: trimmedString(b.term.note, 500), km: Math.min(1000, Math.max(0, Number(b.term.km) || 0)), status: 'proposed', orderId: null };
   }
   if (!text && !image && !term) return res.status(400).json({ error: 'Chybí text zprávy.' });
   if (text.length > 2000) return res.status(400).json({ error: 'Zpráva je příliš dlouhá.' });
@@ -7036,6 +7135,9 @@ app.post('/api/conversations/:id/messages/:mid/term/accept', requireAuth, requir
   }
   const conflict = await findScheduleConflict(caregiver.id, t.date, t.time, t.hours);
   if (conflict) return res.status(409).json({ error: `Na tento termín už existuje potvrzená objednávka (#${conflict.oid}).` });
+  // návrh si „zaberu“ podmíněným updatem — dvě souběžná přijetí tak nevytvoří dvě objednávky
+  const claimedTerm = await restUpdate(T.messages, `id=eq.${mid}&term->>status=eq.proposed`, { term: { ...t, status: 'accepting' } });
+  if (!claimedTerm || !claimedTerm.length) return res.status(409).json({ error: 'Návrh už byl vyřízen.' });
   const iAmFamily = String(family.id) === me;
   const oid = await nextId(T.orders, 'oid');
   const status = iAmFamily ? 'pending' : 'confirmed';
@@ -7390,7 +7492,18 @@ function cleanPushSubs(rows) {
     userId: trimmedString(s && s.userId, 80), endpoint: trimmedString(s && s.endpoint, 1000),
     keys: { p256dh: trimmedString(s && s.keys && s.keys.p256dh, 200), auth: trimmedString(s && s.keys && s.keys.auth, 100) },
     createdAt: s && s.createdAt || null,
-  })).filter((s) => s.userId && /^https:\/\//.test(s.endpoint) && s.keys.p256dh && s.keys.auth);
+  })).filter((s) => s.userId && isPushServiceEndpoint(s.endpoint) && s.keys.p256dh && s.keys.auth);
+}
+/* push se smí posílat jen na servery skutečných push služeb (Google, Apple, Mozilla, Microsoft) —
+   jinak by si kdokoli zaregistroval libovolnou adresu a náš server by na ni posílal požadavky */
+function isPushServiceEndpoint(endpoint) {
+  try {
+    const u = new URL(String(endpoint || ''));
+    if (u.protocol !== 'https:') return false;
+    const h = u.hostname.toLowerCase();
+    return h === 'fcm.googleapis.com' || h === 'android.googleapis.com' || h === 'updates.push.services.mozilla.com'
+      || h.endsWith('.push.apple.com') || h.endsWith('.notify.windows.com') || h.endsWith('.push.services.mozilla.com');
+  } catch (e) { return false; }
 }
 function pushUrlForLink(link) {
   const [view, arg] = String(link || '').split(':');
@@ -7528,7 +7641,7 @@ app.post('/api/broadcasts', requireRole('admin'), h(async (req, res) => {
   let recipients = [];
   try {
     if (audience === 'specific') {
-      const list = emails.map((e) => `"${e}"`).join(',');
+      const list = pgInList(emails);
       recipients = list ? (await restSelect(T.users, `email=in.(${list})&select=name,email,settings,country`)) || [] : [];
     } else {
       let filter = 'select=name,email,settings,country';
@@ -7626,6 +7739,10 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
   // PREMIUM smí nastavit jen správce (jinak přes platbu); pečovatelka smí max. downgrade na START
   if (b.plan !== undefined && !isAdmin && String(b.plan) !== 'start') {
     return res.status(403).json({ error: 'PREMIUM lze aktivovat jen přes platbu.' });
+  }
+  // START je placený tarif — bez platby si ho pečovatelka sama zapnout nesmí; smí jen přejít z PREMIUM na START
+  if (b.plan !== undefined && !isAdmin && String(b.plan) === 'start' && String((ownCaregiver && ownCaregiver.plan) || '') !== 'premium') {
+    return res.status(403).json({ error: 'Tarif START lze aktivovat jen přes platbu.' });
   }
   if (patch.verified !== undefined && typeof patch.verified !== 'boolean') {
     return res.status(400).json({ error: 'Neplatná hodnota ověření.' });
@@ -7819,12 +7936,18 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
 }));
 
 // zaznamenání zhlédnutí veřejného profilu (statistiky zobrazení profilu — PREMIUM)
+const profileViewSeen = new Set();
 app.post('/api/caregivers/:id/view', rateLimit('caregiver-view', { windowMs: 60 * 1000, max: 60, message: 'Příliš mnoho požadavků, zkuste to za chvíli.' }), h(async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID pečovatelky.' });
   const rows = await restSelect(T.caregivers, `id=eq.${id}&select=id,views&limit=1`);
   const row = rows && rows[0];
   if (!row) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
+  // jedno zobrazení za den z jednoho zařízení/IP — jinak by šlo statistiky PREMIUM uměle nafouknout
+  const viewKey = `${id}|${getClientIp(req)}|${new Date().toISOString().slice(0, 10)}`;
+  if (profileViewSeen.has(viewKey)) return res.json({ ok: true });
+  profileViewSeen.add(viewKey);
+  if (profileViewSeen.size > 50000) profileViewSeen.clear();
   await restUpdate(T.caregivers, `id=eq.${id}`, { views: Number(row.views || 0) + 1 }, { prefer: 'return=minimal' });
   res.json({ ok: true });
 }));
@@ -8034,7 +8157,7 @@ function buildIcsCalendar(caregiverName, events) {
 }
 app.get('/api/family/calendar.ics', requireRole('family'), h(async (req, res) => {
   const emails = await familyAccessibleEmails(req.session.email);
-  const filter = emails.length === 1 ? `family_email=eq.${encodeURIComponent(emails[0])}` : `family_email=in.(${emails.map((e) => `"${e.replace(/"/g, '')}"`).join(',')})`;
+  const filter = emails.length === 1 ? `family_email=eq.${encodeURIComponent(emails[0])}` : `family_email=in.(${pgInList(emails)})`;
   const [orders, caregivers] = await Promise.all([restSelect(T.orders, `${filter}&status=in.(pending,confirmed)&order=date.asc`), restSelect(T.caregivers, 'select=id,name')]);
   const names = {}; (caregivers || []).forEach((c) => { names[Number(c.id)] = c.name; });
   const events = (orders || []).map((o) => ({ oid: o.oid, date: o.date, time: o.time, hours: Number(o.hours) || 1, summary: `ZENVORIA — ${names[Number(o.cid)] || 'péče'}`, description: `Služba: ${o.service || ''}`, location: o.addr || '' }));
@@ -8207,10 +8330,12 @@ app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) =
     customerId = customer.id;
     await restUpdate(T.caregivers, `id=eq.${cg.id}`, { stripe_customer_id: customerId }, { prefer: 'return=minimal' });
   }
-  // přechod z jiného tarifu → nejdřív zrušit případné běžící předplatné, ať nevzniknou dvě souběžná
-  if (cg.stripe_subscription_id) {
-    try { await stripe.subscriptions.cancel(cg.stripe_subscription_id); } catch (e) { /* už zrušené/neexistuje */ }
-  }
+  // běžící předplatné se NEruší tady (kdyby pečovatelka checkout nedokončila, přišla by o zaplacený tarif) —
+  // zruší se ve webhooku checkout.session.completed, až bude nové předplatné opravdu zaplacené.
+  // Zkušební doba jen pro toho, kdo u Stripe ještě nikdy žádné předplatné neměl (jinak by šla opakovat donekonečna).
+  let trialDays = 90;
+  try { const prev = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 1 }); if (prev && prev.data && prev.data.length) trialDays = 0; }
+  catch (e) { trialDays = 0; }
 
   // dynamická cena z aplikace (admin → Tarify) — žádný předem vytvořený produkt ve Stripe není potřeba
   const cgCountry = cg.country === 'sk' ? 'sk' : 'cz';
@@ -8239,7 +8364,7 @@ app.post('/api/billing/checkout', requireRole('caregiver'), h(async (req, res) =
     success_url: `${APP_URL}/#pricing?paid=1&plan=${plan}`,
     cancel_url: `${APP_URL}/#pricing?canceled=1`,
     metadata: { caregiver_id: String(cg.id), email, plan },
-    subscription_data: { trial_period_days: 90, metadata: { caregiver_id: String(cg.id), email, plan } },
+    subscription_data: { ...(trialDays ? { trial_period_days: trialDays } : {}), metadata: { caregiver_id: String(cg.id), email, plan } },
   });
   res.json({ url: session.url });
 }));
@@ -8271,11 +8396,15 @@ async function cleanupUserRelations(user) {
 
   const caregiverRows = await restSelect(
     T.caregivers,
-    `or=(user_id.eq.${encodeURIComponent(String(user.id))},email.eq.${encodeURIComponent(email)})&select=id&limit=50`
+    `or=(user_id.eq.${encodeURIComponent(String(user.id))},email.eq.${encodeURIComponent(email)})&select=id,stripe_subscription_id&limit=50`
   );
   for (const caregiver of (caregiverRows || [])) {
     const caregiverId = Number(caregiver.id);
     if (!Number.isInteger(caregiverId) || caregiverId <= 0) continue;
+    // smazaný účet nesmí dál platit předplatné
+    if (caregiver.stripe_subscription_id && isStripeEnabled()) {
+      try { await stripe.subscriptions.cancel(caregiver.stripe_subscription_id); } catch (e) { console.warn('[stripe] zrušení předplatného při mazání účtu:', e.message); }
+    }
     await restDelete(T.requests, `cid=eq.${caregiverId}`, { prefer: 'return=minimal' });
     await restDelete(T.schedule, `cid=eq.${caregiverId}`, { prefer: 'return=minimal' });
     await restDelete(T.reviews, `caregiver_id=eq.${caregiverId}`, { prefer: 'return=minimal' });
@@ -8326,13 +8455,7 @@ app.patch('/api/users/:id', requireRole('admin'), h(async (req, res) => {
   if (adminNoteRequested) patch.settings = Object.assign({}, currentUser.settings && typeof currentUser.settings === 'object' ? currentUser.settings : {}, { adminNote });
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
   await restUpdate(T.users, `id=eq.${encodeURIComponent(id)}`, patch, { prefer: 'return=minimal' });
-  if (patch.email !== undefined && currentUser.role === 'family') {
-    const oldEmail = String(currentUser.email || '').toLowerCase();
-    await restUpdate(T.orders, `family_email=eq.${encodeURIComponent(oldEmail)}`, { family_email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
-    await restUpdate(T.familyReviews, `family_email=eq.${encodeURIComponent(oldEmail)}`, { family_email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
-    await restUpdate(T.favorites, `family_email=eq.${encodeURIComponent(oldEmail)}`, { family_email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
-    await restUpdate(T.helpChats, `user_email=eq.${encodeURIComponent(oldEmail)}`, { user_email: patch.email }, { prefer: 'return=minimal' }).catch(() => {});
-  }
+  if (patch.email !== undefined) await migrateUserEmail(currentUser.email, patch.email);
   if (patch.name !== undefined && currentUser.role === 'family') {
     const email = String(patch.email || currentUser.email || '').toLowerCase();
     await restUpdate(T.orders, `family_email=eq.${encodeURIComponent(email)}`, { fam_name: patch.name }, { prefer: 'return=minimal' }).catch(() => {});
@@ -8968,7 +9091,7 @@ function renderSeoPage({ title, description, canonical, ogTitle, ogDescription, 
   const base = country === 'sk' ? (INDEX_HTML_SK || INDEX_HTML) : INDEX_HTML;
   if (!base) return null;
   let html = base;
-  if (title) html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
+  if (title) html = html.replace(/<title>[\s\S]*?<\/title>/, () => `<title>${escapeHtml(title)}</title>`);
   if (description) html = html.replace(/(<meta name="description" content=")[^"]*(")/, (_all, a, b) => a + escapeHtml(description) + b);
   const ogT = ogTitle || title, ogD = ogDescription || description;
   if (ogT) {
@@ -8979,10 +9102,13 @@ function renderSeoPage({ title, description, canonical, ogTitle, ogDescription, 
     html = html.replace(/(<meta property="og:description" content=")[^"]*(")/, (_all, a, b) => a + escapeHtml(ogD) + b)
       .replace(/(<meta name="twitter:description" content=")[^"]*(")/, (_all, a, b) => a + escapeHtml(ogD) + b);
   }
-  if (canonical) html = html.replace('<!--CANONICAL-->', `<link rel="canonical" href="${escapeHtml(canonical)}">`);
+  if (canonical) html = html.replace('<!--CANONICAL-->', () => `<link rel="canonical" href="${escapeHtml(canonical)}">`);
   const jsonLdArr = Array.isArray(jsonLd) ? jsonLd : (jsonLd ? [jsonLd] : []);
-  if (jsonLdArr.length) html = html.replace('<!--JSONLD-->', jsonLdArr.map((j) => `<script type="application/ld+json">${JSON.stringify(j)}</script>`).join(''));
-  if (ssrHtml) html = html.replace('<!--SSR_CONTENT-->', ssrHtml);
+  // JSON uvnitř <script>: < > & musí být escapované, jinak by text z profilu (bio, jméno) mohl </script> ukončit a vložit vlastní skript
+  const safeJson = (j) => JSON.stringify(j).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  if (jsonLdArr.length) html = html.replace('<!--JSONLD-->', () => jsonLdArr.map((j) => `<script type="application/ld+json">${safeJson(j)}</script>`).join(''));
+  // náhrada přes funkci — jinak by $& $' apod. v textu z profilu vkládaly kusy šablony
+  if (ssrHtml) html = html.replace('<!--SSR_CONTENT-->', () => ssrHtml);
   return html;
 }
 function sendSeoPage(req, res, opts) {
@@ -9428,7 +9554,7 @@ async function expireTrials() {
   if (!REST_ENABLED) return;
   const nowIso = new Date().toISOString();
   try {
-    await restUpdate(T.caregivers, `plan=eq.premium&trial_until=not.is.null&trial_until=lt.${encodeURIComponent(nowIso)}`, { plan: 'start', plan_status: 'canceled', trial_until: null }, { prefer: 'return=minimal' });
+    await restUpdate(T.caregivers, `plan=eq.premium&stripe_subscription_id=is.null&trial_until=not.is.null&trial_until=lt.${encodeURIComponent(nowIso)}`, { plan: 'start', plan_status: 'canceled', trial_until: null }, { prefer: 'return=minimal' });
   } catch (e) { console.warn('[trial] expire sweep failed:', e.message); }
 }
 setInterval(expireTrials, 30 * 60 * 1000).unref();
