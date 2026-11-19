@@ -2553,6 +2553,7 @@ function loginAs(name,email,role,photo,publicId,emailVerified,titul){
   try{initRealtime();}catch(e){}
 }
 async function logout(){
+  await unbindPushOnLogout();
   try{await api('/auth/logout',{method:'POST'});}catch(e){}
   auth.loggedIn=false;auth.name='';auth.titul='';auth.email='';auth.role='family';auth.publicId=null;auth.emailVerified=true;
   teardownRealtime();CONVERSATIONS=[];
@@ -2589,6 +2590,7 @@ function renderSettings(){
   const photo=auth.photo||(auth.role==='caregiver'?cgProfile.photo:null);
   setAva(document.getElementById('setAva'),photo,initials(name));
   const rm=document.getElementById('setPhotoRemove');if(rm)rm.style.display=photo?'':'none';
+  renderPushSettings();
 }
 /* nahrání/odebrání profilovky uživatele (Nastavení) — uloží se k uživateli a propíše do avatarů */
 function onUserPhoto(e){
@@ -2858,6 +2860,7 @@ function updateAuthUI(){
   const favWrap=document.getElementById('favOnlyWrap');
   if(favWrap){const showFav=inn&&auth.role==='family';favWrap.hidden=!showFav;if(!showFav){const cb=document.getElementById('favOnly');if(cb)cb.checked=false;}}
   renderNotifBadge();
+  syncPushSubscription();
   document.getElementById('accountWrap').hidden=!inn;
   document.getElementById('loginBtn').hidden=inn;
   // obálka zpráv v headeru — jen pro přihlášené rodiny/pečovatelky (admin nemá chat)
@@ -3280,6 +3283,7 @@ function renderFamilyDash(){
     <div class="stat"><div class="stat-top"><span class="sl">${s.l}</span><div class="si">${sIcon(s.ic)}</div></div><div class="sv">${s.v}</div></div>`).join('');
   document.getElementById('famUpcoming').innerHTML=up.length?up.slice(0,4).map(famOrderRow).join(''):'<div class="empty">Žádné nadcházející objednávky.</div>';
   renderFamJournalPreview();
+  renderPushPrompts();
   // Důvěra a bezpečí: kdo přijde, kdy, historie péče, SOS
   const next=ORDERS.filter(o=>['pending','confirmed'].includes(o.status)).sort((a,b)=>a.date.localeCompare(b.date))[0];
   const trust=document.getElementById('famTrust');
@@ -6818,6 +6822,7 @@ function renderCgDashboard(){
     }
   }
   renderCgJournalNotice();
+  renderPushPrompts();
   setAva(document.getElementById('cgDashAva'),cgProfile.photo||auth.photo,initials(cgProfile.name));
   document.getElementById('cgFirst').textContent=cgFirstName().split(/\s+/)[0];
   document.getElementById('cgIntro').textContent=CG_REQUESTS.length
@@ -8843,6 +8848,70 @@ async function bootstrap(){
   }
   deriveCgMaps();
   if(auth.loggedIn){try{loadConversations();}catch(e){}}
+}
+/* ---------- PUSH NOTIFIKACE (upozornění na telefon / do prohlížeče) ---------- */
+function pushSupported(){return !!(window.isSecureContext&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window);}
+let pushRegPromise=null;
+function pushRegistration(){
+  if(!pushSupported())return Promise.resolve(null);
+  if(!pushRegPromise)pushRegPromise=navigator.serviceWorker.register('/sw.js',{scope:'/'}).then(()=>navigator.serviceWorker.ready).catch(e=>{console.warn('[push] SW',e);pushRegPromise=null;return null;});
+  return pushRegPromise;
+}
+function pushKeyToBytes(b64){const pad='='.repeat((4-b64.length%4)%4),raw=atob((b64+pad).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(raw,c=>c.charCodeAt(0));}
+async function currentPushSubscription(){const reg=await pushRegistration();return reg?reg.pushManager.getSubscription():null;}
+/* zapne upozornění na tomto zařízení — vyžádá povolení, vytvoří odběr a pošle ho serveru */
+async function enablePush(){
+  if(!pushSupported()){toast('Tento prohlížeč upozornění nepodporuje. Na iPhonu si nejdřív přidejte ZENVORIA na plochu (Sdílet → Přidat na plochu).','declined');return false;}
+  if(!auth.loggedIn){toast('Pro upozornění se prosím přihlaste.');return false;}
+  const perm=await Notification.requestPermission();
+  if(perm!=='granted'){toast(perm==='denied'?'Upozornění jsou v prohlížeči zakázaná. Povolte je v nastavení webu (ikona zámku vedle adresy).':'Upozornění nebyla povolena.','declined');renderPushSettings();return false;}
+  try{
+    const reg=await pushRegistration();if(!reg)throw new Error('Service worker se nepodařilo spustit.');
+    const {publicKey}=await api('/push/public-key');
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:pushKeyToBytes(publicKey)});
+    await api('/push/subscribe',{method:'POST',body:{subscription:sub.toJSON()}});
+    toast('Upozornění na tomto zařízení jsou zapnutá.','success');renderPushSettings();renderPushPrompts();return true;
+  }catch(e){console.error('[push]',e);toast('Upozornění se nepodařilo zapnout: '+e.message,'declined');renderPushSettings();return false;}
+}
+async function disablePush(){
+  try{const sub=await currentPushSubscription();if(sub){try{await api('/push/unsubscribe',{method:'POST',body:{endpoint:sub.endpoint}});}catch(e){}await sub.unsubscribe();}}catch(e){console.warn('[push]',e);}
+  toast('Upozornění na tomto zařízení jsou vypnutá.');renderPushSettings();
+}
+function togglePush(el){if(el.checked)enablePush().then(ok=>{if(!ok)el.checked=false;});else disablePush();}
+async function sendTestPush(){try{await api('/push/test',{method:'POST'});toast('Zkušební upozornění odesláno.','success');}catch(e){toast('Odeslání se nezdařilo: '+e.message,'declined');}}
+/* po přihlášení: pokud zařízení už odběr má, přiřaď ho k aktuálnímu účtu (jiný uživatel na stejném zařízení) */
+let pushSyncedFor='';
+async function syncPushSubscription(){
+  if(!auth.loggedIn||!pushSupported()||Notification.permission!=='granted')return;
+  try{const sub=await currentPushSubscription();if(!sub)return;const key=auth.email+'|'+sub.endpoint;if(pushSyncedFor===key)return;pushSyncedFor=key;await api('/push/subscribe',{method:'POST',body:{subscription:sub.toJSON()}});}catch(e){pushSyncedFor='';console.warn('[push] sync',e);}
+}
+/* při odhlášení odeber odběr ze serveru, ať na sdílené zařízení nechodí cizí upozornění */
+async function unbindPushOnLogout(){
+  pushSyncedFor='';try{if(!pushSupported())return;const sub=await currentPushSubscription();if(sub){await api('/push/unsubscribe',{method:'POST',body:{endpoint:sub.endpoint}});await sub.unsubscribe();}}catch(e){}
+}
+async function renderPushSettings(){
+  const row=document.getElementById('pushSettingRow');if(!row)return;
+  const el=document.getElementById('ntPush'),st=document.getElementById('pushSettingState'),test=document.getElementById('pushTestBtn');
+  if(!pushSupported()){el.checked=false;el.disabled=true;st.textContent='Tento prohlížeč nebo aplikace upozornění zatím nepodporuje. Na iPhonu si ZENVORIA nejdřív přidejte na plochu.';if(test)test.hidden=true;return;}
+  const sub=Notification.permission==='granted'?await currentPushSubscription():null;
+  el.disabled=false;el.checked=!!sub;
+  st.textContent=Notification.permission==='denied'?'Upozornění jsou v prohlížeči zakázaná — povolte je v nastavení webu.':(sub?'Zapnuto: nové zprávy, objednávky a zápisy z návštěv vám přijdou i se zavřeným webem.':'Nové zprávy, objednávky a zápisy z návštěv vám přijdou i se zavřeným webem.');
+  if(test)test.hidden=!sub;
+}
+/* jednorázová nabídka na přehledu (rodina i pečovatelka) */
+const PUSH_PROMPT_KEY='zv_push_prompt_dismissed';
+function pushPromptDismissed(){try{return localStorage.getItem(PUSH_PROMPT_KEY)==='1';}catch(e){return false;}}
+function dismissPushPrompt(){try{localStorage.setItem(PUSH_PROMPT_KEY,'1');}catch(e){}renderPushPrompts();}
+function renderPushPrompts(){
+  const show=auth.loggedIn&&auth.role!=='admin'&&pushSupported()&&Notification.permission==='default'&&!pushPromptDismissed();
+  document.querySelectorAll('.push-prompt-slot').forEach(el=>{
+    const msg=auth.role==='caregiver'?'Nové poptávky a zprávy od rodin uvidíte hned, i když web nemáte otevřený.':'Dozvíte se hned, když pečovatelka dorazí, napíše nebo vyplní zápis z návštěvy.';
+    el.innerHTML=show?`<div class="verify-banner ok push-prompt"><span class="vb-ic" aria-hidden="true">🔔</span><div class="vb-t"><b>Zapněte si upozornění</b><span>${msg}</span></div><div class="push-prompt-actions"><button class="btn btn-sm btn-gold" onclick="enablePush()">Zapnout</button><button class="btn btn-sm btn-ghost" onclick="dismissPushPrompt()">Teď ne</button></div></div>`:'';
+  });
+}
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message',e=>{const d=e.data||{};if(d.type==='zv-open-link'&&auth.loggedIn){if(d.link)openNotifLink(d.link);else goHome();}});
 }
 /* ---------- INIT ---------- */
 /* ---------- AUTO-UPDATE: obnovení stránky po novém deployi ---------- */

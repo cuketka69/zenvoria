@@ -3666,6 +3666,10 @@ const DEFERRED_SK_TRANSLATIONS = [
   ["aria-label=\"Filtrovat podle měsíce\"", "aria-label=\"Filtrovať podľa mesiaca\""],
   ["<b>Deník péče · poslední zápis</b>", "<b>Denník starostlivosti · posledný zápis</b>"],
   [">Otevřít deník péče</button>", ">Otvoriť denník starostlivosti</button>"],
+  // Nastavení → upozornění na tomto zařízení (push)
+  ["<b>Upozornění na tomto zařízení</b>", "<b>Upozornenia na tomto zariadení</b>"],
+  ["<span id=\"pushSettingState\">Nové zprávy, objednávky a zápisy z návštěv vám přijdou i se zavřeným webem.</span>", "<span id=\"pushSettingState\">Nové správy, objednávky a zápisy z návštev vám prídu aj so zatvoreným webom.</span>"],
+  [">Poslat zkušební upozornění</button>", ">Poslať skúšobné upozornenie</button>"],
 ];
 function translateDeferredToSk(html) {
   let out = html;
@@ -4132,6 +4136,22 @@ const JS_SK_TRANSLATIONS = [
   ["<b>Máte ${n} ${word} z návštěv</b><span>Rodina čeká, jak návštěva proběhla. Vyplnění zabere minutu.</span>", "<b>Máte ${n} ${word} z návštev</b><span>Rodina čaká, ako návšteva prebehla. Vyplnenie zaberie minútu.</span>"],
   ["Po první návštěvě sem pečovatelka zapíše, jak se váš blízký měl.", "Po prvej návšteve sem opatrovateľka zapíše, ako sa mal váš blízky."],
   ["<span class=\"cj-meds-missed\">léky nepodány</span>", "<span class=\"cj-meds-missed\">lieky nepodané</span>"],
+  // push notifikace — přepínač, nabídka na přehledu, hlášky
+  ["'Tento prohlížeč upozornění nepodporuje. Na iPhonu si nejdřív přidejte ZENVORIA na plochu (Sdílet → Přidat na plochu).'", "'Tento prehliadač upozornenia nepodporuje. Na iPhone si najprv pridajte ZENVORIA na plochu (Zdieľať → Pridať na plochu).'"],
+  ["toast('Pro upozornění se prosím přihlaste.')", "toast('Pre upozornenia sa prosím prihláste.')"],
+  ["'Upozornění jsou v prohlížeči zakázaná. Povolte je v nastavení webu (ikona zámku vedle adresy).':'Upozornění nebyla povolena.'", "'Upozornenia sú v prehliadači zakázané. Povoľte ich v nastaveniach webu (ikona zámku vedľa adresy).':'Upozornenia neboli povolené.'"],
+  ["throw new Error('Service worker se nepodařilo spustit.')", "throw new Error('Service worker sa nepodarilo spustiť.')"],
+  ["toast('Upozornění na tomto zařízení jsou zapnutá.','success')", "toast('Upozornenia na tomto zariadení sú zapnuté.','success')"],
+  ["toast('Upozornění se nepodařilo zapnout: '+e.message,'declined')", "toast('Upozornenia sa nepodarilo zapnúť: '+e.message,'declined')"],
+  ["toast('Upozornění na tomto zařízení jsou vypnutá.')", "toast('Upozornenia na tomto zariadení sú vypnuté.')"],
+  ["toast('Zkušební upozornění odesláno.','success')", "toast('Skúšobné upozornenie bolo odoslané.','success')"],
+  ["toast('Odeslání se nezdařilo: '+e.message,'declined')", "toast('Odoslanie sa nepodarilo: '+e.message,'declined')"],
+  ["'Tento prohlížeč nebo aplikace upozornění zatím nepodporuje. Na iPhonu si ZENVORIA nejdřív přidejte na plochu.'", "'Tento prehliadač alebo aplikácia upozornenia zatiaľ nepodporuje. Na iPhone si ZENVORIA najprv pridajte na plochu.'"],
+  ["'Upozornění jsou v prohlížeči zakázaná — povolte je v nastavení webu.':(sub?'Zapnuto: nové zprávy, objednávky a zápisy z návštěv vám přijdou i se zavřeným webem.':'Nové zprávy, objednávky a zápisy z návštěv vám přijdou i se zavřeným webem.')", "'Upozornenia sú v prehliadači zakázané — povoľte ich v nastaveniach webu.':(sub?'Zapnuté: nové správy, objednávky a zápisy z návštev vám prídu aj so zatvoreným webom.':'Nové správy, objednávky a zápisy z návštev vám prídu aj so zatvoreným webom.')"],
+  ["'Nové poptávky a zprávy od rodin uvidíte hned, i když web nemáte otevřený.':'Dozvíte se hned, když pečovatelka dorazí, napíše nebo vyplní zápis z návštěvy.'", "'Nové dopyty a správy od rodín uvidíte hneď, aj keď web nemáte otvorený.':'Dozviete sa hneď, keď opatrovateľka príde, napíše alebo vyplní zápis z návštevy.'"],
+  ["<b>Zapněte si upozornění</b>", "<b>Zapnite si upozornenia</b>"],
+  ["onclick=\"enablePush()\">Zapnout</button>", "onclick=\"enablePush()\">Zapnúť</button>"],
+  ["onclick=\"dismissPushPrompt()\">Teď ne</button>", "onclick=\"dismissPushPrompt()\">Teraz nie</button>"],
 ];
 function translateAppJsToSk(src) {
   let out = src;
@@ -6920,6 +6940,7 @@ async function createNotification(userId, { type, title, body, link }) {
     emitToUser(userId, { type: 'app-notification', notification: {
       id: Number(row.id), type: row.type, title: row.title, body: row.body, link: row.link, readAt: null, createdAt: row.created_at,
     } });
+    sendPushToUser(userId, { title, body, link, tag: type }).catch((e) => console.warn('[push] sendPushToUser:', e.message));
     fireAudit('notification.create', {
       actor: { id: null, email: null, role: 'system' },
       targetType: 'notification',
@@ -6935,6 +6956,104 @@ async function createNotification(userId, { type, title, body, link }) {
     });
   } catch (e) { console.warn('[notif] createNotification failed:', e.message); }
 }
+
+/* ---------------- WEB PUSH NOTIFIKACE ----------------
+   Každá in-app notifikace (createNotification) se zároveň pošle jako push na zařízení,
+   kde si uživatel upozornění zapnul (Nastavení → Upozornění na tomto zařízení).
+   VAPID klíče: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY z env, jinak se jednou vygenerují
+   a uloží do settings (klíč webPushVapidV1), aby přežily restart/deploy.
+   Odběry jsou v settings (klíč webPushSubsV1) — pole { userId, endpoint, keys, createdAt }. */
+const webpush = require('web-push');
+const WEB_PUSH_VAPID_KEY = 'webPushVapidV1';
+const WEB_PUSH_SUBS_KEY = 'webPushSubsV1';
+const WEB_PUSH_MAX_PER_USER = 10;
+let webPushVapidPromise = null;
+function getWebPushVapid() {
+  if (!webPushVapidPromise) {
+    webPushVapidPromise = (async () => {
+      let keys = null;
+      if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+        keys = { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
+      } else {
+        if (!REST_ENABLED) throw new Error('Push notifikace potřebují databázi nebo VAPID klíče v env.');
+        const rows = await restSelect(T.settings, `key=eq.${WEB_PUSH_VAPID_KEY}&limit=1`);
+        const stored = rows && rows[0] && rows[0].value;
+        if (stored && stored.publicKey && stored.privateKey) keys = { publicKey: stored.publicKey, privateKey: stored.privateKey };
+        else {
+          keys = webpush.generateVAPIDKeys();
+          await supabaseRestRequest('POST', T.settings, { body: { key: WEB_PUSH_VAPID_KEY, value: { ...keys, createdAt: new Date().toISOString() } }, prefer: 'resolution=ignore-duplicates,return=minimal' });
+          // kdyby dva procesy generovaly naráz, vyhraje první zápis — načti, co je opravdu uložené
+          const again = await restSelect(T.settings, `key=eq.${WEB_PUSH_VAPID_KEY}&limit=1`);
+          const v = again && again[0] && again[0].value;
+          if (v && v.publicKey && v.privateKey) keys = { publicKey: v.publicKey, privateKey: v.privateKey };
+        }
+      }
+      webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'https://www.zenvoria.cz', keys.publicKey, keys.privateKey);
+      return keys;
+    })().catch((e) => { webPushVapidPromise = null; throw e; });
+  }
+  return webPushVapidPromise;
+}
+function cleanPushSubs(rows) {
+  return (Array.isArray(rows) ? rows : []).map((s) => ({
+    userId: trimmedString(s && s.userId, 80), endpoint: trimmedString(s && s.endpoint, 1000),
+    keys: { p256dh: trimmedString(s && s.keys && s.keys.p256dh, 200), auth: trimmedString(s && s.keys && s.keys.auth, 100) },
+    createdAt: s && s.createdAt || null,
+  })).filter((s) => s.userId && /^https:\/\//.test(s.endpoint) && s.keys.p256dh && s.keys.auth);
+}
+function pushUrlForLink(link) {
+  const [view, arg] = String(link || '').split(':');
+  if (!view || !/^[a-z0-9-]+$/i.test(view)) return '/';
+  if (view === 'order-detail' && /^\d+$/.test(arg || '')) return `/#order-detail-${arg}`;
+  return `/#${view}`;
+}
+async function sendPushToUser(userId, { title, body, link, tag }) {
+  if (userId == null || !REST_ENABLED) return;
+  const subs = cleanPushSubs(await loadSettingArray(WEB_PUSH_SUBS_KEY));
+  const mine = subs.filter((s) => s.userId === String(userId));
+  if (!mine.length) return;
+  await getWebPushVapid();
+  const payload = JSON.stringify({ title: trimmedString(title, 120) || 'ZENVORIA', body: trimmedString(body, 300), link: link || '', url: pushUrlForLink(link), tag: tag || undefined });
+  const dead = new Set();
+  await Promise.all(mine.map(async (s) => {
+    try { await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, payload, { TTL: 24 * 3600, urgency: 'normal' }); }
+    catch (e) {
+      if (e && (e.statusCode === 404 || e.statusCode === 410)) dead.add(s.endpoint);
+      else console.warn('[push] odeslání selhalo:', e && (e.statusCode || e.message));
+    }
+  }));
+  if (dead.size) {
+    const fresh = cleanPushSubs(await loadSettingArray(WEB_PUSH_SUBS_KEY)).filter((s) => !dead.has(s.endpoint));
+    await saveSettingArray(WEB_PUSH_SUBS_KEY, fresh);
+  }
+}
+app.get('/api/push/public-key', requireAuth, h(async (_req, res) => {
+  const keys = await getWebPushVapid();
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ publicKey: keys.publicKey });
+}));
+app.post('/api/push/subscribe', requireAuth, rateLimit('push-subscribe', RATE_LIMITS.orders), h(async (req, res) => {
+  const sub = req.body && req.body.subscription;
+  const clean = cleanPushSubs([{ userId: String(req.session.uid), endpoint: sub && sub.endpoint, keys: sub && sub.keys, createdAt: new Date().toISOString() }])[0];
+  if (!clean) return res.status(400).json({ error: 'Neplatný odběr upozornění.' });
+  let subs = cleanPushSubs(await loadSettingArray(WEB_PUSH_SUBS_KEY)).filter((s) => s.endpoint !== clean.endpoint);
+  const mine = subs.filter((s) => s.userId === clean.userId);
+  if (mine.length >= WEB_PUSH_MAX_PER_USER) { const drop = new Set(mine.slice(0, mine.length - WEB_PUSH_MAX_PER_USER + 1).map((s) => s.endpoint)); subs = subs.filter((s) => !drop.has(s.endpoint)); }
+  subs.push(clean);
+  await saveSettingArray(WEB_PUSH_SUBS_KEY, subs);
+  res.json({ ok: true });
+}));
+app.post('/api/push/unsubscribe', requireAuth, h(async (req, res) => {
+  const endpoint = trimmedString(req.body && req.body.endpoint, 1000);
+  const subs = cleanPushSubs(await loadSettingArray(WEB_PUSH_SUBS_KEY));
+  const next = subs.filter((s) => !(s.endpoint === endpoint && s.userId === String(req.session.uid)));
+  if (next.length !== subs.length) await saveSettingArray(WEB_PUSH_SUBS_KEY, next);
+  res.json({ ok: true });
+}));
+app.post('/api/push/test', requireAuth, rateLimit('push-test', RATE_LIMITS.orders), h(async (req, res) => {
+  await sendPushToUser(req.session.uid, { title: 'Upozornění fungují', body: 'Takhle vám budou chodit novinky ze ZENVORIA.', link: '', tag: 'push-test' });
+  res.json({ ok: true });
+}));
 
 // oznam protistranám konverzací, že userId je online/offline
 async function broadcastPresence(userId, online) {
@@ -8842,6 +8961,16 @@ const IMMUTABLE_ASSET_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$/i;
 const REVALIDATE_ASSET_RE = /(?:\.html?|app(?:\.min)?\.js|app(?:\.min)?\.css|deferred-views\.html)$/i;
 /* index.html vždy s otiskem verze (musí být PŘED express.static) */
 app.get(['/', '/index.html'], (req, res) => sendSeoPage(req, res, { canonical: `${APP_ORIGIN}/`, jsonLd: ORG_JSON_LD }));
+/* service worker pro push notifikace — musí ležet v kořeni (scope "/") a nesmí se cachovat */
+app.get('/sw.js', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.type('application/javascript').sendFile(path.join(ROOT, 'sw.js'));
+});
+app.get('/manifest.webmanifest', (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.type('application/manifest+json').sendFile(path.join(ROOT, 'manifest.webmanifest'));
+});
 /* deferred-views.html podle země (musí být PŘED express.static, jinak by šel nepřeložený soubor z disku) */
 app.get('/deferred-views.html', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');

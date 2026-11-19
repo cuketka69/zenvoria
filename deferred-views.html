@@ -115,6 +115,7 @@
     <div id="cgVerifyNotice"></div>
     <div id="cgPlanNotice"></div>
     <div id="cgJournalNotice"></div>
+    <div class="push-prompt-slot"></div>
     <div class="stat-grid" id="cgStats"></div>
     <div class="dash-grid">
       <div>
@@ -869,6 +870,7 @@
       </div>
       <button class="btn btn-gold" onclick="go('search')">Najít péči</button>
     </div>
+    <div class="push-prompt-slot"></div>
     <div class="stat-grid" id="famStats"></div>
     <div class="dash-grid">
       <div>
@@ -1608,6 +1610,8 @@
     <div class="pcard set-card">
       <h3>Notifikace</h3>
       <p class="set-sub">Vyberte, o čem vás chceme informovat.</p>
+      <label class="set-row" id="pushSettingRow"><div class="set-l"><b>Upozornění na tomto zařízení</b><span id="pushSettingState">Nové zprávy, objednávky a zápisy z návštěv vám přijdou i se zavřeným webem.</span></div><span class="switch"><input type="checkbox" id="ntPush" onchange="togglePush(this)"><span class="sl-track"></span></span></label>
+      <div class="push-test-row"><button type="button" class="btn btn-ghost btn-sm" id="pushTestBtn" onclick="sendTestPush()" hidden>Poslat zkušební upozornění</button></div>
       <label class="set-row"><div class="set-l"><b>E-mailové notifikace</b><span>Souhrny a důležité události na váš e-mail.</span></div><span class="switch"><input type="checkbox" id="ntEmail" onchange="toggleSetting('email',this)"><span class="sl-track"></span></span></label>
       <label class="set-row"><div class="set-l"><b>Nové poptávky a objednávky</b><span>Když přijde nová poptávka nebo se změní objednávka.</span></div><span class="switch"><input type="checkbox" id="ntRequests" onchange="toggleSetting('requests',this)"><span class="sl-track"></span></span></label>
       <label class="set-row"><div class="set-l"><b>Zprávy v chatu</b><span>Upozornění na nové zprávy.</span></div><span class="switch"><input type="checkbox" id="ntChat" onchange="toggleSetting('chat',this)"><span class="sl-track"></span></span></label>
