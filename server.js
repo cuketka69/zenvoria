@@ -4313,6 +4313,19 @@ function sendIndex(req, res) {
   return res.sendFile(path.join(ROOT, 'index.html'));
 }
 
+/* souřadnice z požadavku: null / '' / chybějící hodnota musí zůstat null — Number(null) je 0 a vznikala
+   poloha 0,0 (Guinejský záliv), takže pečovatelky byly „5 735 km daleko“ a dojezd se počítal do Afriky.
+   Rozsah lat −90..90, lng −180..180; dvojice 0,0 se bere jako „neznámá poloha“. */
+function coordOrNull(v, max) {
+  if (v === null || v === undefined || v === '' || typeof v === 'boolean') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && Math.abs(n) <= max ? n : null;
+}
+function cleanLatLng(latRaw, lngRaw) {
+  const lat = coordOrNull(latRaw, 90), lng = coordOrNull(lngRaw, 180);
+  if (lat === null || lng === null || (lat === 0 && lng === 0)) return { lat: null, lng: null };
+  return { lat, lng };
+}
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -4328,7 +4341,7 @@ app.get('/api/caregivers/distances', rateLimit('distances', { windowMs: 60 * 100
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Neplatné souřadnice.' });
   const rows = await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&lat=not.is.null&lng=not.is.null&country=eq.${countryForReq(req)}&select=id,lat,lng`);
   // jen celé kilometry (min. 1) — z přesných vzdáleností ze tří bodů by šlo dopočítat, kde pečovatelka bydlí
-  const distances = (rows || []).map((c) => ({ id: Number(c.id), km: Math.max(1, Math.round(haversineKm(lat, lng, c.lat, c.lng))) }));
+  const distances = (rows || []).filter((c) => cleanLatLng(c.lat, c.lng).lat != null).map((c) => ({ id: Number(c.id), km: Math.max(1, Math.round(haversineKm(lat, lng, c.lat, c.lng))) }));
   distances.sort((a, b) => a.km - b.km);
   res.json({ distances });
 }));
@@ -5488,8 +5501,9 @@ async function findScheduleConflict(cid, date, time, hours, excludeOid) {
 async function createOrderOccurrence({ req, caregiver, cid, famName, service, hours, date, time, addr, note, km, lat, lng, postalCode, recurringId }) {
   // vzdálenost zadává rodina ručně — nesmí být menší než vzdušná čára mezi adresou péče a pečovatelkou
   // (jinak by šlo zadat 0 km a obejít cenu za dopravu); bez souřadnic zůstává zadaná hodnota
-  if (lat != null && lng != null && caregiver && caregiver.lat != null && caregiver.lng != null) {
-    const straight = Math.ceil(haversineKm(Number(lat), Number(lng), Number(caregiver.lat), Number(caregiver.lng)));
+  const orderPos = cleanLatLng(lat, lng), cgPos = cleanLatLng(caregiver && caregiver.lat, caregiver && caregiver.lng);
+  if (orderPos.lat != null && cgPos.lat != null) {
+    const straight = Math.ceil(haversineKm(orderPos.lat, orderPos.lng, cgPos.lat, cgPos.lng));
     if (Number.isFinite(straight)) km = Math.min(1000, Math.max(Number(km) || 0, straight));
   }
   const availCheck = checkAvailabilityFor(caregiver, date, time, hours);
@@ -5529,8 +5543,7 @@ app.post('/api/orders', requireRole('family', 'admin'), requireVerifiedEmail, ra
   const note = trimmedString(b.note, 2000);
   const hours = Number(b.hours == null ? 1 : b.hours);
   const km = Number(b.km == null ? 0 : b.km);
-  const lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
-  const lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
+  const { lat, lng } = cleanLatLng(b.lat, b.lng);
   const postalCode = trimmedString(b.postal_code, 10) || null;
   if (!Number.isInteger(cid) || cid <= 0 || !service || !date || !time || !addr) {
     return res.status(400).json({ error: 'Neúplná objednávka.' });
@@ -5578,8 +5591,7 @@ app.post('/api/recurring-bookings', requireRole('family', 'admin'), requireVerif
   const note = trimmedString(b.note, 2000);
   const hours = Number(b.hours == null ? 1 : b.hours);
   const km = Number(b.km == null ? 0 : b.km);
-  const lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
-  const lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
+  const { lat, lng } = cleanLatLng(b.lat, b.lng);
   const postalCode = trimmedString(b.postal_code, 10) || null;
   const occurrences = Number(b.occurrences);
   if (!Number.isInteger(cid) || cid <= 0 || !service || !startDate || !time || !addr) {
@@ -6109,8 +6121,7 @@ app.patch('/api/orders/:oid', requireAuth, h(async (req, res) => {
     }
     if (b.addr !== undefined) patch.addr = trimmedString(b.addr, 250);
     if (b.note !== undefined) patch.note = trimmedString(b.note, 2000);
-    if (b.lat !== undefined) patch.lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
-    if (b.lng !== undefined) patch.lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
+    if (b.lat !== undefined || b.lng !== undefined) Object.assign(patch, cleanLatLng(b.lat, b.lng));
     if (b.postal_code !== undefined) patch.postal_code = trimmedString(b.postal_code, 10) || null;
   }
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nic k aktualizaci.' });
@@ -6359,8 +6370,7 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), requireVerifie
   if (certifications.length > 1 && (!Array.isArray(files.certs) || files.certs.length < certifications.length - 1)) {
     return res.status(400).json({ error: 'Nahraný soubor má neplatný formát nebo je příliš velký.' });
   }
-  const lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
-  const lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
+  const { lat, lng } = cleanLatLng(b.lat, b.lng);
   const id = await nextId(T.verifications, 'id');
   const row = await restInsert(T.verifications, {
     id, name, email, init, loc, lat, lng, rate, exp,
@@ -7088,8 +7098,7 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
     if (!Number.isInteger(thours) || thours < 1 || thours > 24) return res.status(400).json({ error: 'Neplatná délka péče.' });
     if (!tservice) return res.status(400).json({ error: 'Vyberte službu.' });
     if (!taddr) return res.status(400).json({ error: 'Zadejte adresu péče.' });
-    const tlat = Number.isFinite(Number(b.term.lat)) ? Number(b.term.lat) : null;
-    const tlng = Number.isFinite(Number(b.term.lng)) ? Number(b.term.lng) : null;
+    const { lat: tlat, lng: tlng } = cleanLatLng(b.term.lat, b.term.lng);
     const tpostal = trimmedString(b.term.postal_code, 10) || null;
     term = { date: tdate, time: ttime, hours: thours, service: tservice, addr: taddr, lat: tlat, lng: tlng, postal_code: tpostal, note: trimmedString(b.term.note, 500), km: Math.min(1000, Math.max(0, Number(b.term.km) || 0)), status: 'proposed', orderId: null };
   }
@@ -7808,13 +7817,9 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     if (!patch.loc) return res.status(400).json({ error: 'Zadejte lokalitu (město nebo okres).' });
     // pokud přišla souřadnice z mapového pickeru rovnou s lokalitou, použij ji; jinak (starší text bez pinu)
     // zahoď starou geopozici, background job geocodeCaregiverLocations ji časem dohoní
-    if (!(Number.isFinite(Number(patch.lat)) && Number.isFinite(Number(patch.lng)))) {
-      patch.lat = null;
-      patch.lng = null;
-    }
+    Object.assign(patch, cleanLatLng(patch.lat, patch.lng));
   }
-  if (patch.lat !== undefined) patch.lat = Number.isFinite(Number(patch.lat)) ? Number(patch.lat) : null;
-  if (patch.lng !== undefined) patch.lng = Number.isFinite(Number(patch.lng)) ? Number(patch.lng) : null;
+  if (patch.lat !== undefined || patch.lng !== undefined) Object.assign(patch, cleanLatLng(patch.lat, patch.lng));
   if (patch.bio !== undefined) patch.bio = trimmedString(patch.bio, 4000);
   if (patch.facebook !== undefined) {
     patch.facebook = trimmedString(patch.facebook, 300) || null;
@@ -9684,7 +9689,7 @@ setInterval(sendCertExpiryReminders, 30 * 60 * 1000).unref();
 async function geocodeCaregiverLocations() {
   if (!REST_ENABLED) return;
   try {
-    const rows = await restSelect(T.caregivers, `lat=is.null&loc=not.is.null&select=id,loc&limit=15`);
+    const rows = await restSelect(T.caregivers, `or=(lat.is.null,and(lat.eq.0,lng.eq.0))&loc=not.is.null&select=id,loc&limit=15`);
     for (const c of rows || []) {
       if (!c.loc) continue;
       const matches = await supabaseRestRequest('POST', 'rpc/search_municipalities_ranked', { body: { q: c.loc, lim: 1 } });
