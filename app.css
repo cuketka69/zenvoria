@@ -2103,3 +2103,23 @@ html[data-theme=dark] .cj-chip,html[data-theme=dark] .cj-seg input:not(:checked)
 .cj-preview{cursor:pointer;align-items:flex-start}.cj-preview .cj-mood{font-size:26px;flex:0 0 auto}.cj-preview-msg{margin-top:4px;font-style:italic}
 .push-prompt{margin-bottom:24px;flex-wrap:wrap}.push-prompt-actions{display:flex;gap:8px;margin-left:auto}
 .push-test-row{margin:-4px 0 6px}.push-test-row:has(button[hidden]){display:none}
+/* ---------- 2FA ---------- */
+.mfa-overlay{position:fixed;inset:0;z-index:3000;background:rgba(6,20,13,.62);display:grid;place-items:center;padding:16px}
+.mfa-box{background:var(--white);color:var(--navy-900);border-radius:20px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center;display:flex;flex-direction:column;gap:10px}
+.mfa-box h2{margin:0;font-size:22px}.mfa-box p{margin:0;font-size:14px;color:var(--muted)}.mfa-ic{font-size:34px}
+.mfa-code{text-align:center;font-size:24px!important;letter-spacing:6px;margin:6px 0 0!important}
+.mfa-err{min-height:18px;display:block!important;color:#C0473B;font-size:13px}
+.mfa-alt,.mfa-cancel{align-self:center;font-size:13px}
+html[data-theme=dark] .mfa-box{background:#123323;color:#EAF2EC}
+.mfa-state{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;background:var(--cream);margin-bottom:12px}.mfa-state span{font-size:13px;color:var(--muted)}
+.mfa-state.off{border-left:3px solid #C0473B}.mfa-state.on{border-left:3px solid var(--gold)}
+.mfa-warn{color:#C0473B;font-size:13px;margin:0 0 10px}
+.mfa-actions{display:flex;flex-wrap:wrap;gap:8px}.mfa-danger{color:#C0473B!important}
+.mfa-steps{margin:16px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:14px;font-size:14px;line-height:1.5}
+.mfa-qr{margin:10px 0 6px}.mfa-qr img{background:#fff;padding:8px;border-radius:12px;display:block}
+.mfa-secret{font-size:14px;letter-spacing:1px;word-break:break-all;user-select:all}
+.mfa-inline-form{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}.mfa-inline-form .inp{margin:0!important;max-width:220px}
+.mfa-backup{margin-top:14px;padding:14px;border-radius:12px;border:1px dashed var(--gold)}.mfa-backup p{font-size:13px;margin:6px 0 10px}
+.mfa-backup ul{list-style:none;padding:0;margin:0 0 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.mfa-backup code{font-size:15px;letter-spacing:1px}
+.mfa-notice{margin-bottom:22px}
+@media (max-width:480px){.mfa-inline-form .inp{max-width:none;flex:1 1 100%}}

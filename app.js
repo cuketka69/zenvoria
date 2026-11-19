@@ -2591,6 +2591,7 @@ function renderSettings(){
   setAva(document.getElementById('setAva'),photo,initials(name));
   const rm=document.getElementById('setPhotoRemove');if(rm)rm.style.display=photo?'':'none';
   renderPushSettings();
+  renderMfaCard();
 }
 /* nahrání/odebrání profilovky uživatele (Nastavení) — uloží se k uživateli a propíše do avatarů */
 function onUserPhoto(e){
@@ -2952,7 +2953,12 @@ async function submitLogin(e){
   if(pBad){pw.focus();return false;}
   const key=email.value.trim().toLowerCase();
   try{
-    const r=await api('/auth/login',{method:'POST',body:{email:key,password:pw.value}});
+    let r=await api('/auth/login',{method:'POST',body:{email:key,password:pw.value}});
+    if(r&&r.mfaRequired){
+      r=await openMfaPrompt(r.mfaToken);
+      if(!r)return false; // zrušeno nebo vypršelo — zůstává na přihlášení
+      if(r.backupLeft!=null)setTimeout(()=>toast(`Použili jste záložní kód. Zbývá ${r.backupLeft} — ${r.backupLeft<=3?'vygenerujte si v Nastavení nové.':'uložte si je dobře.'}`,r.backupLeft<=3?'declined':null),1200);
+    }
     loginAs(r.user.name,r.user.email,r.user.role,r.user.photo,r.user.publicId,r.user.emailVerified,r.user.titul);
     auth.phone=r.user.phone||null;
     if(r.user.settings)Object.assign(appSettings,r.user.settings);
@@ -4113,6 +4119,7 @@ async function submitVerify(e){
 
 /* ---- ADMIN: dashboard ---- */
 function renderAdminDash(){
+  renderAdminMfaNotice();
   setAva(document.getElementById('admDashAva'),auth.photo,initials(auth.name||'Správce systému'));
   const pend=pendingVerCount();
   const verified=CAREGIVERS.filter(c=>c.verified&&!c.suspended).length;
@@ -8912,6 +8919,109 @@ function renderPushPrompts(){
 }
 if('serviceWorker' in navigator){
   navigator.serviceWorker.addEventListener('message',e=>{const d=e.data||{};if(d.type==='zv-open-link'&&auth.loggedIn){if(d.link)openNotifLink(d.link);else goHome();}});
+}
+/* ---------- DVOUFÁZOVÉ OVĚŘENÍ (2FA) SPRÁVCE ---------- */
+/* krok 2 přihlášení: heslo bylo správně, server chce kód z aplikace */
+function openMfaPrompt(mfaToken){
+  return new Promise(resolve=>{
+    closeMfaPrompt();
+    const ov=document.createElement('div');ov.className='mfa-overlay';ov.id='mfaOverlay';
+    ov.innerHTML=`<form class="mfa-box" role="dialog" aria-modal="true" aria-labelledby="mfaTitle" novalidate>
+      <div class="mfa-ic" aria-hidden="true">🔐</div>
+      <h2 id="mfaTitle">Dvoufázové ověření</h2>
+      <p>Zadejte 6místný kód z ověřovací aplikace v telefonu.</p>
+      <input class="inp mfa-code" id="mfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="9" placeholder="123 456" aria-describedby="mfaErr">
+      <div class="err mfa-err" id="mfaErr" role="alert"></div>
+      <button class="btn btn-gold btn-block" type="submit" id="mfaSubmit">Ověřit a přihlásit</button>
+      <button class="auth-link mfa-alt" type="button" id="mfaAlt">Nemám telefon — použít záložní kód</button>
+      <button class="auth-link mfa-cancel" type="button" id="mfaCancel">Zrušit</button>
+    </form>`;
+    document.body.appendChild(ov);document.body.style.overflow='hidden';
+    const form=ov.querySelector('form'),inp=ov.querySelector('#mfaCode'),err=ov.querySelector('#mfaErr'),btn=ov.querySelector('#mfaSubmit');
+    let backup=false;
+    ov.querySelector('#mfaAlt').onclick=()=>{backup=!backup;inp.value='';err.textContent='';inp.setAttribute('inputmode',backup?'text':'numeric');inp.placeholder=backup?'ABCD-EFGH':'123 456';ov.querySelector('p').textContent=backup?'Zadejte jeden ze záložních kódů, které jste si uložili při zapnutí 2FA. Každý jde použít jen jednou.':'Zadejte 6místný kód z ověřovací aplikace v telefonu.';ov.querySelector('#mfaAlt').textContent=backup?'Použít kód z aplikace':'Nemám telefon — použít záložní kód';inp.focus();};
+    ov.querySelector('#mfaCancel').onclick=()=>{closeMfaPrompt();resolve(null);};
+    ov.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMfaPrompt();resolve(null);}});
+    form.onsubmit=async e=>{
+      e.preventDefault();const code=inp.value.trim();
+      if(!code){err.textContent='Zadejte kód.';inp.focus();return;}
+      btn.disabled=true;err.textContent='';
+      try{const r=await api('/auth/login/mfa',{method:'POST',body:{mfaToken,code}});closeMfaPrompt();resolve(r);}
+      catch(ex){btn.disabled=false;err.textContent=ex.message||'Ověření se nezdařilo.';inp.select();if(ex.reason==='expired'){setTimeout(()=>{closeMfaPrompt();resolve(null);},1800);}}
+    };
+    setTimeout(()=>inp.focus(),50);
+  });
+}
+function closeMfaPrompt(){const ov=document.getElementById('mfaOverlay');if(ov){ov.remove();document.body.style.overflow='';}}
+
+/* Nastavení → karta „Dvoufázové ověření“ (jen správce) */
+let mfaStatus=null;
+async function renderMfaCard(){
+  const card=document.getElementById('mfaCard');if(!card)return;
+  if(!(auth.loggedIn&&auth.role==='admin')){card.hidden=true;return;}
+  card.hidden=false;const body=document.getElementById('mfaCardBody');
+  try{mfaStatus=await api('/auth/2fa');}catch(e){body.innerHTML=`<p class="set-sub">Stav se nepodařilo načíst: ${esc(e.message)}</p>`;return;}
+  body.innerHTML=mfaStatus.enabled
+    ?`<div class="mfa-state on"><b>✅ Zapnuto</b><span>Od ${new Date(mfaStatus.enabledAt).toLocaleDateString('cs-CZ')} · zbývá ${mfaStatus.backupLeft} záložních kódů</span></div>
+      ${mfaStatus.backupLeft<=3?'<p class="mfa-warn">Dochází vám záložní kódy — vygenerujte si nové.</p>':''}
+      <div class="mfa-actions"><button class="btn btn-ghost btn-sm" type="button" onclick="mfaRegenerateBackup()">Nové záložní kódy</button><button class="btn btn-ghost btn-sm mfa-danger" type="button" onclick="mfaDisableForm()">Vypnout 2FA</button></div><div id="mfaInline"></div>`
+    :`<div class="mfa-state off"><b>⚠️ Vypnuto</b><span>Kdo zjistí vaše heslo, dostane se do celé administrace včetně dokladů totožnosti.</span></div>
+      <div class="mfa-actions"><button class="btn btn-gold btn-sm" type="button" onclick="mfaStartSetup()">Zapnout dvoufázové ověření</button></div><div id="mfaInline"></div>`;
+}
+async function mfaStartSetup(){
+  const box=document.getElementById('mfaInline');
+  try{
+    const r=await api('/auth/2fa/setup',{method:'POST'});
+    box.innerHTML=`<ol class="mfa-steps">
+      <li>Nainstalujte si do telefonu aplikaci <b>Google Authenticator</b>, <b>Microsoft Authenticator</b> nebo podobnou.</li>
+      <li>V aplikaci zvolte „Přidat účet“ a naskenujte tento QR kód:<div class="mfa-qr"><img src="${r.qr}" alt="QR kód pro ověřovací aplikaci" width="200" height="200"></div><small>Nejde naskenovat? Zadejte ručně klíč: <code class="mfa-secret">${esc(r.secret)}</code></small></li>
+      <li>Opište 6místný kód, který vám aplikace ukáže:<form class="mfa-inline-form" onsubmit="return mfaConfirmSetup(event)"><input class="inp" id="mfaSetupCode" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456"><button class="btn btn-gold" type="submit">Potvrdit a zapnout</button></form></li>
+    </ol>`;
+    document.getElementById('mfaSetupCode').focus();
+  }catch(e){toast(e.message,'declined');}
+}
+async function mfaConfirmSetup(e){
+  e.preventDefault();const code=document.getElementById('mfaSetupCode').value.trim();
+  try{const r=await api('/auth/2fa/enable',{method:'POST',body:{code}});await renderMfaCard();showBackupCodes(r.backupCodes,true);toast('Dvoufázové ověření je zapnuté.','success');}
+  catch(ex){toast(ex.message,'declined');}
+  return false;
+}
+function mfaRegenerateBackup(){
+  const box=document.getElementById('mfaInline');
+  box.innerHTML=`<form class="mfa-inline-form" onsubmit="return mfaDoRegenerate(event)"><input class="inp" id="mfaRegenCode" inputmode="numeric" maxlength="7" placeholder="Kód z aplikace"><button class="btn btn-gold" type="submit">Vygenerovat</button></form><small class="set-sub">Staré záložní kódy tím přestanou platit.</small>`;
+  document.getElementById('mfaRegenCode').focus();
+}
+async function mfaDoRegenerate(e){
+  e.preventDefault();
+  try{const r=await api('/auth/2fa/backup-codes',{method:'POST',body:{code:document.getElementById('mfaRegenCode').value.trim()}});await renderMfaCard();showBackupCodes(r.backupCodes,false);}
+  catch(ex){toast(ex.message,'declined');}
+  return false;
+}
+function mfaDisableForm(){
+  const box=document.getElementById('mfaInline');
+  box.innerHTML=`<form class="mfa-inline-form mfa-disable" onsubmit="return mfaDoDisable(event)"><input class="inp" type="password" id="mfaDisPw" autocomplete="current-password" placeholder="Vaše heslo"><input class="inp" id="mfaDisCode" maxlength="9" placeholder="Kód z aplikace nebo záložní kód"><button class="btn btn-decline" type="submit">Vypnout 2FA</button></form>`;
+  document.getElementById('mfaDisPw').focus();
+}
+async function mfaDoDisable(e){
+  e.preventDefault();
+  try{await api('/auth/2fa/disable',{method:'POST',body:{password:document.getElementById('mfaDisPw').value,code:document.getElementById('mfaDisCode').value.trim()}});toast('Dvoufázové ověření je vypnuté.');await renderMfaCard();renderAdminMfaNotice();}
+  catch(ex){toast(ex.message,'declined');}
+  return false;
+}
+function showBackupCodes(codes,first){
+  const box=document.getElementById('mfaInline');if(!box)return;
+  const txt='ZENVORIA — záložní kódy pro dvoufázové ověření ('+auth.email+')\n'+new Date().toLocaleString('cs-CZ')+'\nKaždý kód lze použít jen jednou.\n\n'+codes.join('\n')+'\n';
+  box.innerHTML=`<div class="mfa-backup"><b>${first?'Uložte si záložní kódy':'Nové záložní kódy'}</b><p>Když ztratíte telefon, přihlásíte se jedním z těchto kódů. Uložte si je do správce hesel nebo vytiskněte — <b>znovu je už neuvidíte</b>.</p><ul>${codes.map(c=>`<li><code>${esc(c)}</code></li>`).join('')}</ul><div class="mfa-actions"><button class="btn btn-ghost btn-sm" type="button" id="mfaCopy">Kopírovat</button><button class="btn btn-ghost btn-sm" type="button" id="mfaDl">Stáhnout .txt</button></div></div>`;
+  document.getElementById('mfaCopy').onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast('Kódy zkopírovány.','success');}catch(e){toast('Kopírování se nezdařilo — opište si je prosím.','declined');}};
+  document.getElementById('mfaDl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download='zenvoria-zalozni-kody.txt';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);};
+  renderAdminMfaNotice();
+}
+/* banner na přehledu správce, dokud 2FA není zapnuté */
+async function renderAdminMfaNotice(){
+  const el=document.getElementById('admMfaNotice');if(!el)return;
+  if(!(auth.loggedIn&&auth.role==='admin')){el.innerHTML='';return;}
+  try{mfaStatus=await api('/auth/2fa');}catch(e){return;}
+  el.innerHTML=mfaStatus.enabled?'':`<div class="verify-banner wait mfa-notice"><span class="vb-ic" aria-hidden="true">🔐</span><div class="vb-t"><b>Zabezpečte administraci dvoufázovým ověřením</b><span>Účet správce má přístup k dokladům a osobním údajům. Zapnutí zabere dvě minuty.</span></div><button class="btn btn-sm btn-gold" onclick="go('settings')">Zapnout</button></div>`;
 }
 /* ---------- INIT ---------- */
 /* ---------- AUTO-UPDATE: obnovení stránky po novém deployi ---------- */

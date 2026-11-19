@@ -931,6 +931,7 @@
 <!-- ============ ADMIN · DASHBOARD ============ -->
 <div class="view" id="view-admin-dash">
   <div class="wrap">
+    <div id="admMfaNotice"></div>
     <div class="dash-head">
       <div style="display:flex;align-items:center;gap:16px">
         <div class="ava" id="admDashAva">SS</div>
@@ -1616,6 +1617,12 @@
       <label class="set-row"><div class="set-l"><b>Nové poptávky a objednávky</b><span>Když přijde nová poptávka nebo se změní objednávka.</span></div><span class="switch"><input type="checkbox" id="ntRequests" onchange="toggleSetting('requests',this)"><span class="sl-track"></span></span></label>
       <label class="set-row"><div class="set-l"><b>Zprávy v chatu</b><span>Upozornění na nové zprávy.</span></div><span class="switch"><input type="checkbox" id="ntChat" onchange="toggleSetting('chat',this)"><span class="sl-track"></span></span></label>
       <label class="set-row"><div class="set-l"><b>Připomínky služeb</b><span>Připomeneme vám nadcházející termíny.</span></div><span class="switch"><input type="checkbox" id="ntReminders" onchange="toggleSetting('reminders',this)"><span class="sl-track"></span></span></label>
+    </div>
+
+    <div class="pcard set-card" id="mfaCard" hidden>
+      <h3>Dvoufázové ověření</h3>
+      <p class="set-sub">Po zadání hesla budete navíc opisovat 6místný kód z aplikace v telefonu. Chrání administraci, i kdyby někdo zjistil vaše heslo.</p>
+      <div id="mfaCardBody"></div>
     </div>
 
     <div class="pcard set-card">

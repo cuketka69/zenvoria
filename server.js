@@ -4460,6 +4460,165 @@ app.post('/api/auth/verify-email/resend', requireAuth, rateLimit('verify-email',
   res.json({ ok: true });
 }));
 
+/* ---------------- DVOUFÁZOVÉ OVĚŘENÍ (TOTP) PRO SPRÁVCE ----------------
+   Admin si v Nastavení zapne 2FA (Google/Microsoft Authenticator, 1Password…). Od té chvíle
+   po správném heslu nedostane session hned, ale krátkodobý mfaToken (5 min) a musí zadat
+   6místný kód z aplikace nebo jeden ze záložních kódů. Konfigurace je server-only v settings
+   (klíč adminTotpV1:<userId>): { enabled, secret, lastStep, backupHashes[], enabledAt, pendingSecret }.
+   TOTP je RFC 6238 (HMAC-SHA1, 30 s, 6 číslic), toleruje ±1 krok a nepovolí znovu použít stejný kód. */
+const qrcode = require('qrcode');
+const ADMIN_TOTP_PREFIX = 'adminTotpV1:';
+const MFA_TOKEN_TTL_MS = 5 * 60 * 1000;
+const MFA_MAX_ATTEMPTS = 5;
+const TOTP_ISSUER = 'ZENVORIA';
+const B32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function base32Encode(buf) {
+  let bits = 0, value = 0, out = '';
+  for (const byte of buf) { value = (value << 8) | byte; bits += 8; while (bits >= 5) { out += B32_ALPHABET[(value >>> (bits - 5)) & 31]; bits -= 5; } }
+  if (bits > 0) out += B32_ALPHABET[(value << (5 - bits)) & 31];
+  return out;
+}
+function base32Decode(str) {
+  const clean = String(str || '').toUpperCase().replace(/[^A-Z2-7]/g, '');
+  let bits = 0, value = 0; const out = [];
+  for (const ch of clean) { value = (value << 5) | B32_ALPHABET.indexOf(ch); bits += 5; if (bits >= 8) { out.push((value >>> (bits - 8)) & 255); bits -= 8; } }
+  return Buffer.from(out);
+}
+function totpCode(secretB32, step) {
+  const counter = Buffer.alloc(8); counter.writeBigUInt64BE(BigInt(step));
+  const hmac = crypto.createHmac('sha1', base32Decode(secretB32)).update(counter).digest();
+  const off = hmac[hmac.length - 1] & 15;
+  const num = ((hmac[off] & 127) << 24) | (hmac[off + 1] << 16) | (hmac[off + 2] << 8) | hmac[off + 3];
+  return String(num % 1000000).padStart(6, '0');
+}
+/* vrátí použitý časový krok, nebo null; kód z kroku ≤ lastStep (už použitý) odmítne */
+function verifyTotp(secretB32, code, lastStep) {
+  const c = String(code || '').replace(/\s+/g, '');
+  if (!/^\d{6}$/.test(c) || !secretB32) return null;
+  const now = Math.floor(Date.now() / 30000);
+  for (const d of [0, -1, 1]) {
+    const step = now + d;
+    if (lastStep != null && step <= lastStep) continue;
+    if (crypto.timingSafeEqual(Buffer.from(totpCode(secretB32, step)), Buffer.from(c))) return step;
+  }
+  return null;
+}
+function hashBackupCode(code) { return crypto.createHash('sha256').update(String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex'); }
+function generateBackupCodes(n = 10) {
+  return Array.from({ length: n }, () => { const b = crypto.randomBytes(8); let s = ''; for (let i = 0; i < 8; i++) s += B32_ALPHABET[b[i] & 31]; return `${s.slice(0, 4)}-${s.slice(4)}`; });
+}
+async function loadAdminTotp(userId) {
+  const rows = await restSelect(T.settings, `key=eq.${encodeURIComponent(ADMIN_TOTP_PREFIX + userId)}&limit=1`);
+  const v = rows && rows[0] && rows[0].value;
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
+}
+async function saveAdminTotp(userId, value) {
+  await supabaseRestRequest('POST', T.settings, { body: { key: ADMIN_TOTP_PREFIX + userId, value }, prefer: 'resolution=merge-duplicates,return=minimal' });
+}
+/* mfaToken má vlastní odvozený klíč — nesmí jít podstrčit jako session cookie (ta se podepisuje SESSION_SECRET) */
+const MFA_TOKEN_KEY = crypto.createHmac('sha256', SESSION_SECRET).update('zenvoria-mfa-token-v1').digest();
+function signMfaToken(payload) {
+  const data = b64url(JSON.stringify(payload));
+  return `${data}.${crypto.createHmac('sha256', MFA_TOKEN_KEY).update(data).digest('base64url')}`;
+}
+function verifyMfaToken(token) {
+  const [data, sig] = String(token || '').split('.');
+  if (!data || !sig) return null;
+  const expect = crypto.createHmac('sha256', MFA_TOKEN_KEY).update(data).digest('base64url');
+  if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
+  try { const p = JSON.parse(Buffer.from(data, 'base64url').toString('utf8')); return p && p.t === 'mfa' && p.exp > Date.now() ? p : null; } catch { return null; }
+}
+const mfaAttempts = new Map(); // nonce -> počet neúspěšných pokusů (token platí 5 min)
+setInterval(() => { const now = Date.now(); for (const [k, v] of mfaAttempts) if (v.exp < now) mfaAttempts.delete(k); }, 60 * 1000).unref();
+async function adminMfaRequired(user) {
+  if (!user || user.role !== 'admin') return false;
+  const cfg = await loadAdminTotp(user.id);
+  return !!(cfg && cfg.enabled && cfg.secret);
+}
+/* ověří 6místný kód nebo záložní kód; při úspěchu uloží lastStep / spotřebuje záložní kód */
+async function consumeAdminSecondFactor(userId, cfg, code) {
+  const raw = String(code || '').trim();
+  const step = verifyTotp(cfg.secret, raw, cfg.lastStep);
+  if (step != null) { await saveAdminTotp(userId, { ...cfg, lastStep: step }); return { ok: true, method: 'totp' }; }
+  const h = hashBackupCode(raw), list = Array.isArray(cfg.backupHashes) ? cfg.backupHashes : [];
+  if (raw.replace(/[^A-Za-z0-9]/g, '').length === 8 && list.includes(h)) {
+    const next = list.filter((x) => x !== h);
+    await saveAdminTotp(userId, { ...cfg, backupHashes: next });
+    return { ok: true, method: 'backup', backupLeft: next.length };
+  }
+  return { ok: false };
+}
+app.post('/api/auth/login/mfa', rateLimit('login-mfa', RATE_LIMITS.login), h(async (req, res) => {
+  const tok = verifyMfaToken(req.body && req.body.mfaToken);
+  if (!tok) return res.status(401).json({ error: 'Platnost přihlášení vypršela. Zadejte prosím znovu e-mail a heslo.', reason: 'expired' });
+  const att = mfaAttempts.get(tok.n) || { count: 0, exp: tok.exp };
+  if (att.count >= MFA_MAX_ATTEMPTS) return res.status(429).json({ error: 'Příliš mnoho chybných kódů. Přihlaste se prosím znovu.', reason: 'expired' });
+  const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(tok.uid)}&limit=1`), user = rows && rows[0];
+  if (!user || user.status === 'suspended') return res.status(403).json({ error: 'Přihlášení není možné.', reason: 'expired' });
+  const cfg = await loadAdminTotp(user.id);
+  if (!cfg || !cfg.enabled) return res.status(400).json({ error: 'Dvoufázové ověření není zapnuté. Přihlaste se znovu.', reason: 'expired' });
+  const result = await consumeAdminSecondFactor(user.id, cfg, req.body && req.body.code);
+  if (!result.ok) {
+    att.count += 1; mfaAttempts.set(tok.n, att);
+    fireAudit('auth.login_mfa', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'failed', metadata: { attempt: att.count } });
+    return res.status(401).json({ error: att.count >= MFA_MAX_ATTEMPTS ? 'Příliš mnoho chybných kódů. Přihlaste se prosím znovu.' : 'Kód není správný. Zkuste to znovu.', reason: att.count >= MFA_MAX_ATTEMPTS ? 'expired' : 'invalid' });
+  }
+  mfaAttempts.delete(tok.n);
+  fireAudit('auth.login', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success', metadata: { mfa: result.method } });
+  setSession(res, user);
+  res.json({ user: publicUser(user), backupLeft: result.method === 'backup' ? result.backupLeft : undefined });
+}));
+app.get('/api/auth/2fa', requireRole('admin'), h(async (req, res) => {
+  const cfg = await loadAdminTotp(req.session.uid);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ enabled: !!(cfg && cfg.enabled), enabledAt: cfg && cfg.enabledAt || null, backupLeft: cfg && cfg.enabled && Array.isArray(cfg.backupHashes) ? cfg.backupHashes.length : 0 });
+}));
+app.post('/api/auth/2fa/setup', requireRole('admin'), rateLimit('2fa-setup', RATE_LIMITS.login), h(async (req, res) => {
+  const cfg = (await loadAdminTotp(req.session.uid)) || {};
+  if (cfg.enabled) return res.status(409).json({ error: 'Dvoufázové ověření už je zapnuté.' });
+  const secret = base32Encode(crypto.randomBytes(20));
+  await saveAdminTotp(req.session.uid, { ...cfg, enabled: false, pendingSecret: secret, pendingAt: new Date().toISOString() });
+  const label = encodeURIComponent(`${TOTP_ISSUER}:${req.session.email}`);
+  const otpauth = `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(TOTP_ISSUER)}&algorithm=SHA1&digits=6&period=30`;
+  const qr = await qrcode.toDataURL(otpauth, { margin: 1, width: 220, errorCorrectionLevel: 'M' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ secret: secret.match(/.{1,4}/g).join(' '), otpauth, qr });
+}));
+app.post('/api/auth/2fa/enable', requireRole('admin'), rateLimit('2fa-enable', RATE_LIMITS.login), h(async (req, res) => {
+  const cfg = await loadAdminTotp(req.session.uid);
+  if (!cfg || !cfg.pendingSecret) return res.status(400).json({ error: 'Nejdřív si prosím nechte zobrazit QR kód.' });
+  if (cfg.pendingAt && Date.now() - Date.parse(cfg.pendingAt) > 30 * 60 * 1000) return res.status(400).json({ error: 'Nastavení vypršelo. Začněte prosím znovu.' });
+  const step = verifyTotp(cfg.pendingSecret, req.body && req.body.code, null);
+  if (step == null) return res.status(400).json({ error: 'Kód nesouhlasí. Zkontrolujte čas v telefonu a zkuste aktuální kód.' });
+  const codes = generateBackupCodes();
+  await saveAdminTotp(req.session.uid, { enabled: true, secret: cfg.pendingSecret, lastStep: step, backupHashes: codes.map(hashBackupCode), enabledAt: new Date().toISOString() });
+  fireAudit('auth.2fa_enable', { req, actor: { id: req.session.uid, email: req.session.email, role: req.session.role }, targetType: 'user', targetId: req.session.uid, status: 'success' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ ok: true, backupCodes: codes });
+}));
+app.post('/api/auth/2fa/backup-codes', requireRole('admin'), rateLimit('2fa-backup', RATE_LIMITS.login), h(async (req, res) => {
+  const cfg = await loadAdminTotp(req.session.uid);
+  if (!cfg || !cfg.enabled) return res.status(400).json({ error: 'Dvoufázové ověření není zapnuté.' });
+  const step = verifyTotp(cfg.secret, req.body && req.body.code, cfg.lastStep);
+  if (step == null) return res.status(400).json({ error: 'Zadejte aktuální kód z aplikace.' });
+  const codes = generateBackupCodes();
+  await saveAdminTotp(req.session.uid, { ...cfg, lastStep: step, backupHashes: codes.map(hashBackupCode) });
+  fireAudit('auth.2fa_backup_codes', { req, actor: { id: req.session.uid, email: req.session.email, role: req.session.role }, targetType: 'user', targetId: req.session.uid, status: 'success' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ ok: true, backupCodes: codes });
+}));
+app.post('/api/auth/2fa/disable', requireRole('admin'), rateLimit('2fa-disable', RATE_LIMITS.login), h(async (req, res) => {
+  const cfg = await loadAdminTotp(req.session.uid);
+  if (!cfg || !cfg.enabled) return res.json({ ok: true });
+  const rows = await restSelect(T.users, `id=eq.${encodeURIComponent(req.session.uid)}&limit=1`), user = rows && rows[0];
+  if (!user || !bcrypt.compareSync(String((req.body && req.body.password) || ''), user.password_hash)) return res.status(401).json({ error: 'Nesprávné heslo.' });
+  const result = await consumeAdminSecondFactor(user.id, cfg, req.body && req.body.code);
+  if (!result.ok) return res.status(400).json({ error: 'Kód není správný.' });
+  await restDelete(T.settings, `key=eq.${encodeURIComponent(ADMIN_TOTP_PREFIX + user.id)}`);
+  fireAudit('auth.2fa_disable', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success' });
+  res.json({ ok: true });
+}));
+
 app.post('/api/auth/login', rateLimit('login', RATE_LIMITS.login), h(async (req, res) => {
   const { email, password } = req.body || {};
   const em = trimmedString(email, 320).toLowerCase();
@@ -4473,6 +4632,12 @@ app.post('/api/auth/login', rateLimit('login', RATE_LIMITS.login), h(async (req,
   if (user.status === 'suspended') {
     fireAudit('auth.login', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'failed', metadata: { reason: 'suspended' } });
     return res.status(403).json({ error: 'Účet je pozastavený.' });
+  }
+  if (await adminMfaRequired(user)) {
+    // heslo sedí, ale správce má zapnuté 2FA — session až po kódu (/api/auth/login/mfa)
+    const nonce = crypto.randomBytes(12).toString('base64url');
+    fireAudit('auth.login', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success', metadata: { step: 'password', mfaRequired: true } });
+    return res.json({ mfaRequired: true, mfaToken: signMfaToken({ t: 'mfa', uid: user.id, n: nonce, exp: Date.now() + MFA_TOKEN_TTL_MS }) });
   }
   fireAudit('auth.login', { req, actor: { id: user.id, email: user.email, role: user.role }, targetType: 'user', targetId: user.id, status: 'success' });
   setSession(res, user);
@@ -4692,7 +4857,8 @@ app.post('/api/auth/change-email/confirm', rateLimit('change-email-code', RATE_L
     verifiedAt: new Date().toISOString(),
   });
   const updatedUser = { ...user, email: payload.newEmail };
-  setSession(res, updatedUser);
+  const sameSession = !!(req.session && String(req.session.uid) === String(user.id));
+  if (sameSession || !(await adminMfaRequired(user))) setSession(res, updatedUser);
   fireAudit('auth.change_email.confirm', {
     req,
     actor: { id: user.id, email: payload.currentEmail, role: user.role },
