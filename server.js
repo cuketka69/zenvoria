@@ -2894,9 +2894,17 @@ function withTitul(name, titul) {
   const t = String(titul || '').trim();
   return t ? `${t} ${name || ''}`.trim() : (name || '');
 }
+/* uživateli posíláme jen jeho přepínače notifikací — ne interní poznámku správce (adminNote) ani nic dalšího */
+function publicUserSettings(settings) {
+  const st = settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : null;
+  if (!st) return st;
+  const out = {};
+  for (const k of ['email', 'requests', 'chat', 'reminders', 'careDigest']) if (k in st) out[k] = st[k];
+  return out;
+}
 function publicUser(u) {
   if (!u) return null;
-  return { id: u.id, email: u.email, name: u.name, titul: u.titul || null, phone: u.phone || null, role: u.role, status: u.status, init: u.init, settings: u.settings, photo: u.photo || null, publicId: u.public_id || null, emailVerified: !!u.email_verified, country: u.country || 'cz' };
+  return { id: u.id, email: u.email, name: u.name, titul: u.titul || null, phone: u.phone || null, role: u.role, status: u.status, init: u.init, settings: publicUserSettings(u.settings), photo: u.photo || null, publicId: u.public_id || null, emailVerified: !!u.email_verified, country: u.country || 'cz' };
 }
 function mapCaregiver(c, permsSetting) {
   return {
@@ -4930,7 +4938,12 @@ app.patch('/api/users/me/settings', requireAuth, h(async (req, res) => {
     email: !!settings.email,
     requests: !!settings.requests,
     reminders: !!settings.reminders,
+    careDigest: settings.careDigest !== false,
   };
+  // poznámka správce (adminNote) žije ve stejném objektu — uživatel ji nevidí, ale nesmí ji svým uložením smazat
+  const curRows = await restSelect(T.users, `id=eq.${encodeURIComponent(req.session.uid)}&select=settings&limit=1`);
+  const cur = curRows && curRows[0] && curRows[0].settings && typeof curRows[0].settings === 'object' ? curRows[0].settings : {};
+  if (cur.adminNote) normalized.adminNote = cur.adminNote;
   await restUpdate(T.users, `id=eq.${req.session.uid}`, { settings: normalized }, { prefer: 'return=minimal' });
   res.json({ ok: true });
 }));
@@ -5712,6 +5725,147 @@ app.get('/api/orders/:oid/care-journal/photo', requireAuth, h(async (req, res) =
   if (!parsed) return res.status(404).send('Nenalezeno');
   res.setHeader('Cache-Control', 'private, max-age=3600');
   res.type(parsed.mime).send(parsed.bytes);
+}));
+
+/* ---------------- TÝDENNÍ SOUHRN PÉČE E-MAILEM (rodině) ----------------
+   Každé pondělí od 8:00 (pražský čas) dostane rodina souhrn zápisů z návštěv za minulý týden (po–ne):
+   počet návštěv, nálada, nepodané léky a vzkazy pečovatelek. Posílá se vlastníkovi účtu i aktivním
+   členům sdílené péče; respektuje hlavní přepínač e-mailů a vlastní přepínač „careDigest“.
+   Proti dvojímu odeslání (restart, víc instancí) si běh „zabere“ týden v settings: careDigestWeek:<pondělí>. */
+const CARE_DIGEST_CLAIM_PREFIX = 'careDigestWeek:';
+const DIGEST_MOOD = { good: '😊', ok: '😐', bad: '😟' };
+const DIGEST_ACT_CZ = { hygiena: 'hygiena', jidlo: 'příprava jídla', prochazka: 'procházka', cviceni: 'cvičení', spolecnost: 'společnost', domacnost: 'domácnost', nakup: 'nákup', lekar: 'doprovod k lékaři', odpocinek: 'odpočinek' };
+const DIGEST_ACT_SK = { hygiena: 'hygiena', jidlo: 'príprava jedla', prochazka: 'prechádzka', cviceni: 'cvičenie', spolecnost: 'spoločnosť', domacnost: 'domácnosť', nakup: 'nákup', lekar: 'sprevádzanie k lekárovi', odpocinek: 'odpočinok' };
+function pragueTodayKey() { return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); }
+function pragueHourNow() { return Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Prague', hour: '2-digit', hour12: false })); }
+function addDaysKey(key, days) { const d = new Date(key + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); }
+/* minulý týden (po–ne) vůči dnešku v Praze */
+function previousWeekRange(todayKey = pragueTodayKey()) {
+  const dow = (new Date(todayKey + 'T12:00:00Z').getUTCDay() + 6) % 7; // 0 = pondělí
+  const thisMonday = addDaysKey(todayKey, -dow);
+  return { from: addDaysKey(thisMonday, -7), to: addDaysKey(thisMonday, -1) };
+}
+function fmtDayCz(key, sk) { const d = new Date(key + 'T12:00:00Z'); return d.toLocaleDateString(sk ? 'sk-SK' : 'cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC' }); }
+function careWeeklyDigestMail({ name, range, visits, country }) {
+  const sk = country === 'sk';
+  const first = (name || '').trim().split(/\s+/)[0] || '';
+  const ACT = sk ? DIGEST_ACT_SK : DIGEST_ACT_CZ;
+  const weekLabel = `${fmtDayCz(range.from, sk).replace(/^\S+\s/, '')} – ${fmtDayCz(range.to, sk).replace(/^\S+\s/, '')}`;
+  const moods = { good: 0, ok: 0, bad: 0 };
+  visits.forEach((v) => { moods[v.mood] = (moods[v.mood] || 0) + 1; });
+  const missed = visits.filter((v) => v.meds === 'missed');
+  const caregivers = [...new Set(visits.map((v) => v.caregiverName).filter(Boolean))];
+  const actCounts = {}; visits.forEach((v) => (v.activities || []).forEach((a) => { actCounts[a] = (actCounts[a] || 0) + 1; }));
+  const topActs = Object.entries(actCounts).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([a]) => ACT[a] || a);
+  const url = `${appUrlFor(country || DEFAULT_COUNTRY)}/#care-journal`;
+  const settingsUrl = `${appUrlFor(country || DEFAULT_COUNTRY)}/#settings`;
+  const t = sk ? {
+    subject: `Týždenný súhrn starostlivosti (${weekLabel})`, hello: `Dobrý deň${first ? ', ' + first : ''}.`, intro: `Takto prebehla starostlivosť minulý týždeň (${weekLabel}).`,
+    visits: 'Návštevy', moodL: 'Nálada', caregiversL: 'Opatrovateľky', actsL: 'Najčastejšie', missedTitle: '⚠️ Nepodané lieky', notesTitle: 'Odkazy od opatrovateliek', cta: 'Otvoriť denník starostlivosti',
+    footer: `Súhrn posielame každý pondelok, keď bol v uplynulom týždni aspoň jeden zápis. Vypnúť ho môžete v Nastaveniach: ${settingsUrl}`, closing: 'Ďakujeme, že ste s nami.', team: 'Tím Zenvoria', pre: 'Ako prebehla starostlivosť minulý týždeň',
+  } : {
+    subject: `Týdenní souhrn péče (${weekLabel})`, hello: `Dobrý den${first ? ', ' + first : ''}.`, intro: `Takhle proběhla péče minulý týden (${weekLabel}).`,
+    visits: 'Návštěvy', moodL: 'Nálada', caregiversL: 'Pečovatelky', actsL: 'Nejčastěji', missedTitle: '⚠️ Nepodané léky', notesTitle: 'Vzkazy od pečovatelek', cta: 'Otevřít deník péče',
+    footer: `Souhrn posíláme každé pondělí, pokud byl v uplynulém týdnu aspoň jeden zápis. Vypnout ho můžete v Nastavení: ${settingsUrl}`, closing: 'Děkujeme, že jste s námi.', team: 'Tým Zenvoria', pre: 'Jak proběhla péče minulý týden',
+  };
+  const moodStr = ['good', 'ok', 'bad'].filter((k) => moods[k]).map((k) => `${DIGEST_MOOD[k]} ${moods[k]}×`).join('  ');
+  const notes = visits.filter((v) => v.message).slice(-4);
+  const p = (s) => `<p style="margin:0 0 10px 0;">${s}</p>`;
+  const moodStrip = visits.map((v) => `<span title="${escapeHtml(fmtDayCz(v.date, sk))}" style="font-size:22px;line-height:1;">${DIGEST_MOOD[v.mood] || '😐'}</span>`).join(' ');
+  const bodyHtml =
+    (moodStrip ? `<div style="margin:0 0 18px 0;letter-spacing:2px;">${moodStrip}</div>` : '') +
+    (missed.length ? `<div style="margin:0 0 18px 0;padding:12px 14px;border-radius:12px;background:#FDF1EF;border:1px solid #F1C6BF;color:#7A2418;text-align:left;line-height:1.6;"><b>${t.missedTitle}</b><br>` +
+      missed.map((v) => `${escapeHtml(fmtDayCz(v.date, sk))} · ${escapeHtml(v.caregiverName || '')}${v.medsNote ? ' — ' + escapeHtml(v.medsNote) : ''}`).join('<br>') + '</div>' : '') +
+    (notes.length ? `<p style="margin:0 0 8px 0;font-weight:700;color:#0A2F20;text-align:left;">${t.notesTitle}</p>` +
+      notes.map((v) => `<div style="margin:0 0 10px 0;padding:10px 14px;border-left:3px solid #C9A233;background:#F8F6F1;border-radius:0 10px 10px 0;text-align:left;line-height:1.6;"><div style="font-size:12px;color:#5E6C61;margin-bottom:4px;">${escapeHtml(fmtDayCz(v.date, sk))} · ${escapeHtml(v.caregiverName || '')} ${DIGEST_MOOD[v.mood] || ''}</div>${escapeHtml(v.message.length > 280 ? v.message.slice(0, 280) + '…' : v.message)}</div>`).join('') : '') ||
+    p(sk ? 'Podrobnosti nájdete v denníku starostlivosti.' : 'Podrobnosti najdete v deníku péče.');
+  const facts = [
+    { label: t.visits, value: String(visits.length) },
+    moodStr ? { label: t.moodL, value: moodStr } : null,
+    caregivers.length ? { label: t.caregiversL, value: caregivers.join(', ') } : null,
+    topActs.length ? { label: t.actsL, value: topActs.join(', ') } : null,
+  ].filter(Boolean);
+  const text =
+    `${t.hello}\n\n${t.intro}\n\n` + facts.map((f) => `${f.label}: ${f.value}`).join('\n') + '\n' +
+    (missed.length ? `\n${t.missedTitle}:\n` + missed.map((v) => `- ${fmtDayCz(v.date, sk)} · ${v.caregiverName || ''}${v.medsNote ? ' — ' + v.medsNote : ''}`).join('\n') + '\n' : '') +
+    (notes.length ? `\n${t.notesTitle}:\n` + notes.map((v) => `- ${fmtDayCz(v.date, sk)} · ${v.caregiverName || ''}: ${v.message}`).join('\n') + '\n' : '') +
+    `\n${t.cta}: ${url}\n\n${t.footer}\n\n${t.team}`;
+  const html = renderEmailLayout({
+    preheader: t.pre, title: sk ? 'Týždenný súhrn starostlivosti' : 'Týdenní souhrn péče', intro: `${t.hello} ${t.intro}`,
+    bodyHtml, ctaLabel: t.cta, ctaUrl: url, ctaNote: '', facts, closingTitle: t.closing, closingSubtitle: t.team, footerNote: t.footer,
+  });
+  return { subject: t.subject, text, html };
+}
+/* sestaví souhrny: [{ ownerEmail, visits:[…] }] pro zadaný týden */
+async function buildWeeklyCareDigests(range) {
+  const journal = cleanCareJournal(await loadSettingArray(CARE_JOURNAL_KEY));
+  if (!journal.length) return [];
+  const oids = [...new Set(journal.map((e) => e.oid))];
+  const orders = [];
+  for (let i = 0; i < oids.length; i += 200) {
+    const chunk = await restSelect(T.orders, `oid=in.(${oids.slice(i, i + 200).join(',')})&date=gte.${range.from}&date=lte.${range.to}&select=oid,cid,family_email,date,time`);
+    orders.push(...(chunk || []));
+  }
+  const inRange = orders.filter((o) => o.date >= range.from && o.date <= range.to);
+  if (!inRange.length) return [];
+  const cids = [...new Set(inRange.map((o) => Number(o.cid)).filter(Boolean))];
+  const cgRows = cids.length ? await restSelect(T.caregivers, `id=in.(${cids.join(',')})&select=id,name`) : [];
+  const cgName = new Map((cgRows || []).map((c) => [Number(c.id), c.name]));
+  const byFamily = new Map();
+  for (const o of inRange) {
+    const e = journal.find((x) => x.oid === Number(o.oid)); if (!e) continue;
+    const owner = String(o.family_email || '').toLowerCase(); if (!owner) continue;
+    if (!byFamily.has(owner)) byFamily.set(owner, []);
+    byFamily.get(owner).push({ ...e, date: o.date, time: o.time || '', caregiverName: cgName.get(Number(o.cid)) || e.authorName });
+  }
+  return [...byFamily.entries()].map(([ownerEmail, visits]) => ({ ownerEmail, visits: visits.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)) }));
+}
+/* pošle souhrny za daný týden; vrací počet odeslaných e-mailů */
+async function sendWeeklyCareDigests(range, { dryRunTo = null } = {}) {
+  const digests = await buildWeeklyCareDigests(range);
+  const teams = cleanFamilyTeams(await loadSettingArray(FAMILY_CARE_TEAMS_KEY));
+  let sent = 0;
+  for (const d of digests) {
+    const team = teams.find((t) => t.ownerEmail === d.ownerEmail);
+    const emails = [...new Set([d.ownerEmail, ...(team ? team.members.filter((m) => m.status === 'active').map((m) => m.email) : [])])];
+    for (const email of emails) {
+      if (dryRunTo && email !== dryRunTo) continue;
+      const u = await findUserByEmail(email);
+      if (!u || u.status === 'suspended') continue;
+      const mail = careWeeklyDigestMail({ name: u.name, range, visits: d.visits, country: u.country });
+      if (await notifyMail({ to: u.email, settings: u.settings, category: 'careDigest', ...mail })) sent++;
+    }
+  }
+  return { families: digests.length, sent };
+}
+let careDigestRunning = false;
+async function maybeSendWeeklyCareDigests() {
+  if (!REST_ENABLED || careDigestRunning) return;
+  const today = pragueTodayKey();
+  if ((new Date(today + 'T12:00:00Z').getUTCDay()) !== 1 || pragueHourNow() < 8) return; // jen v pondělí od 8:00
+  careDigestRunning = true;
+  try {
+    const range = previousWeekRange(today);
+    const claimed = await supabaseRestRequest('POST', T.settings, { body: { key: CARE_DIGEST_CLAIM_PREFIX + range.from, value: { startedAt: new Date().toISOString() } }, prefer: 'resolution=ignore-duplicates,return=representation' });
+    if (!Array.isArray(claimed) || !claimed.length) return; // tenhle týden už odeslal jiný běh / instance
+    const result = await sendWeeklyCareDigests(range);
+    await supabaseRestRequest('POST', T.settings, { body: { key: CARE_DIGEST_CLAIM_PREFIX + range.from, value: { startedAt: claimed[0].value && claimed[0].value.startedAt, doneAt: new Date().toISOString(), ...result } }, prefer: 'resolution=merge-duplicates,return=minimal' });
+    console.log(`[jobs] týdenní souhrn péče ${range.from}–${range.to}: rodin ${result.families}, e-mailů ${result.sent}`);
+  } catch (e) { console.warn('[jobs] maybeSendWeeklyCareDigests failed:', e.message); }
+  finally { careDigestRunning = false; }
+}
+setInterval(maybeSendWeeklyCareDigests, 30 * 60 * 1000).unref();
+setTimeout(maybeSendWeeklyCareDigests, 60 * 1000).unref();
+/* správce: náhled souhrnu pro konkrétní rodinu (bez odeslání) — pro kontrolu vzhledu a dat */
+app.get('/api/admin/care-digest/preview', requireRole('admin'), h(async (req, res) => {
+  const email = trimmedString(req.query.email, 320).toLowerCase();
+  const range = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.from || '')) ? { from: req.query.from, to: addDaysKey(req.query.from, 6) } : previousWeekRange();
+  const d = (await buildWeeklyCareDigests(range)).find((x) => x.ownerEmail === email);
+  if (!d) return res.status(404).type('text/plain').send(`Pro ${email || '(chybí ?email=)'} nejsou v týdnu ${range.from}–${range.to} žádné zápisy.`);
+  const u = await findUserByEmail(email);
+  const mail = careWeeklyDigestMail({ name: u && u.name, range, visits: d.visits, country: u && u.country });
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('html').send(mail.html);
 }));
 
 app.get('/api/orders/:oid/receipt.pdf', requireAuth, h(async (req, res) => {

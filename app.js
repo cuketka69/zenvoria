@@ -2607,12 +2607,13 @@ async function forceLogout(reason){
   if(reason)toast(reason,'declined');
   go('home');
 }
-let appSettings={email:true,requests:true,chat:true,reminders:true};
+let appSettings={email:true,requests:true,chat:true,reminders:true,careDigest:true};
 function renderSettings(){
-  ['email','requests','chat','reminders'].forEach(k=>{
+  ['email','requests','chat','reminders','careDigest'].forEach(k=>{
     const el=document.getElementById('nt'+k.charAt(0).toUpperCase()+k.slice(1));
-    if(el)el.checked=!!appSettings[k];
+    if(el)el.checked=k==='careDigest'?appSettings[k]!==false:!!appSettings[k];
   });
+  const cdRow=document.getElementById('careDigestRow');if(cdRow)cdRow.hidden=!(auth.loggedIn&&auth.role==='family');
   const name=auth.loggedIn?auth.name:'Host';
   document.getElementById('setName').textContent=auth.loggedIn?dispName(auth):name;
   document.getElementById('setEmail').textContent=auth.loggedIn?auth.email:'—';
