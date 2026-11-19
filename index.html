@@ -52,7 +52,10 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
 <div id="ssrContent"><!--SSR_CONTENT--></div>
 
 <div id="appLoader" aria-live="polite">
-  <div class="app-loader-spinner" aria-hidden="true"></div>
+  <div class="zv-loader" aria-hidden="true">
+    <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" pathLength="1"/></svg>
+    <img src="/logo.webp" alt="" width="62" height="62" decoding="async">
+  </div>
   <p>Načítání…</p>
 </div>
 
@@ -495,7 +498,7 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
   <div class="modal-scrim" onclick="closeCareMatcher()"></div>
   <div class="modal-card care-match-modal">
     <button class="modal-x" aria-label="Zavřít" onclick="closeCareMatcher()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-    <span class="care-match-kicker">CHYTRÉ DOPORUČENÍ</span>
+    <span class="care-match-kicker">Chytré doporučení</span>
     <h3 id="careMatcherTitle">Jakou péči hledáte?</h3>
     <p class="msub">Podle vašich potřeb vybereme nejvhodnější ověřené profily.</p>
     <form onsubmit="return runCareMatcher(event)">
@@ -515,7 +518,7 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
   <div class="modal-scrim" onclick="closeCareCompare()"></div>
   <div class="modal-card care-compare-modal">
     <button class="modal-x" aria-label="Zavřít" onclick="closeCareCompare()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-    <span class="care-match-kicker">POROVNÁNÍ PROFILŮ</span>
+    <span class="care-match-kicker">Porovnání profilů</span>
     <h3 id="careCompareTitle">Pečovatelky vedle sebe</h3>
     <div id="careCompareContent" class="care-compare-content"></div>
   </div>
@@ -891,7 +894,7 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
     </div>
     <div class="foot-bottom">
       <span>© <span id="footYear">2026</span> ZENVORIA · Péče s lidskostí.</span>
-      <span style="display:flex;gap:8px"><span class="chip gold">Lidskost</span><span class="chip gold">Důvěra</span><span class="chip gold">Bezpečí</span></span>
+      <span class="zv-foot-words"><span class="chip gold">Lidskost</span><span class="chip gold">Důvěra</span><span class="chip gold">Bezpečí</span></span>
     </div>
   </div>
 </footer>

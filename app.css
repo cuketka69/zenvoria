@@ -2460,3 +2460,55 @@ html.js:not(.zv-intro) .zv-hero,html.js:not(.zv-intro) .zv-hero *{animation-play
 .summary-card h3{font-size:28px;color:var(--ivory)}
 .summary-card .btn{border-radius:999px}
 input[type=checkbox],input[type=radio],input[type=range]{accent-color:var(--brass)}
+
+/* =====================================================================
+   REDESIGN v5 — DROBNOSTI: načítání, patička, chat, upozornění, dialogy
+   ===================================================================== */
+/* načítání: logo, kolem kterého se dokresluje a zase mizí mosazná linka */
+#appLoader{background:radial-gradient(60% 50% at 50% 45%,#16402F,#0A241B 70%)}
+#appLoader p{text-transform:none;letter-spacing:.02em;font-weight:500;font-size:14px;color:#BFCAC1}
+.zv-loader{position:relative;width:96px;height:96px;display:grid;place-items:center}
+.zv-loader svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.zv-loader circle{fill:none;stroke:var(--brass,#C6A35C);stroke-width:1.2;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:zvLoad 2.2s cubic-bezier(.65,0,.35,1) infinite}
+.zv-loader img{width:52px;height:52px;object-fit:contain;opacity:.95}
+@keyframes zvLoad{0%{stroke-dashoffset:1}55%{stroke-dashoffset:0}100%{stroke-dashoffset:-1}}
+@media (prefers-reduced-motion:reduce){.zv-loader circle{animation:none;stroke-dashoffset:0}}
+
+/* patička: tři sloupce s vlasovými linkami, hodnoty jako tichá slova */
+footer{padding:clamp(48px,6vw,80px) 0 34px}
+footer .foot-grid{gap:0}
+footer .foot-grid>div{padding:0 clamp(18px,3vw,40px)}
+footer .foot-grid>div:first-child{padding-left:0}
+footer .foot-grid>div+div{border-left:1px solid rgba(198,163,92,.22)}
+footer .word{font-size:22px;color:var(--ivory)}
+footer p{color:#AEBBB1;line-height:1.7}
+footer h5{color:var(--gold-soft);font-family:'Marcellus',Georgia,serif;font-size:18px;letter-spacing:0;text-transform:none;font-weight:400;margin-bottom:14px}
+footer a{color:#BFCAC1}
+footer a:hover{color:var(--gold-soft)}
+footer .soc-btn{background:transparent;border:1px solid rgba(198,163,92,.4);color:var(--gold-soft)}
+footer .soc-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}
+.foot-bottom{border-top:1px solid rgba(198,163,92,.22);color:#9FAEA3}
+.zv-foot-words{display:flex;gap:22px}
+.zv-foot-words .chip{background:none!important;border:0!important;padding:0!important;font-family:'Marcellus',Georgia,serif;font-size:15px;color:var(--gold-soft)!important;box-shadow:none}
+@media (max-width:900px){
+  footer .foot-grid>div,footer .foot-grid>div:first-child{padding:0}
+  footer .foot-grid>div+div{border-left:0;border-top:1px solid rgba(198,163,92,.18);padding-top:22px;margin-top:22px}
+  .zv-foot-words{justify-content:center}
+}
+
+/* plovoucí nápověda: tlumená mosaz na tmavé zeleni místo ostře zlatého kolečka */
+#helpChatToggle{background:#0F3326;color:var(--gold-soft);border:1px solid rgba(198,163,92,.65);box-shadow:0 12px 30px -14px rgba(0,0,0,.7)}
+#helpChatToggle:hover{transform:translateY(-2px);background:#15402F;border-color:var(--brass)}
+#helpChatPanel{background:#0F3326;border:1px solid rgba(198,163,92,.4);border-radius:24px}
+.hc-head{background:transparent;border-bottom:1px solid rgba(198,163,92,.25)}
+.hc-head-tx b{font-size:18px;font-weight:400}
+
+/* upozornění (toast): tmavý pruh s mosaznou linkou vlevo */
+.toast{background:#0F3326!important;color:var(--ivory)!important;border:1px solid rgba(198,163,92,.4);border-left:3px solid var(--brass);border-radius:14px;box-shadow:0 20px 50px -18px rgba(0,0,0,.75)}
+
+/* dialogy: tmavá zeleň, mosazný okraj, tmavší pozadí za nimi */
+.modal-scrim{background:rgba(5,20,14,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.modal-card{background:#0F3326;border:1px solid rgba(198,163,92,.45);border-radius:26px;box-shadow:0 30px 80px -24px rgba(0,0,0,.8)}
+.modal-card h3{font-size:clamp(24px,2.4vw,30px);font-weight:400;color:var(--ivory)}
+.modal-card .btn{border-radius:999px}
+.care-match-kicker{font-family:'Marcellus',Georgia,serif;letter-spacing:.02em;font-size:15px;font-weight:400;text-transform:none}
