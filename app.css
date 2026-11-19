@@ -2321,3 +2321,91 @@ footer h5{font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:600;lett
   .zv-lines .zv-glint{display:none}
 }
 html.js:not(.zv-intro) .zv-hero,html.js:not(.zv-intro) .zv-hero *{animation-play-state:paused!important}
+
+/* =====================================================================
+   REDESIGN v3 — VYHLEDÁVÁNÍ A PROFIL PEČOVATELKY
+   karty jako vizitky (fotka v oblouku, jméno antikvou), profil s velkou
+   fotkou v oblouku a klidným bočním panelem objednávky
+   ===================================================================== */
+#view-search .page-head{padding-top:clamp(28px,4vw,56px);margin-bottom:8px}
+#view-search .page-head h1,#view-profile h1{font-size:clamp(38px,4.6vw,62px);line-height:1.05;color:var(--ivory)}
+#view-search .page-head p{color:#B5C1B8;font-size:16.5px}
+#view-search .care-match-open{border-radius:999px;padding:13px 24px}
+#view-search .search-bar{background:transparent;border:0;border-bottom:1px solid rgba(198,163,92,.4);border-radius:0;box-shadow:none;padding:6px 0;gap:0}
+#view-search .search-bar .field{background:transparent;border:0;border-radius:0;box-shadow:none}
+#view-search .search-bar .field+.field{border-left:1px solid rgba(198,163,92,.3)}
+#view-search .search-bar input{font-size:17px;color:var(--ivory)}
+#view-search .filters{gap:8px}
+#view-search .fbtn{background:transparent;border:1px solid rgba(198,163,92,.3);color:#D5DCD3;border-radius:999px;box-shadow:none;font-weight:500}
+#view-search .fbtn:hover{border-color:var(--brass);color:var(--ivory)}
+#view-search .fbtn.on{background:var(--brass);border-color:var(--brass);color:#0D2A20}
+#view-search .sort-row{border-top:1px solid rgba(243,238,228,.08);padding-top:14px}
+#view-search .care-grid{gap:clamp(22px,2.6vw,36px);margin-top:10px}
+
+.zv-card{display:flex;flex-direction:column;background:transparent!important;border:1px solid rgba(198,163,92,.22)!important;border-radius:26px!important;box-shadow:none!important;overflow:hidden;padding:0;transition:border-color .25s}
+.zv-card:hover{border-color:rgba(198,163,92,.6)!important;transform:none!important}
+.zv-card-photo{position:relative;margin:14px 14px 0;aspect-ratio:5/4;border-radius:999px 999px 14px 14px / 64% 64% 14px 14px;overflow:hidden;background:radial-gradient(80% 80% at 50% 30%,#245a46,#123627)}
+.zv-card-photo img{width:100%;height:100%;object-fit:cover;object-position:50% 30%;transition:transform .6s cubic-bezier(.2,.7,.1,1);filter:saturate(.92)}
+.zv-card:hover .zv-card-photo img{transform:scale(1.04)}
+.zv-card-init{position:absolute;inset:0;display:grid;place-items:center;font-family:'Marcellus',Georgia,serif;font-size:56px;letter-spacing:.06em;color:rgba(220,192,134,.85)}
+.zv-card .prem-ribbon{position:absolute;top:auto;bottom:12px;left:12px;right:auto;border-radius:999px;background:rgba(13,42,32,.78);backdrop-filter:blur(6px);color:var(--gold-soft);border:1px solid rgba(198,163,92,.5);font-size:11px;letter-spacing:.08em;padding:5px 10px;box-shadow:none;transform:none}
+.zv-card .fav-heart-card,.care-card.zv-card.is-premium .fav-heart-card{top:12px;right:12px;background:rgba(13,42,32,.72);border:1px solid rgba(243,238,228,.2)}
+.zv-card .care-match-badge,.care-card.zv-card.is-premium .care-match-badge{top:12px;left:12px;background:var(--brass);color:#0D2A20;box-shadow:none}
+.zv-card .care-top{padding:18px 22px 6px}
+.zv-card .care-name{font-family:'Marcellus',Georgia,serif;font-size:25px;line-height:1.15;color:var(--ivory);font-weight:400}
+.zv-card .care-loc{margin-top:6px;color:#AEBBB1;font-size:14px}
+.zv-card .care-meta{margin-top:6px;color:#AEBBB1;font-size:14px}
+.zv-card .care-tags{padding:12px 0 0;margin:10px 22px 0;border-top:1px solid rgba(198,163,92,.22);gap:6px}
+.zv-card .care-tags .chip{background:transparent;border:1px solid rgba(243,238,228,.14);color:#CAD3CB;font-size:12px;border-radius:999px}
+.zv-card .care-foot{margin-top:auto;padding:16px 22px 20px;border-top:0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.zv-card .care-foot .price{font-family:'Marcellus',Georgia,serif;color:var(--ivory)}
+.zv-card .care-foot .price b{font-weight:400;font-size:22px}
+.zv-card .care-card-actions .btn{border-radius:999px;padding:9px 16px!important;font-size:13.5px}
+.zv-card.is-premium{border-color:rgba(198,163,92,.5)!important}
+.zv-card.is-out-of-range{opacity:.72}
+
+/* ---------- profil ---------- */
+#view-profile .back-link{color:#C8D2CA;margin-top:clamp(20px,3vw,40px)}
+#view-profile .back-link:hover{color:var(--gold-soft)}
+#view-profile .profile-grid{gap:clamp(24px,3vw,44px)}
+#view-profile .pcard{background:transparent;border:1px solid rgba(198,163,92,.24);border-radius:28px;box-shadow:none;padding:clamp(24px,3.4vw,44px)}
+#view-profile .phead{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:clamp(20px,3vw,40px);align-items:end}
+#view-profile .phead .pava-wrap{position:relative}
+#view-profile .phead .ava{width:clamp(150px,16vw,210px);height:auto;aspect-ratio:4/5;border-radius:999px 999px 18px 18px;font-size:48px;font-family:'Marcellus',Georgia,serif;background:radial-gradient(80% 80% at 50% 30%,#245a46,#123627);box-shadow:0 0 0 1px rgba(220,192,134,.5)}
+#view-profile .phead .ava img{width:100%;height:100%;object-fit:cover;object-position:50% 30%;border-radius:inherit}
+#view-profile .phead .pava-wrap::after{content:"";position:absolute;top:14px;left:-14px;right:14px;bottom:-14px;border:1px solid rgba(198,163,92,.6);border-radius:999px 999px 24px 24px;pointer-events:none}
+#view-profile .pava-dot{right:10px;bottom:12px;z-index:2}
+#view-profile .phead h1{margin:0}
+#view-profile .pmeta{margin-top:10px;color:#B5C1B8}
+#view-profile .phead .chip{background:transparent;border:1px solid rgba(243,238,228,.16);color:#D5DCD3;border-radius:999px}
+#view-profile .pchips{grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin:clamp(24px,3vw,36px) 0 6px;border-top:1px solid rgba(198,163,92,.3);border-bottom:1px solid rgba(198,163,92,.3)}
+#view-profile .pchip{background:transparent;border:0;border-radius:0;box-shadow:none;padding:16px 14px;font-size:14px;color:#D5DCD3;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+#view-profile .pchip+.pchip{border-left:1px solid rgba(198,163,92,.22)}
+#view-profile .pdiv{height:0;border-top:1px solid rgba(243,238,228,.08);background:none;margin:clamp(22px,3vw,32px) 0}
+#view-profile .pcard h3{font-size:clamp(24px,2.2vw,30px);color:var(--ivory);margin-bottom:10px}
+#view-profile .bio{font-size:17px;line-height:1.8;color:#CBD4CC;max-width:62ch}
+#view-profile .pservices .chip{background:transparent;border:1px solid rgba(198,163,92,.45);color:var(--gold-soft);border-radius:999px}
+#view-profile .book-aside{border-color:rgba(198,163,92,.45);background:linear-gradient(180deg,rgba(28,74,57,.55),rgba(13,42,32,.2))}
+#view-profile .book-aside h3{font-size:28px}
+#view-profile .book-aside .row{border-bottom:1px solid rgba(243,238,228,.07);padding:11px 0}
+#view-profile .book-aside .row .l{color:#A9B7AC}
+#view-profile .total-row{border-top:1px solid rgba(198,163,92,.4)}
+#view-profile .total-row .big{font-size:34px;color:var(--ivory)}
+#view-profile .book-aside .btn{border-radius:999px}
+@media (max-width:900px){
+  #view-profile .phead{grid-template-columns:auto minmax(0,1fr);align-items:center}
+  #view-profile .phead>.fav-heart-lg{position:absolute;top:18px;right:18px}
+  #view-profile .pcard{position:relative}
+  #view-profile .pchips{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #view-profile .pchip:nth-child(3){border-left:0}
+  #view-profile .pchip:nth-child(n+3){border-top:1px solid rgba(198,163,92,.22)}
+}
+@media (max-width:560px){
+  #view-profile .phead{grid-template-columns:minmax(0,1fr);justify-items:start}
+  #view-profile .phead .ava{width:160px}
+  #view-search .search-bar{flex-direction:column}
+  #view-search .search-bar .field+.field{border-left:0;border-top:1px solid rgba(198,163,92,.25);max-width:none!important}
+}
+#view-profile .phead h1{font-size:clamp(34px,3.4vw,50px);line-height:1.08}
+#view-profile .phead>div:nth-child(2)>div:last-child{gap:6px!important}
+@media (max-width:760px){#view-search .page-head{flex-direction:column;align-items:flex-start;gap:16px}#view-search .care-match-open{align-self:stretch}}

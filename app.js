@@ -1681,12 +1681,14 @@ function renderCare(){
     const matchScore=CARE_MATCH_SCORES[c.id];
     const compared=CARE_COMPARE_IDS.includes(c.id);
     return `
-    <div class="care-card ${hasPerm(c,'highlightedProfile')?'is-premium':''} ${oor?'is-out-of-range':''}" onclick="openProfile(${c.id})">
-      ${hasPerm(c,'highlightedProfile')?`<span class="prem-ribbon">${diamondSVG(13)}PREMIUM</span>`:''}
-      ${favHeartHTML(c.id,'fav-heart-card')}
-      ${matchScore?`<span class="care-match-badge">${matchScore}% shoda</span>`:''}
+    <div class="care-card zv-card ${hasPerm(c,'highlightedProfile')?'is-premium':''} ${oor?'is-out-of-range':''}" onclick="openProfile(${c.id})">
+      <div class="zv-card-photo">
+        ${c.photo?`<img src="${esc(c.photo)}" alt="" loading="lazy" decoding="async">`:`<span class="zv-card-init" aria-hidden="true">${esc(c.init||'')}</span>`}
+        ${hasPerm(c,'highlightedProfile')?`<span class="prem-ribbon">${diamondSVG(13)}PREMIUM</span>`:''}
+        ${favHeartHTML(c.id,'fav-heart-card')}
+        ${matchScore?`<span class="care-match-badge">${matchScore}% shoda</span>`:''}
+      </div>
       <div class="care-top">
-        ${avaHtml(c.init,c.photo)}
         <div style="flex:1">
           <div class="care-name">${esc(dispName(c))}</div>
           <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${esc(c.loc)}${distanceMode&&searchDistances[c.id]!=null?` · ${searchDistances[c.id]} km`:''}</div>
@@ -1832,7 +1834,6 @@ async function openProfile(id,fromPop){
       <div class="row"><span class="l">Cena</span><span class="r">${priceLabel(c)}</span></div>
       <div class="row"><span class="l">Doprava</span><span class="r">${kmLabel(c)}</span></div>
       <div class="row"><span class="l">Dojezd</span><span class="r">${esc(c.loc)} do ${c.radius} km</span></div>
-      <div class="row"><span class="l">Dostupnost</span><span class="r" style="color:var(--gold-deep)">Tento týden</span></div>
       <div class="row" id="profileRespRow" hidden><span class="l">Reakce</span><span class="r" id="profileRespVal"></span></div>
       <div class="total-row"><span class="l">${c.priceType==='indiv'?'Cena':'Od'}</span><span class="big">${c.priceType==='indiv'?'Dohodou':priceShort(c).replace(/<b>|<\/b>/g,'')}</span></div>
       <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openBooking(${c.id})">Objednat službu</button>
