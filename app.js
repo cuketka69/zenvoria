@@ -709,8 +709,22 @@ function enhanceSelect(sel){
     wrap.classList.remove('open');btn.setAttribute('aria-expanded','false');
     sel.dispatchEvent(new Event('change',{bubbles:true}));
   };
+  /* seznam se otevře nahoru, když by ho dole ořízl okraj okna nebo posuvného rodiče (např. modální okno) */
+  const place=()=>{
+    wrap.classList.remove('dd-up');menu.style.maxHeight='';
+    let top=0,bottom=window.innerHeight;
+    for(let el=wrap.parentElement;el&&el!==document.body;el=el.parentElement){
+      const oy=getComputedStyle(el).overflowY;
+      if(oy==='auto'||oy==='scroll'||oy==='hidden'){const r=el.getBoundingClientRect();top=Math.max(top,r.top);bottom=Math.min(bottom,r.bottom);}
+    }
+    const b=btn.getBoundingClientRect(),need=Math.min(300,menu.scrollHeight)+12;
+    const below=bottom-b.bottom,above=b.top-top;
+    if(below<need&&above>below)wrap.classList.add('dd-up');
+    const room=Math.max(below,above)-16;
+    if(room<300)menu.style.maxHeight=Math.max(120,room)+'px';
+  };
   const open=()=>{
-    closeAllDD();wrap.classList.add('open');btn.setAttribute('aria-expanded','true');
+    closeAllDD();place();wrap.classList.add('open');btn.setAttribute('aria-expanded','true');
     const selectedIdx=items().findIndex(x=>x.classList.contains('sel'));
     setActive(selectedIdx>=0?selectedIdx:0);
   };
@@ -1690,7 +1704,9 @@ function openCareMatcher(){
   const modal=document.getElementById('careMatcherModal');if(!modal)return;
   const service=document.getElementById('matchService');
   service.innerHTML='<option value="">Na druhu péče nezáleží</option>'+SERVICES.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
-  service.value=activeFilter||'';
+  service.value=SERVICES.some(s=>s.id===activeFilter)?activeFilter:'';
+  // rozbalovačka je vlastní (enhanceSelect) a vznikla dřív, než jsme doplnili možnosti — překresli ji
+  if(service._ddRefresh)service._ddRefresh();
   document.getElementById('matchLocation').value=(document.getElementById('loc')||{}).value||'';
   document.getElementById('matchBudget').value=(document.getElementById('priceMax')||{}).value||getSearchPriceRange().max;
   document.getElementById('careMatcherResults').hidden=true;

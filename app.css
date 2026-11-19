@@ -732,6 +732,8 @@
     background:var(--white);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;
     z-index:70;max-height:300px;overflow:auto;opacity:0;transform:translateY(-6px);pointer-events:none;transition:.16s ease}
   .dd.open .dd-menu{opacity:1;transform:none;pointer-events:auto}
+  .dd.dd-up .dd-menu{top:auto;bottom:calc(100% + 8px);transform:translateY(6px)}
+  .dd.dd-up.open .dd-menu{transform:none}
   .dd-opt{padding:9px 12px;border-radius:9px;font-size:14px;color:var(--navy-800);cursor:pointer;white-space:nowrap;transition:.12s}
   .dd-opt:hover{background:var(--cream)}
   .dd-opt.sel{background:rgba(201,162,51,.18);color:var(--navy-900);font-weight:600}
