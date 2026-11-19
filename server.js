@@ -8978,6 +8978,32 @@ app.get('/deferred-views.html', (req, res) => {
   if (html) return res.type('html').send(html);
   return res.sendFile(path.join(ROOT, 'deferred-views.html'));
 });
+/* express.static servíruje celý kořen projektu — bez téhle pojistky by šel stáhnout i server.js,
+   SQL skripty, reporty, package.json, test/, mobile/, node_modules/… Ven pustíme jen soubory, které
+   frontend opravdu potřebuje: obrázky a fonty (v kořeni nebo ve fonts/) a vyjmenované JS/CSS/HTML/JSON. */
+const PUBLIC_STATIC_FILES = new Set([
+  '/index.html', '/deferred-views.html',
+  '/app.js', '/app.min.js', '/app.sk.js', '/app.sk.min.js', '/app.css', '/app.min.css',
+  '/legal-pages.css', '/maplibre-gl.js', '/maplibre-gl.css', '/map-style.json',
+  '/obchodni-podminky.html', '/obchodni-udaje.html', '/ochrana-osobnich-udaju.html', '/zasady-cookies.html',
+]);
+const PUBLIC_STATIC_ASSET_RE = /^\/(?:fonts\/)?[A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:webp|png|jpe?g|gif|svg|ico|avif|ttf|otf|woff2?)$/i;
+app.use((req, res, next) => {
+  if ((req.method !== 'GET' && req.method !== 'HEAD') || req.path.startsWith('/api/')) return next();
+  let p;
+  try { p = decodeURIComponent(req.path); } catch (e) { return sendNotFoundPage(req, res); }
+  const last = p.slice(p.lastIndexOf('/') + 1);
+  // cesty bez přípony (/, /cenik, /pecovatelka/…) obslouží SPA/SEO routy; tečkové soubory (.env, .git…) nikdy
+  if (!last.includes('.') && !p.split('/').some((seg) => seg.startsWith('.'))) {
+    // …ale ne adresáře a „/soubor“ bez přípony, které by express.static dohledal (index.html v podsložce, extensions: html)
+    if (p === '/') return next();
+    const abs = path.join(ROOT, p);
+    if (abs.startsWith(ROOT + path.sep) && (fs.existsSync(abs) || fs.existsSync(abs.replace(/[\\/]+$/, '') + '.html'))) return sendNotFoundPage(req, res);
+    return next();
+  }
+  if (PUBLIC_STATIC_FILES.has(p) || PUBLIC_STATIC_ASSET_RE.test(p)) return next();
+  return sendNotFoundPage(req, res);
+});
 app.use(express.static(ROOT, {
   extensions: ['html'],
   index: 'index.html',
