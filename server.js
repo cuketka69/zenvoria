@@ -3518,10 +3518,10 @@ const DEFERRED_SK_TRANSLATIONS = [
     '<option value="4">4 týždne</option>\n                <option value="8" selected>8 týždňov</option>\n                <option value="12">12 týždňov</option>\n                <option value="26">26 týždňov</option>'],
   ['<b>Adresa a poznámka</b>', '<b>Adresa a poznámka</b>'],
   ['<label class="lbl">Adresa</label>', '<label class="lbl">Adresa</label>'],
-  ['placeholder="Ulice a číslo, Praha" value="Veleslavínská 123, Praha 6"', 'placeholder="Ulica a číslo, Bratislava" value="Obchodná 12, Bratislava"'],
+  ['placeholder="Ulice a číslo, Praha" autocomplete=', 'placeholder="Ulica a číslo, Bratislava" autocomplete='],
   ['<label class="lbl">Vzdálenost dojezdu (km)</label>', '<label class="lbl">Vzdialenosť dojazdu (km)</label>'],
   ['<label class="lbl">Poznámka pro pečovatelku</label>', '<label class="lbl">Poznámka pre opatrovateľku</label>'],
-  ['placeholder="Např. Ráda bych doprovod k lékaři.">Ráda bych doprovod k lékaři.<', 'placeholder="Napr. Rada by som sprievod k lekárovi.">Rada by som sprievod k lekárovi.<'],
+  ['placeholder="Např. Ráda bych doprovod k lékaři."></textarea>', 'placeholder="Napr. Rada by som sprievod k lekárovi."></textarea>'],
   // view-bookings (Moje objednávky)
   ['<h1>Moje objednávky</h1><p>Přehled vašich naplánovaných i minulých služeb.</p>', '<h1>Moje objednávky</h1><p>Prehľad vašich naplánovaných aj minulých služieb.</p>'],
   ['<span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span>',

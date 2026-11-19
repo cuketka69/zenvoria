@@ -49,13 +49,13 @@
         <div class="step">
           <div class="step-h"><div class="step-num">3</div><b>Adresa a poznámka</b></div>
           <label class="lbl">Adresa</label>
-          <input class="inp" id="bkAddr" placeholder="Ulice a číslo, Praha" value="Veleslavínská 123, Praha 6">
+          <input class="inp" id="bkAddr" placeholder="Ulice a číslo, Praha" autocomplete="street-address">
           <div id="bkAddrMap"></div>
           <div style="margin-top:14px" id="bkKmWrap"><label class="lbl">Vzdálenost dojezdu (km)</label>
             <input class="inp" type="number" id="bkKm" min="0" max="80" step="1" value="0" oninput="updateSummary()">
           </div>
           <div style="margin-top:14px"><label class="lbl">Poznámka pro pečovatelku</label>
-            <textarea class="inp" id="bkNote" placeholder="Např. Ráda bych doprovod k lékaři.">Ráda bych doprovod k lékaři.</textarea>
+            <textarea class="inp" id="bkNote" placeholder="Např. Ráda bych doprovod k lékaři."></textarea>
           </div>
         </div>
       </div>
