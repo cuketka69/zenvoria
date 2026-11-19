@@ -3279,6 +3279,7 @@ function renderFamilyDash(){
   document.getElementById('famStats').innerHTML=stats.map(s=>`
     <div class="stat"><div class="stat-top"><span class="sl">${s.l}</span><div class="si">${sIcon(s.ic)}</div></div><div class="sv">${s.v}</div></div>`).join('');
   document.getElementById('famUpcoming').innerHTML=up.length?up.slice(0,4).map(famOrderRow).join(''):'<div class="empty">Žádné nadcházející objednávky.</div>';
+  renderFamJournalPreview();
   // Důvěra a bezpečí: kdo přijde, kdy, historie péče, SOS
   const next=ORDERS.filter(o=>['pending','confirmed'].includes(o.status)).sort((a,b)=>a.date.localeCompare(b.date))[0];
   const trust=document.getElementById('famTrust');
@@ -6816,6 +6817,7 @@ function renderCgDashboard(){
       planNotice.innerHTML=`<div class="verify-banner ok" style="margin-bottom:24px"><span class="vb-ic">${planIcon(planKey,26)}</span><div class="vb-t"><b>Tarif ${planKey==='premium'?'PREMIUM':'START'}</b><span>${esc(validTxt)}</span></div><button class="btn btn-sm btn-ghost" onclick="go('pricing')">Spravovat</button></div>`;
     }
   }
+  renderCgJournalNotice();
   setAva(document.getElementById('cgDashAva'),cgProfile.photo||auth.photo,initials(cgProfile.name));
   document.getElementById('cgFirst').textContent=cgFirstName().split(/\s+/)[0];
   document.getElementById('cgIntro').textContent=CG_REQUESTS.length
@@ -7565,6 +7567,25 @@ const CJ_MEDS={given:'Léky podány',missed:'Léky nepodány',none:'Bez léků'}
 const CJ_ACTIVITIES={hygiena:'Hygiena',jidlo:'Příprava jídla',prochazka:'Procházka',cviceni:'Cvičení',spolecnost:'Společnost a rozhovor',domacnost:'Domácnost',nakup:'Nákup',lekar:'Doprovod k lékaři',odpocinek:'Odpočinek'};
 let cjPhotoData=null,cjRemovePhoto=false,cjMonth='';
 function careJournalFor(oid){return CARE_JOURNAL.find(e=>Number(e.oid)===Number(oid))||null;}
+/* pečovatelka: návštěvy za posledních 30 dní, které už proběhly a nemají zápis */
+function cgMissingJournals(){
+  const today=todayISO(),from=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
+  return (CG_SCHEDULE||[]).filter(j=>{if(!j.oid||!j.date||j.date>today||j.date<from||careJournalFor(j.oid))return false;const o=ORDERS.find(x=>x.oid===j.oid);return !o||['confirmed','done'].includes(o.status);}).sort((a,b)=>b.date.localeCompare(a.date));
+}
+function renderCgJournalNotice(){
+  const el=document.getElementById('cgJournalNotice');if(!el)return;const miss=cgMissingJournals();
+  if(!miss.length){el.innerHTML='';return;}
+  const n=miss.length,word=n===1?'nevyplněný zápis':(n<5?'nevyplněné zápisy':'nevyplněných zápisů');
+  el.innerHTML=`<div class="verify-banner wait cj-notice"><span class="vb-ic" aria-hidden="true">📝</span><div class="vb-t"><b>Máte ${n} ${word} z návštěv</b><span>Rodina čeká, jak návštěva proběhla. Vyplnění zabere minutu.</span><div class="cj-notice-list">${miss.slice(0,3).map(j=>`<button class="btn btn-ghost btn-sm" onclick="openOrderDetailByOid(${j.oid})">${fmtDate(j.date)} · ${esc(j.fam||'')}</button>`).join('')}</div></div></div>`;
+}
+/* rodina: poslední zápis na přehledu */
+function renderFamJournalPreview(){
+  const el=document.getElementById('famJournalPreview');if(!el)return;
+  const last=CARE_JOURNAL.map(e=>({e,o:ORDERS.find(o=>Number(o.oid)===Number(e.oid))})).filter(x=>x.o).sort((a,b)=>String(b.o.date+(b.o.time||'')).localeCompare(String(a.o.date+(a.o.time||''))))[0];
+  if(!last){el.innerHTML='<div class="empty">Po první návštěvě sem pečovatelka zapíše, jak se váš blízký měl.</div>';return;}
+  const {e,o}=last,m=CJ_MOODS[e.mood]||CJ_MOODS.ok,acts=(e.activities||[]).slice(0,3).map(a=>CJ_ACTIVITIES[a]||a).join(', ');
+  el.innerHTML=`<div class="order cj-preview" role="button" tabindex="0" onclick="go('care-journal')" onkeydown="if(event.key==='Enter')go('care-journal')"><span class="cj-mood">${m.icon}</span><div class="od"><b>${fmtDate(o.date)} · ${m.label}</b><div class="det">${esc(e.authorName||'')}${acts?' · '+esc(acts):''}${e.meds==='missed'?' · <span class="cj-meds-missed">léky nepodány</span>':''}</div>${e.message?`<div class="det cj-preview-msg">${esc(e.message.length>140?e.message.slice(0,140)+'…':e.message)}</div>`:''}</div></div>`;
+}
 function cjEntrySummaryHtml(e){
   const m=CJ_MOODS[e.mood]||CJ_MOODS.ok,acts=(e.activities||[]).map(a=>`<span class="cj-chip">${esc(CJ_ACTIVITIES[a]||a)}</span>`).join('');
   const facts=[e.food?`<span><b>Jídlo:</b> ${CJ_LEVELS[e.food]}</span>`:'',e.drink?`<span><b>Pití:</b> ${CJ_LEVELS[e.drink]}</span>`:'',e.meds?`<span class="cj-meds-${e.meds}"><b>${CJ_MEDS[e.meds]}</b>${e.medsNote?' · '+esc(e.medsNote):''}</span>`:''].filter(Boolean).join('');
@@ -7612,7 +7633,7 @@ function submitCareJournal(event,oid){
   const btn=document.getElementById('cjSubmit');if(btn)btn.disabled=true;
   Promise.resolve(apiSync(api('/orders/'+oid+'/care-journal',{method:'POST',body}).then(r=>{
     if(r&&r.entry){const i=CARE_JOURNAL.findIndex(x=>Number(x.oid)===Number(oid));if(i>=0)CARE_JOURNAL[i]=r.entry;else CARE_JOURNAL.push(r.entry);}
-    cjPhotoData=null;cjRemovePhoto=false;renderOrderDetail();toast('Zápis z návštěvy byl uložen. Rodina dostala upozornění.','success');
+    cjPhotoData=null;cjRemovePhoto=false;renderOrderDetail();renderCgJournalNotice();toast('Zápis z návštěvy byl uložen. Rodina dostala upozornění.','success');
   }))).finally(()=>{if(btn)btn.disabled=false;});
   return false;
 }

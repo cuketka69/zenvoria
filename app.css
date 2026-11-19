@@ -2099,3 +2099,5 @@
 .cj-list{margin-top:18px}
 html[data-theme=dark] .cj-chip,html[data-theme=dark] .cj-seg input:not(:checked)+span,html[data-theme=dark] .cj-acts input:not(:checked)+span{background:transparent}
 @media (max-width:640px){.cj-row{grid-template-columns:1fr}.cj-card-meta{flex-direction:column;align-items:flex-start}.cj-photo img{max-width:100%}}
+.cj-notice{margin-bottom:24px}.cj-notice-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cj-preview{cursor:pointer;align-items:flex-start}.cj-preview .cj-mood{font-size:26px;flex:0 0 auto}.cj-preview-msg{margin-top:4px;font-style:italic}
