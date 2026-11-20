@@ -1834,6 +1834,7 @@ async function openProfile(id,fromPop){
       <div class="row"><span class="l">Cena</span><span class="r">${priceLabel(c)}</span></div>
       <div class="row"><span class="l">Doprava</span><span class="r">${kmLabel(c)}</span></div>
       <div class="row"><span class="l">Dojezd</span><span class="r">${esc(c.loc)} do ${c.radius} km</span></div>
+      <div class="row" id="profileSlotRow" hidden><span class="l">Nejbližší volno</span><span class="r" id="profileSlotVal"></span></div>
       <div class="row" id="profileRespRow" hidden><span class="l">Reakce</span><span class="r" id="profileRespVal"></span></div>
       <div class="total-row"><span class="l">${c.priceType==='indiv'?'Cena':'Od'}</span><span class="big">${c.priceType==='indiv'?'Dohodou':priceShort(c).replace(/<b>|<\/b>/g,'')}</span></div>
       <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="openBooking(${c.id})">Objednat službu</button>
@@ -1901,7 +1902,32 @@ async function refreshProfilePresence(id){
   if(state.caregiverId!==id||activeView()!=='profile')return;
   applyProfilePresence(await fetchCaregiverPresence(id));
 }
+/* nejbližší volný termín (server spočítá z rozvrhu, dovolených a potvrzených objednávek) */
+async function loadProfileNextSlot(id){
+  const row=document.getElementById('profileSlotRow'),val=document.getElementById('profileSlotVal');if(!row||!val)return;
+  let d=null;try{const r=await fetch('/api/caregivers/'+encodeURIComponent(id)+'/next-slot',{credentials:'same-origin',cache:'no-store'});if(r.ok)d=await r.json();}catch(e){}
+  if(state.caregiverId!==id||!d){row.hidden=true;return;}
+  if(d.slot){
+    const dt=new Date(d.slot.date+'T12:00:00'),today=todayISO(),tomorrow=new Date(Date.now()+864e5).toISOString().slice(0,10);
+    const dayTxt=d.slot.date===today?'dnes':(d.slot.date===tomorrow?'zítra':dt.toLocaleDateString('cs-CZ',{weekday:'short',day:'numeric',month:'numeric'}));
+    val.innerHTML=`<button type="button" class="zv-slot-btn" onclick="bookNextSlot(${Number(id)},'${d.slot.date}','${d.slot.time}')" title="Objednat na tento termín">${esc(dayTxt)} od ${esc(d.slot.time.replace(/^0/,''))}</button>`;
+    row.hidden=false;
+  }else if(d.byArrangement){val.textContent='domluvou';row.hidden=false;}
+  else{val.textContent='v příštích 3 týdnech plno';row.hidden=false;}
+}
+/* klik na nejbližší volno → objednávka s předvyplněným datem a časem */
+function bookNextSlot(id,date,time){
+  openBooking(id);
+  if(!auth.loggedIn)return;
+  setTimeout(()=>{
+    const de=document.getElementById('bkDate'),te=document.getElementById('bkTime');
+    if(de){de.value=date;if(de._ddRefresh)de._ddRefresh();}
+    if(te){te.value=time;if(te._ddRefresh)te._ddRefresh();}
+    try{updateSummary();}catch(e){}
+  },60);
+}
 function startProfilePresence(id){
+  loadProfileNextSlot(id);
   if(profilePresenceTimer){clearInterval(profilePresenceTimer);profilePresenceTimer=null;}
   refreshProfilePresence(id);
   profilePresenceTimer=setInterval(()=>{

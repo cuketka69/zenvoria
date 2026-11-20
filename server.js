@@ -4274,6 +4274,12 @@ const JS_SK_TRANSLATIONS = [
   ["<button class=\"zv-textlink\" onclick=\"fillThen(this,()=>filterByService('${s.id}'))\">Zobrazit pečovatelky</button>", "<button class=\"zv-textlink\" onclick=\"fillThen(this,()=>filterByService('${s.id}'))\">Zobraziť opatrovateľky</button>"],
   ["const VALUES=['Lidskost','Důvěra','Respekt','Bezpečí','Profesionalita'];", "const VALUES=['Ľudskosť','Dôvera','Rešpekt','Bezpečie','Profesionalita'];"],
   ["const VAL_SUBS=['Empatie a srdce','Prověřeno a ověřeno','Důstojnost vždy','Pojištěno a chráněno','Zkušenost a péče'];", "const VAL_SUBS=['Empatia a srdce','Preverené a overené','Dôstojnosť vždy','Poistené a chránené','Skúsenosť a starostlivosť'];"],
+  // profil — nejbližší volný termín
+  ["<span class=\"l\">Nejbližší volno</span>", "<span class=\"l\">Najbližší voľný termín</span>"],
+  ["const dayTxt=d.slot.date===today?'dnes':(d.slot.date===tomorrow?'zítra':dt.toLocaleDateString('cs-CZ',", "const dayTxt=d.slot.date===today?'dnes':(d.slot.date===tomorrow?'zajtra':dt.toLocaleDateString('sk-SK',"],
+  ["title=\"Objednat na tento termín\"", "title=\"Objednať na tento termín\""],
+  ["val.textContent='domluvou'", "val.textContent='dohodou'"],
+  ["val.textContent='v příštích 3 týdnech plno'", "val.textContent='v najbližších 3 týždňoch obsadené'"],
 ];
 function translateAppJsToSk(src) {
   let out = src;
@@ -5484,6 +5490,46 @@ app.get('/api/caregivers/availability', rateLimit('locations', RATE_LIMITS.locat
   const rows = await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&country=eq.${countryForReq(req)}&select=id,avail,blocked_dates,avail_overrides`);
   const ids = (rows || []).filter((c) => checkAvailabilityFor(c, date, time, hours).ok).map((c) => Number(c.id));
   res.json({ ids });
+}));
+/* nejbližší volný termín pečovatelky (min. 2 h) v příštích 3 týdnech — pro profil místo falešného „Tento týden“.
+   Projde týdenní rozvrh, dovolené, výjimky i potvrzené objednávky; ven jde jen jeden termín, ne celý rozvrh.
+   Pečovatelka bez nastavené dostupnosti → „domluvou“ (nic nevymýšlíme). Výsledek se 10 min cachuje. */
+const nextSlotCache = new Map();
+function pragueNowParts() {
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Prague', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+  const o = Object.fromEntries(f.formatToParts(new Date()).map((x) => [x.type, x.value]));
+  return { date: `${o.year}-${o.month}-${o.day}`, hour: Number(o.hour) % 24, minute: Number(o.minute) };
+}
+app.get('/api/caregivers/:id/next-slot', rateLimit('next-slot', { windowMs: 60 * 1000, max: 30, message: 'Příliš mnoho dotazů.' }), h(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Neplatné ID.' });
+  const hit = nextSlotCache.get(id);
+  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return res.json(hit.body);
+  const rows = await restSelect(T.caregivers, `id=eq.${id}&verified=eq.true&suspended=eq.false&select=id,avail,blocked_dates,avail_overrides&limit=1`);
+  const c = rows && rows[0];
+  if (!c) return res.status(404).json({ error: 'Pečovatelka nebyla nalezena.' });
+  const hasSchedule = (Array.isArray(c.avail) && c.avail.some((d) => d && d.on)) || (c.avail_overrides && Object.keys(c.avail_overrides).length);
+  let body = { slot: null, byArrangement: !hasSchedule };
+  if (hasSchedule) {
+    const now = pragueNowParts();
+    const days = Array.from({ length: 21 }, (_, i) => addDaysKey(now.date, i));
+    const booked = await restSelect(T.orders, `cid=eq.${id}&status=eq.confirmed&date=gte.${days[0]}&date=lte.${days[days.length - 1]}&select=date,time,hours`).catch(() => []);
+    outer:
+    for (const day of days) {
+      for (let hr = 7; hr <= 20; hr++) {
+        if (day === now.date && hr < now.hour + 2) continue; // dnes nejdřív za 2 hodiny
+        const time = `${String(hr).padStart(2, '0')}:00`;
+        if (!checkAvailabilityFor(c, day, time, 2).ok) continue;
+        if ((booked || []).some((o) => o.date === day && timeRangesOverlap(time, 2, o.time, o.hours))) continue;
+        body = { slot: { date: day, time }, byArrangement: false };
+        break outer;
+      }
+    }
+  }
+  nextSlotCache.set(id, { at: Date.now(), body });
+  if (nextSlotCache.size > 2000) nextSlotCache.clear();
+  res.json(body);
 }));
 function timeRangesOverlap(aStart, aHours, bStart, bHours) {
   const aS = timeToHours(aStart), aE = aS + Number(aHours);

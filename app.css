@@ -2604,3 +2604,4 @@ footer .soc-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}
 }
 @media (min-width:1116px) and (max-width:1400px){.nav-links a{padding:8px 9px;font-size:13.5px}.nav-inner{gap:14px}}
 #view-care-journal .page-head .dd{min-width:220px;flex:0 0 auto}
+.zv-slot-btn{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--gold-soft);cursor:pointer;text-decoration:underline;text-decoration-color:rgba(198,163,92,.6);text-underline-offset:4px}.zv-slot-btn:hover{color:var(--ivory)}
