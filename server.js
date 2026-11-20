@@ -3109,10 +3109,40 @@ app.post('/api/billing/webhook', express.raw({ type: '*/*' }), async (req, res) 
 
 app.use(express.json({ limit: '30mb' }));
 app.use(cookieParser());
+/* ZÁMEK PRO SDÍLENÉ ZÁZNAMY V SETTINGS — sdílená péče, plány péče, záznamy a přílohy návštěv, deník péče,
+   push odběry… jsou uložené jako pole v jednom řádku settings a zapisují se stylem „načti → uprav → ulož“.
+   Dva souběžné zápisy by se navzájem přepsaly (např. odebraný člen sdílené péče by se vrátil). Zápisy proto
+   řadíme za sebe: běží vždy jen jeden. Server běží v jedné instanci, takže to stačí; pojistka 15 s proti zaseknutí. */
+let settingsLockTail = Promise.resolve();
+function withSettingsLock(fn) {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const prev = settingsLockTail;
+  settingsLockTail = prev.then(() => gate);
+  return prev.then(async () => {
+    const timer = setTimeout(release, 15000);
+    try { return await fn(); } finally { clearTimeout(timer); release(); }
+  });
+}
+function settingsWriteLock(req, res, next) {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(String(req.method).toUpperCase())) return next();
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const prev = settingsLockTail;
+  settingsLockTail = prev.then(() => gate);
+  prev.then(() => {
+    let done = false;
+    const free = () => { if (done) return; done = true; clearTimeout(timer); release(); };
+    const timer = setTimeout(free, 15000);
+    res.on('finish', free); res.on('close', free);
+    next();
+  });
+}
 app.use(loadSession);
 app.use(enforceActiveSession);
 app.use(refreshSessionCookie);
 app.use(requireCsrf);
+app.use(['/api/family-care-team', '/api/family-care-profile', '/api/orders/:oid/care-ops', '/api/orders/:oid/care-notes', '/api/orders/:oid/care-journal', '/api/push/subscribe', '/api/push/unsubscribe'], settingsWriteLock);
 
 const ROOT = __dirname;
 
@@ -4957,7 +4987,8 @@ app.post('/api/auth/change-email/send-code', rateLimit('change-email-code', RATE
    žádosti o ověření, sdílená péče…). Při změně e-mailu je nutné přepsat VŠE — jinak by data zůstala
    „viset“ na starém e-mailu a kdo by se na něj znovu zaregistroval, dostal by se k cizím objednávkám
    nebo by převzal ověřený profil pečovatelky. */
-async function migrateUserEmail(oldEmailRaw, newEmailRaw) {
+async function migrateUserEmail(oldEmailRaw, newEmailRaw) { return withSettingsLock(() => migrateUserEmailUnlocked(oldEmailRaw, newEmailRaw)); }
+async function migrateUserEmailUnlocked(oldEmailRaw, newEmailRaw) {
   const oldEmail = String(oldEmailRaw || '').trim().toLowerCase(), newEmail = String(newEmailRaw || '').trim().toLowerCase();
   if (!oldEmail || !newEmail || oldEmail === newEmail) return;
   const q = encodeURIComponent(oldEmail);
@@ -7614,8 +7645,10 @@ async function sendPushToUser(userId, { title, body, link, tag }) {
     }
   }));
   if (dead.size) {
-    const fresh = cleanPushSubs(await loadSettingArray(WEB_PUSH_SUBS_KEY)).filter((s) => !dead.has(s.endpoint));
-    await saveSettingArray(WEB_PUSH_SUBS_KEY, fresh);
+    await withSettingsLock(async () => {
+      const fresh = cleanPushSubs(await loadSettingArray(WEB_PUSH_SUBS_KEY)).filter((s) => !dead.has(s.endpoint));
+      await saveSettingArray(WEB_PUSH_SUBS_KEY, fresh);
+    });
   }
 }
 app.get('/api/push/public-key', requireAuth, h(async (_req, res) => {
@@ -9720,7 +9753,10 @@ async function sendReviewReminders() {
     const cgName = new Map((cgRows || []).map((c) => [Number(c.id), c.name]));
     // nejdřív zapsat, pak posílat — kdyby poslání selhalo, raději jedna připomínka chybí než dvě navíc
     const newlySent = todo.map((o) => Number(o.oid));
-    await saveSettingArray(REVIEW_REMINDER_KEY, [...sent, ...newlySent].slice(-5000));
+    await withSettingsLock(async () => {
+      const cur = (await loadSettingArray(REVIEW_REMINDER_KEY)).map(Number);
+      await saveSettingArray(REVIEW_REMINDER_KEY, [...new Set([...cur, ...newlySent])].slice(-5000));
+    });
     for (const o of todo) {
       if (reviewedSet.has(Number(o.oid))) continue;
       const u = await findUserByEmail(o.family_email);
