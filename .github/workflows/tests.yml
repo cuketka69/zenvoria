@@ -1,0 +1,28 @@
+# Automatické testy ZENVORIA — při každém nahrání na main a u pull requestů.
+# Spouští skutečný server proti napodobené databázi (test/local/fake_postgrest.js):
+# nepotřebuje Supabase ani žádné tajné klíče a nic neposílá na ostrý web.
+name: Testy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Kontrola syntaxe
+        run: node --check server.js && node --check app.js
+      - name: Lokální regresní testy
+        run: npm run test:local
