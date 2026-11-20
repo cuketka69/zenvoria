@@ -3359,6 +3359,10 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
 // zbytek appky (deferred-views.html, app.js) čeká na další fázi lokalizace (viz plán SK verze);
 // jde o doslovná nahrazení celých frází v rámci index.html, ne o obecnou i18n vrstvu
 const HOME_SK_TRANSLATIONS = [
+  // hodnocení rodin na úvodu
+  ["<h2 id=\"zvVoicesTitle\" class=\"zv-sec-title\">Co říkají rodiny</h2>", "<h2 id=\"zvVoicesTitle\" class=\"zv-sec-title\">Čo hovoria rodiny</h2>"],
+  ["aria-label=\"Předchozí hodnocení\"", "aria-label=\"Predchádzajúce hodnotenie\""],
+  ["aria-label=\"Další hodnocení\"", "aria-label=\"Ďalšie hodnotenie\""],
   // větší písmo
   ["aria-label=\"Větší písmo\" title=\"Větší písmo\"", "aria-label=\"Väčšie písmo\" title=\"Väčšie písmo\""],
   // redesign úvodní stránky (2026-11) — musí být před obecnými kratšími frázemi
@@ -4315,6 +4319,9 @@ const JS_SK_TRANSLATIONS = [
   // větší písmo
   ["b.title=on?'Běžná velikost písma':'Větší písmo';", "b.title=on?'Bežná veľkosť písma':'Väčšie písmo';"],
   ["toast(on?'Větší písmo zapnuto. Vrátíte ho stejným tlačítkem „A A“.':'Běžná velikost písma.');", "toast(on?'Väčšie písmo zapnuté. Vrátite ho rovnakým tlačidlom „A A“.':'Bežná veľkosť písma.');"],
+  // hodnocení rodin na úvodu
+  ["<span class=\"zv-voice-stars\" aria-label=\"${v.stars} z 5 hvězdiček\">", "<span class=\"zv-voice-stars\" aria-label=\"${v.stars} z 5 hviezdičiek\">"],
+  ["<span>${esc(v.fam)} o pečovatelce <a href=", "<span>${esc(v.fam)} o opatrovateľke <a href="],
 ];
 function translateAppJsToSk(src) {
   let out = src;

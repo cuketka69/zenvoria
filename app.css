@@ -2636,3 +2636,16 @@ html.zv-large .addr-map{zoom:.8475}
 .adm-table td b{font-family:'Marcellus',Georgia,serif;font-weight:400;font-size:17px;color:var(--ivory)}
 .adm-table tr:hover td{background:rgba(198,163,92,.04)}
 .adm-table .btn{border-radius:999px}
+
+/* ---------- úvod: hodnocení rodin ---------- */
+.zv-voices{padding:clamp(72px,9vw,128px) 0;background:var(--cream-2);border-top:1px solid rgba(198,163,92,.2)}
+.zv-voices-inner{max-width:920px}
+.zv-voice{margin:0;position:relative;padding-left:clamp(30px,4vw,56px)}
+.zv-voice::before{content:"\201E";position:absolute;left:0;top:-.35em;font-family:'Marcellus',Georgia,serif;font-size:clamp(70px,9vw,120px);line-height:1;color:var(--brass);opacity:.55}
+.zv-voice-q{margin:0;font-family:'Marcellus',Georgia,serif;font-size:clamp(23px,2.6vw,34px);line-height:1.45;color:var(--ivory);text-wrap:pretty}
+.zv-voice-by{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:26px;padding-top:18px;border-top:1px solid rgba(198,163,92,.35);font-size:15px;color:#BFCAC1}
+.zv-voice-by a{color:var(--gold-soft);text-decoration:underline;text-decoration-color:rgba(198,163,92,.6);text-underline-offset:4px}
+.zv-voice-stars{color:var(--brass);letter-spacing:2px;font-size:16px}
+.zv-voice-nav{display:flex;align-items:center;gap:16px;margin-top:26px;color:#AEBBB1;font-size:14px}
+.zv-voice-btn{width:42px;height:42px;border-radius:50%;border:1px solid rgba(198,163,92,.45);background:transparent;color:var(--gold-soft);font-size:22px;line-height:1;cursor:pointer}
+.zv-voice-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}

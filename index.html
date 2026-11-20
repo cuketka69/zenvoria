@@ -242,6 +242,18 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
     </div>
   </section>
 
+  <section class="zv-voices" id="homeVoices" hidden aria-labelledby="zvVoicesTitle">
+    <div class="wrap zv-voices-inner">
+      <h2 id="zvVoicesTitle" class="zv-sec-title">Co říkají rodiny</h2>
+      <figure class="zv-voice" id="homeVoice" aria-live="polite"></figure>
+      <div class="zv-voice-nav" id="homeVoiceNav" hidden>
+        <button type="button" class="zv-voice-btn" onclick="stepHomeVoice(-1)" aria-label="Předchozí hodnocení">‹</button>
+        <span id="homeVoiceCount"></span>
+        <button type="button" class="zv-voice-btn" onclick="stepHomeVoice(1)" aria-label="Další hodnocení">›</button>
+      </div>
+    </div>
+  </section>
+
   <section class="zv-values">
     <div class="wrap">
       <h2 class="zv-sec-title">Péče s lidskostí</h2>

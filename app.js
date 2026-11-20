@@ -1449,6 +1449,7 @@ function renderHome(){
     </article>`).join('');
   document.getElementById('valuesRow').innerHTML=VALUES.map((v,i)=>
     `<div class="zv-val"><b>${v}</b><span>${VAL_SUBS[i]||''}</span></div>`).join('');
+  renderHomeVoices();
   // body seznamů u „Pro rodiny / Pro pečovatelky“ — tenká mosazná linka místo ikon
   document.querySelectorAll('#view-home .aud li').forEach(li=>{
     li.innerHTML=li.innerHTML.replace('{c}','<span class="zv-dash" aria-hidden="true"></span>').replace('{cg}','<span class="zv-dash" aria-hidden="true"></span>');
@@ -1481,6 +1482,37 @@ function renderHome(){
   window.addEventListener('scroll',()=>{if(visible)requestAnimationFrame(frameTick);},{passive:true});
   if('IntersectionObserver'in window)new IntersectionObserver(es=>{visible=es[0].isIntersecting;if(lines&&lines.pauseAnimations){visible?lines.unpauseAnimations():lines.pauseAnimations();}},{threshold:0}).observe(hero);
 })();
+
+/* ---------- ÚVOD: skutečná hodnocení rodin ----------
+   Jen opravdové recenze z databáze (4–5 hvězdiček, s textem aspoň 30 znaků). Když žádná není, sekce
+   zůstane skrytá — nic se nevymýšlí. Příjmení rodiny se zkracuje na iniciálu (soukromí). */
+let homeVoices=[],homeVoiceIdx=0;
+function shortName(n){const p=String(n||'').trim().split(/\s+/).filter(Boolean);if(!p.length)return '';return p.length>1?`${p[0]} ${p[p.length-1][0]}.`:p[0];}
+function renderHomeVoices(){
+  const sec=document.getElementById('homeVoices');if(!sec)return;
+  const out=[];
+  Object.keys(cgReviews||{}).forEach(cid=>{
+    const c=CAREGIVERS.find(x=>String(x.id)===String(cid));if(!c||!c.verified||c.suspended)return;
+    (cgReviews[cid]||[]).forEach(r=>{const t=String(r.text||'').trim();if(Number(r.stars)>=4&&t.length>=30)out.push({text:t,stars:Number(r.stars),fam:shortName(r.name)||'Rodina',cg:c});});
+  });
+  // delší a pětihvězdičkové napřed, max. 6, z každé pečovatelky nejvýš 2
+  out.sort((a,b)=>b.stars-a.stars||b.text.length-a.text.length);
+  const perCg={};homeVoices=out.filter(v=>{perCg[v.cg.id]=(perCg[v.cg.id]||0)+1;return perCg[v.cg.id]<=2;}).slice(0,6);
+  sec.hidden=!homeVoices.length;if(!homeVoices.length)return;
+  homeVoiceIdx=Math.min(homeVoiceIdx,homeVoices.length-1);
+  document.getElementById('homeVoiceNav').hidden=homeVoices.length<2;
+  showHomeVoice();
+}
+function showHomeVoice(){
+  const v=homeVoices[homeVoiceIdx];const fig=document.getElementById('homeVoice');if(!v||!fig)return;
+  const text=v.text.length>420?v.text.slice(0,420).replace(/\s+\S*$/,'')+'…':v.text;
+  const cgUrl=v.cg.slug?`/pecovatelka/${encodeURIComponent(v.cg.slug)}`:'#';
+  fig.innerHTML=`<blockquote class="zv-voice-q">${esc(text)}</blockquote>
+    <figcaption class="zv-voice-by"><span class="zv-voice-stars" aria-label="${v.stars} z 5 hvězdiček">${'★'.repeat(v.stars)}${'☆'.repeat(5-v.stars)}</span>
+    <span>${esc(v.fam)} o pečovatelce <a href="${cgUrl}" onclick="event.preventDefault();openProfile(${Number(v.cg.id)})">${esc(shortName(v.cg.name))}</a></span></figcaption>`;
+  const cnt=document.getElementById('homeVoiceCount');if(cnt)cnt.textContent=`${homeVoiceIdx+1} / ${homeVoices.length}`;
+}
+function stepHomeVoice(d){if(!homeVoices.length)return;homeVoiceIdx=(homeVoiceIdx+d+homeVoices.length)%homeVoices.length;showHomeVoice();}
 
 /* ---------- SEARCH RENDER ---------- */
 let activeFilter='';
