@@ -9671,6 +9671,71 @@ async function checkFinishedServices() {
 }
 setInterval(checkFinishedServices, 30 * 60 * 1000).unref();
 
+/* PŘIPOMÍNKA HODNOCENÍ — den po dokončené péči, kterou rodina ještě neohodnotila: push + e-mail „Jak byla Jana?“
+   s odkazem rovnou na detail objednávky (tlačítko Ohodnotit péči). Jednou na objednávku; poslané oid si pamatujeme
+   v settings (reviewReminderSentV1), ať se nic nepošle dvakrát ani po restartu. Jen péče z posledních 3 dnů. */
+const REVIEW_REMINDER_KEY = 'reviewReminderSentV1';
+function reviewReminderMail({ familyName, caregiverName, order, country }) {
+  const sk = country === 'sk';
+  const first = (familyName || '').trim().split(/\s+/)[0] || '';
+  const cgFirst = (caregiverName || '').trim().split(/\s+/)[0] || (sk ? 'opatrovateľka' : 'pečovatelka');
+  const url = `${appUrlFor(country || DEFAULT_COUNTRY)}/#order-detail-${order.oid}`;
+  const t = sk ? {
+    subject: `Ako bola ${cgFirst}? Ohodnoťte prosím starostlivosť`, title: `Ako bola ${cgFirst}?`,
+    intro: `Dobrý deň${first ? ', ' + first : ''}. Ďakujeme, že ste využili ZENVORIA.`,
+    body: 'Vaše hodnotenie pomôže ďalším rodinám vybrať si opatrovateľku a opatrovateľke ukáže, čo sa jej darí. Zaberie to minútu.',
+    cta: 'Ohodnotiť starostlivosť', footer: 'Toto pripomenutie posielame len raz pre každú dokončenú objednávku.', team: 'Tím Zenvoria', fact: 'Termín',
+  } : {
+    subject: `Jak byla ${cgFirst}? Ohodnoťte prosím péči`, title: `Jak byla ${cgFirst}?`,
+    intro: `Dobrý den${first ? ', ' + first : ''}. Děkujeme, že jste využili ZENVORIA.`,
+    body: 'Vaše hodnocení pomůže dalším rodinám vybrat si pečovatelku a pečovatelce ukáže, co se jí daří. Zabere to minutu.',
+    cta: 'Ohodnotit péči', footer: 'Tuto připomínku posíláme jen jednou ke každé dokončené objednávce.', team: 'Tým Zenvoria', fact: 'Termín',
+  };
+  return {
+    subject: t.subject,
+    text: `${t.intro}\n\n${t.body}\n\n${t.cta}: ${url}\n\n${t.footer}\n\n${t.team}`,
+    html: renderEmailLayout({
+      preheader: t.title, title: t.title, intro: t.intro, bodyHtml: `<p style="margin:0;">${escapeHtml(t.body)}</p>`,
+      ctaLabel: t.cta, ctaUrl: url, ctaNote: '', facts: [{ label: t.fact, value: [order.date, order.time].filter(Boolean).join(' ') }],
+      closingTitle: sk ? 'Ďakujeme.' : 'Děkujeme.', closingSubtitle: t.team, footerNote: t.footer,
+    }),
+  };
+}
+let reviewRemindersRunning = false;
+async function sendReviewReminders() {
+  if (!REST_ENABLED || reviewRemindersRunning) return;
+  reviewRemindersRunning = true;
+  try {
+    const from = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    const rows = await restSelect(T.orders, `status=eq.done&date=gte.${from}&date=lte.${yesterday}&select=oid,cid,family_email,fam_name,date,time&order=date.asc&limit=200`);
+    if (!rows || !rows.length) return;
+    const sent = new Set((await loadSettingArray(REVIEW_REMINDER_KEY)).map(Number));
+    const todo = rows.filter((o) => !sent.has(Number(o.oid)) && o.family_email);
+    if (!todo.length) return;
+    const reviewed = await restSelect(T.reviews, `order_oid=in.(${todo.map((o) => Number(o.oid)).join(',')})&select=order_oid`);
+    const reviewedSet = new Set((reviewed || []).map((r) => Number(r.order_oid)));
+    const cgIds = [...new Set(todo.map((o) => Number(o.cid)).filter(Boolean))];
+    const cgRows = cgIds.length ? await restSelect(T.caregivers, `id=in.(${cgIds.join(',')})&select=id,name`) : [];
+    const cgName = new Map((cgRows || []).map((c) => [Number(c.id), c.name]));
+    // nejdřív zapsat, pak posílat — kdyby poslání selhalo, raději jedna připomínka chybí než dvě navíc
+    const newlySent = todo.map((o) => Number(o.oid));
+    await saveSettingArray(REVIEW_REMINDER_KEY, [...sent, ...newlySent].slice(-5000));
+    for (const o of todo) {
+      if (reviewedSet.has(Number(o.oid))) continue;
+      const u = await findUserByEmail(o.family_email);
+      if (!u || u.status === 'suspended') continue;
+      const name = cgName.get(Number(o.cid)) || '';
+      const first = name.trim().split(/\s+/)[0] || 'pečovatelka';
+      await createNotification(u.id, { type: 'review-reminder', title: `Jak byla ${first}?`, body: `Ohodnoťte prosím péči z ${o.date}. Pomůže to dalším rodinám.`, link: `order-detail:${o.oid}` });
+      await notifyMail({ to: u.email, settings: u.settings, category: 'reminders', ...reviewReminderMail({ familyName: u.name || o.fam_name, caregiverName: name, order: o, country: u.country }) });
+    }
+  } catch (e) { console.warn('[jobs] sendReviewReminders failed:', e.message); }
+  finally { reviewRemindersRunning = false; }
+}
+setInterval(sendReviewReminders, 60 * 60 * 1000).unref();
+setTimeout(sendReviewReminders, 90 * 1000).unref();
+
 /* potvrzené objednávky ~24h před začátkem → připomínka rodině i pečovatelce (jednorázově) */
 async function sendUpcomingReminders() {
   if (!REST_ENABLED) return;
