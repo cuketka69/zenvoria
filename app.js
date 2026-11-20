@@ -1421,6 +1421,16 @@ function applyTheme(t){
   const ic=document.getElementById('themeIcon');if(ic)ic.innerHTML=dark?SUN_ICON:MOON_ICON;
   try{localStorage.setItem('zv_theme',dark?'dark':'light');}catch(e){}
 }
+/* větší písmo pro starší uživatele — celé rozhraní se zvětší o 18 %, volba se pamatuje v prohlížeči */
+function syncLargeTextBtn(){const on=document.documentElement.classList.contains('zv-large');const b=document.getElementById('textSizeBtn');if(b){b.setAttribute('aria-pressed',on?'true':'false');b.title=on?'Běžná velikost písma':'Větší písmo';b.setAttribute('aria-label',b.title);}}
+function toggleLargeText(){
+  const on=!document.documentElement.classList.contains('zv-large');
+  document.documentElement.classList.toggle('zv-large',on);
+  try{localStorage.setItem('zv_text_large',on?'1':'0');}catch(e){}
+  syncLargeTextBtn();
+  toast(on?'Větší písmo zapnuto. Vrátíte ho stejným tlačítkem „A A“.':'Běžná velikost písma.');
+}
+document.addEventListener('DOMContentLoaded',syncLargeTextBtn);
 function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');}
 function initTheme(){applyTheme('dark');}
 
