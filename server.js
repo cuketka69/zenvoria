@@ -3736,8 +3736,8 @@ const DEFERRED_SK_TRANSLATIONS = [
   // view-pricing (Předplatné pro pečovatelky) — jen statický rámec, karty tarifů generuje app.js (další fáze)
   ['<h1>Předplatné pro pečovatelky</h1><p>Vyberte si tarif, který odpovídá vašim potřebám. Prvních 3 měsíce máte zdarma u obou tarifů. Můžete kdykoli změnit.</p>',
     '<h1>Predplatné pre opatrovateľky</h1><p>Vyberte si tarif, ktorý zodpovedá vašim potrebám. Prvé 3 mesiace máte zdarma pri oboch tarifoch. Môžete kedykoľvek zmeniť.</p>'],
-  ['Ceny jsou uvedeny za měsíc vč. DPH a platí od 4. měsíce — prvních 90 dní je předplatné zdarma. V demu je změna tarifu okamžitá a nezávazná.',
-    'Ceny sú uvedené za mesiac vrát. DPH a platia od 4. mesiaca — prvých 90 dní je predplatné zdarma. V deme je zmena tarifu okamžitá a nezáväzná.'],
+  ['Ceny jsou uvedeny za měsíc vč. DPH. Při první registraci předplatného jsou první 3 měsíce zdarma. Předplatné můžete kdykoli zrušit nebo změnit v nastavení plateb.',
+    'Ceny sú uvedené za mesiac vrátane DPH. Pri prvej registrácii predplatného sú prvé 3 mesiace zdarma. Predplatné môžete kedykoľvek zrušiť alebo zmeniť v nastaveniach platieb.'],
   ['<b>Moje faktury</b>', '<b>Moje faktúry</b>'],
   ['<th>Číslo</th><th>Tarif</th><th>Částka</th><th>Vystaveno</th><th></th>', '<th>Číslo</th><th>Tarif</th><th>Suma</th><th>Vystavené</th><th></th>'],
   // view-settings (Nastavení) — používají všechny role

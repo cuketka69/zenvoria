@@ -2605,3 +2605,17 @@ footer .soc-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}
 @media (min-width:1116px) and (max-width:1400px){.nav-links a{padding:8px 9px;font-size:13.5px}.nav-inner{gap:14px}}
 #view-care-journal .page-head .dd{min-width:220px;flex:0 0 auto}
 .zv-slot-btn{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--gold-soft);cursor:pointer;text-decoration:underline;text-decoration-color:rgba(198,163,92,.6);text-underline-offset:4px}.zv-slot-btn:hover{color:var(--ivory)}
+
+/* pečovatelka — poptávky a profil (redesign v7) */
+.req{background:none!important;border:0!important;border-bottom:1px solid rgba(243,238,228,.08)!important;border-radius:0!important;box-shadow:none!important;padding:16px 4px!important;margin:0!important}
+.req .ava{box-shadow:0 0 0 1px rgba(220,192,134,.4)}
+.req b,.req .req-name{font-family:'Marcellus',Georgia,serif;font-weight:400;font-size:19px;color:var(--ivory)}
+.btn-accept{background:var(--brass)!important;color:#0D2A20!important;border:1px solid var(--brass)!important;box-shadow:none!important;border-radius:999px!important}
+.btn-accept:hover{background:#D3B470!important}
+.btn-decline{background:transparent!important;color:#F0A89C!important;border:1px solid rgba(240,168,156,.5)!important;box-shadow:none!important;border-radius:999px!important}
+.btn-decline:hover{background:rgba(240,168,156,.08)!important;border-color:#F0A89C!important}
+#view-cg-profile .pcard{background:transparent;border:1px solid rgba(198,163,92,.24);border-radius:28px;box-shadow:none}
+#view-cg-profile .pcard h3{font-weight:400;color:var(--ivory)}
+#cgPreview .zv-card{pointer-events:auto}
+.inp.is-locked{opacity:.7;cursor:not-allowed}
+.name-lock-hint{font-size:13px;color:#AEBBB1;margin:6px 0 14px;line-height:1.5}

@@ -2659,6 +2659,7 @@ function renderSettings(){
   document.getElementById('setRole').textContent=auth.role==='caregiver'?'Účet pečovatelky':(auth.role==='admin'?'Správce systému':'Účet rodiny');
   const setNameInput=document.getElementById('setNameInput');if(setNameInput)setNameInput.value=auth.loggedIn?auth.name:'';
   const setTitulInput=document.getElementById('setTitulInput');if(setTitulInput)setTitulInput.value=auth.loggedIn?(auth.titul||''):'';
+  lockVerifiedNameFields(setNameInput,setTitulInput);
   const setPhoneInput=document.getElementById('setPhoneInput');if(setPhoneInput)setPhoneInput.value=auth.loggedIn?(auth.phone||''):'';
   const photo=auth.photo||(auth.role==='caregiver'?cgProfile.photo:null);
   setAva(document.getElementById('setAva'),photo,initials(name));
@@ -7256,10 +7257,20 @@ function addBlockedRange(){
 /* caregiver profile editing */
 let cgLangPickerOpen=false;
 let cgServPickerOpen=false;
+/* jméno a titul ověřené pečovatelky mění správce (odznak „ověřená“ patří k ověřené totožnosti) */
+function lockVerifiedNameFields(nameEl,titulEl){
+  const locked=auth.role==='caregiver'&&cgStatus()==='verified';
+  [nameEl,titulEl].forEach(el=>{if(!el)return;el.readOnly=locked;el.classList.toggle('is-locked',locked);});
+  const host=nameEl&&nameEl.closest('.grid2')||nameEl&&nameEl.parentElement;if(!host)return;
+  let hint=host.parentElement.querySelector(':scope > .name-lock-hint');
+  if(locked&&!hint){hint=document.createElement('p');hint.className='name-lock-hint';hint.textContent='Jméno a titul ověřeného profilu mění kvůli ověření totožnosti správce. Pokud potřebujete změnu, napište nám přes Zprávy.';host.insertAdjacentElement('afterend',hint);}
+  if(!locked&&hint)hint.remove();
+}
 function renderCgProfile(){
   if(auth.role==='caregiver'&&auth.name){cgProfile.name=auth.name;if(auth.titul)cgProfile.titul=auth.titul;}
   document.getElementById('cpName').value=cgProfile.name;
   const cpTitulEl=document.getElementById('cpTitul');if(cpTitulEl)cpTitulEl.value=cgProfile.titul||'';
+  lockVerifiedNameFields(document.getElementById('cpName'),cpTitulEl);
   document.getElementById('cpLoc').value=cgProfile.loc;
   document.getElementById('cpRate').value=cgProfile.rate;
   document.getElementById('cpExp').value=cgProfile.exp;
@@ -7402,9 +7413,9 @@ function syncCgPreview(){
       <button type="button" class="soc-btn soc-btn-sm" onclick="event.stopPropagation();previewOpenSocial('cpInstagram')" aria-label="Instagram" title="Instagram"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><circle cx="16.7" cy="7.3" r="1.15" fill="currentColor"/></svg></button>
     </div>`;
   document.getElementById('cgPreview').innerHTML=`
-    <div class="care-card" style="cursor:default">
+    <div class="care-card zv-card" style="cursor:default">
+      <div class="zv-card-photo">${photo?`<img src="${esc(photo)}" alt="" decoding="async">`:`<span class="zv-card-init" aria-hidden="true">${esc(initials(rawName))}</span>`}</div>
       <div class="care-top">
-        <div class="ava">${photo?`<img src="${esc(photo)}" alt="" decoding="async">`:initials(rawName)}</div>
         <div style="flex:1">
           <div class="care-name">${name}</div>
           <div class="care-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11Z" stroke="#7A736A" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" stroke="#7A736A" stroke-width="1.6"/></svg>${loc} · dojezd do ${radius} km</div>
