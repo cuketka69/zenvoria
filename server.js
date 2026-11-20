@@ -9280,13 +9280,71 @@ app.get('/hledat-peci', h(async (req, res) => {
   const shell = extractViewHtml((country === 'sk' ? INDEX_HTML_SK : INDEX_HTML) || '', 'view-search');
   const list = cgs.map(caregiverCardHtml).join('');
   const ssrHtml = shell
-    ? shell.replace('<div class="care-grid" id="careGrid"></div>', `<div class="care-grid" id="careGrid">${list}</div>`)
-    : list;
+    ? shell.replace('<div class="care-grid" id="careGrid"></div>', `<div class="care-grid" id="careGrid">${list}</div>${cityLinksHtml(publicCities(cgs), country === 'sk')}`)
+    : list + cityLinksHtml(publicCities(cgs), country === 'sk');
   sendSeoPage(req, res, {
     title: 'Hledat pečovatelku — ZENVORIA',
     description: `Najděte ověřenou pečovatelku ve svém okolí. Aktuálně ${cgs.length} ověřených pečovatelek v ZENVORIA.`,
     canonical: `${APP_ORIGIN}/hledat-peci`,
     jsonLd: ORG_JSON_LD,
+    ssrHtml,
+  });
+}));
+
+/* ---------------- STRÁNKY PRO MĚSTA (SEO) ----------------
+   /pecovatelky/praha, /pecovatelky/brno… — jen pro města, kde je aspoň jedna ověřená pečovatelka
+   (prázdné stránky by Googlu škodily). Obsah se vykreslí na serveru (pro vyhledávače), v prohlížeči
+   se pak otevře běžné vyhledávání s předvyplněnou lokalitou. */
+function citySlug(name) {
+  return String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+}
+function cityOfLoc(loc) { return String(loc || '').split(',')[0].trim().replace(/\s*[-–]?\s*\d+$/, '').trim(); } // „Praha 6“ → „Praha“
+function publicCities(cgs) {
+  const map = new Map();
+  for (const c of cgs || []) {
+    const name = cityOfLoc(c.loc); const slug = citySlug(name);
+    if (!name || !slug) continue;
+    if (!map.has(slug)) map.set(slug, { slug, name, caregivers: [] });
+    map.get(slug).caregivers.push(c);
+  }
+  return [...map.values()].sort((a, b) => b.caregivers.length - a.caregivers.length || a.name.localeCompare(b.name, 'cs'));
+}
+function cityLinksHtml(cities, sk) {
+  if (!cities.length) return '';
+  const label = sk ? 'Opatrovateľky podľa mesta' : 'Pečovatelky podle města';
+  return `<nav aria-label="${label}" style="margin:34px 0 10px"><h2 style="font-size:22px;margin:0 0 10px">${label}</h2><p>${cities.map((c) => `<a href="/pecovatelky/${encodeURIComponent(c.slug)}">${escapeHtml((sk ? 'Opatrovateľky ' : 'Pečovatelky ') + c.name)}</a>`).join(' · ')}</p></nav>`;
+}
+app.get('/pecovatelky/:city', h(async (req, res, next) => {
+  const country = countryForReq(req), sk = country === 'sk';
+  const slug = citySlug(req.params.city);
+  const cgs = await getPublicCaregivers(country);
+  const cities = publicCities(cgs);
+  const city = cities.find((c) => c.slug === slug);
+  if (!city) return next(); // neznámé město → běžná 404 stránka
+  if (req.params.city !== slug) return res.redirect(301, `/pecovatelky/${slug}`);
+  const n = city.caregivers.length;
+  const word = sk ? (n === 1 ? 'overená opatrovateľka' : (n < 5 ? 'overené opatrovateľky' : 'overených opatrovateliek')) : (n === 1 ? 'ověřená pečovatelka' : (n < 5 ? 'ověřené pečovatelky' : 'ověřených pečovatelek'));
+  const title = sk ? `Opatrovateľka ${city.name} — overená starostlivosť o seniorov | ZENVORIA` : `Pečovatelka ${city.name} — ověřená péče o seniory | ZENVORIA`;
+  const description = sk
+    ? `${n} ${word} v lokalite ${city.name}: osobná a domáca starostlivosť, sprievod k lekárovi, nákupy, nočná starostlivosť. Overené doklady, hodnotenia rodín, objednávka online.`
+    : `${n} ${word} v lokalitě ${city.name}: osobní a domácí péče, doprovod k lékaři, nákupy, noční péče. Ověřené doklady, hodnocení rodin, objednávka online.`;
+  const shell = extractViewHtml((sk ? INDEX_HTML_SK : INDEX_HTML) || '', 'view-search');
+  const intro = sk
+    ? `<p>V lokalite <b>${escapeHtml(city.name)}</b> je v ZENVORIA ${n} ${word}. Každej sme overili totožnosť, vzdelanie aj referencie. Vyberte si podľa služieb, ceny a hodnotení iných rodín.</p>`
+    : `<p>V lokalitě <b>${escapeHtml(city.name)}</b> je v ZENVORIA ${n} ${word}. Každé jsme ověřili totožnost, vzdělání i reference. Vyberte si podle služeb, ceny a hodnocení jiných rodin.</p>`;
+  const list = city.caregivers.map(caregiverCardHtml).join('');
+  const others = cityLinksHtml(cities.filter((c) => c.slug !== slug), sk);
+  let ssrHtml = shell
+    ? shell.replace('<div class="care-grid" id="careGrid"></div>', `<div class="care-grid" id="careGrid">${list}</div>${others}`)
+    : list + others;
+  ssrHtml = ssrHtml.replace(/<h1>[^<]*<\/h1>/, () => `<h1>${escapeHtml((sk ? 'Opatrovateľky ' : 'Pečovatelky ') + city.name)}</h1>${intro}`);
+  sendSeoPage(req, res, {
+    title, description,
+    canonical: `${APP_ORIGIN}/pecovatelky/${slug}`,
+    jsonLd: [ORG_JSON_LD, {
+      '@context': 'https://schema.org', '@type': 'ItemList', name: sk ? `Opatrovateľky ${city.name}` : `Pečovatelky ${city.name}`,
+      itemListElement: city.caregivers.filter((c) => c.slug).map((c, i) => ({ '@type': 'ListItem', position: i + 1, url: `${APP_ORIGIN}/pecovatelka/${encodeURIComponent(c.slug)}`, name: c.name })),
+    }],
     ssrHtml,
   });
 }));
@@ -9569,6 +9627,7 @@ app.get('/sitemap.xml', h(async (req, res) => {
   const urls = [
     ...staticPaths.map((p) => `<url><loc>${APP_ORIGIN}${p}</loc></url>`),
     ...cgs.filter((c) => c.slug).map((c) => `<url><loc>${APP_ORIGIN}/pecovatelka/${encodeURIComponent(c.slug)}</loc></url>`),
+    ...publicCities(cgs).map((c) => `<url><loc>${APP_ORIGIN}/pecovatelky/${encodeURIComponent(c.slug)}</loc></url>`),
   ].join('');
   res.type('application/xml').setHeader('Cache-Control', 'public, max-age=3600')
     .send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`);

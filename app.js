@@ -224,8 +224,11 @@ function pathForView(v){
   return null;
 }
 /* obrácený směr: podle cesty v adresním řádku při startu pozná appka, který view otevřít */
+let cityFromPath='';
 function viewForPath(pathname){
   if(pathname==='/hledat-peci')return 'search';
+  const cityM=/^\/pecovatelky\/([^/]+)\/?$/.exec(pathname);
+  if(cityM){cityFromPath=decodeURIComponent(cityM[1]);return 'search';}
   if(pathname==='/jak-to-funguje')return 'howto';
   if(pathname==='/cenik')return 'pricing';
   if(pathname==='/pruvodce-pece'||pathname==='/pruvodce-pece/')return 'guide';
@@ -9310,6 +9313,13 @@ async function initApp(){
   try{pathname=location.pathname||'';}catch(e){}
   const slugMatch=/^\/pecovatelka\/([^/]+)\/?$/.exec(pathname);
   const pathView=viewForPath(pathname);
+  if(cityFromPath){
+    const slugOf=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    const cityOf=v=>String(v||'').split(',')[0].trim().replace(/\s*[-–]?\s*\d+$/,'').trim();
+    const c=CAREGIVERS.find(x=>slugOf(cityOf(x.loc))===cityFromPath);
+    const locEl=document.getElementById('loc');
+    if(c&&locEl){locEl.value=cityOf(c.loc);setTimeout(()=>{try{renderCare();}catch(e){}},0);}
+  }
   if(!resetPwToken&&!changeEmailToken&&slugMatch){await openProfileBySlug(decodeURIComponent(slugMatch[1]));}
   else if(!resetPwToken&&!changeEmailToken&&pathView){await go(pathView);}
   else if(!resetPwToken&&!changeEmailToken&&deep&&deep.indexOf('legal-')===0&&LEGAL[deep.slice(6)])openLegal(deep.slice(6),{direct:true});
