@@ -165,3 +165,13 @@ mobile/android/build/
 mobile/android/captures/
 mobile/android/*.iml
 mobile/android/app/*.iml
+
+# Zdrojové obrázky ve vysokém rozlišení — web používá zmenšené .webp (PNG zůstávají jen lokálně)
+/*.png
+!/icon-192.png
+!/icon-512.png
+# Interní dokumenty a podklady, které nepatří do veřejného repozitáře
+/*.docx
+/security_best_practices_report.md
+/production_security_checklist.md
+/_tmp_*.log
