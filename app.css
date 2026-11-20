@@ -2630,3 +2630,9 @@ html.zv-large body{zoom:1.18}
 /* mapy ze zvětšení vyjmout (vnořený zoom se násobí → 1), jinak by MapLibre posunul kliknutí a značky */
 html.zv-large .addr-map{zoom:.8475}
 @media (max-width:700px){html.zv-large .addr-map{zoom:.9091}}
+/* administrace — tabulky v duchu redesignu: hlavičky normálním písmem, jména antikvou, vlasové linky */
+.adm-table th{text-transform:none!important;letter-spacing:0!important;font-size:13px;font-weight:600;color:#AEBBB1;border-bottom:1px solid rgba(198,163,92,.35)!important}
+.adm-table td{border-bottom:1px solid rgba(243,238,228,.07)!important}
+.adm-table td b{font-family:'Marcellus',Georgia,serif;font-weight:400;font-size:17px;color:var(--ivory)}
+.adm-table tr:hover td{background:rgba(198,163,92,.04)}
+.adm-table .btn{border-radius:999px}
