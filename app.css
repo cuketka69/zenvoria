@@ -2649,3 +2649,22 @@ html.zv-large .addr-map{zoom:.8475}
 .zv-voice-nav{display:flex;align-items:center;gap:16px;margin-top:26px;color:#AEBBB1;font-size:14px}
 .zv-voice-btn{width:42px;height:42px;border-radius:50%;border:1px solid rgba(198,163,92,.45);background:transparent;color:var(--gold-soft);font-size:22px;line-height:1;cursor:pointer}
 .zv-voice-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}
+
+/* ---------- léky ---------- */
+.care-meds-help{font-size:13px;color:#AEBBB1;margin:4px 0 10px;line-height:1.5}
+.care-meds-editor{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.care-med-row{display:grid;grid-template-columns:1.3fr 1fr 1fr 1.2fr auto;gap:8px;align-items:center}
+.care-med-row .inp{margin:0!important}
+.cm-del{width:36px;height:36px;border-radius:50%;border:1px solid rgba(240,168,156,.5);background:transparent;color:#F0A89C;font-size:20px;line-height:1;cursor:pointer}
+.care-meds-add{margin:0 0 18px;border-radius:999px}
+.visit-meds{margin:18px 0;padding-top:14px;border-top:1px solid rgba(198,163,92,.3)}
+.visit-meds h4{font-family:'Marcellus',Georgia,serif;font-weight:400;font-size:20px;color:var(--ivory);margin:0 0 8px}
+.vm-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:10px 0;border-bottom:1px solid rgba(243,238,228,.07)}
+.vm-time{font-family:'Marcellus',Georgia,serif;font-size:18px;color:var(--gold-soft);min-width:52px}
+.vm-name{flex:1 1 180px;color:var(--ivory)}.vm-name small{display:block;color:#AEBBB1;font-size:12.5px}
+.vm-st{font-size:12.5px;border-radius:999px;padding:3px 10px;border:1px solid currentColor}
+.vm-given{color:#8FD6A6}.vm-refused{color:#F0A89C}.vm-wait{color:#AEBBB1}
+.vm-row small{font-size:12px;color:#AEBBB1}
+.vm-btns{display:flex;gap:6px;margin-left:auto}.vm-btns .btn{border-radius:999px}
+.vm-help{font-size:12.5px;color:#AEBBB1;margin:10px 0 0}
+@media (max-width:640px){.care-med-row{grid-template-columns:1fr 1fr auto;padding-bottom:12px;border-bottom:1px solid rgba(198,163,92,.22)}.care-med-row .cm-name{grid-area:1/1/2/3}.care-med-row .cm-del{grid-area:1/3/2/4}.care-med-row .cm-dose{grid-area:2/1/3/2}.care-med-row .cm-times{grid-area:2/2/3/4}.care-med-row .cm-note{grid-area:3/1/4/4}}

@@ -550,6 +550,10 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
       <h4>Nouzový kontakt</h4><div class="grid2"><div><label class="lbl">Jméno</label><input class="inp" id="careEmergencyName" maxlength="120"></div><div><label class="lbl">Telefon</label><input class="inp" id="careEmergencyPhone" maxlength="30"></div></div>
       <label class="lbl">Vztah ke klientovi</label><input class="inp" id="careEmergencyRelation" maxlength="80">
       <label class="lbl">Výchozí checklist návštěvy (jeden úkol na řádek)</label><textarea class="inp" id="carePlanChecklist" maxlength="1500"></textarea>
+      <h4>Léky</h4>
+      <p class="care-meds-help">Pečovatelka při návštěvě uvidí léky, které připadají na čas její návštěvy, a u každého potvrdí podání. Když senior lék odmítne nebo zůstane neoznačený, dostanete upozornění.</p>
+      <div id="carePlanMeds" class="care-meds-editor"></div>
+      <button type="button" class="btn btn-ghost btn-sm care-meds-add" onclick="addCarePlanMedRow()">+ Přidat lék</button>
       <button class="btn btn-gold btn-block" type="submit">Uložit plán péče</button>
     </form>
   </div>

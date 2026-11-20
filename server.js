@@ -3359,6 +3359,10 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
 // zbytek appky (deferred-views.html, app.js) čeká na další fázi lokalizace (viz plán SK verze);
 // jde o doslovná nahrazení celých frází v rámci index.html, ne o obecnou i18n vrstvu
 const HOME_SK_TRANSLATIONS = [
+  // rozpis léků
+  ["<h4>Léky</h4>", "<h4>Lieky</h4>"],
+  ["Pečovatelka při návštěvě uvidí léky, které připadají na čas její návštěvy, a u každého potvrdí podání. Když senior lék odmítne nebo zůstane neoznačený, dostanete upozornění.", "Opatrovateľka pri návšteve uvidí lieky, ktoré pripadajú na čas jej návštevy, a pri každom potvrdí podanie. Keď senior liek odmietne alebo zostane neoznačený, dostanete upozornenie."],
+  [">+ Přidat lék</button>", ">+ Pridať liek</button>"],
   // hodnocení rodin na úvodu
   ["<h2 id=\"zvVoicesTitle\" class=\"zv-sec-title\">Co říkají rodiny</h2>", "<h2 id=\"zvVoicesTitle\" class=\"zv-sec-title\">Čo hovoria rodiny</h2>"],
   ["aria-label=\"Předchozí hodnocení\"", "aria-label=\"Predchádzajúce hodnotenie\""],
@@ -3840,6 +3844,21 @@ let DEFERRED_VIEWS_HTML_SK = buildDeferredViewsHtml('sk');
 // stejná technika jako u HTML view: doslovná nahrazení frází v celém zdrojovém textu app.js,
 // výstup se uloží jako samostatný soubor app.sk.js/app.sk.min.js a slouží se ho jen na zenvoria.sk
 const JS_SK_TRANSLATIONS = [
+  // rozpis léků
+  ["toast('Nejvýš 20 léků.','declined')", "toast('Najviac 20 liekov.','declined')"],
+  ["placeholder=\"Název léku (např. Prestarium)\"", "placeholder=\"Názov lieku (napr. Prestarium)\""],
+  ["aria-label=\"Název léku\"", "aria-label=\"Názov lieku\""],
+  ["aria-label=\"Časy podání\"", "aria-label=\"Časy podania\""],
+  ["placeholder=\"Poznámka (po jídle…)\"", "placeholder=\"Poznámka (po jedle…)\""],
+  ["aria-label=\"Odebrat lék\"", "aria-label=\"Odobrať liek\""],
+  ["<h4>Léky během návštěvy</h4>", "<h4>Lieky počas návštevy</h4>"],
+  ["<span class=\"vm-st vm-refused\">Odmítl(a)</span>", "<span class=\"vm-st vm-refused\">Odmietol(a)</span>"],
+  ["<span class=\"vm-st vm-given\">Podáno</span>", "<span class=\"vm-st vm-given\">Podané</span>"],
+  ["<span class=\"vm-st vm-wait\">Čeká</span>", "<span class=\"vm-st vm-wait\">Čaká</span>"],
+  ["'given')\">Podáno</button>", "'given')\">Podané</button>"],
+  ["'refused')\">Odmítl(a)</button>", "'refused')\">Odmietol(a)</button>"],
+  ["Když senior lék odmítne nebo pečovatelka odejde bez potvrzení, dostanete upozornění.", "Keď senior liek odmietne alebo opatrovateľka odíde bez potvrdenia, dostanete upozornenie."],
+  ["'Podání léku zaznamenáno.':'Zaznamenáno: lék odmítnut. Rodina dostala upozornění.'", "'Podanie lieku zaznamenané.':'Zaznamenané: liek odmietnutý. Rodina dostala upozornenie.'"],
   // priceLabel / priceShort / kmLabel — cena pečovatelky ve vyhledávání a profilu
   ["if(c.priceType==='indiv')return 'Individuální nabídka';", "if(c.priceType==='indiv')return 'Individuálna ponuka';"],
   ["if(c.priceType==='den')return `${(c.dayRate||c.rate*8).toLocaleString('cs-CZ')} Kč / den`;", "if(c.priceType==='den')return `${(c.dayRate||c.rate*8).toLocaleString('cs-CZ')} Kč / deň`;"],
@@ -4574,11 +4593,37 @@ function publicFamilyTeamContext(ctx) {
 function cleanCareNotes(rows) {
   return (Array.isArray(rows) ? rows : []).map((n) => ({ id: Number(n && n.id), oid: Number(n && n.oid), authorEmail: trimmedString(n && n.authorEmail, 320).toLowerCase(), authorName: trimmedString(n && n.authorName, 120), authorRole: trimmedString(n && n.authorRole, 20), text: trimmedString(n && n.text, 1000), createdAt: n && n.createdAt || null })).filter((n) => n.id > 0 && n.oid > 0 && n.text).slice(-5000);
 }
+/* rozpis léků v plánu péče: [{ id, name, dose, times:["08:00","20:00"], note }] — max. 20 léků, 6 časů na lék */
+function cleanMedTime(t) {
+  const m = /^(\d{1,2})[:.](\d{2})$/.exec(String(t || '').trim());
+  if (!m) return null;
+  const h = Number(m[1]), mi = Number(m[2]);
+  return h <= 23 && mi <= 59 ? `${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}` : null;
+}
+function cleanMeds(list) {
+  const out = []; let maxId = 0;
+  (Array.isArray(list) ? list : []).forEach((m) => { const id = Number(m && m.id); if (Number.isInteger(id) && id > maxId) maxId = id; });
+  for (const m of (Array.isArray(list) ? list : []).slice(0, 20)) {
+    const name = trimmedString(m && m.name, 80);
+    const times = [...new Set((Array.isArray(m && m.times) ? m.times : String((m && m.times) || '').split(/[,;\s]+/)).map(cleanMedTime).filter(Boolean))].sort().slice(0, 6);
+    if (!name || !times.length) continue;
+    let id = Number(m && m.id); if (!Number.isInteger(id) || id <= 0 || out.some((x) => x.id === id)) id = ++maxId;
+    out.push({ id, name, dose: trimmedString(m && m.dose, 60), times, note: trimmedString(m && m.note, 160) });
+  }
+  return out;
+}
+/* léky, které připadají do času návštěvy (od začátku do konce) */
+function medsDueInVisit(meds, order) {
+  const start = timeToHours(order && order.time || '00:00'), end = start + Number(order && order.hours || 0);
+  const due = [];
+  for (const m of meds || []) for (const t of m.times) { const h = timeToHours(t); if (h >= start && h <= end) due.push({ med: m, time: t }); }
+  return due.sort((a, b) => a.time.localeCompare(b.time));
+}
 function cleanCareProfiles(rows) {
-  return (Array.isArray(rows) ? rows : []).map((p) => ({ ownerEmail: trimmedString(p && p.ownerEmail, 320).toLowerCase(), client: trimmedString(p && p.client, 120), routine: trimmedString(p && p.routine, 500), needs: trimmedString(p && p.needs, 1500), limits: trimmedString(p && p.limits, 1000), emergencyName: trimmedString(p && p.emergencyName, 120), emergencyPhone: trimmedString(p && p.emergencyPhone, 30), emergencyRelation: trimmedString(p && p.emergencyRelation, 80), checklist: (Array.isArray(p && p.checklist) ? p.checklist : []).map((x) => trimmedString(x, 180)).filter(Boolean).slice(0, 20), updatedAt: p && p.updatedAt || null })).filter((p) => p.ownerEmail);
+  return (Array.isArray(rows) ? rows : []).map((p) => ({ ownerEmail: trimmedString(p && p.ownerEmail, 320).toLowerCase(), client: trimmedString(p && p.client, 120), routine: trimmedString(p && p.routine, 500), needs: trimmedString(p && p.needs, 1500), limits: trimmedString(p && p.limits, 1000), emergencyName: trimmedString(p && p.emergencyName, 120), emergencyPhone: trimmedString(p && p.emergencyPhone, 30), emergencyRelation: trimmedString(p && p.emergencyRelation, 80), checklist: (Array.isArray(p && p.checklist) ? p.checklist : []).map((x) => trimmedString(x, 180)).filter(Boolean).slice(0, 20), meds: cleanMeds(p && p.meds), updatedAt: p && p.updatedAt || null })).filter((p) => p.ownerEmail);
 }
 function cleanCareOps(rows) {
-  return (Array.isArray(rows) ? rows : []).map((o) => ({ oid: Number(o && o.oid), checklist: (Array.isArray(o && o.checklist) ? o.checklist : []).map((x) => ({ id: Number(x.id), text: trimmedString(x.text, 180), done: !!x.done, doneBy: trimmedString(x.doneBy, 120), doneAt: x.doneAt || null })).filter((x) => x.id > 0 && x.text).slice(0, 30), pinHash: trimmedString(o && o.pinHash, 128), pinCreatedAt: o && o.pinCreatedAt || null, checkInAt: o && o.checkInAt || null, checkOutAt: o && o.checkOutAt || null, attachments: (Array.isArray(o && o.attachments) ? o.attachments : []).map((a) => ({ id: Number(a.id), name: trimmedString(a.name, 120), type: trimmedString(a.type, 80), data: typeof a.data === 'string' ? a.data : '', stored: !!a.stored, authorName: trimmedString(a.authorName, 120), createdAt: a.createdAt || null })).filter((a) => a.id > 0 && (a.data || a.stored)).slice(0, 5) })).filter((o) => o.oid > 0);
+  return (Array.isArray(rows) ? rows : []).map((o) => ({ oid: Number(o && o.oid), checklist: (Array.isArray(o && o.checklist) ? o.checklist : []).map((x) => ({ id: Number(x.id), text: trimmedString(x.text, 180), done: !!x.done, doneBy: trimmedString(x.doneBy, 120), doneAt: x.doneAt || null })).filter((x) => x.id > 0 && x.text).slice(0, 30), pinHash: trimmedString(o && o.pinHash, 128), pinCreatedAt: o && o.pinCreatedAt || null, checkInAt: o && o.checkInAt || null, checkOutAt: o && o.checkOutAt || null, medsLog: (Array.isArray(o && o.medsLog) ? o.medsLog : []).map((x) => ({ medId: Number(x && x.medId), time: cleanMedTime(x && x.time), status: x && x.status === 'refused' ? 'refused' : 'given', by: trimmedString(x && x.by, 120), at: x && x.at || null, note: trimmedString(x && x.note, 200) })).filter((x) => x.medId > 0 && x.time).slice(0, 60), attachments: (Array.isArray(o && o.attachments) ? o.attachments : []).map((a) => ({ id: Number(a.id), name: trimmedString(a.name, 120), type: trimmedString(a.type, 80), data: typeof a.data === 'string' ? a.data : '', stored: !!a.stored, authorName: trimmedString(a.authorName, 120), createdAt: a.createdAt || null })).filter((a) => a.id > 0 && (a.data || a.stored)).slice(0, 5) })).filter((o) => o.oid > 0);
 }
 
 app.post('/api/auth/register', rateLimit('register', RATE_LIMITS.register), h(async (req, res) => {
@@ -5210,7 +5255,7 @@ app.post('/api/family-care-team/role', requireRole('family'), h(async (req, res)
 app.post('/api/family-care-profile', requireRole('family'), h(async (req, res) => {
   const me = String(req.session.email || '').toLowerCase(), b = req.body || {};
   const profiles = cleanCareProfiles(await loadSettingArray(FAMILY_CARE_PROFILES_KEY));
-  const profile = { ownerEmail: me, client: trimmedString(b.client, 120), routine: trimmedString(b.routine, 500), needs: trimmedString(b.needs, 1500), limits: trimmedString(b.limits, 1000), emergencyName: trimmedString(b.emergencyName, 120), emergencyPhone: trimmedString(b.emergencyPhone, 30), emergencyRelation: trimmedString(b.emergencyRelation, 80), checklist: (Array.isArray(b.checklist) ? b.checklist : []).map((x) => trimmedString(x, 180)).filter(Boolean).slice(0, 20), updatedAt: new Date().toISOString() };
+  const profile = { ownerEmail: me, client: trimmedString(b.client, 120), routine: trimmedString(b.routine, 500), needs: trimmedString(b.needs, 1500), limits: trimmedString(b.limits, 1000), emergencyName: trimmedString(b.emergencyName, 120), emergencyPhone: trimmedString(b.emergencyPhone, 30), emergencyRelation: trimmedString(b.emergencyRelation, 80), checklist: (Array.isArray(b.checklist) ? b.checklist : []).map((x) => trimmedString(x, 180)).filter(Boolean).slice(0, 20), meds: cleanMeds(b.meds), updatedAt: new Date().toISOString() };
   if (profile.emergencyPhone && !/^[0-9+\s/()-]{6,30}$/.test(profile.emergencyPhone)) return res.status(400).json({ error: 'Zadejte platný telefon nouzového kontaktu.' });
   const i = profiles.findIndex((p) => p.ownerEmail === me); if (i >= 0) profiles[i] = profile; else profiles.push(profile);
   await saveSettingArray(FAMILY_CARE_PROFILES_KEY, profiles); res.json({ ok: true, profile: { ...profile, ownerEmail: undefined } });
@@ -5229,9 +5274,10 @@ app.post('/api/orders/:oid/care-ops', requireAuth, rateLimit('care-ops', RATE_LI
   const rows = cleanCareOps(await loadSettingArray(ORDER_CARE_OPS_KEY)); let op = rows.find((x) => x.oid === oid);
   if (!op) {
     const profiles = cleanCareProfiles(await loadSettingArray(FAMILY_CARE_PROFILES_KEY)), profile = profiles.find((p) => p.ownerEmail === String(order.family_email || '').toLowerCase());
-    op = { oid, checklist: (profile && profile.checklist || []).map((text, i) => ({ id: i + 1, text, done: false, doneBy: '', doneAt: null })), pinHash: '', pinCreatedAt: null, checkInAt: null, checkOutAt: null, attachments: [] }; rows.push(op);
+    op = { oid, checklist: (profile && profile.checklist || []).map((text, i) => ({ id: i + 1, text, done: false, doneBy: '', doneAt: null })), pinHash: '', pinCreatedAt: null, checkInAt: null, checkOutAt: null, medsLog: [], attachments: [] }; rows.push(op);
   }
   let generatedPin = null;
+  let medNotice = null;
   if (action === 'generate-pin') {
     if (req.session.role !== 'family' || String(order.family_email).toLowerCase() !== String(req.session.email).toLowerCase()) return res.status(403).json({ error: 'PIN může vytvořit pouze vlastník objednávky.' });
     generatedPin = String(crypto.randomInt(0, 10000)).padStart(4, '0'); visitPinFailures.delete(oid); op.pinHash = crypto.createHash('sha256').update(generatedPin).digest('hex'); op.pinCreatedAt = new Date().toISOString(); op.checkInAt = null; op.checkOutAt = null;
@@ -5243,7 +5289,27 @@ app.post('/api/orders/:oid/care-ops', requireAuth, rateLimit('care-ops', RATE_LI
     if (!op.pinHash || codeHash !== op.pinHash) { visitPinFailures.set(oid, (visitPinFailures.get(oid) || 0) + 1); return res.status(400).json({ error: 'Zadaný PIN není správný.' }); }
     visitPinFailures.delete(oid);
     if (action === 'check-in') { if (op.checkInAt) return res.status(409).json({ error: 'Příchod už byl potvrzen.' }); op.checkInAt = new Date().toISOString(); }
-    else { if (!op.checkInAt) return res.status(400).json({ error: 'Nejprve potvrďte příchod.' }); if (op.checkOutAt) return res.status(409).json({ error: 'Odchod už byl potvrzen.' }); op.checkOutAt = new Date().toISOString(); }
+    else {
+      if (!op.checkInAt) return res.status(400).json({ error: 'Nejprve potvrďte příchod.' }); if (op.checkOutAt) return res.status(409).json({ error: 'Odchod už byl potvrzen.' }); op.checkOutAt = new Date().toISOString();
+      const fullOrder = (await restSelect(T.orders, `oid=eq.${oid}&select=oid,time,hours&limit=1`))[0] || {};
+      const prof = cleanCareProfiles(await loadSettingArray(FAMILY_CARE_PROFILES_KEY)).find((p) => p.ownerEmail === String(order.family_email || '').toLowerCase());
+      const missing = medsDueInVisit(prof && prof.meds, fullOrder).filter((d) => !(op.medsLog || []).some((x) => x.medId === d.med.id && x.time === d.time));
+      if (missing.length) medNotice = { kind: 'missing', items: missing };
+    }
+  } else if (action === 'med') {
+    // podání léku zaznamenává pečovatelka objednávky (nebo správce) — jen lék a čas z plánu péče, který spadá do návštěvy
+    if (!isCaregiver && req.session.role !== 'admin') return res.status(403).json({ error: 'Podání léků zaznamenává pečovatelka.' });
+    if (order.status !== 'confirmed' && order.status !== 'done') return res.status(400).json({ error: 'Léky lze zaznamenat jen u potvrzené péče.' });
+    const fullOrder = (await restSelect(T.orders, `oid=eq.${oid}&select=oid,time,hours&limit=1`))[0] || {};
+    const profiles = cleanCareProfiles(await loadSettingArray(FAMILY_CARE_PROFILES_KEY));
+    const prof = profiles.find((p) => p.ownerEmail === String(order.family_email || '').toLowerCase());
+    const medId = Number(req.body && req.body.medId), time = cleanMedTime(req.body && req.body.time);
+    const due = medsDueInVisit(prof && prof.meds, fullOrder).find((d) => d.med.id === medId && d.time === time);
+    if (!due) return res.status(400).json({ error: 'Tento lék v čase návštěvy není v plánu péče.' });
+    const status = req.body && req.body.status === 'refused' ? 'refused' : 'given';
+    const entry = { medId, time, status, by: req.session.name || req.session.email, at: new Date().toISOString(), note: trimmedString(req.body && req.body.note, 200) };
+    op.medsLog = (op.medsLog || []).filter((x) => !(x.medId === medId && x.time === time)).concat(entry);
+    if (status === 'refused') medNotice = { kind: 'refused', items: [due] };
   } else if (action === 'add-task') {
     if (!canEdit) return res.status(403).json({ error: 'Checklist nemůžete upravit.' }); const text = trimmedString(req.body && req.body.text, 180); if (!text) return res.status(400).json({ error: 'Napište úkol.' });
     op.checklist.push({ id: op.checklist.reduce((m, x) => Math.max(m, x.id), 0) + 1, text, done: false, doneBy: '', doneAt: null });
@@ -5258,6 +5324,19 @@ app.post('/api/orders/:oid/care-ops', requireAuth, rateLimit('care-ops', RATE_LI
     op.attachments.push({ id: attId, name: trimmedString(req.body && req.body.name, 120) || 'Příloha', type: trimmedString(req.body && req.body.type, 80), data: '', stored: true, authorName: req.session.name || req.session.email, createdAt: new Date().toISOString() });
   } else return res.status(400).json({ error: 'Neplatná akce.' });
   await saveSettingArray(ORDER_CARE_OPS_KEY, rows);
+  // léky: odmítnutý lék nebo neoznačený lék po odchodu → upozornění rodině (vlastník + aktivní členové sdílené péče)
+  if (medNotice) {
+    try {
+      const list = medNotice.items.map((d) => `${d.med.name}${d.med.dose ? ' ' + d.med.dose : ''} (${d.time})`).join(', ');
+      const title = medNotice.kind === 'refused' ? 'Lék nebyl podán — senior ho odmítl' : 'Během návštěvy nebyl označen lék';
+      const body = medNotice.kind === 'refused' ? `${list} · objednávka č. ${oid}` : `${list} — pečovatelka u něj nepotvrdila podání. Objednávka č. ${oid}.`;
+      const owner = String(order.family_email || '').toLowerCase();
+      const team = cleanFamilyTeams(await loadSettingArray(FAMILY_CARE_TEAMS_KEY)).find((t) => t.ownerEmail === owner);
+      for (const email of [...new Set([owner, ...(team ? team.members.filter((m) => m.status === 'active').map((m) => m.email) : [])])]) {
+        const u = await findUserByEmail(email); if (u) await createNotification(u.id, { type: 'meds', title, body, link: `order-detail:${oid}` });
+      }
+    } catch (e) { console.warn('[meds] upozornění selhalo:', e.message); }
+  }
   if (action === 'check-in' || action === 'check-out') { const family = await findUserByEmail(order.family_email); if (family) await createNotification(family.id, { type: 'visit-status', title: action === 'check-in' ? 'Pečovatelka potvrdila příchod' : 'Pečovatelka potvrdila odchod', body: `Objednávka č. ${oid} · ${new Date().toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}`, link: 'bookings' }); }
   res.json({ ok: true, generatedPin, operation: { ...op, pinHash: undefined, attachments: op.attachments.map((a) => ({ ...a, data: undefined, url: `/api/orders/${oid}/attachments/${a.id}` })) } });
 }));
