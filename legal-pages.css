@@ -1,130 +1,138 @@
+/* právní stránky (obchodní podmínky, GDPR, cookies, obchodní údaje) — stejný tmavý lesní vzhled jako zbytek webu */
 :root{
-  --green-900:#072b1c;
-  --green-800:#0b3c27;
-  --green-700:#16583b;
-  --gold:#c9a233;
-  --gold-soft:#debb5a;
-  --cream:#f4f1e8;
-  --paper:#fffdf8;
-  --ink:#163126;
-  --muted:#5f6c63;
-  --line:#d9e1d6;
-  --shadow:0 22px 54px -26px rgba(6,30,20,.35);
+  --forest:#0D2A20;
+  --forest-deep:#08201A;
+  --moss:#1C4A39;
+  --card:#123327;
+  --card-2:#163C2D;
+  --brass:#C6A35C;
+  --gold-soft:#DCC086;
+  --ivory:#F3EEE4;
+  --ink:#E4E0D6;
+  --muted:#A7B5AA;
+  --line:#2B5343;
+  --hair:rgba(198,163,92,.28);
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;font-synthesis:none}
 body{
   margin:0;
-  font-family:Inter,system-ui,sans-serif;
+  font-family:'Hanken Grotesk',system-ui,sans-serif;
   color:var(--ink);
   background:
-    radial-gradient(circle at top,rgba(201,162,51,.10),transparent 30%),
-    linear-gradient(180deg,var(--cream) 0%,#f8f5ee 100%);
+    radial-gradient(ellipse 80% 50% at 50% -10%,rgba(198,163,92,.10),transparent 60%),
+    var(--forest);
+  min-height:100vh;
 }
-a{color:#9a7314}
-.wrap{max-width:980px;margin:0 auto;padding:0 24px}
+::selection{background:var(--brass);color:var(--forest)}
+:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+a{color:var(--gold-soft);text-decoration-color:rgba(220,192,134,.4);text-underline-offset:3px}
+a:hover{color:#E9D3A3;text-decoration-color:currentColor}
+.wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+
+/* hlavička — jako na hlavním webu: průsvitná zelená lišta s mosaznou linkou */
 .topbar{
-  padding:18px 0;
-  border-bottom:1px solid rgba(255,255,255,.08);
-  background:linear-gradient(180deg,rgba(7,43,28,.96),rgba(7,43,28,.88));
+  position:sticky;top:0;z-index:10;
+  padding:12px 0;
+  background:rgba(10,36,27,.88);
+  backdrop-filter:saturate(140%) blur(14px);-webkit-backdrop-filter:saturate(140%) blur(14px);
+  border-bottom:1px solid var(--hair);
 }
 .topbar-inner{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.brand{display:flex;align-items:center;gap:12px;color:#f7f2e6;text-decoration:none}
-.brand img{width:52px;height:52px}
-.brand strong{font:700 26px/1.1 Georgia,serif;letter-spacing:.08em}
-.topnav{display:flex;gap:10px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;color:var(--ivory);text-decoration:none}
+.brand img{width:40px;height:40px}
+.brand strong{font:400 21px/1 'Marcellus',Georgia,serif;letter-spacing:.24em}
+.topnav{display:flex;gap:4px;flex-wrap:wrap}
 .topnav a{
-  color:#dbe5de;
-  text-decoration:none;
-  font-size:14px;
-  padding:10px 14px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,.10);
+  color:#C9D3CB;text-decoration:none;font-size:14px;
+  padding:8px 12px;border-radius:999px;border:1px solid transparent;
+  transition:color .18s,border-color .18s,background .18s;
 }
-.topnav a.active,.topnav a:hover{background:rgba(201,162,51,.16);border-color:rgba(201,162,51,.32);color:#fff7e6}
-.hero{
-  padding:44px 0 26px;
-}
-.hero-card{
-  background:linear-gradient(135deg,rgba(7,43,28,.98),rgba(11,60,39,.88));
-  border:1px solid rgba(201,162,51,.22);
-  border-radius:28px;
-  box-shadow:var(--shadow);
-  padding:34px 36px;
-  color:#eff5f0;
-}
-.eyebrow{
-  color:var(--gold-soft);
-  text-transform:uppercase;
-  letter-spacing:.18em;
-  font-size:12px;
-  font-weight:800;
-}
+.topnav a:hover{color:var(--ivory);background:rgba(198,163,92,.08)}
+.topnav a.active{color:var(--gold-soft);border-color:rgba(198,163,92,.45)}
+
+/* úvodní blok */
+.hero{padding:56px 0 30px}
+.hero-card{padding:0;color:var(--ink)}
+.eyebrow{font:400 17px/1.2 'Marcellus',Georgia,serif;color:var(--brass);letter-spacing:.01em}
 .hero h1{
-  margin:14px 0 10px;
-  font:700 clamp(34px,4vw,48px)/1.05 Georgia,serif;
-  color:#fff7ea;
+  margin:12px 0 14px;
+  font:400 clamp(36px,5vw,56px)/1.06 'Marcellus',Georgia,serif;
+  color:var(--ivory);text-wrap:balance;
 }
-.hero p{max-width:720px;font-size:17px;line-height:1.8;color:#e4ece6;margin:0}
+.hero p{max-width:680px;font-size:17px;line-height:1.75;color:#CBD3CC;margin:0}
 .meta{
-  display:flex;
-  gap:14px;
-  flex-wrap:wrap;
-  margin-top:18px;
-  color:#d2ddd5;
-  font-size:14px;
+  display:flex;gap:8px 22px;flex-wrap:wrap;
+  margin-top:22px;padding-top:18px;border-top:1px solid var(--hair);
+  color:var(--muted);font-size:14px;
 }
-.content{padding:0 0 70px}
-.grid{display:grid;grid-template-columns:1.6fr .9fr;gap:20px}
+
+/* obsah */
+.content{padding:0 0 80px}
+.grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,.85fr);gap:22px;align-items:start}
 .card{
-  background:var(--paper);
+  background:var(--card);
   border:1px solid var(--line);
-  border-radius:24px;
-  box-shadow:0 14px 34px -22px rgba(7,30,20,.22);
+  border-radius:20px;
 }
-.main{padding:28px 32px}
+.main{padding:30px 34px}
+.main > :first-child{margin-top:0}
 .note{
-  background:rgba(201,162,51,.10);
-  border:1px dashed rgba(201,162,51,.45);
-  border-radius:14px;
-  padding:14px 16px;
-  font-size:13px;
-  color:#6b5b2f;
-  margin-bottom:24px;
+  background:rgba(198,163,92,.08);
+  border:1px solid rgba(198,163,92,.3);
+  border-radius:14px;padding:14px 16px;
+  font-size:13.5px;color:var(--gold-soft);margin-bottom:24px;
 }
 .main h2{
-  margin:28px 0 10px;
-  font:700 22px/1.2 Georgia,serif;
-  color:#0c311f;
+  margin:34px 0 10px;padding-top:24px;border-top:1px solid var(--line);
+  font:400 24px/1.2 'Marcellus',Georgia,serif;color:var(--ivory);
 }
-.main p,.main li{
-  font-size:15px;
-  line-height:1.82;
-  color:#23372c;
-}
-.main ul{padding-left:20px}
-.side{padding:24px}
-.side h3{
-  margin:0 0 14px;
-  font:700 22px/1.2 Georgia,serif;
-  color:#0c311f;
-}
+.main h2:first-child,.note + h2{border-top:0;padding-top:0}
+.main h3{margin:22px 0 8px;font:400 19px/1.25 'Marcellus',Georgia,serif;color:var(--gold-soft)}
+.main p,.main li{font-size:15.5px;line-height:1.8;color:var(--ink)}
+.main b,.main strong{color:var(--ivory);font-weight:600}
+.main ul,.main ol{padding-left:22px}
+.main li::marker{color:var(--brass)}
+.main table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+.main th,.main td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.main th{color:var(--gold-soft);font-weight:600}
+
+/* boční panel */
+.side{padding:24px;position:sticky;top:92px}
+.side h3{margin:0 0 12px;font:400 20px/1.2 'Marcellus',Georgia,serif;color:var(--ivory)}
 .side-block + .side-block{margin-top:20px;padding-top:20px;border-top:1px solid var(--line)}
-.side p{margin:0;font-size:14px;line-height:1.8;color:#30453a}
-.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.side p{margin:0;font-size:14.5px;line-height:1.8;color:var(--ink)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .btn{
   display:inline-flex;align-items:center;justify-content:center;
-  min-height:44px;padding:0 18px;border-radius:999px;text-decoration:none;cursor:pointer;
-  border:1px solid var(--line);background:#fff;color:#163126;font-weight:600;font-size:14px;
+  min-height:42px;padding:0 18px;border-radius:999px;text-decoration:none;cursor:pointer;
+  border:1px solid rgba(198,163,92,.55);background:transparent;color:var(--ivory);
+  font:600 14px 'Hanken Grotesk',system-ui,sans-serif;letter-spacing:.01em;
+  transition:background .18s,border-color .18s,color .18s;
 }
-.btn.primary{background:linear-gradient(180deg,var(--gold-soft),var(--gold));border-color:#d3ab3a;color:#193021}
+.btn:hover{border-color:var(--brass);background:rgba(198,163,92,.1);color:var(--ivory)}
+.btn.primary{background:var(--brass);border-color:var(--brass);color:var(--forest)}
+.btn.primary:hover{background:#D3B470;border-color:#D3B470}
+
+/* patička */
 .footer{
-  border-top:1px solid rgba(7,43,28,.10);
-  padding:24px 0 38px;
-  color:var(--muted);
-  font-size:14px;
+  border-top:1px solid var(--hair);
+  padding:26px 0 40px;
+  color:var(--muted);font-size:14px;
+  background:var(--forest-deep);
 }
-@media (max-width: 860px){
+
+@media (max-width:860px){
   .grid{grid-template-columns:1fr}
-  .topbar-inner{align-items:flex-start;flex-direction:column}
+  .side{position:static}
+  .topbar{position:static}
+  .topbar-inner{align-items:flex-start;flex-direction:column;gap:12px}
+  .topnav{margin-left:-12px}
+}
+@media (max-width:560px){
+  .wrap{padding:0 16px}
+  .hero{padding:36px 0 22px}
+  .main{padding:22px 20px}
+  .side{padding:20px}
+  .topnav a{padding:7px 10px;font-size:13.5px}
 }
