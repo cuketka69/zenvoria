@@ -102,7 +102,7 @@ let planPermissions={start:{},premium:{}};
 const planPrice=k=>{const c=window.APP_COUNTRY==='sk'?'sk':'cz';return (planPrices[c]&&planPrices[c][k])||0;};
 const planPriceLabel=k=>planPrice(k)>0?fmtMoney(planPrice(k))+' / měsíc':'Zdarma';
 /* SVG diamant se zeleným obrysem (ostrý, škálovatelný) */
-const diamondSVG=(s,col)=>`<svg width="${s||14}" height="${s||14}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 22 2.5 9.5 6 3.5H18l3.5 6L12 22Z" stroke="${col||'#0A5A34'}" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.5 9.5h19M6 3.5 9 9.5M18 3.5 15 9.5M9 9.5 12 3.5 15 9.5M9 9.5 12 22 15 9.5" stroke="${col||'#0A5A34'}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const diamondSVG=(s,col)=>`<svg width="${s||14}" height="${s||14}" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px"><path d="M12 22 2.5 9.5 6 3.5H18l3.5 6L12 22Z" stroke="${col||'#DCC086'}" stroke-width="1.6" stroke-linejoin="round"/><path d="M2.5 9.5h19M6 3.5 9 9.5M18 3.5 15 9.5M9 9.5 12 3.5 15 9.5M9 9.5 12 22 15 9.5" stroke="${col||'#DCC086'}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 /* ikona tarifu: PREMIUM = zelený SVG diamant, START = zelený SVG puntík */
 const planIcon=(k,h)=>k==='premium'?diamondSVG(h||16,'#13A552'):`<svg width="${h||16}" height="${h||16}" viewBox="0 0 24 24" style="vertical-align:-2px"><circle cx="12" cy="12" r="9" fill="#13A552"/></svg>`;
 
