@@ -27,11 +27,17 @@ function parse(q) {
   }
   return { filters, limit };
 }
+/* ilike s PostgREST zástupným znakem * (= SQL %) */
+function ilike(val, pat) {
+  const re = new RegExp('^' + pat.toLowerCase().split('*').map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$');
+  return re.test(String(val || '').toLowerCase());
+}
 function match(row, filters) {
   return filters.every(([k, v]) => {
     if (k === '__or') return v.some((f) => match(row, [f]));
+    if (v.startsWith('not.')) return !match(row, [[k, v.slice(4)]]);
     if (v.startsWith('eq.')) return String(row[k]) === v.slice(3);
-    if (v.startsWith('ilike.')) return String(row[k] || '').toLowerCase() === v.slice(6).toLowerCase();
+    if (v.startsWith('ilike.')) return ilike(row[k], v.slice(6));
     if (v === 'is.null') return row[k] == null;
     if (v.startsWith('gte.')) return String(row[k]) >= v.slice(4);
     if (v.startsWith('lte.')) return String(row[k]) <= v.slice(4);

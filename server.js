@@ -5357,6 +5357,11 @@ app.get('/api/orders/:oid/attachments/:id', requireAuth, h(async (req, res) => {
   const parsed = decodeDataUrl(a.data, { maxBytes: 2 * 1024 * 1024, allowedTypes: VERIFICATION_FILE_MIME_TYPES }); if (!parsed) return res.status(404).send('Nenalezeno'); res.setHeader('Cache-Control', 'private, no-store'); res.setHeader('Content-Disposition', `attachment; filename="${a.name.replace(/["\r\n]/g, '')}"`); res.type(parsed.mime).send(parsed.bytes);
 }));
 
+/* testovací účty (e-mail na @test.zenvoria.cz) se skutečným návštěvníkům nezobrazují — ve vyhledávání,
+   SEO stránkách ani sitemapě. Vidí je jen jiné testovací účty a admin (aby šlo vyzkoušet celý tok). */
+const TEST_ACCOUNT_DOMAIN = '@test.zenvoria.cz';
+const HIDE_TEST_CG = 'email=not.ilike.*%40test.zenvoria.cz';
+function isTestEmail(email) { return String(email || '').toLowerCase().endsWith(TEST_ACCOUNT_DOMAIN); }
 /* ---------------- BOOTSTRAP (vše pro render) ---------------- */
 app.get('/api/bootstrap', h(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -5373,9 +5378,9 @@ app.get('/api/bootstrap', h(async (req, res) => {
   const [caregivers, orders, requests, schedule, verifications, usersRows, reviews, broadcasts, settings, familyReviewsRows, invoiceRows, reportRows, favoriteRows, unreadNotifRows, recurringRows] =
     await Promise.all([
       viewer === 'guest'
-        ? restSelect(T.caregivers, `select=*&verified=eq.true&suspended=eq.false&country=eq.${countryForReq(req)}&order=id.asc`)
+        ? restSelect(T.caregivers, `select=*&verified=eq.true&suspended=eq.false&country=eq.${countryForReq(req)}&${HIDE_TEST_CG}&order=id.asc`)
         : (viewer === 'family'
-          ? restSelect(T.caregivers, `select=*&country=eq.${countryForReq(req)}&order=id.asc`)
+          ? restSelect(T.caregivers, `select=*&country=eq.${countryForReq(req)}${isTestEmail(req.session.email) ? '' : '&' + HIDE_TEST_CG}&order=id.asc`)
           : restSelect(T.caregivers, 'select=*&order=id.asc')),
       viewer === 'admin'
         ? restSelect(T.orders, 'select=*&order=oid.desc')
@@ -9370,7 +9375,7 @@ async function getPublicCaregivers(country) {
   // veřejné SEO cesty (sitemap, vyhledávací stránka) musí zůstat dostupné i při výpadku DB —
   // radši prázdný seznam než 500 chyba pro crawler/vyhledávač
   try {
-    return (await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&country=eq.${country}&select=id,slug,name,titul,loc,rate,bio,services,rating,reviews,exp&order=rating.desc&limit=500`)) || [];
+    return (await restSelect(T.caregivers, `verified=eq.true&suspended=eq.false&country=eq.${country}&${HIDE_TEST_CG}&select=id,slug,name,titul,loc,rate,bio,services,rating,reviews,exp&order=rating.desc&limit=500`)) || [];
   } catch (e) {
     console.warn('[seo] nelze načíst veřejné pečovatelky:', e.message);
     return [];
@@ -9663,7 +9668,7 @@ app.get('/pecovatelka/:slug', h(async (req, res) => {
   const slug = String(req.params.slug || '').toLowerCase();
   let c = null;
   try {
-    const rows = await restSelect(T.caregivers, `slug=eq.${encodeURIComponent(slug)}&verified=eq.true&suspended=eq.false&select=id,slug,name,titul,loc,rate,bio,services,rating,reviews,exp&limit=1`);
+    const rows = await restSelect(T.caregivers, `slug=eq.${encodeURIComponent(slug)}&verified=eq.true&suspended=eq.false&${HIDE_TEST_CG}&select=id,slug,name,titul,loc,rate,bio,services,rating,reviews,exp&limit=1`);
     c = rows && rows[0];
   } catch (e) { console.warn('[seo] nelze načíst profil pečovatelky:', e.message); }
   if (!c) return sendIndex(req, res); // neexistuje/neověřená/výpadek DB → SPA dovyrenderuje "nenalezeno"
