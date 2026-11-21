@@ -2668,3 +2668,21 @@ html.zv-large .addr-map{zoom:.8475}
 .vm-btns{display:flex;gap:6px;margin-left:auto}.vm-btns .btn{border-radius:999px}
 .vm-help{font-size:12.5px;color:#AEBBB1;margin:10px 0 0}
 @media (max-width:640px){.care-med-row{grid-template-columns:1fr 1fr auto;padding-bottom:12px;border-bottom:1px solid rgba(198,163,92,.22)}.care-med-row .cm-name{grid-area:1/1/2/3}.care-med-row .cm-del{grid-area:1/3/2/4}.care-med-row .cm-dose{grid-area:2/1/3/2}.care-med-row .cm-times{grid-area:2/2/3/4}.care-med-row .cm-note{grid-area:3/1/4/4}}
+
+/* ---------- vyhledávání: karta na šířku — menší portrét vlevo, text vpravo ---------- */
+@media (min-width:641px){
+  #careGrid.care-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr))}
+  #careGrid .care-card.zv-card{display:grid;grid-template-columns:clamp(128px,13vw,156px) 1fr;grid-template-rows:auto auto 1fr;align-items:start}
+  #careGrid .zv-card-photo{grid-row:1/4;grid-column:1;margin:18px 0 18px 18px;aspect-ratio:3/4;align-self:start;border-radius:50% 50% 12px 12px / 38% 38% 12px 12px}
+  #careGrid .care-top,#careGrid .care-tags,#careGrid .care-foot{grid-column:2;min-width:0}
+  #careGrid .care-top{padding:20px 22px 4px}
+  #careGrid .care-foot{padding:14px 22px 18px;align-self:end}
+  #careGrid .zv-card-init{font-size:40px}
+  #careGrid .zv-card .prem-ribbon{left:0;right:0;margin:0 auto;width:max-content;bottom:10px;font-size:9.5px;padding:4px 9px}
+  #careGrid .zv-card .fav-heart-card{top:8px;right:8px;width:32px;height:32px}
+  #careGrid .zv-card .care-match-badge{top:auto;bottom:40px;left:0;right:0;margin:0 auto;width:max-content;white-space:nowrap;font-size:10.5px}
+}
+/* mobil: fotka zůstává nahoře, ale nižší a oříznutá na obličej */
+@media (max-width:640px){
+  #careGrid .zv-card-photo{aspect-ratio:16/10}
+}
