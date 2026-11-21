@@ -1179,7 +1179,7 @@ function renderEmailLayout({ preheader, title, intro, bodyHtml, ctaLabel, ctaUrl
                           <td style="padding:24px 26px;">
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                               <tr>
-                                <td width="72" valign="top" align="center" style="font-size:42px;line-height:1;color:#0A2F20;">🛡</td>
+                                <td width="72" valign="top" align="center"><div style="width:48px;height:48px;border-radius:50%;background:#0A2F20;color:#DCC086;font-size:22px;line-height:48px;text-align:center;font-weight:700;">✓</div></td>
                                 <td valign="top" style="color:#26352D;font-size:16px;line-height:1.8;">
                                   <strong>Vaše bezpečí je pro nás prioritou.</strong><br>
                                   Vaše údaje používáme pouze pro účely poskytování našich služeb.
@@ -4040,8 +4040,8 @@ const JS_SK_TRANSLATIONS = [
   // renderChat — seznam konverzací a hlavička chatu
   ["listHead.textContent='Konverzace';", "listHead.textContent='Konverzácie';"],
   ["avaWrap.title='Zobrazit profil';", "avaWrap.title='Zobraziť profil';"],
-  ["preview.textContent=last?((last.me?'Vy: ':'')+(last.text||(last.image?'📷 Obrázek':''))):'Nová konverzace';",
-    "preview.textContent=last?((last.me?'Vy: ':'')+(last.text||(last.image?'📷 Obrázok':''))):'Nová konverzácia';"],
+  ["preview.textContent=last?((last.me?'Vy: ':'')+(last.text||(last.image?'Obrázek':''))):'Nová konverzace';",
+    "preview.textContent=last?((last.me?'Vy: ':'')+(last.text||(last.image?'Obrázok':''))):'Nová konverzácia';"],
   ["if(c.readonly){headState.textContent='Oznámení od ZENVORIA';head.dataset.presRead='1';head.dataset.cid='';}",
     "if(c.readonly){headState.textContent='Oznámenie od ZENVORIA';head.dataset.presRead='1';head.dataset.cid='';}"],
   ["searchBtn.type='button';searchBtn.className='chat-search-btn';searchBtn.title='Hledat ve zprávách';searchBtn.setAttribute('aria-label','Hledat ve zprávách');",
@@ -4052,8 +4052,8 @@ const JS_SK_TRANSLATIONS = [
     "delBtn.type='button';delBtn.className='chat-search-btn chat-search-btn-tight';delBtn.title='Vymazať konverzáciu';delBtn.setAttribute('aria-label','Vymazať konverzáciu');"],
   ["?`<div class=\"chat-pin\"><span>${c.blockedByMe?'Tohoto uživatele jste zablokovali. Nemůžete si navzájem psát.':'Konverzace je blokovaná. Nemůžete si navzájem psát.'}</span>${c.blockedByMe?`<button type=\"button\" onclick=\"unblockConversation(${c.id})\">Odblokovat</button>`:''}</div>`",
     "?`<div class=\"chat-pin\"><span>${c.blockedByMe?'Tohto používateľa ste zablokovali. Nemôžete si navzájom písať.':'Konverzácia je blokovaná. Nemôžete si navzájom písať.'}</span>${c.blockedByMe?`<button type=\"button\" onclick=\"unblockConversation(${c.id})\">Odblokovať</button>`:''}</div>`"],
-  ["📷 Obrázek':''))}</span><button type=\"button\" onclick=\"pinMessage(${c.pinnedMessage.id})\">Odepnout</button>",
-    "📷 Obrázok':''))}</span><button type=\"button\" onclick=\"pinMessage(${c.pinnedMessage.id})\">Odopnúť</button>"],
+  ["Obrázek':''))}</span><button type=\"button\" onclick=\"pinMessage(${c.pinnedMessage.id})\">Odepnout</button>",
+    "Obrázok':''))}</span><button type=\"button\" onclick=\"pinMessage(${c.pinnedMessage.id})\">Odopnúť</button>"],
   ["if(lastMine.pending)statusLabel='Odesíláno…';", "if(lastMine.pending)statusLabel='Odosiela sa…';"],
   ["else if(c.otherReadAt&&lastMine.createdAt&&Date.parse(c.otherReadAt)>=Date.parse(lastMine.createdAt))statusLabel='Přečteno';", "else if(c.otherReadAt&&lastMine.createdAt&&Date.parse(c.otherReadAt)>=Date.parse(lastMine.createdAt))statusLabel='Prečítané';"],
   ["else statusLabel='Doručeno';", "else statusLabel='Doručené';"],
@@ -4105,8 +4105,8 @@ const JS_SK_TRANSLATIONS = [
   ["toast(`Objednávka u <b>${esc(c.name)}</b> odeslána — čeká na potvrzení`,'success');", "toast(`Objednávka u <b>${esc(c.name)}</b> odoslaná — čaká na potvrdenie`,'success');"],
   ["toastApiError(e,'Objednávku se nepodařilo odeslat.');", "toastApiError(e,'Objednávku sa nepodarilo odoslať.');"],
   // notifikace / náhled zpráv (zvoneček a ikonka obálky v hlavičce)
-  ["const preview=last?esc((last.me?'Vy: ':'')+(last.text||(last.image?'📷 Obrázek':''))):'Nová konverzace';",
-    "const preview=last?esc((last.me?'Vy: ':'')+(last.text||(last.image?'📷 Obrázok':''))):'Nová konverzácia';"],
+  ["const preview=last?esc((last.me?'Vy: ':'')+(last.text||(last.image?'Obrázek':''))):'Nová konverzace';",
+    "const preview=last?esc((last.me?'Vy: ':'')+(last.text||(last.image?'Obrázok':''))):'Nová konverzácia';"],
   ["}).join(''):`<div class=\"msg-preview-empty\">Zatím žádné konverzace.</div>`;", "}).join(''):`<div class=\"msg-preview-empty\">Zatiaľ žiadne konverzácie.</div>`;"],
   ["if(s<60)return'právě teď';", "if(s<60)return'práve teraz';"],
   ["</button>`).join(''):'<div class=\"msg-preview-empty\">Zatím žádná oznámení.</div>';", "</button>`).join(''):'<div class=\"msg-preview-empty\">Zatiaľ žiadne oznámenia.</div>';"],
@@ -4275,7 +4275,7 @@ const JS_SK_TRANSLATIONS = [
     "document.getElementById('legalBackLabel').textContent=legalBackView==='register'?'Späť k registrácii':(legalBackView==='login'?'Späť k prihláseniu':'Späť');"],
   // Deník péče — zápis z návštěvy, časová osa, připomínka pečovatelce, náhled na přehledu rodiny
   ["label:'Deník péče',fn:\"go('care-journal')\"", "label:'Denník starostlivosti',fn:\"go('care-journal')\""],
-  ["good:{icon:'😊',label:'Dobrá nálada'},ok:{icon:'😐',label:'Běžná nálada'},bad:{icon:'😟',label:'Horší nálada'}", "good:{icon:'😊',label:'Dobrá nálada'},ok:{icon:'😐',label:'Bežná nálada'},bad:{icon:'😟',label:'Horšia nálada'}"],
+  ["good:{icon:moodSVG('good'),label:'Dobrá nálada'},ok:{icon:moodSVG('ok'),label:'Běžná nálada'},bad:{icon:moodSVG('bad'),label:'Horší nálada'}", "good:{icon:moodSVG('good'),label:'Dobrá nálada'},ok:{icon:moodSVG('ok'),label:'Bežná nálada'},bad:{icon:moodSVG('bad'),label:'Horšia nálada'}"],
   ["const CJ_LEVELS={all:'vše',part:'část',none:'nic'};", "const CJ_LEVELS={all:'všetko',part:'časť',none:'nič'};"],
   ["const CJ_MEDS={given:'Léky podány',missed:'Léky nepodány',none:'Bez léků'};", "const CJ_MEDS={given:'Lieky podané',missed:'Lieky nepodané',none:'Bez liekov'};"],
   ["hygiena:'Hygiena',jidlo:'Příprava jídla',prochazka:'Procházka',cviceni:'Cvičení',spolecnost:'Společnost a rozhovor',domacnost:'Domácnost',nakup:'Nákup',lekar:'Doprovod k lékaři',odpocinek:'Odpočinek'", "hygiena:'Hygiena',jidlo:'Príprava jedla',prochazka:'Prechádzka',cviceni:'Cvičenie',spolecnost:'Spoločnosť a rozhovor',domacnost:'Domácnosť',nakup:'Nákup',lekar:'Sprevádzanie k lekárovi',odpocinek:'Odpočinok'"],
@@ -6059,7 +6059,7 @@ app.get('/api/orders/:oid/care-journal/photo', requireAuth, h(async (req, res) =
    členům sdílené péče; respektuje hlavní přepínač e-mailů a vlastní přepínač „careDigest“.
    Proti dvojímu odeslání (restart, víc instancí) si běh „zabere“ týden v settings: careDigestWeek:<pondělí>. */
 const CARE_DIGEST_CLAIM_PREFIX = 'careDigestWeek:';
-const DIGEST_MOOD = { good: '😊', ok: '😐', bad: '😟' };
+const DIGEST_MOOD = { good: '#4E9A6A', ok: '#C6A35C', bad: '#B5573F' };
 const DIGEST_ACT_CZ = { hygiena: 'hygiena', jidlo: 'příprava jídla', prochazka: 'procházka', cviceni: 'cvičení', spolecnost: 'společnost', domacnost: 'domácnost', nakup: 'nákup', lekar: 'doprovod k lékaři', odpocinek: 'odpočinek' };
 const DIGEST_ACT_SK = { hygiena: 'hygiena', jidlo: 'príprava jedla', prochazka: 'prechádzka', cviceni: 'cvičenie', spolecnost: 'spoločnosť', domacnost: 'domácnosť', nakup: 'nákup', lekar: 'sprevádzanie k lekárovi', odpocinek: 'odpočinok' };
 function pragueTodayKey() { return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); }
@@ -6087,17 +6087,17 @@ function careWeeklyDigestMail({ name, range, visits, country }) {
   const settingsUrl = `${appUrlFor(country || DEFAULT_COUNTRY)}/#settings`;
   const t = sk ? {
     subject: `Týždenný súhrn starostlivosti (${weekLabel})`, hello: `Dobrý deň${first ? ', ' + first : ''}.`, intro: `Takto prebehla starostlivosť minulý týždeň (${weekLabel}).`,
-    visits: 'Návštevy', moodL: 'Nálada', caregiversL: 'Opatrovateľky', actsL: 'Najčastejšie', missedTitle: '⚠️ Nepodané lieky', notesTitle: 'Odkazy od opatrovateliek', cta: 'Otvoriť denník starostlivosti',
+    visits: 'Návštevy', moodL: 'Nálada', caregiversL: 'Opatrovateľky', actsL: 'Najčastejšie', missedTitle: 'Nepodané lieky', notesTitle: 'Odkazy od opatrovateliek', cta: 'Otvoriť denník starostlivosti',
     footer: `Súhrn posielame každý pondelok, keď bol v uplynulom týždni aspoň jeden zápis. Vypnúť ho môžete v Nastaveniach: ${settingsUrl}`, closing: 'Ďakujeme, že ste s nami.', team: 'Tím Zenvoria', pre: 'Ako prebehla starostlivosť minulý týždeň',
   } : {
     subject: `Týdenní souhrn péče (${weekLabel})`, hello: `Dobrý den${first ? ', ' + first : ''}.`, intro: `Takhle proběhla péče minulý týden (${weekLabel}).`,
-    visits: 'Návštěvy', moodL: 'Nálada', caregiversL: 'Pečovatelky', actsL: 'Nejčastěji', missedTitle: '⚠️ Nepodané léky', notesTitle: 'Vzkazy od pečovatelek', cta: 'Otevřít deník péče',
+    visits: 'Návštěvy', moodL: 'Nálada', caregiversL: 'Pečovatelky', actsL: 'Nejčastěji', missedTitle: 'Nepodané léky', notesTitle: 'Vzkazy od pečovatelek', cta: 'Otevřít deník péče',
     footer: `Souhrn posíláme každé pondělí, pokud byl v uplynulém týdnu aspoň jeden zápis. Vypnout ho můžete v Nastavení: ${settingsUrl}`, closing: 'Děkujeme, že jste s námi.', team: 'Tým Zenvoria', pre: 'Jak proběhla péče minulý týden',
   };
   const moodStr = ['good', 'ok', 'bad'].filter((k) => moods[k]).map((k) => `${DIGEST_MOOD[k]} ${moods[k]}×`).join('  ');
   const notes = visits.filter((v) => v.message).slice(-4);
   const p = (s) => `<p style="margin:0 0 10px 0;">${s}</p>`;
-  const moodStrip = visits.map((v) => `<span title="${escapeHtml(fmtDayCz(v.date, sk))}" style="font-size:22px;line-height:1;">${DIGEST_MOOD[v.mood] || '😐'}</span>`).join(' ');
+  const moodStrip = visits.map((v) => `<span title="${escapeHtml(fmtDayCz(v.date, sk))}" style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${DIGEST_MOOD[v.mood] || DIGEST_MOOD.ok};"></span>`).join(' ');
   const bodyHtml =
     (moodStrip ? `<div style="margin:0 0 18px 0;letter-spacing:2px;">${moodStrip}</div>` : '') +
     (missed.length ? `<div style="margin:0 0 18px 0;padding:12px 14px;border-radius:12px;background:#FDF1EF;border:1px solid #F1C6BF;color:#7A2418;text-align:left;line-height:1.6;"><b>${t.missedTitle}</b><br>` +
@@ -7307,7 +7307,7 @@ app.post('/api/conversations/:id/messages', requireAuth, requireConversationPart
   }
   const now = new Date().toISOString();
   const row = await restInsert(T.messages, { conversation_id: conv.id, sender_id: me, mine: true, text, image, t: t || '', created_at: now, reply_to_id: replyToId, term });
-  const preview = text || (image ? '📷 Obrázek' : (term ? '📅 Návrh termínu' : ''));
+  const preview = text || (image ? 'Obrázek' : (term ? 'Návrh termínu' : ''));
   const col = String(conv.user_a) === me ? 'a_read_at' : 'b_read_at';
   await restUpdate(T.conversations, `id=eq.${conv.id}`, { last_text: preview, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
   const msgOut = { id: Number(row.id), me: true, text, image: image || null, t: t || '', createdAt: now, editedAt: null, deletedAt: null, reactions: {}, forwarded: false, replyTo: replySnippet, term };
@@ -7504,7 +7504,7 @@ app.post('/api/conversations/:id/messages/:mid/forward', requireAuth, requireCon
   if (String(target.user_a) !== me && String(target.user_b) !== me) return res.status(403).json({ error: 'Do této konverzace nemáte přístup.' });
   const now = new Date().toISOString();
   const row = await restInsert(T.messages, { conversation_id: targetId, sender_id: me, mine: true, text: src.text || '', image: src.image || null, t: '', created_at: now, forwarded: true });
-  const preview = src.text || (src.image ? '📷 Obrázek' : '');
+  const preview = src.text || (src.image ? 'Obrázek' : '');
   const col = String(target.user_a) === me ? 'a_read_at' : 'b_read_at';
   await restUpdate(T.conversations, `id=eq.${targetId}`, { last_text: preview, last_at: now, [col]: now }, { prefer: 'return=minimal' }).catch(() => {});
   const msgOut = { id: Number(row.id), me: true, text: src.text || '', image: src.image || null, t: '', createdAt: now, editedAt: null, deletedAt: null, reactions: {}, forwarded: true, replyTo: null };

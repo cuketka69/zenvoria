@@ -1387,6 +1387,15 @@ function trashSVG(s){return svgWrap(s,'<path d="M5 7h14M10 7V5h4v2M6 7l1 13h10l1
 function pauseSVG(s){return svgWrap(s,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M10 9v6M14 9v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
 function checkCircleSVG(s){return svgWrap(s,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="m8 12 2.6 2.6L16 9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');}
 function warnSVG(s){return svgWrap(s,'<path d="M12 3.5 21 19H3L12 3.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1.1" fill="currentColor"/>');}
+function bellSVG(s){return svgWrap(s,'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
+function lockSVG(s){return svgWrap(s,'<rect x="5" y="10.5" width="14" height="10" rx="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.3" fill="currentColor"/>');}
+function noteSVG(s){return svgWrap(s,'<path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5l-5-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3.5v5h5M8.5 13h7M8.5 16.5h4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');}
+function repeatSVG(s){return svgWrap(s,'<path d="M4 11V9.5A3.5 3.5 0 0 1 7.5 6H19m0 0-3-3m3 3-3 3M20 13v1.5a3.5 3.5 0 0 1-3.5 3.5H5m0 0 3 3m-3-3 3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');}
+function pinSVG(s){return svgWrap(s,'<path d="M9 3.5h6l-1 5 3.5 3.5h-11L10 8.5l-1-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 12v8.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
+function calendarSVG(s){return svgWrap(s,'<rect x="4" y="5.5" width="16" height="15" rx="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
+function smileSVG(s){return svgWrap(s,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 14.2a4.2 4.2 0 0 0 7 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="9" cy="10" r="1.1" fill="currentColor"/><circle cx="15" cy="10" r="1.1" fill="currentColor"/>');}
+/* nálada v deníku péče — vlastní obličeje místo emoji */
+function moodSVG(k,s){const mouth=k==='good'?'M8.5 14a4.2 4.2 0 0 0 7 0':k==='bad'?'M8.5 16a4.2 4.2 0 0 1 7 0':'M8.8 15h6.4';return svgWrap(s||18,'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="'+mouth+'" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="9" cy="10" r="1.1" fill="currentColor"/><circle cx="15" cy="10" r="1.1" fill="currentColor"/>');}
 function downloadSVG(s){return svgWrap(s,'<path d="M12 4v10m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 18h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
 function arrowDownSVG(s){return svgWrap(s,'<path d="M12 5v14m0 0 5-5m-5 5-5-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');}
 function docSVG(s){return svgWrap(s,'<path d="M7 3h7l4 4v14H7V3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 12h5M9.5 15.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');}
@@ -3362,7 +3371,7 @@ function renderOrders(tab){
     return `<div class="order" style="cursor:pointer" role="button" tabindex="0" onclick="openFamilyOrder(${o.oid})">
       ${avaHtml(c.init,c.photo)}
       <div class="od">
-        <b>${sNames(o.service)}${o.recurringId?' 🔁':''}</b>
+        <b>${sNames(o.service)}${o.recurringId?' '+repeatSVG(15):''}</b>
         <div class="det">${esc(c.name)} · ${fmtDate(o.date)}<br>${timeRange(o.time,o.hours)}</div>
       </div>
       <div class="ost">
@@ -4673,7 +4682,7 @@ function doRejectVerification(id,reason){
 
 /* ---- ADMIN: pečovatelky ---- */
 /* vlaječka země u admin řádků (CZ/SK) — appka běží na sdílené DB pro obě země */
-function countryFlag(country){return country==='sk'?'<span class="badge" title="Slovensko">🇸🇰 SK</span>':'<span class="badge" title="Česko">🇨🇿 CZ</span>';}
+function countryFlag(country){return country==='sk'?'<span class="badge" title="Slovensko">SK</span>':'<span class="badge" title="Česko">CZ</span>';}
 function auditChangeText(ch){
   const before=ch.before==null||ch.before===''?'prázdné':String(ch.before);
   const after=ch.after==null||ch.after===''?'prázdné':String(ch.after);
@@ -7047,7 +7056,7 @@ function reqCardHTML(r){
   return `<div class="req">
     ${avaHtml(r.init,r.photo)}
     <div class="ri">
-      <b>${esc(r.fam)}${r.recurringId?' <span class="chip" style="font-size:11px;padding:2px 8px">🔁 opakovaná</span>':''}</b>
+      <b>${esc(r.fam)}${r.recurringId?' <span class="chip" style="font-size:11px;padding:2px 8px">'+repeatSVG(12)+' opakovaná</span>':''}</b>
       <div class="rd">${sNames(r.service)} · ${fmtDate(r.date)} · ${timeRange(r.time,r.hours)}</div>
       <span class="rs">${(r.hours*cgProfile.rate).toLocaleString('cs-CZ')} Kč · ${esc(r.addr)}</span>
     </div>
@@ -7732,7 +7741,7 @@ function addVisitTask(event,oid){event.preventDefault();const el=document.getEle
 function toggleVisitTask(oid,taskId){apiSync(api('/orders/'+oid+'/care-ops',{method:'POST',body:{action:'toggle-task',taskId}}).then(syncCareOp));}
 function uploadVisitAttachment(input,oid){const file=input.files&&input.files[0];if(!file)return;if(file.size>2*1024*1024){toast('Soubor může mít nejvýše 2 MB.','declined');input.value='';return;}const reader=new FileReader();reader.onload=()=>apiSync(api('/orders/'+oid+'/care-ops',{method:'POST',body:{action:'attachment',name:file.name,type:file.type,data:reader.result}}).then(r=>{syncCareOp(r);toast('Příloha byla bezpečně uložena.','success');}));reader.onerror=()=>toast('Soubor se nepodařilo načíst.','declined');reader.readAsDataURL(file);}
 /* ---------- DENÍK PÉČE (zápis z návštěvy + časová osa pro rodinu) ---------- */
-const CJ_MOODS={good:{icon:'😊',label:'Dobrá nálada'},ok:{icon:'😐',label:'Běžná nálada'},bad:{icon:'😟',label:'Horší nálada'}};
+const CJ_MOODS={good:{icon:moodSVG('good'),label:'Dobrá nálada'},ok:{icon:moodSVG('ok'),label:'Běžná nálada'},bad:{icon:moodSVG('bad'),label:'Horší nálada'}};
 const CJ_LEVELS={all:'vše',part:'část',none:'nic'};
 const CJ_MEDS={given:'Léky podány',missed:'Léky nepodány',none:'Bez léků'};
 const CJ_ACTIVITIES={hygiena:'Hygiena',jidlo:'Příprava jídla',prochazka:'Procházka',cviceni:'Cvičení',spolecnost:'Společnost a rozhovor',domacnost:'Domácnost',nakup:'Nákup',lekar:'Doprovod k lékaři',odpocinek:'Odpočinek'};
@@ -7747,7 +7756,7 @@ function renderCgJournalNotice(){
   const el=document.getElementById('cgJournalNotice');if(!el)return;const miss=cgMissingJournals();
   if(!miss.length){el.innerHTML='';return;}
   const n=miss.length,word=n===1?'nevyplněný zápis':(n<5?'nevyplněné zápisy':'nevyplněných zápisů');
-  el.innerHTML=`<div class="verify-banner wait cj-notice"><span class="vb-ic" aria-hidden="true">📝</span><div class="vb-t"><b>Máte ${n} ${word} z návštěv</b><span>Rodina čeká, jak návštěva proběhla. Vyplnění zabere minutu.</span><div class="cj-notice-list">${miss.slice(0,3).map(j=>`<button class="btn btn-ghost btn-sm" onclick="openOrderDetailByOid(${j.oid})">${fmtDate(j.date)} · ${esc(j.fam||'')}</button>`).join('')}</div></div></div>`;
+  el.innerHTML=`<div class="verify-banner wait cj-notice"><span class="vb-ic" aria-hidden="true" style="color:var(--gold)">${noteSVG(26)}</span><div class="vb-t"><b>Máte ${n} ${word} z návštěv</b><span>Rodina čeká, jak návštěva proběhla. Vyplnění zabere minutu.</span><div class="cj-notice-list">${miss.slice(0,3).map(j=>`<button class="btn btn-ghost btn-sm" onclick="openOrderDetailByOid(${j.oid})">${fmtDate(j.date)} · ${esc(j.fam||'')}</button>`).join('')}</div></div></div>`;
 }
 /* rodina: poslední zápis na přehledu */
 function renderFamJournalPreview(){
@@ -8145,7 +8154,7 @@ function toggleMsgPreview(){
   const items=CONVERSATIONS.filter(c=>c.id!==-1||broadcastsFor().length);
   panel.innerHTML=items.length?items.map(c=>{
     const last=c.msgs[c.msgs.length-1];
-    const preview=last?esc((last.me?'Vy: ':'')+(last.text||(last.image?'📷 Obrázek':''))):'Nová konverzace';
+    const preview=last?esc((last.me?'Vy: ':'')+(last.text||(last.image?'Obrázek':''))):'Nová konverzace';
     return `<button type="button" class="msg-preview-item" data-cid="${c.id}">
       <span class="msg-preview-ava">${convoPhoto(c)?`<img src="${esc(convoPhoto(c))}" alt="">`:esc(c.init||'')}</span>
       <span class="msg-preview-ci"><b>${esc(c.name)}</b><span>${preview}</span></span>
@@ -8308,7 +8317,7 @@ function renderChat(){
     const name=document.createElement('b');
     name.textContent=c.name;
     const preview=document.createElement('span');
-    preview.textContent=last?((last.me?'Vy: ':'')+(last.text||(last.image?'📷 Obrázek':''))):'Nová konverzace';
+    preview.textContent=last?((last.me?'Vy: ':'')+(last.text||(last.image?'Obrázek':''))):'Nová konverzace';
     ci.appendChild(name);
     ci.appendChild(preview);
     btn.appendChild(ci);
@@ -8369,7 +8378,7 @@ function renderChat(){
     chatForm.querySelectorAll('input,button').forEach(el=>{el.disabled=!c.readonly&&isBlocked;});
   }
   const pinBanner=document.getElementById('chatPinBanner');
-  if(pinBanner)pinBanner.innerHTML=(c.pinnedMessage&&!c.readonly)?`<div class="chat-pin"><span>📌 ${c.pinnedMessage.me?'Vy: ':''}${esc(c.pinnedMessage.text||(c.pinnedMessage.image?'📷 Obrázek':''))}</span><button type="button" onclick="pinMessage(${c.pinnedMessage.id})">Odepnout</button></div>`:'';
+  if(pinBanner)pinBanner.innerHTML=(c.pinnedMessage&&!c.readonly)?`<div class="chat-pin"><span>${pinSVG(14)} ${c.pinnedMessage.me?'Vy: ':''}${esc(c.pinnedMessage.text||(c.pinnedMessage.image?'Obrázek':''))}</span><button type="button" onclick="pinMessage(${c.pinnedMessage.id})">Odepnout</button></div>`:'';
   const searchBar=document.getElementById('chatSearchBar'),searchInput=document.getElementById('chatSearchInput');
   const query=(searchInput&&searchBar&&!searchBar.hidden)?searchInput.value.trim().toLowerCase():'';
   if(query){
@@ -8462,7 +8471,7 @@ function scrollToSearchMatch(){
 function replyToMessage(mid){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);if(!c)return;
   const m=c.msgs.find(x=>x.id===mid);if(!m||m.deletedAt)return;
-  chatReplyTarget={cid:c.id,mid,me:m.me,snippet:m.text||(m.image?'📷 Obrázek':'')};
+  chatReplyTarget={cid:c.id,mid,me:m.me,snippet:m.text||(m.image?'Obrázek':'')};
   document.querySelectorAll('.react-picker').forEach(el=>el.hidden=true);
   renderChat();
   document.getElementById('chatInput')?.focus();
@@ -8579,11 +8588,11 @@ async function sendChatTerm(term){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);
   if(!c||c.readonly||!(c.id>0)){toast('Vyberte konverzaci.');return;}
   const tmp={id:0,me:true,text:'',t:chatNow(),pending:true,term:Object.assign({status:'proposed',orderId:null},term)};
-  c.msgs.push(tmp);c.last='📅 Návrh termínu';renderChat();
+  c.msgs.push(tmp);c.last='Návrh termínu';renderChat();
   try{
     const r=await api('/conversations/'+c.id+'/messages',{method:'POST',body:{t:tmp.t,term}});
     const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs[i]=r.message;else c.msgs.push(r.message);
-    c.last='📅 Návrh termínu';c.lastAt=r.message.createdAt;renderChat();
+    c.last='Návrh termínu';c.lastAt=r.message.createdAt;renderChat();
   }catch(err){
     const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs.splice(i,1);renderChat();
     toast(err.message||'Návrh termínu se nepodařilo odeslat.','declined');
@@ -8593,13 +8602,13 @@ function termCardHTML(m){
   const t=m.term;
   const statusLine=t.status==='proposed'
     ?(m.me?'Čeká na vyjádření druhé strany':'')
-    :(t.status==='accepted'?'✅ Termín potvrzen'+(m.me||t.orderId?', objednávka založena':''):'✕ Termín odmítnut');
+    :(t.status==='accepted'?checkCircleSVG(15)+' Termín potvrzen'+(m.me||t.orderId?', objednávka založena':''):'✕ Termín odmítnut');
   const actions=(t.status==='proposed'&&!m.me)?`<div class="term-actions">
       <button type="button" class="btn btn-sm btn-gold" onclick="acceptTermMessage(${m.id})">Přijmout</button>
       <button type="button" class="btn btn-sm btn-ghost" onclick="declineTermMessage(${m.id})">Odmítnout</button>
     </div>`:'';
   return `<div class="term-card">
-    <div class="term-head">📅 Návrh termínu</div>
+    <div class="term-head">${calendarSVG(17)} Návrh termínu</div>
     <div class="term-body">${esc(sName(t.service))} · ${esc(fmtDate(t.date))} v ${esc(t.time)} (${esc(hoursLabelCz(t.hours))})</div>
     ${t.addr?`<div class="term-addr">${esc(t.addr)}</div>`:''}
     ${statusLine?`<div class="term-status">${statusLine}</div>`:''}
@@ -8665,11 +8674,11 @@ async function sendChatImage(image){
   const c=CONVERSATIONS.find(x=>x.id===activeChat);
   if(!c||c.readonly||!(c.id>0)){toast('Vyberte konverzaci.');return;}
   const tmp={id:0,me:true,text:'',image,t:chatNow(),pending:true};
-  c.msgs.push(tmp);c.last='📷 Obrázek';renderChat();
+  c.msgs.push(tmp);c.last='Obrázek';renderChat();
   try{
     const r=await api('/conversations/'+c.id+'/messages',{method:'POST',body:{image,t:tmp.t}});
     const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs[i]=r.message;else c.msgs.push(r.message);
-    c.last='📷 Obrázek';c.lastAt=r.message.createdAt;renderChat();
+    c.last='Obrázek';c.lastAt=r.message.createdAt;renderChat();
   }catch(err){
     const i=c.msgs.indexOf(tmp);if(i>=0)c.msgs.splice(i,1);renderChat();
     toast(err.message||'Obrázek se nepodařilo odeslat.','declined');
@@ -8706,7 +8715,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('#emojiPicker')&&!e.t
 
 /* ---------- REAKCE / ÚPRAVA / SMAZÁNÍ ZPRÁVY ---------- */
 const QUICK_REACT_EMOJIS=['👍','❤️','😂','😮','😢','🙏','🔥','🎉','👏','😍','😡','😅'];
-function msgImgError(img){const ph=document.createElement('span');ph.className='msg-img-broken';ph.textContent='🖼️ obrázek nelze zobrazit';img.replaceWith(ph);}
+function msgImgError(img){const ph=document.createElement('span');ph.className='msg-img-broken';ph.textContent='Obrázek nelze zobrazit';img.replaceWith(ph);}
 function reactionsSummaryHTML(m){
   const r=m.reactions||{};
   const keys=Object.keys(r).filter(k=>Array.isArray(r[k])&&r[k].length);
@@ -8715,7 +8724,7 @@ function reactionsSummaryHTML(m){
 }
 function replyPreviewHTML(r){
   if(!r)return'';
-  const snippet=r.text?esc(r.text):(r.image?'📷 Obrázek':'');
+  const snippet=r.text?esc(r.text):(r.image?'Obrázek':'');
   return `<div class="msg-reply-quote">${r.me?'Vy':'Protistrana'}: ${snippet}</div>`;
 }
 function msgHTML(m,interactive,pinnedId,searchQuery,isCurrentMatch){
@@ -9073,7 +9082,7 @@ function renderPushPrompts(){
   const show=auth.loggedIn&&auth.role!=='admin'&&pushSupported()&&Notification.permission==='default'&&!pushPromptDismissed();
   document.querySelectorAll('.push-prompt-slot').forEach(el=>{
     const msg=auth.role==='caregiver'?'Nové poptávky a zprávy od rodin uvidíte hned, i když web nemáte otevřený.':'Dozvíte se hned, když pečovatelka dorazí, napíše nebo vyplní zápis z návštěvy.';
-    el.innerHTML=show?`<div class="verify-banner ok push-prompt"><span class="vb-ic" aria-hidden="true">🔔</span><div class="vb-t"><b>Zapněte si upozornění</b><span>${msg}</span></div><div class="push-prompt-actions"><button class="btn btn-sm btn-gold" onclick="enablePush()">Zapnout</button><button class="btn btn-sm btn-ghost" onclick="dismissPushPrompt()">Teď ne</button></div></div>`:'';
+    el.innerHTML=show?`<div class="verify-banner ok push-prompt"><span class="vb-ic" aria-hidden="true" style="color:var(--gold)">${bellSVG(26)}</span><div class="vb-t"><b>Zapněte si upozornění</b><span>${msg}</span></div><div class="push-prompt-actions"><button class="btn btn-sm btn-gold" onclick="enablePush()">Zapnout</button><button class="btn btn-sm btn-ghost" onclick="dismissPushPrompt()">Teď ne</button></div></div>`:'';
   });
 }
 if('serviceWorker' in navigator){
@@ -9086,7 +9095,7 @@ function openMfaPrompt(mfaToken){
     closeMfaPrompt();
     const ov=document.createElement('div');ov.className='mfa-overlay';ov.id='mfaOverlay';
     ov.innerHTML=`<form class="mfa-box" role="dialog" aria-modal="true" aria-labelledby="mfaTitle" novalidate>
-      <div class="mfa-ic" aria-hidden="true">🔐</div>
+      <div class="mfa-ic" aria-hidden="true">${lockSVG(28)}</div>
       <h2 id="mfaTitle">Dvoufázové ověření</h2>
       <p>Zadejte 6místný kód z ověřovací aplikace v telefonu.</p>
       <input class="inp mfa-code" id="mfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="9" placeholder="123 456" aria-describedby="mfaErr">
@@ -9121,10 +9130,10 @@ async function renderMfaCard(){
   card.hidden=false;const body=document.getElementById('mfaCardBody');
   try{mfaStatus=await api('/auth/2fa');}catch(e){body.innerHTML=`<p class="set-sub">Stav se nepodařilo načíst: ${esc(e.message)}</p>`;return;}
   body.innerHTML=mfaStatus.enabled
-    ?`<div class="mfa-state on"><b>✅ Zapnuto</b><span>Od ${new Date(mfaStatus.enabledAt).toLocaleDateString('cs-CZ')} · zbývá ${mfaStatus.backupLeft} záložních kódů</span></div>
+    ?`<div class="mfa-state on"><b>${checkCircleSVG(17)} Zapnuto</b><span>Od ${new Date(mfaStatus.enabledAt).toLocaleDateString('cs-CZ')} · zbývá ${mfaStatus.backupLeft} záložních kódů</span></div>
       ${mfaStatus.backupLeft<=3?'<p class="mfa-warn">Dochází vám záložní kódy — vygenerujte si nové.</p>':''}
       <div class="mfa-actions"><button class="btn btn-ghost btn-sm" type="button" onclick="mfaRegenerateBackup()">Nové záložní kódy</button><button class="btn btn-ghost btn-sm mfa-danger" type="button" onclick="mfaDisableForm()">Vypnout 2FA</button></div><div id="mfaInline"></div>`
-    :`<div class="mfa-state off"><b>⚠️ Vypnuto</b><span>Kdo zjistí vaše heslo, dostane se do celé administrace včetně dokladů totožnosti.</span></div>
+    :`<div class="mfa-state off"><b>${warnSVG(17)} Vypnuto</b><span>Kdo zjistí vaše heslo, dostane se do celé administrace včetně dokladů totožnosti.</span></div>
       <div class="mfa-actions"><button class="btn btn-gold btn-sm" type="button" onclick="mfaStartSetup()">Zapnout dvoufázové ověření</button></div><div id="mfaInline"></div>`;
 }
 async function mfaStartSetup(){
@@ -9180,7 +9189,7 @@ async function renderAdminMfaNotice(){
   const el=document.getElementById('admMfaNotice');if(!el)return;
   if(!(auth.loggedIn&&auth.role==='admin')){el.innerHTML='';return;}
   try{mfaStatus=await api('/auth/2fa');}catch(e){return;}
-  el.innerHTML=mfaStatus.enabled?'':`<div class="verify-banner wait mfa-notice"><span class="vb-ic" aria-hidden="true">🔐</span><div class="vb-t"><b>Zabezpečte administraci dvoufázovým ověřením</b><span>Účet správce má přístup k dokladům a osobním údajům. Zapnutí zabere dvě minuty.</span></div><button class="btn btn-sm btn-gold" onclick="go('settings')">Zapnout</button></div>`;
+  el.innerHTML=mfaStatus.enabled?'':`<div class="verify-banner wait mfa-notice"><span class="vb-ic" aria-hidden="true" style="color:var(--gold)">${lockSVG(26)}</span><div class="vb-t"><b>Zabezpečte administraci dvoufázovým ověřením</b><span>Účet správce má přístup k dokladům a osobním údajům. Zapnutí zabere dvě minuty.</span></div><button class="btn btn-sm btn-gold" onclick="go('settings')">Zapnout</button></div>`;
 }
 /* ---------- INIT ---------- */
 /* ---------- AUTO-UPDATE: obnovení stránky po novém deployi ---------- */

@@ -2078,6 +2078,12 @@
 .cj-entry,.cj-card{background:var(--cream);border-radius:14px;padding:14px 16px;margin:10px 0;border-left:3px solid var(--gold)}
 .cj-entry-head{display:flex;align-items:center;gap:12px}.cj-entry-head small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .cj-mood{font-size:28px;line-height:1}
+/* nálada: vlastní SVG obličeje (místo emoji) — velikost a jemná barva podle nálady */
+.cj-mood svg{width:28px;height:28px;vertical-align:middle}.cj-mood-dot svg{width:20px;height:20px;vertical-align:middle}
+.cj-mood-good{color:#6FB287}.cj-mood-ok{color:var(--gold)}.cj-mood-bad{color:#D07A5F}
+.cj-seg-mood svg{vertical-align:-4px}
+.mfa-ic{color:var(--gold)}.mfa-ic svg{width:34px;height:34px}
+.term-head svg,.chat-pin svg{vertical-align:-3px}
 .cj-facts{display:flex;flex-wrap:wrap;gap:8px 18px;margin:10px 0 0;font-size:13.5px}
 .cj-meds-missed{color:#b42318}
 .cj-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.cj-chip{background:var(--white,#fff);border:1px solid var(--line,#e6e1d6);border-radius:999px;padding:3px 10px;font-size:12px}
@@ -2103,7 +2109,7 @@ html[data-theme=dark] .cj-chip,html[data-theme=dark] .cj-seg input:not(:checked)
 @media (max-width:640px){.cj-row{grid-template-columns:1fr}.cj-card-meta{flex-direction:column;align-items:flex-start}.cj-photo img{max-width:100%}}
 .cj-notice{margin-bottom:24px}.cj-notice-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .cj-preview{cursor:pointer;align-items:flex-start}.cj-preview .cj-mood{font-size:26px;flex:0 0 auto}.cj-preview-msg{margin-top:4px;font-style:italic}
-.push-prompt{margin-bottom:24px;flex-wrap:wrap}.push-prompt-actions{display:flex;gap:8px;margin-left:auto}
+.push-prompt{margin-bottom:24px;flex-wrap:wrap}.push-prompt .vb-t{flex:1 1 220px;min-width:0}.push-prompt-actions{display:flex;gap:8px;margin-left:auto}
 .push-test-row{margin:-4px 0 6px}.push-test-row:has(button[hidden]){display:none}
 /* ---------- 2FA ---------- */
 .mfa-overlay{position:fixed;inset:0;z-index:3000;background:rgba(6,20,13,.62);display:grid;place-items:center;padding:16px}
