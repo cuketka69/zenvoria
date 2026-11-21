@@ -2620,16 +2620,6 @@ footer .soc-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}
 .inp.is-locked{opacity:.7;cursor:not-allowed}
 .name-lock-hint{font-size:13px;color:#AEBBB1;margin:6px 0 14px;line-height:1.5}
 
-/* ---------- větší písmo ---------- */
-.text-size-btn{display:inline-flex;align-items:center;justify-content:center;height:40px;min-width:44px;padding:0 10px;border-radius:12px;border:1px solid rgba(198,163,92,.4);background:transparent;color:var(--gold-soft);font-family:'Marcellus',Georgia,serif;cursor:pointer;line-height:1}
-.text-size-btn>span{font-size:14px}.text-size-btn>span>span{font-size:19px;margin-left:1px}
-.text-size-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}
-.text-size-btn[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:#0D2A20}
-html.zv-large body{zoom:1.18}
-@media (max-width:700px){html.zv-large body{zoom:1.1}}
-/* mapy ze zvětšení vyjmout (vnořený zoom se násobí → 1), jinak by MapLibre posunul kliknutí a značky */
-html.zv-large .addr-map{zoom:.8475}
-@media (max-width:700px){html.zv-large .addr-map{zoom:.9091}}
 /* administrace — tabulky v duchu redesignu: hlavičky normálním písmem, jména antikvou, vlasové linky */
 .adm-table th{text-transform:none!important;letter-spacing:0!important;font-size:13px;font-weight:600;color:#AEBBB1;border-bottom:1px solid rgba(198,163,92,.35)!important}
 .adm-table td{border-bottom:1px solid rgba(243,238,228,.07)!important}

@@ -3377,8 +3377,6 @@ const HOME_SK_TRANSLATIONS = [
   ["<h2 id=\"zvVoicesTitle\" class=\"zv-sec-title\">Co říkají rodiny</h2>", "<h2 id=\"zvVoicesTitle\" class=\"zv-sec-title\">Čo hovoria rodiny</h2>"],
   ["aria-label=\"Předchozí hodnocení\"", "aria-label=\"Predchádzajúce hodnotenie\""],
   ["aria-label=\"Další hodnocení\"", "aria-label=\"Ďalšie hodnotenie\""],
-  // větší písmo
-  ["aria-label=\"Větší písmo\" title=\"Větší písmo\"", "aria-label=\"Väčšie písmo\" title=\"Väčšie písmo\""],
   // redesign úvodní stránky (2026-11) — musí být před obecnými kratšími frázemi
   ["<span>Péče, která</span>", "<span>Starostlivosť, ktorá</span>"],
   ["Ověřené pečovatelky pro vaše blízké. Doklady i reference kontrolujeme za vás a po každé návštěvě uvidíte v deníku péče, jak se váš blízký měl.", "Overené opatrovateľky pre vašich blízkych. Doklady aj referencie kontrolujeme za vás a po každej návšteve uvidíte v denníku starostlivosti, ako sa váš blízky mal."],
@@ -4345,9 +4343,6 @@ const JS_SK_TRANSLATIONS = [
   ["title=\"Objednat na tento termín\"", "title=\"Objednať na tento termín\""],
   ["val.textContent='domluvou'", "val.textContent='dohodou'"],
   ["val.textContent='v příštích 3 týdnech plno'", "val.textContent='v najbližších 3 týždňoch obsadené'"],
-  // větší písmo
-  ["b.title=on?'Běžná velikost písma':'Větší písmo';", "b.title=on?'Bežná veľkosť písma':'Väčšie písmo';"],
-  ["toast(on?'Větší písmo zapnuto. Vrátíte ho stejným tlačítkem „A A“.':'Běžná velikost písma.');", "toast(on?'Väčšie písmo zapnuté. Vrátite ho rovnakým tlačidlom „A A“.':'Bežná veľkosť písma.');"],
   // hodnocení rodin na úvodu
   ["<span class=\"zv-voice-stars\" aria-label=\"${v.stars} z 5 hvězdiček\">", "<span class=\"zv-voice-stars\" aria-label=\"${v.stars} z 5 hviezdičiek\">"],
   ["<span>${esc(v.fam)} o pečovatelce <a href=", "<span>${esc(v.fam)} o opatrovateľke <a href="],

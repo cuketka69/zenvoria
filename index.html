@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<script>document.documentElement.classList.add('js');try{if(localStorage.getItem('zv_text_large')==='1')document.documentElement.classList.add('zv-large');}catch(e){}</script>
+<script>document.documentElement.classList.add('js');try{localStorage.removeItem('zv_text_large');}catch(e){}</script>
 <!-- Meta Pixel Code -->
 <script>
 !function(f,b,e,v,n,t,s)
@@ -75,7 +75,6 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
       <a data-v="guide" role="button" tabindex="0" onclick="navProgress(this,()=>{openGuideHome()})">Průvodce péčí</a>
     </nav>
     <div class="nav-right">
-      <button type="button" class="text-size-btn" id="textSizeBtn" aria-pressed="false" aria-label="Větší písmo" title="Větší písmo" onclick="toggleLargeText()"><span aria-hidden="true">A<span>A</span></span></button>
       <div class="msg-btn-wrap" hidden id="msgBtnWrap">
         <button class="theme-toggle msg-btn" id="msgBtn" aria-label="Zprávy" onclick="event.stopPropagation();toggleMsgPreview()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6.5h18v11H3z" stroke="#C9A233" stroke-width="1.7"/><path d="m3.5 7 8.5 6 8.5-6" stroke="#C9A233" stroke-width="1.7" stroke-linejoin="round"/></svg>
