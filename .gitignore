@@ -175,3 +175,6 @@ mobile/android/app/*.iml
 /security_best_practices_report.md
 /production_security_checklist.md
 /_tmp_*.log
+
+# lokální poznámky (např. testovací účty) — nenahrávat
+*.local.md
