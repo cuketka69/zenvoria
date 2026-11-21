@@ -1437,12 +1437,14 @@ function initTheme(){applyTheme('dark');}
 /* ---------- HOME RENDER ---------- */
 /* mapování id služby → název obrázku (kde se liší) */
 const SVC_IMG={lekar:'doktor',domaci:'domacipece',pomoc:'pomocvdomacnosti',rehab:'Rehabilitace'};
+/* verze obrázku dlaždice — zvýšit při výměně obrázku (obrázky se cachují natrvalo) */
+const SVC_IMG_V={osobni:2};
 /* hlavních 6 služeb na úvodní stránce */
 const MAIN_SERVICES=['osobni','lekar','domaci','nakupy','nocni','nemocnice'];
 function renderHome(){
   document.getElementById('servGrid').innerHTML=MAIN_SERVICES.map(id=>SERVICES.find(s=>s.id===id)).filter(Boolean).map(s=>
     `<article class="svc-card zv-svc">
-      <div class="zv-svc-img" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp'),linear-gradient(135deg,#1F4A39,#0D2A20)"></div>
+      <div class="zv-svc-img" style="background-image:url('${SVC_IMG[s.id]||s.id}.webp${SVC_IMG_V[s.id]?'?v='+SVC_IMG_V[s.id]:''}'),linear-gradient(135deg,#1F4A39,#0D2A20)"></div>
       <h3>${esc(s.name)}</h3>
       <p>${esc(s.desc||'')}</p>
       <button class="zv-textlink" onclick="fillThen(this,()=>filterByService('${s.id}'))">Zobrazit pečovatelky</button>
