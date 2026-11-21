@@ -2634,10 +2634,11 @@ function userPhotoByEmail(email){
   const c=(typeof CAREGIVERS!=='undefined'&&CAREGIVERS||[]).find(x=>x.email===email);
   return (c&&c.photo)||null;
 }
-function setAva(el,photo,init){
+/* zoom=false: fotka se po kliknutí nezvětší (např. v tlačítku účtu, kde má klik otevřít menu) */
+function setAva(el,photo,init,zoom=true){
   if(!el)return;
   el.style.backgroundImage='';el.style.color='';
-  if(photo){el.innerHTML=`<img src="${esc(photo)}" alt="" loading="lazy" decoding="async" style="cursor:zoom-in" onclick="openImgLightbox(${jsq(photo)})">`;}
+  if(photo){el.innerHTML=zoom?`<img src="${esc(photo)}" alt="" loading="lazy" decoding="async" style="cursor:zoom-in" onclick="openImgLightbox(${jsq(photo)})">`:`<img src="${esc(photo)}" alt="" decoding="async">`;}
   else{el.textContent=init;}
 }
 /* propíše profilovou fotku pečovatelky do seznamu (Jana = id 1) */
@@ -2989,7 +2990,7 @@ function updateAuthUI(){
     msgBtn.setAttribute('aria-label',u>0?`Zprávy — ${u} nepřečtené`:'Zprávy');
   }
   if(inn){
-    setAva(document.getElementById('avatarInit'), auth.photo||(auth.role==='caregiver'?cgProfile.photo:null), initials(auth.name));
+    setAva(document.getElementById('avatarInit'), auth.photo||(auth.role==='caregiver'?cgProfile.photo:null), initials(auth.name), false);
     document.getElementById('avatarName').textContent=auth.name.split(/\s+/)[0];
     document.getElementById('amName').textContent=dispName(auth);
     document.getElementById('amEmail').textContent=auth.email;
