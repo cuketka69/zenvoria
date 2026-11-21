@@ -9730,7 +9730,7 @@ app.get('/sitemap.xml', h(async (req, res) => {
     if (stored.configured) guideSlugs = stored.articles.filter((article) => article.published && allowed.has(article.category)).map((article) => article.slug);
   } catch (e) { /* při výpadku databáze nevkládáme žádné články */ }
   const guidePaths = ['/pruvodce-pece', ...guideSlugs.map(slug => `/pruvodce-pece/${slug}`)];
-  const staticPaths = ['/', '/hledat-peci', '/jak-to-funguje', ...guidePaths, '/cenik', '/obchodni-podminky', '/zasady-cookies'];
+  const staticPaths = ['/', '/hledat-peci', '/jak-to-funguje', ...guidePaths, '/cenik', '/obchodni-udaje', '/ochrana-osobnich-udaju', '/obchodni-podminky', '/zasady-cookies'];
   const cgs = await getPublicCaregivers(countryForReq(req));
   const urls = [
     ...staticPaths.map((p) => `<url><loc>${APP_ORIGIN}${p}</loc></url>`),
