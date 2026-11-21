@@ -1428,7 +1428,7 @@ function initTheme(){applyTheme('dark');}
 /* mapování id služby → název obrázku (kde se liší) */
 const SVC_IMG={lekar:'doktor',domaci:'domacipece',pomoc:'pomocvdomacnosti',rehab:'Rehabilitace'};
 /* verze obrázku dlaždice — zvýšit při výměně obrázku (obrázky se cachují natrvalo) */
-const SVC_IMG_V={osobni:2,lekar:2};
+const SVC_IMG_V={osobni:2,lekar:2,domaci:2};
 /* hlavních 6 služeb na úvodní stránce */
 const MAIN_SERVICES=['osobni','lekar','domaci','nakupy','nocni','nemocnice'];
 function renderHome(){
