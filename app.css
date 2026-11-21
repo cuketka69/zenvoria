@@ -2682,7 +2682,18 @@ html.zv-large .addr-map{zoom:.8475}
   #careGrid .zv-card .fav-heart-card{top:8px;right:8px;width:32px;height:32px}
   #careGrid .zv-card .care-match-badge{top:auto;bottom:40px;left:0;right:0;margin:0 auto;width:max-content;white-space:nowrap;font-size:10.5px}
 }
-/* mobil: fotka zůstává nahoře, ale nižší a oříznutá na obličej */
+/* mobil: malý portrét vlevo vedle jména (fotky jsou uložené 300×400 — větší by byly rozmazané a ořízlé),
+   služby a cena pod ním přes celou šířku */
 @media (max-width:640px){
-  #careGrid .zv-card-photo{aspect-ratio:16/10}
+  #careGrid .care-card.zv-card{display:grid;grid-template-columns:104px 1fr;align-items:start}
+  #careGrid .zv-card-photo{grid-column:1;grid-row:1;margin:16px 0 0 16px;aspect-ratio:3/4;border-radius:50% 50% 10px 10px / 38% 38% 10px 10px}
+  #careGrid .care-top{grid-column:2;grid-row:1;padding:18px 16px 0;align-self:center;min-width:0}
+  #careGrid .care-tags,#careGrid .care-foot{grid-column:1/-1}
+  #careGrid .care-tags{margin:14px 16px 0}
+  #careGrid .care-foot{padding:14px 16px 16px}
+  #careGrid .zv-card-init{font-size:32px}
+  #careGrid .zv-card .prem-ribbon{left:0;right:0;margin:0 auto;width:max-content;bottom:6px;font-size:8.5px;padding:3px 7px;gap:3px}
+  #careGrid .zv-card .prem-ribbon svg{width:9px;height:9px}
+  #careGrid .zv-card .fav-heart-card{top:4px;right:4px;width:28px;height:28px}
+  #careGrid .zv-card .care-match-badge{top:auto;bottom:28px;left:0;right:0;margin:0 auto;width:max-content;font-size:9.5px;padding:3px 7px}
 }
