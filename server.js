@@ -2921,6 +2921,16 @@ function publicUser(u) {
   if (!u) return null;
   return { id: u.id, email: u.email, name: u.name, titul: u.titul || null, phone: u.phone || null, role: u.role, status: u.status, init: u.init, settings: publicUserSettings(u.settings), photo: u.photo || null, publicId: u.public_id || null, emailVerified: !!u.email_verified, country: u.country || 'cz' };
 }
+/* Fotky (data:image/… v DB) se neposílají uvnitř JSONu, ale jako samostatná adresa s otiskem obsahu.
+   Telefon si je pak uloží do mezipaměti napořád a úvodní načtení dat je o desítky kB až MB menší.
+   Otisk ve ?v= zároveň slouží jako „klíč“ — bez znalosti obsahu fotky se k ní nedá dostat hádáním id. */
+const PHOTO_TABLES = { cg: () => T.caregivers, u: () => T.users };
+function photoHash(p) { return crypto.createHash('sha256').update(String(p)).digest('hex').slice(0, 16); }
+function photoRef(kind, id, p) {
+  if (!p || typeof p !== 'string') return null;
+  if (!p.startsWith('data:image/') || id == null || id === '') return p;
+  return `/api/photo/${kind}/${encodeURIComponent(String(id))}?v=${photoHash(p)}`;
+}
 function mapCaregiver(c, permsSetting) {
   return {
     id: Number(c.id), publicId: c.public_id || null, slug: c.slug || null, name: c.name, titul: c.titul || null, init: c.init, loc: c.loc, rate: c.rate,
@@ -2930,7 +2940,7 @@ function mapCaregiver(c, permsSetting) {
     idVerified: c.id_verified, plan: c.plan, planStatus: c.plan_status || null, trialUntil: c.trial_until || null,
     langs: c.langs || ['Čeština'],
     priceType: c.price_type, dayRate: c.day_rate, radius: c.radius, kmPrice: c.km_price,
-    photo: c.photo || null, email: c.email || null, phone: c.phone || null, avail: c.avail || null, blockedDates: c.blocked_dates || [],
+    photo: photoRef('cg', c.id, c.photo), email: c.email || null, phone: c.phone || null, avail: c.avail || null, blockedDates: c.blocked_dates || [],
     availOverrides: c.avail_overrides || {}, hasStripeSubscription: !!c.stripe_customer_id,
     views: Number(c.views || 0), perms: permsForPlan(c.plan, permsSetting),
     country: c.country || 'cz',
@@ -3225,7 +3235,7 @@ app.get('/api/u/:token', h(async (req, res) => {
       } catch (e) { showContact = false; }
     }
     return res.json({ kind: 'account', profile: {
-      name: u.name || '', titul: u.titul || null, init: u.init || '', photo: u.photo || null,
+      name: u.name || '', titul: u.titul || null, init: u.init || '', photo: photoRef('u', u.id, u.photo),
       role: u.role || 'family', memberSince: u.joined || null, email: showContact ? (u.email || null) : null, phone: showContact ? (u.phone || null) : null,
       ordersCount, rating, reviewsCount, reviews,
     } });
@@ -5472,12 +5482,12 @@ app.get('/api/bootstrap', h(async (req, res) => {
 
   // --- fotky protistran do záznamů (pro avatary v objednávkách/poptávkách/rozvrhu) ---
   const cgPhotoById = {};
-  (caregivers || []).forEach((c) => { if (c && c.photo) cgPhotoById[c.id] = c.photo; });
+  (caregivers || []).forEach((c) => { if (c && c.photo) cgPhotoById[c.id] = photoRef('cg', c.id, c.photo); });
   const famPhotoByEmail = {};
   const famPublicIdByEmail = {};
   const oidToEmail = {};
   if (viewer === 'admin') {
-    (usersRows || []).forEach((u) => { if (u.photo) famPhotoByEmail[u.email] = u.photo; });
+    (usersRows || []).forEach((u) => { if (u.photo) famPhotoByEmail[u.email] = photoRef('u', u.id, u.photo); });
   } else {
     const emails = new Set();
     (orders || []).forEach((o) => { if (o.family_email) { emails.add(o.family_email); oidToEmail[o.oid] = o.family_email; } });
@@ -5491,8 +5501,8 @@ app.get('/api/bootstrap', h(async (req, res) => {
     if (emails.size) {
       const list = pgInList([...emails]);
       try {
-        const rows = await restSelect(T.users, `email=in.(${list})&select=email,photo,public_id`);
-        (rows || []).forEach((u) => { if (u.photo) famPhotoByEmail[u.email] = u.photo; if (u.public_id) famPublicIdByEmail[u.email] = u.public_id; });
+        const rows = await restSelect(T.users, `email=in.(${list})&select=id,email,photo,public_id`);
+        (rows || []).forEach((u) => { if (u.photo) famPhotoByEmail[u.email] = photoRef('u', u.id, u.photo); if (u.public_id) famPublicIdByEmail[u.email] = u.public_id; });
       } catch (e) { /* fotky nejsou kritické */ }
     }
   }
@@ -5517,7 +5527,7 @@ app.get('/api/bootstrap', h(async (req, res) => {
     requests: (requests || []).map((r) => ({ ...mapRequest(r), photo: (oidToEmail[r.oid] && famPhotoByEmail[oidToEmail[r.oid]]) || famPhotoByName[r.fam] || null })),
     schedule: (schedule || []).map((s) => ({ id: s.id, oid: s.oid != null ? Number(s.oid) : null, cid: s.cid, fam: s.fam, init: s.init, service: s.service, date: s.date, time: s.time, hours: s.hours, photo: famPhotoByName[s.fam] || null, famPublicId: (oidToEmail[s.oid] && famPublicIdByEmail[oidToEmail[s.oid]]) || null })),
     verifications: (verifications || []).map(mapVerification),
-    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, phone: u.phone || null, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: u.photo || null, lastSeen: u.last_seen || null, country: u.country || 'cz', adminNote: u.settings && typeof u.settings === 'object' ? trimmedString(u.settings.adminNote, 1000) : '' })),
+    users: (usersRows || []).map((u) => ({ id: u.id, name: u.name, titul: u.titul || null, email: u.email, phone: u.phone || null, init: u.init, joined: u.joined, orders: u.orders_count, status: u.status, role: u.role, photo: photoRef('u', u.id, u.photo), lastSeen: u.last_seen || null, country: u.country || 'cz', adminNote: u.settings && typeof u.settings === 'object' ? trimmedString(u.settings.adminNote, 1000) : '' })),
     cgReviews, generalReviews,
     familyReviews: (viewer === 'family' || viewer === 'admin')
       ? (familyReviewsRows || []).map((r) => ({ id: Number(r.id), caregiverName: r.caregiver_name, caregiverId: r.caregiver_id != null ? Number(r.caregiver_id) : null, familyEmail: r.family_email || null, familyName: r.family_name || null, stars: r.stars, text: r.text, createdAt: r.created_at }))
@@ -6018,6 +6028,17 @@ app.post('/api/orders/:oid/care-journal', requireAuth, rateLimit('care-journal',
   await saveSettingArray(CARE_JOURNAL_KEY, cleanCareJournal(journal));
   try { await notifyFamilyOfJournal(order, entry, isUpdate); } catch (e) { console.warn('[care-journal] notifikace selhala:', e.message); }
   res.status(isUpdate ? 200 : 201).json({ ok: true, entry: publicCareJournalEntry(entry) });
+}));
+app.get('/api/photo/:kind/:id', h(async (req, res) => {
+  const table = PHOTO_TABLES[req.params.kind] && PHOTO_TABLES[req.params.kind]();
+  const id = String(req.params.id || ''), v = String(req.query.v || '');
+  if (!table || !/^[A-Za-z0-9-]{1,64}$/.test(id) || !/^[0-9a-f]{16}$/.test(v)) return res.status(404).end();
+  const row = (await restSelect(table, `id=eq.${encodeURIComponent(id)}&select=photo&limit=1`))[0];
+  const m = row && typeof row.photo === 'string' && /^data:(image\/(?:webp|jpeg|png|gif));base64,(.+)$/s.exec(row.photo);
+  if (!m || photoHash(row.photo) !== v) return res.status(404).end();
+  res.set('Content-Type', m[1]);
+  res.set('Cache-Control', 'public, max-age=31536000, immutable');
+  res.send(Buffer.from(m[2], 'base64'));
 }));
 app.get('/api/orders/:oid/care-journal/photo', requireAuth, h(async (req, res) => {
   const oid = Number(req.params.oid), orderRows = await restSelect(T.orders, `oid=eq.${oid}&select=oid,cid,family_email&limit=1`), order = orderRows && orderRows[0];
@@ -7147,7 +7168,7 @@ async function mapConversationForViewer(conv, me) {
     if (pin && !pin.deleted_at) pinnedMessage = { id: Number(pin.id), me: String(pin.sender_id) === String(me), text: pin.text, image: pin.image || null };
   }
   return {
-    id: Number(conv.id), name: u.name || 'Smazaný účet', init: u.init || '', photo: u.photo || null,
+    id: Number(conv.id), name: u.name || 'Smazaný účet', init: u.init || '', photo: photoRef('u', u.id || otherId, u.photo),
     role: u.role || 'family', profileToken, last: conv.last_text || '', lastAt: conv.last_at || null,
     unread, otherReadAt: otherReadAt || null, pinnedMessage,
     blockedByMe: conv.blocked_by != null && String(conv.blocked_by) === String(me),
@@ -8025,6 +8046,7 @@ app.patch('/api/caregivers/:id', requireAuth, h(async (req, res) => {
     }
     patch.avail_overrides = out;
   }
+  if (typeof patch.photo === 'string' && patch.photo.startsWith('/api/photo/')) delete patch.photo;
   if (patch.photo !== undefined) {
     if (patch.photo == null) {
       patch.photo = null;

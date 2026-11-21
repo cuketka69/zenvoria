@@ -8968,8 +8968,8 @@ function deriveCgMaps(){
     if(v.status==='rejected'&&cgStatusMap[v.email]!=='verified')cgStatusMap[v.email]='rejected';});
 }
 /* načte celý stav z databáze do klientských polí */
-async function bootstrap(){
-  const d=await api('/bootstrap');
+async function bootstrap(pre){
+  const d=await (pre||api('/bootstrap'));
   CAREGIVERS=d.caregivers||[];syncCgPhotoToList();
   ORDERS=d.orders||[];
   CG_REQUESTS=d.requests||[];
@@ -9371,11 +9371,13 @@ async function initApp(){
       document.getElementById('changeEmailInvalidText').textContent=(e&&e.message)||'Požádejte prosím o nový odkaz pro změnu e-mailu.';
     }
   }
+  // data a přihlášení se stahují souběžně (dřív postupně → o jedno kolo sítě pomalejší start na mobilu)
+  const bootP=api('/bootstrap');bootP.catch(()=>{});
   try{const m=await api('/auth/me');
     if(m.user){auth.loggedIn=true;auth.name=m.user.name;auth.titul=m.user.titul||'';auth.phone=m.user.phone||null;auth.email=m.user.email;auth.role=m.user.role||'family';auth.photo=m.user.photo||null;auth.publicId=m.user.publicId||null;auth.emailVerified=!!m.user.emailVerified;
       if(m.user.settings)Object.assign(appSettings,m.user.settings);}
   }catch(e){console.warn('auth/me',e.message);}
-  try{await bootstrap();}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
+  try{await bootstrap(bootP);}catch(e){console.error('bootstrap',e);toast('Nepodařilo se načíst data z databáze. Zkontrolujte připojení.','declined');}
   updateAuthUI();
   renderEmailVerifyBanner();
   renderHome();renderFilters();bindSearchLocationAutocomplete();renderCare();renderCalendar();
