@@ -3372,6 +3372,24 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
 // zbytek appky (deferred-views.html, app.js) čeká na další fázi lokalizace (viz plán SK verze);
 // jde o doslovná nahrazení celých frází v rámci index.html, ne o obecnou i18n vrstvu
 const HOME_SK_TRANSLATIONS = [
+  // ukázky aplikace v krocích pro pečovatelky (musí být první — obecnější páry by je jinak přepsaly)
+  ['<span class="hd-sub">Pečovatelka · Praha 6</span>', '<span class="hd-sub">Opatrovateľka · Bratislava</span>'],
+  ['<span class="hd-pill-t">Ověřený profil</span>', '<span class="hd-pill-t">Overený profil</span>'],
+  ['<span class="hd-doc">Občanský průkaz</span>', '<span class="hd-doc">Občiansky preukaz</span>'],
+  ['<span class="hd-doc">Osvědčení o kvalifikaci</span>', '<span class="hd-doc">Osvedčenie o kvalifikácii</span>'],
+  ['<span class="hd-doc">Výpis z rejstříku trestů</span>', '<span class="hd-doc">Výpis z registra trestov</span>'],
+  ['<b class="hd-title">Můj týden</b>', '<b class="hd-title">Môj týždeň</b>'],
+  ['<span class="hd-price">350 Kč/h</span>', '<span class="hd-price">14 €/h</span>'],
+  ['<span class="hd-day">Út</span>', '<span class="hd-day">Ut</span>'],
+  ['<span class="hd-day">Čt</span>', '<span class="hd-day">Št</span>'],
+  ['<span class="hd-leg-t">Volno</span>', '<span class="hd-leg-t">Voľno</span>'],
+  ['<span class="hd-leg-t">Rezervováno</span>', '<span class="hd-leg-t">Rezervované</span>'],
+  ['<span class="hd-new-t">Nová poptávka</span>', '<span class="hd-new-t">Nový dopyt</span>'],
+  ['<b class="hd-svc">Osobní péče u seniorky</b>', '<b class="hd-svc">Osobná starostlivosť o seniorku</b>'],
+  ['<span class="hd-meta">Čtvrtek · 9:00–12:00</span>', '<span class="hd-meta">Štvrtok · 9:00–12:00</span>'],
+  ['<span class="hd-meta">Praha 6 · 3 hodiny · 1 050 Kč</span>', '<span class="hd-meta">Bratislava · 3 hodiny · 42 €</span>'],
+  ['<span class="hd-btn ghost">Odmítnout</span>', '<span class="hd-btn ghost">Odmietnuť</span>'],
+  ['<span class="hd-btn gold">Přijmout</span>', '<span class="hd-btn gold">Prijať</span>'],
   // rozpis léků
   ["<h4>Léky</h4>", "<h4>Lieky</h4>"],
   ["Pečovatelka při návštěvě uvidí léky, které připadají na čas její návštěvy, a u každého potvrdí podání. Když senior lék odmítne nebo zůstane neoznačený, dostanete upozornění.", "Opatrovateľka pri návšteve uvidí lieky, ktoré pripadajú na čas jej návštevy, a pri každom potvrdí podanie. Keď senior liek odmietne alebo zostane neoznačený, dostanete upozornenie."],
