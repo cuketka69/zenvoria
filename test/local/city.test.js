@@ -32,6 +32,14 @@ const post = (t, body) => fetch(DB + t, { method: 'POST', headers: { 'Content-Ty
     r = await fetch(BASE + '/pecovatelky/usti-nad-labem'); assert.equal(r.status, 404); console.log('✓ město jen s neověřenou uchazečkou → 404 (žádná prázdná stránka)');
     r = await fetch(BASE + '/sitemap.xml'); h = await r.text(); assert.match(h, /\/pecovatelky\/brno</); assert.match(h, /\/pecovatelky\/praha</); assert.ok(!h.includes('usti')); console.log('✓ sitemap obsahuje stránky měst');
     r = await fetch(BASE + '/hledat-peci'); h = await r.text(); assert.match(h, /Pečovatelky podle města/); assert.match(h, /href="\/pecovatelky\/brno"/); console.log('✓ /hledat-peci odkazuje na stránky měst');
+    // zenvoria.sk — SEO kopie stránek musí být slovensky a canonical na .sk doméně
+    const getSk = (p) => new Promise((ok, ko) => require('http').get({ host: 'localhost', port: 3100, path: p, headers: { Host: 'www.zenvoria.sk' } }, (res) => { let b = ''; res.setEncoding('utf8'); res.on('data', (d) => (b += d)); res.on('end', () => ok(b)); }).on('error', ko));
+    h = await getSk('/jak-to-funguje');
+    assert.match(h, /<title>Ako to funguje — ZENVORIA<\/title>/); assert.match(h, /rel="canonical" href="https:\/\/www\.zenvoria\.sk\/jak-to-funguje"/);
+    assert.ok(h.includes('Prijímajte dopyty') && !h.includes('Přijímejte poptávky'), 'obsah pro vyhledávače má být slovensky');
+    h = await getSk('/cenik'); assert.match(h, /<title>Cenník — ZENVORIA<\/title>/);
+    h = await getSk('/hledat-peci'); assert.match(h, /<title>Hľadať opatrovateľku — ZENVORIA<\/title>/); assert.match(h, /href="https:\/\/www\.zenvoria\.sk\/hledat-peci"/);
+    console.log('✓ zenvoria.sk: SEO kopie slovensky, titulky SK, canonical na .sk');
     console.log('\nVŠE PROŠLO');
   } catch (e) { console.error('✗', e.message); kill(); process.exit(1); }
   kill(); process.exit(0);

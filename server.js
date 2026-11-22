@@ -3379,7 +3379,6 @@ const HOME_SK_TRANSLATIONS = [
   ['<span class="hd-doc">Osvědčení o kvalifikaci</span>', '<span class="hd-doc">Osvedčenie o kvalifikácii</span>'],
   ['<span class="hd-doc">Výpis z rejstříku trestů</span>', '<span class="hd-doc">Výpis z registra trestov</span>'],
   ['<b class="hd-title">Můj týden</b>', '<b class="hd-title">Môj týždeň</b>'],
-  ['<span class="hd-price">350 Kč/h</span>', '<span class="hd-price">14 €/h</span>'],
   ['<span class="hd-day">Út</span>', '<span class="hd-day">Ut</span>'],
   ['<span class="hd-day">Čt</span>', '<span class="hd-day">Št</span>'],
   ['<span class="hd-leg-t">Volno</span>', '<span class="hd-leg-t">Voľno</span>'],
@@ -3387,7 +3386,7 @@ const HOME_SK_TRANSLATIONS = [
   ['<span class="hd-new-t">Nová poptávka</span>', '<span class="hd-new-t">Nový dopyt</span>'],
   ['<b class="hd-svc">Osobní péče u seniorky</b>', '<b class="hd-svc">Osobná starostlivosť o seniorku</b>'],
   ['<span class="hd-meta">Čtvrtek · 9:00–12:00</span>', '<span class="hd-meta">Štvrtok · 9:00–12:00</span>'],
-  ['<span class="hd-meta">Praha 6 · 3 hodiny · 1 050 Kč</span>', '<span class="hd-meta">Bratislava · 3 hodiny · 42 €</span>'],
+  ['<span class="hd-meta">Praha 6 · 3 hodiny · 1 050 Kč</span>', '<span class="hd-meta">Bratislava · 3 hodiny · 1 050 Kč</span>'],
   ['<span class="hd-btn ghost">Odmítnout</span>', '<span class="hd-btn ghost">Odmietnuť</span>'],
   ['<span class="hd-btn gold">Přijmout</span>', '<span class="hd-btn gold">Prijať</span>'],
   // rozpis léků
@@ -9377,9 +9376,18 @@ function renderSeoPage({ title, description, canonical, ogTitle, ogDescription, 
   if (ssrHtml) html = html.replace('<!--SSR_CONTENT-->', () => ssrHtml);
   return html;
 }
+const APP_ORIGIN_SK = APP_URL_SK.replace(/\/+$/, '');
 function sendSeoPage(req, res, opts) {
   res.setHeader('Cache-Control', 'no-cache');
-  const html = renderSeoPage({ ...opts, country: countryForReq(req) });
+  const country = countryForReq(req);
+  const o = { ...opts };
+  if (country === 'sk') {
+    // slovenská doména nesmí tvrdit, že je kopií české (canonical) — jinak ji vyhledávače vyřadí
+    if (o.skTitle) o.title = o.skTitle;
+    if (o.skDescription) o.description = o.skDescription;
+    if (o.canonical && o.canonical.startsWith(APP_ORIGIN)) o.canonical = APP_ORIGIN_SK + o.canonical.slice(APP_ORIGIN.length);
+  }
+  const html = renderSeoPage({ ...o, country });
   if (html) return res.type('html').send(html);
   return sendIndex(req, res);
 }
@@ -9411,11 +9419,11 @@ async function getPublicCaregivers(country) {
     return [];
   }
 }
-function caregiverCardHtml(c) {
+function caregiverCardHtml(c, sk) {
   const url = c.slug ? `/pecovatelka/${encodeURIComponent(c.slug)}` : '/hledat-peci';
   return `<article style="margin:0 0 22px 0;padding-bottom:18px;border-bottom:1px solid #eee">
     <h2 style="margin:0 0 4px 0;font-size:18px"><a href="${url}">${escapeHtml(withTitul(c.name, c.titul))}</a></h2>
-    <p style="margin:0 0 4px 0;color:#555">${escapeHtml(c.loc || '')} · ${Number(c.rate) || '?'} Kč/hod · hodnocení ${Number(c.rating) || '—'} (${Number(c.reviews) || 0} recenzí)</p>
+    <p style="margin:0 0 4px 0;color:#555">${escapeHtml(c.loc || '')} · ${Number(c.rate) || '?'} Kč/hod · ${sk ? 'hodnotenie' : 'hodnocení'} ${Number(c.rating) || '—'} (${Number(c.reviews) || 0} ${sk ? 'recenzií' : 'recenzí'})</p>
     <p style="margin:0">${escapeHtml((c.bio || '').slice(0, 220))}</p>
   </article>`;
 }
@@ -9424,13 +9432,15 @@ app.get('/hledat-peci', h(async (req, res) => {
   const country = countryForReq(req);
   const cgs = await getPublicCaregivers(country);
   const shell = extractViewHtml((country === 'sk' ? INDEX_HTML_SK : INDEX_HTML) || '', 'view-search');
-  const list = cgs.map(caregiverCardHtml).join('');
+  const list = cgs.map((c) => caregiverCardHtml(c, country === 'sk')).join('');
   const ssrHtml = shell
     ? shell.replace('<div class="care-grid" id="careGrid"></div>', `<div class="care-grid" id="careGrid">${list}</div>${cityLinksHtml(publicCities(cgs), country === 'sk')}`)
     : list + cityLinksHtml(publicCities(cgs), country === 'sk');
   sendSeoPage(req, res, {
     title: 'Hledat pečovatelku — ZENVORIA',
     description: `Najděte ověřenou pečovatelku ve svém okolí. Aktuálně ${cgs.length} ověřených pečovatelek v ZENVORIA.`,
+    skTitle: 'Hľadať opatrovateľku — ZENVORIA',
+    skDescription: `Nájdite overenú opatrovateľku vo svojom okolí. Aktuálne ${cgs.length} overených opatrovateliek v ZENVORIA.`,
     canonical: `${APP_ORIGIN}/hledat-peci`,
     jsonLd: ORG_JSON_LD,
     ssrHtml,
@@ -9478,7 +9488,7 @@ app.get('/pecovatelky/:city', h(async (req, res, next) => {
   const intro = sk
     ? `<p>V lokalite <b>${escapeHtml(city.name)}</b> je v ZENVORIA ${n} ${word}. Každej sme overili totožnosť, vzdelanie aj referencie. Vyberte si podľa služieb, ceny a hodnotení iných rodín.</p>`
     : `<p>V lokalitě <b>${escapeHtml(city.name)}</b> je v ZENVORIA ${n} ${word}. Každé jsme ověřili totožnost, vzdělání i reference. Vyberte si podle služeb, ceny a hodnocení jiných rodin.</p>`;
-  const list = city.caregivers.map(caregiverCardHtml).join('');
+  const list = city.caregivers.map((c) => caregiverCardHtml(c, sk)).join('');
   const others = cityLinksHtml(cities.filter((c) => c.slug !== slug), sk);
   let ssrHtml = shell
     ? shell.replace('<div class="care-grid" id="careGrid"></div>', `<div class="care-grid" id="careGrid">${list}</div>${others}`)
@@ -9499,9 +9509,11 @@ app.get('/jak-to-funguje', h(async (req, res) => {
   sendSeoPage(req, res, {
     title: 'Jak to funguje — ZENVORIA',
     description: 'Od vyhledání ověřené pečovatelky až po klidnou péči — ve čtyřech jednoduchých krocích.',
+    skTitle: 'Ako to funguje — ZENVORIA',
+    skDescription: 'Od vyhľadania overenej opatrovateľky až po pokojnú starostlivosť — v štyroch jednoduchých krokoch.',
     canonical: `${APP_ORIGIN}/jak-to-funguje`,
     jsonLd: ORG_JSON_LD,
-    ssrHtml: extractViewHtml(INDEX_HTML || '', 'view-howto'),
+    ssrHtml: extractViewHtml((countryForReq(req) === 'sk' ? INDEX_HTML_SK : INDEX_HTML) || '', 'view-howto'),
   });
 }));
 
@@ -9524,7 +9536,8 @@ app.get(['/pruvodce-pece', '/pruvodce-pece/:slug'], h(async (req, res) => {
     description,
     canonical,
     jsonLd: meta ? [ORG_JSON_LD, { '@context': 'https://schema.org', '@type': 'Article', headline: storedArticle.title, description: meta[1], mainEntityOfPage: canonical, publisher: { '@type': 'Organization', name: 'ZENVORIA', url: APP_ORIGIN } }] : [ORG_JSON_LD, { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Průvodce péčí', description, url: canonical }],
-    ssrHtml: extractViewHtml(INDEX_HTML || '', 'view-guide'),
+    ...(meta ? {} : { skTitle: 'Sprievodca starostlivosťou o seniorov — ZENVORIA', skDescription: 'Sprievodca starostlivosťou ZENVORIA s článkami a praktickými návodmi od nášho tímu.' }),
+    ssrHtml: extractViewHtml((countryForReq(req) === 'sk' ? INDEX_HTML_SK : INDEX_HTML) || '', 'view-guide'),
   });
 }));
 
@@ -9534,9 +9547,11 @@ app.get('/cenik', h(async (req, res) => {
   sendSeoPage(req, res, {
     title: 'Ceník — ZENVORIA',
     description: 'Přehled tarifů pro pečovatelky v ZENVORIA.',
+    skTitle: 'Cenník — ZENVORIA',
+    skDescription: 'Prehľad taríf pre opatrovateľky v ZENVORIA.',
     canonical: `${APP_ORIGIN}/cenik`,
     jsonLd: ORG_JSON_LD,
-    ssrHtml: extractViewHtml(devHtml, 'view-pricing'),
+    ssrHtml: extractViewHtml(countryForReq(req) === 'sk' ? translateDeferredToSk(devHtml) : devHtml, 'view-pricing'),
   });
 }));
 
@@ -9714,13 +9729,16 @@ app.get('/pecovatelka/:slug', h(async (req, res) => {
     ...(Number(c.reviews) > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(c.rating) || 0, reviewCount: Number(c.reviews) } } : {}),
   };
   const displayName = withTitul(c.name, c.titul);
+  const sk = countryForReq(req) === 'sk';
+  const L = sk ? { exp: 'rokov praxe', rating: 'hodnotenie', reviews: 'recenzií', services: 'Ponúkané služby:' } : { exp: 'let praxe', rating: 'hodnocení', reviews: 'recenzí', services: 'Nabízené služby:' };
   const ssrHtml = `<div class="wrap"><div class="page-head"><h1>${escapeHtml(displayName)}</h1>
-    <p>${escapeHtml(c.loc || '')} · ${Number(c.rate) || '?'} Kč/hod · ${Number(c.exp) || 0} let praxe${Number(c.reviews) > 0 ? ` · hodnocení ${Number(c.rating)} (${Number(c.reviews)} recenzí)` : ''}</p></div>
+    <p>${escapeHtml(c.loc || '')} · ${Number(c.rate) || '?'} Kč/hod · ${Number(c.exp) || 0} ${L.exp}${Number(c.reviews) > 0 ? ` · ${L.rating} ${Number(c.rating)} (${Number(c.reviews)} ${L.reviews})` : ''}</p></div>
     <p>${escapeHtml(c.bio || '')}</p>
-    ${servicesTxt ? `<p><b>Nabízené služby:</b> ${escapeHtml(servicesTxt)}</p>` : ''}
+    ${servicesTxt ? `<p><b>${L.services}</b> ${escapeHtml(servicesTxt)}</p>` : ''}
     </div>`;
   sendSeoPage(req, res, {
     title: `${displayName} — pečovatelka, ${c.loc || 'Česko'} | ZENVORIA`,
+    skTitle: `${displayName} — opatrovateľka, ${c.loc || 'Slovensko'} | ZENVORIA`,
     description: `${displayName}, ${c.loc || ''}. ${bioSnippet}`.trim(),
     canonical: `${APP_ORIGIN}/pecovatelka/${encodeURIComponent(c.slug)}`,
     jsonLd,
