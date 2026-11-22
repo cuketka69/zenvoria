@@ -3007,7 +3007,7 @@ app.use((req, res, next) => {
   // HSTS: prohlížeč pak web otevírá jen přes HTTPS (jen na ostrém https nasazení; bez includeSubDomains,
   // aby nezlobily případné subdomény bez certifikátu)
   if (COOKIE_SECURE) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src 'self' https://api.stripe.com https://tiles.openfreemap.org; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com;");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline' https://connect.facebook.net; worker-src 'self' blob:; connect-src 'self' https://api.stripe.com https://tiles.openfreemap.org https://www.facebook.com https://connect.facebook.net; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com;");
   next();
 });
 
@@ -3530,6 +3530,13 @@ const HOME_SK_TRANSLATIONS = [
   ['<span id="legalCompanyMeta">IČO doplňte před ostrým spuštěním.</span>', '<span id="legalCompanyMeta">IČO doplňte pred ostrým spustením.</span>'],
   ['<button type="button" class="btn btn-gold" onclick="closeLegal()">Rozumím, zpět</button>', '<button type="button" class="btn btn-gold" onclick="closeLegal()">Rozumiem, späť</button>'],
   ['<button type="button" class="btn btn-ghost" onclick="go(\'home\')">Na úvodní stránku</button>', '<button type="button" class="btn btn-ghost" onclick="go(\'home\')">Na úvodnú stránku</button>'],
+  // lišta souhlasu s cookies
+  ['aria-label="Souhlas s cookies"', 'aria-label="Súhlas s cookies"'],
+  ['<b>Cookies na ZENVORII</b>', '<b>Cookies na ZENVORII</b>'],
+  ['Nezbytné cookies potřebujeme, aby web fungoval. S vaším souhlasem použijeme i marketingové cookies (Meta Pixel), které nám pomáhají vyhodnocovat reklamu.', 'Nevyhnutné cookies potrebujeme, aby web fungoval. S vaším súhlasom použijeme aj marketingové cookies (Meta Pixel), ktoré nám pomáhajú vyhodnocovať reklamu.'],
+  [">Jen nezbytné</button>", ">Len nevyhnutné</button>"],
+  [">Přijmout vše</button>", ">Prijať všetko</button>"],
+  [">Nastavení cookies</a>", ">Nastavenia cookies</a>"],
 ];
 function translateHomeToSk(html) {
   let out = html.replace('<html lang="cs">', '<html lang="sk">');
@@ -4263,9 +4270,9 @@ const JS_SK_TRANSLATIONS = [
   ["<h2>2. Jaké cookies používáme</h2>", "<h2>2. Aké cookies používame</h2>"],
   ["<li><b>Nezbytné</b> — zajišťují základní funkce, přihlášení a bezpečnost. Nelze je vypnout.</li>", "<li><b>Nevyhnutné</b> — zaisťujú základné funkcie, prihlásenie a bezpečnosť. Nemožno ich vypnúť.</li>"],
   ["<li><b>Předvolby</b> — pamatují si nastavení, např. světlý/tmavý režim.</li>", "<li><b>Predvoľby</b> — pamätajú si nastavenia, napr. svetlý/tmavý režim.</li>"],
-  ["<li><b>Analytické</b> — anonymně měří návštěvnost a pomáhají službu zlepšovat.</li>", "<li><b>Analytické</b> — anonymne merajú návštevnosť a pomáhajú službu zlepšovať.</li>"],
-  ["<p>Nastavení cookies můžete kdykoli změnit ve svém prohlížeči, kde je lze také smazat. Omezení některých cookies může ovlivnit funkčnost aplikace.</p>",
-    "<p>Nastavenia cookies môžete kedykoľvek zmeniť vo svojom prehliadači, kde ich možno aj vymazať. Obmedzenie niektorých cookies môže ovplyvniť funkčnosť aplikácie.</p>"],
+  ["<li><b>Marketingové</b> — Meta Pixel (Facebook) pomáhá vyhodnocovat účinnost reklam. Načte se jen s vaším souhlasem.</li>", "<li><b>Marketingové</b> — Meta Pixel (Facebook) pomáha vyhodnocovať účinnosť reklám. Načíta sa len s vaším súhlasom.</li>"],
+  ["<p>Svůj souhlas můžete kdykoli změnit odkazem „Nastavení cookies“ v patičce webu. Cookies lze také smazat v nastavení prohlížeče; omezení nezbytných cookies může ovlivnit funkčnost aplikace.</p>",
+    "<p>Svoj súhlas môžete kedykoľvek zmeniť odkazom „Nastavenia cookies“ v pätičke webu. Cookies možno vymazať aj v nastaveniach prehliadača; obmedzenie nevyhnutných cookies môže ovplyvniť funkčnosť aplikácie.</p>"],
   ["<p>S dotazy ke cookies se obraťte na <a href=\"mailto:miklasova@zenvoria.cz\">miklasova@zenvoria.cz</a>.</p>",
     "<p>S otázkami ku cookies sa obráťte na <a href=\"mailto:miklasova@zenvoria.cz\">miklasova@zenvoria.cz</a>.</p>"],
   // openLegal — popisky kolem právního dokumentu (zpět na registraci/přihlášení, výchozí lead)
@@ -9644,10 +9651,10 @@ const STATIC_LEGAL_SK_TRANSLATIONS = [
   ['<h2>2. Jaké cookies používáme</h2>', '<h2>2. Aké cookies používame</h2>'],
   ['<li><b>Nezbytné</b> – zajišťují základní funkce, přihlášení a bezpečnost.</li>', '<li><b>Nevyhnutné</b> – zaisťujú základné funkcie, prihlásenie a bezpečnosť.</li>'],
   ['<li><b>Předvolby</b> – pamatují si uživatelská nastavení.</li>', '<li><b>Predvoľby</b> – pamätajú si používateľské nastavenia.</li>'],
-  ['<li><b>Analytické</b> – pomáhají vyhodnocovat a zlepšovat službu.</li>', '<li><b>Analytické</b> – pomáhajú vyhodnocovať a zlepšovať službu.</li>'],
+  ['<li><b>Marketingové</b> – Meta Pixel (Facebook) pomáhá vyhodnocovat účinnost reklam. Načte se jen s vaším souhlasem.</li>', '<li><b>Marketingové</b> – Meta Pixel (Facebook) pomáha vyhodnocovať účinnosť reklám. Načíta sa len s vaším súhlasom.</li>'],
   ['<h2>3. Správa cookies</h2>', '<h2>3. Správa cookies</h2>'],
-  ['<p>Nastavení cookies můžete kdykoli změnit ve svém prohlížeči, kde je lze také smazat. Omezení některých cookies může ovlivnit funkčnost aplikace.</p>',
-    '<p>Nastavenia cookies môžete kedykoľvek zmeniť vo svojom prehliadači, kde ich možno aj vymazať. Obmedzenie niektorých cookies môže ovplyvniť funkčnosť aplikácie.</p>'],
+  ['<p>Svůj souhlas můžete kdykoli změnit odkazem „Nastavení cookies“ v patičce webu. Cookies lze také smazat v nastavení prohlížeče; omezení nezbytných cookies může ovlivnit funkčnost aplikace.</p>',
+    '<p>Svoj súhlas môžete kedykoľvek zmeniť odkazom „Nastavenia cookies“ v pätičke webu. Cookies možno vymazať aj v nastaveniach prehliadača; obmedzenie nevyhnutných cookies môže ovplyvniť funkčnosť aplikácie.</p>'],
   ['<h2>4. Kontakt</h2>', '<h2>4. Kontakt</h2>'],
   ['<p>S dotazy ke cookies se obraťte na <a href="mailto:miklasova@zenvoria.cz">miklasova@zenvoria.cz</a>.</p>',
     '<p>S otázkami ku cookies sa obráťte na <a href="mailto:miklasova@zenvoria.cz">miklasova@zenvoria.cz</a>.</p>'],

@@ -3263,10 +3263,10 @@ const LEGAL={
     <ul>
       <li><b>Nezbytné</b> — zajišťují základní funkce, přihlášení a bezpečnost. Nelze je vypnout.</li>
       <li><b>Předvolby</b> — pamatují si nastavení, např. světlý/tmavý režim.</li>
-      <li><b>Analytické</b> — anonymně měří návštěvnost a pomáhají službu zlepšovat.</li>
+      <li><b>Marketingové</b> — Meta Pixel (Facebook) pomáhá vyhodnocovat účinnost reklam. Načte se jen s vaším souhlasem.</li>
     </ul>
     <h2>3. Správa cookies</h2>
-    <p>Nastavení cookies můžete kdykoli změnit ve svém prohlížeči, kde je lze také smazat. Omezení některých cookies může ovlivnit funkčnost aplikace.</p>
+    <p>Svůj souhlas můžete kdykoli změnit odkazem „Nastavení cookies“ v patičce webu. Cookies lze také smazat v nastavení prohlížeče; omezení nezbytných cookies může ovlivnit funkčnost aplikace.</p>
     <h2>4. Kontakt</h2>
     <p>S dotazy ke cookies se obraťte na <a href="mailto:miklasova@zenvoria.cz">miklasova@zenvoria.cz</a>.</p>`}
 };

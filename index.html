@@ -3,23 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <script>document.documentElement.classList.add('js');try{localStorage.removeItem('zv_text_large');}catch(e){}</script>
-<!-- Meta Pixel Code -->
+<!-- Meta Pixel — načte se JEN po souhlasu s marketingovými cookies (lišta #cookieBar) -->
 <script>
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '4647827512166449');
-fbq('track', 'PageView');
+(function(){
+  var K='zv_cookie_consent';
+  function get(){try{return localStorage.getItem(K);}catch(e){return null;}}
+  function loadPixel(){
+    if(window.fbq)return;
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init','4647827512166449');fbq('track','PageView');
+  }
+  function bar(show){var b=document.getElementById('cookieBar');if(b)b.hidden=!show;}
+  window.zvCookieConsent=function(v){
+    var prev=get();
+    try{localStorage.setItem(K,v);}catch(e){}
+    bar(false);
+    if(v==='all'){loadPixel();return;}
+    if(prev==='all'){ /* odvolání souhlasu: smazat cookies Meta a znovu načíst stránku bez pixelu */
+      var d=location.hostname.replace(/^www\./,'');
+      ['_fbp','_fbc'].forEach(function(n){document.cookie=n+'=; Max-Age=0; path=/';document.cookie=n+'=; Max-Age=0; path=/; domain=.'+d;});
+      location.reload();
+    }
+  };
+  window.zvCookieSettings=function(){bar(true);};
+  var c=get();
+  if(c==='all')loadPixel();
+  else if(!c)document.addEventListener('DOMContentLoaded',function(){bar(true);});
+})();
 </script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
-/></noscript>
-<!-- End Meta Pixel Code -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZENVORIA — Péče s lidskostí | Ověřené pečovatelky pro seniory</title>
 <meta name="description" content="ZENVORIA propojuje rodiny s prověřenými a certifikovanými pečovatelkami. Najděte ověřenou pečovatelku pro své blízké — jednoduše, bezpečně a s lidským přístupem.">
@@ -906,6 +919,7 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
         <a href="/ochrana-osobnich-udaju">Ochrana osobních údajů</a>
         <a href="/obchodni-podminky">Obchodní podmínky</a>
         <a href="/zasady-cookies">Zásady cookies</a>
+        <a href="#" onclick="event.preventDefault();zvCookieSettings()">Nastavení cookies</a>
       </div>
     </div>
     <div class="foot-bottom">
@@ -1003,6 +1017,17 @@ src="https://www.facebook.com/tr?id=4647827512166449&ev=PageView&noscript=1"
 </div>
 
 <script src="/app.js" defer></script>
+<!-- ============ SOUHLAS S COOKIES ============ -->
+<div class="cookie-bar" id="cookieBar" role="region" aria-label="Souhlas s cookies" hidden>
+  <div class="cookie-bar-t">
+    <b>Cookies na ZENVORII</b>
+    <span>Nezbytné cookies potřebujeme, aby web fungoval. S vaším souhlasem použijeme i marketingové cookies (Meta Pixel), které nám pomáhají vyhodnocovat reklamu. <a href="/zasady-cookies">Zásady cookies</a></span>
+  </div>
+  <div class="cookie-bar-b">
+    <button type="button" class="btn btn-ghost" onclick="zvCookieConsent('necessary')">Jen nezbytné</button>
+    <button type="button" class="btn btn-gold" onclick="zvCookieConsent('all')">Přijmout vše</button>
+  </div>
+</div>
 </body>
 </html>
 

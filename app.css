@@ -2693,3 +2693,16 @@ footer .soc-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}
   #careGrid .zv-card .fav-heart-card{top:4px;right:4px;width:28px;height:28px}
   #careGrid .zv-card .care-match-badge{top:auto;bottom:28px;left:0;right:0;margin:0 auto;width:max-content;font-size:9.5px;padding:3px 7px}
 }
+
+/* ---- lišta souhlasu s cookies (Meta Pixel jen po souhlasu) ---- */
+.cookie-bar{position:fixed;z-index:400;left:50%;bottom:20px;transform:translateX(-50%);width:min(860px,calc(100vw - 24px));display:flex;align-items:center;gap:18px 24px;padding:18px 20px 18px 24px;background:#123327;border:1px solid rgba(198,163,92,.45);border-radius:18px;box-shadow:0 18px 55px rgba(0,20,12,.45);color:#E9E2D0;font-family:'Hanken Grotesk',system-ui,sans-serif}
+.cookie-bar[hidden]{display:none}
+.cookie-bar-t{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:1.55}
+.cookie-bar-t b{font-family:'Marcellus',Georgia,serif;font-weight:400;font-size:17px;color:#F4EEDF;letter-spacing:.01em}
+.cookie-bar-t a{color:#DCC086;text-decoration:underline;text-underline-offset:3px}
+.cookie-bar-b{display:flex;gap:10px;flex:0 0 auto}
+.cookie-bar-b .btn{padding:11px 18px;border-radius:12px;font-size:14px;white-space:nowrap}
+@media (max-width:640px){
+  .cookie-bar{flex-direction:column;align-items:stretch;bottom:12px;padding:16px}
+  .cookie-bar-b .btn{flex:1 1 0}
+}
