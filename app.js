@@ -2974,7 +2974,16 @@ function renderNav(){
   // přihlášená rodina má „Hledat péči“ přímo v menu — zlaté tlačítko navíc by lištu přeplnilo
   document.getElementById('navCta').hidden=isCg||isAdmin||auth.loggedIn;
   const dot=document.getElementById('notifDot');
-  if(dot)dot.hidden=!(chatUnread()>0||(isCg&&CG_REQUESTS.length>0)||(isAdmin&&pendingVerCount()>0));
+  if(dot){
+    /* odznak na tlačítku účtu — počet věcí, které čekají (zprávy, poptávky, ověření) */
+    const cu=chatUnread(),rq=isCg?CG_REQUESTS.length:0,pv=isAdmin?pendingVerCount():0,n=cu+rq+pv;
+    const why=[cu?`Nepřečtené zprávy: ${cu}`:'',rq?`Nové poptávky: ${rq}`:'',pv?`Čekající ověření: ${pv}`:''].filter(Boolean).join(' · ');
+    dot.hidden=!(n>0);
+    dot.textContent=n>9?'9+':String(n);
+    dot.title=why;
+    const pill=document.getElementById('avatarPill');
+    if(pill)pill.setAttribute('aria-label',n>0?`Můj účet — ${why}`:'Můj účet');
+  }
 }
 function updateAuthUI(){
   const inn=auth.loggedIn;

@@ -2706,3 +2706,12 @@ footer .soc-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}
   .cookie-bar{flex-direction:column;align-items:stretch;bottom:12px;padding:16px}
   .cookie-bar-b .btn{flex:1 1 0}
 }
+
+/* ---- odznak upozornění na tlačítku účtu (počet + jemný pulz) ---- */
+.avatar-pill .notif-dot{top:-3px;right:auto;left:25px;width:auto;height:auto;min-width:19px;padding:0 5px;line-height:19px;border:0;border-radius:999px;
+  background:linear-gradient(180deg,#E2C88E 0%,#C6A35C 100%);color:#0D2A20;font:700 11px/19px 'Hanken Grotesk',system-ui,sans-serif;text-align:center;
+  box-shadow:0 0 0 2px #0D2A20,0 3px 10px rgba(0,0,0,.35);z-index:1;pointer-events:none;font-variant-numeric:tabular-nums}
+.avatar-pill .notif-dot[hidden]{display:none}
+.avatar-pill .notif-dot::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 0 0 rgba(226,200,142,.55);animation:zvBadgeHalo 2.4s ease-out infinite}
+@keyframes zvBadgeHalo{0%{box-shadow:0 0 0 0 rgba(226,200,142,.55)}70%,100%{box-shadow:0 0 0 9px rgba(226,200,142,0)}}
+@media (prefers-reduced-motion:reduce){.avatar-pill .notif-dot::after{animation:none}}

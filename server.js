@@ -3862,6 +3862,11 @@ let DEFERRED_VIEWS_HTML_SK = buildDeferredViewsHtml('sk');
 // stejná technika jako u HTML view: doslovná nahrazení frází v celém zdrojovém textu app.js,
 // výstup se uloží jako samostatný soubor app.sk.js/app.sk.min.js a slouží se ho jen na zenvoria.sk
 const JS_SK_TRANSLATIONS = [
+  // odznak na tlačítku účtu
+  ["`Nepřečtené zprávy: ${cu}`", "`Neprečítané správy: ${cu}`"],
+  ["`Nové poptávky: ${rq}`", "`Nové dopyty: ${rq}`"],
+  ["`Čekající ověření: ${pv}`", "`Čakajúce overenie: ${pv}`"],
+  ["`Můj účet — ${why}`:'Můj účet'", "`Môj účet — ${why}`:'Môj účet'"],
   // rozpis léků
   ["toast('Nejvýš 20 léků.','declined')", "toast('Najviac 20 liekov.','declined')"],
   ["placeholder=\"Název léku (např. Prestarium)\"", "placeholder=\"Názov lieku (napr. Prestarium)\""],
