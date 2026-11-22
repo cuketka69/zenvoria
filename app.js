@@ -1987,7 +1987,7 @@ let presencePingTimer=null;
 async function presencePing(){
   if(!auth.loggedIn)return;
   if(document.visibilityState&&document.visibilityState!=='visible')return;
-  try{await fetch('/api/presence/ping',{method:'POST',credentials:'same-origin',cache:'no-store'});}catch(e){}
+  try{await api('/presence/ping',{method:'POST'});}catch(e){}
 }
 function initPresencePing(){
   presencePing();
