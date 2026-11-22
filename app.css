@@ -2763,3 +2763,12 @@ footer .soc-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}
 @media(max-width:680px){
   .ht-demo{grid-column:1/-1;width:100%;min-height:0;margin-top:6px}
 }
+
+/* ---- detail pečovatelky (admin): ověření a doklady ---- */
+.cga-ver{border:1px solid rgba(198,163,92,.25);border-radius:14px;padding:16px;background:rgba(255,255,255,.02)}
+.cga-ver-top{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin-bottom:12px}
+.cga-ver-date{font-size:13px;color:var(--muted)}
+.cga-ver .vreq-fields{margin:0}
+.cga-ver-k{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px}
+.cga-ver .vreq-docs{margin-top:0;display:flex;flex-wrap:wrap;gap:8px}
+.cga-ver-none{font-size:14px;color:var(--muted)}

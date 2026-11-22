@@ -4085,8 +4085,8 @@ function verifyCertDetails(v){
 function adminDoneVerifyDocs(v){
   const certs=Array.isArray(v.certifications)&&v.certifications.length?v.certifications:[{name:v.cert,issuer:v.issuer,validUntil:v.validUntil,fileName:v.fileName}];
   const docs=[];
-  if(v.idFront)docs.push(docPill(v.id,'idfront',idCardSVG(14),'Doklad - predni'));
-  if(v.idBack)docs.push(docPill(v.id,'idback',idCardSVG(14),'Doklad - zadni'));
+  if(v.idFront)docs.push(docPill(v.id,'idfront',idCardSVG(14),'Doklad - přední'));
+  if(v.idBack)docs.push(docPill(v.id,'idback',idCardSVG(14),'Doklad - zadní'));
   if(v.selfie)docs.push(docPill(v.id,'selfie',selfieSVG(14),'Selfie'));
   certs.forEach((item,idx)=>{
     if(!item||!item.fileName)return;
@@ -4865,8 +4865,35 @@ function openCgAdmin(id){
       <span>${esc(sNames(o.service))} · ${fmtDate(o.date)}</span>
       <span class="status ${ORDER_STATUS[o.status].cls}">${ORDER_STATUS[o.status].label}</span>
     </div>`).join(''):'<div class="empty">Zatím žádné objednávky.</div>';
+  renderCgAdminVerify(c);
   const m=document.getElementById('cgAdminModal');if(m){m.classList.add('open');document.body.style.overflow='hidden';}
   loadAdminHistory('caregiver',id,'cgAdminHistory');
+}
+/* detail pečovatelky (admin): údaje ze žádosti o ověření + nahrané soubory k prohlédnutí */
+function renderCgAdminVerify(c){
+  const el=document.getElementById('cgAdminVerify');if(!el)return;
+  const em=String(c.email||'').toLowerCase();
+  const list=VERIFICATIONS.filter(v=>em&&String(v.email||'').toLowerCase()===em).sort((a,b)=>b.id-a.id);
+  if(!list.length){el.innerHTML='<div class="cga-ver-none">Pečovatelka zatím nepodala žádost o ověření.</div>';return;}
+  // přednostně čekající žádost (tu admin právě řeší), jinak schválená, jinak poslední
+  const v=list.find(x=>x.status==='submitted')||list.find(x=>x.status==='approved'||x.status==='verified')||list[0];
+  const ST={approved:['gold','Schváleno'],verified:['gold','Schváleno'],submitted:['wait','Čeká na schválení'],rejected:['off','Zamítnuto']};
+  const st=ST[v.status]||['',v.status||'—'];
+  const field=(k,val)=>val?`<div class="vreq-field"><div class="vreq-k">${k}</div><div class="vreq-v">${val}</div></div>`:'';
+  const docs=adminDoneVerifyDocs(v);
+  el.innerHTML=`<div class="cga-ver">
+    <div class="cga-ver-top"><span class="badge ${st[0]}">${esc(st[1])}</span><span class="cga-ver-date">Podáno ${fmtDate(v.date)}${list.length>1?` · žádostí celkem ${list.length}`:''}</span></div>
+    <div class="vreq-fields">
+      ${field(shieldSVG(14)+' Doklad totožnosti',`${esc(v.docType||'—')}${v.docNum?` · č. ${esc(v.docNum)}`:''}${v.birthDate?` · narozena ${esc(fmtDate(v.birthDate))}`:''}`)}
+      ${field(capSVG(14)+' Osvědčení',verifyCertDetails(v))}
+      ${field('Reference',v.refs?esc(v.refs):'')}
+      ${field('Poznámka pečovatelky',v.note?`<i>„${esc(v.note)}“</i>`:'')}
+      ${v.status==='rejected'?field('Důvod zamítnutí',esc(v.reason||'—')):''}
+    </div>
+    <div class="cga-ver-k">Nahrané soubory</div>
+    <div class="vreq-docs">${docs||'<span class="cga-ver-none">Žádné nahrané soubory.</span>'}</div>
+    ${docs?`<button class="btn btn-ghost btn-block" style="margin-top:12px" type="button" onclick="downloadWithFx(this,()=>downloadDossier(${v.id}))">${downloadSVG(15)}Stáhnout vše (.zip)</button>`:''}
+  </div>`;
 }
 function cgAdminEditPlan(){
   const c=CAREGIVERS.find(x=>x.id===cgAdminId);if(!c)return;
