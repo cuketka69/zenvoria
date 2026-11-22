@@ -2559,7 +2559,10 @@ const isStrongPassword=v=>{const s=String(v||'');return s.length>=8&&/[a-z]/.tes
 
 document.addEventListener('wheel',e=>{
   const open=e.target&&e.target.closest&&e.target.closest('.modal.open');
-  if(open&&!e.target.closest('.modal-card'))e.preventDefault();
+  if(!open||e.target.closest('.modal-card'))return;
+  e.preventDefault();
+  /* okno, které se posouvá celé (velké admin detaily) — kolečko nad tmavým okrajem posouvá okno */
+  if(open.scrollHeight>open.clientHeight+1)open.scrollTop+=e.deltaMode===1?e.deltaY*40:e.deltaY;
 },{passive:false});
 document.addEventListener('touchmove',e=>{
   const open=e.target&&e.target.closest&&e.target.closest('.modal.open');
@@ -4866,7 +4869,7 @@ function openCgAdmin(id){
       <span class="status ${ORDER_STATUS[o.status].cls}">${ORDER_STATUS[o.status].label}</span>
     </div>`).join(''):'<div class="empty">Zatím žádné objednávky.</div>';
   renderCgAdminVerify(c);
-  const m=document.getElementById('cgAdminModal');if(m){m.classList.add('open');document.body.style.overflow='hidden';}
+  const m=document.getElementById('cgAdminModal');if(m){m.classList.add('open');m.scrollTop=0;document.body.style.overflow='hidden';}
   loadAdminHistory('caregiver',id,'cgAdminHistory');
 }
 /* detail pečovatelky (admin): údaje ze žádosti o ověření + nahrané soubory k prohlédnutí */
@@ -5177,7 +5180,7 @@ function openFamilyAdmin(id){
   document.getElementById('famAdminReviews').innerHTML=famRevs.length?famRevs.map(r=>`
     <div class="rev"><div class="ava">${esc(initials(r.caregiverName||'?'))}</div><div><div class="rb">${esc(r.caregiverName||'Pečovatelka')} <span class="stars" style="font-size:12px">${starsRow(r.stars,12)}</span></div><div class="rt">${esc(r.text)}</div></div></div>`).join(''):'<div class="empty">Zatím žádné recenze.</div>';
   const m=document.getElementById('famAdminModal');
-  m.classList.add('open');document.body.style.overflow='hidden';
+  m.classList.add('open');m.scrollTop=0;document.body.style.overflow='hidden';
   loadAdminHistory('user',u.id,'famAdminHistory');
 }
 function closeFamilyAdmin(){

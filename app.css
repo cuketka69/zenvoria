@@ -2772,3 +2772,46 @@ footer .soc-btn:hover{border-color:var(--brass);background:rgba(198,163,92,.08)}
 .cga-ver-k{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px}
 .cga-ver .vreq-docs{margin-top:0;display:flex;flex-wrap:wrap;gap:8px}
 .cga-ver-none{font-size:14px;color:var(--muted)}
+
+/* ---- velké admin detaily (pečovatelka, uživatel): posouvá se celé okno, karta je v normálním toku.
+   Spolehlivější než vnořené scrollování uvnitř vycentrované karty (kolečko i touchpad kdekoli v okně). ---- */
+#cgAdminModal.open,#famAdminModal.open{overflow-y:auto;touch-action:auto;scrollbar-width:thin;scrollbar-color:var(--gold) transparent}
+#cgAdminModal::-webkit-scrollbar,#famAdminModal::-webkit-scrollbar{width:10px}
+#cgAdminModal::-webkit-scrollbar-thumb,#famAdminModal::-webkit-scrollbar-thumb{background:var(--gold);border-radius:8px}
+#cgAdminModal .modal-scrim,#famAdminModal .modal-scrim{position:fixed}
+#cgAdminModal .modal-card,#famAdminModal .modal-card{position:relative;top:auto;left:auto;transform:none;margin:4vh auto;max-height:none;overflow:visible;
+  animation:zvModalIn .28s cubic-bezier(.2,.8,.2,1) both}
+@keyframes zvModalIn{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+
+/* ---- kroky pro rodiny: ukázky aplikace ---- */
+.hd-ava.sm{width:32px;height:32px;font-size:12px}
+.hd-input{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(198,163,92,.4)}
+.hd-input>svg{width:15px;height:15px;color:#DCC086;flex:0 0 auto}
+.hd-input-t{flex:1;font-size:13.5px;color:#F4EFE3}
+.hd-btn.sm{flex:0 0 auto;padding:6px 12px;font-size:12px;border-radius:8px}
+.hd-res{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06)}
+.hd-res-n{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.hd-res-n b{font-size:13px;color:#F8F4EA;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hd-stars-s{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:rgba(244,239,227,.7)}
+.hd-stars-s svg,.hd-stars svg{width:11px;height:11px;color:#DCC086}
+.hd-res-p{font-size:12px;font-weight:700;color:#DCC086;white-space:nowrap}
+.hd-found{font-size:11.5px;color:rgba(244,239,227,.55)}
+.hd-rating{display:flex;align-items:center;gap:7px;font-size:13px}
+.hd-stars{display:inline-flex;gap:2px}
+.hd-stars svg{width:14px;height:14px}
+.hd-chips{display:flex;flex-wrap:wrap;gap:6px}
+.hd-chip{font-size:11.5px;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(198,163,92,.3);color:#E9E2D0}
+.hd-days{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.hd-dd{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.hd-dd-d{font-size:10.5px;color:rgba(244,239,227,.6);font-weight:700}
+.hd-dd b{font-size:14px;color:#F4EFE3}
+.hd-dd.on{background:linear-gradient(180deg,#DCC086,#C6A35C);border-color:transparent}
+.hd-dd.on .hd-dd-d,.hd-dd.on b{color:#0D2A20}
+.hd-times{display:flex;gap:6px;flex-wrap:wrap}
+.hd-time{font-size:12px;font-weight:600;padding:5px 10px;border-radius:8px;border:1px solid rgba(198,163,92,.4);color:#E9E2D0}
+.hd-time.on{background:rgba(198,163,92,.22);border-color:#C6A35C;color:#F8F4EA}
+.hd-time.off{opacity:.35;text-decoration:line-through}
+.hd-chat-n{font-size:14px;color:#F8F4EA}
+.hd-bubble{position:relative;padding:11px 13px;border-radius:4px 14px 14px 14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);font-size:13px;line-height:1.5;color:#F4EFE3}
+.hd-done{display:flex;align-items:center;gap:9px;font-size:12.5px;color:rgba(244,239,227,.8);margin-top:auto}
+.hd-done i{width:20px;height:20px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:#C6A35C;color:#0D2A20}

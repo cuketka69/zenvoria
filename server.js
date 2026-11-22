@@ -3372,6 +3372,21 @@ app.post('/api/presence/chat', requireAuth, h(async (req, res) => {
 // zbytek appky (deferred-views.html, app.js) čeká na další fázi lokalizace (viz plán SK verze);
 // jde o doslovná nahrazení celých frází v rámci index.html, ne o obecnou i18n vrstvu
 const HOME_SK_TRANSLATIONS = [
+  // ukázky aplikace v krocích pro rodiny (musí být první — obecnější páry by je jinak přepsaly)
+  ['<span class="hd-input-t">Praha 6</span>', '<span class="hd-input-t">Bratislava</span>'],
+  ['<span class="hd-btn gold sm">Hledat</span>', '<span class="hd-btn gold sm">Hľadať</span>'],
+  ['<span class="hd-found">Nalezeno 12 pečovatelek v okolí</span>', '<span class="hd-found">Nájdených 12 opatrovateliek v okolí</span>'],
+  ['<span class="hd-sub">Praha 6 · 8 let praxe</span>', '<span class="hd-sub">Bratislava · 8 rokov praxe</span>'],
+  ['<span class="hd-sub">(32 recenzí)</span>', '<span class="hd-sub">(32 recenzií)</span>'],
+  ['<span class="hd-chip">Osobní péče</span>', '<span class="hd-chip">Osobná starostlivosť</span>'],
+  ['<span class="hd-chip">Doprovod k lékaři</span>', '<span class="hd-chip">Sprievod k lekárovi</span>'],
+  ['<span class="hd-btn gold">Zobrazit profil</span>', '<span class="hd-btn gold">Zobraziť profil</span>'],
+  ['<b class="hd-title">Vyberte termín</b>', '<b class="hd-title">Vyberte termín</b>'],
+  ['<span class="hd-dd-d">Út</span>', '<span class="hd-dd-d">Ut</span>'],
+  ['<span class="hd-dd-d">Čt</span>', '<span class="hd-dd-d">Št</span>'],
+  ['<span class="hd-btn gold">Rezervovat · 1 050 Kč</span>', '<span class="hd-btn gold">Rezervovať · 1 050 Kč</span>'],
+  ['<div class="hd-bubble">Maminka dnes s chutí obědvala a prošly jsme se v parku. Léky vzala.</div>', '<div class="hd-bubble">Mamička dnes s chuťou obedovala a prešli sme sa v parku. Lieky si vzala.</div>'],
+  ['<span class="hd-done-t">Návštěva dokončena · zápis v deníku</span>', '<span class="hd-done-t">Návšteva dokončená · zápis v denníku</span>'],
   // ukázky aplikace v krocích pro pečovatelky (musí být první — obecnější páry by je jinak přepsaly)
   ['<span class="hd-sub">Pečovatelka · Praha 6</span>', '<span class="hd-sub">Opatrovateľka · Bratislava</span>'],
   ['<span class="hd-pill-t">Ověřený profil</span>', '<span class="hd-pill-t">Overený profil</span>'],
