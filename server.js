@@ -1038,6 +1038,47 @@ function phoneCompletionMail({ name, country }) {
   return { subject, text, html };
 }
 
+/* e-mail adminům: přišla nová žádost o ověření (bez čísel dokladů — jen co je potřeba k rozhodnutí otevřít žádost) */
+function adminVerificationMail({ name, email, loc, cert, isCertOnly }) {
+  const url = `${APP_URL}/#admin-verify`;
+  const what = isCertOnly ? 'doplnění osvědčení' : 'ověření';
+  const subject = `Nová žádost o ${what}: ${name || email}`;
+  const facts = [
+    { label: 'Pečovatelka', value: name || '—' },
+    { label: 'E-mail', value: email || '—' },
+    ...(loc ? [{ label: 'Lokalita', value: loc }] : []),
+    ...(cert ? [{ label: 'Osvědčení', value: cert }] : []),
+  ];
+  const text = `Dobrý den,\n\nv ZENVORIA čeká nová žádost o ${what}.\n\n${facts.map((f) => f.label + ': ' + f.value).join('\n')}\n\nŽádost a nahrané doklady najdete v administraci: ${url}`;
+  const html = renderEmailLayout({
+    preheader: `${name || email} čeká na schválení.`,
+    title: isCertOnly ? 'Nové osvědčení ke schválení' : 'Nová žádost o ověření',
+    intro: 'Dobrý den,',
+    bodyHtml: `<p>v ZENVORIA čeká nová žádost o ${what}. Zkontrolujte prosím nahrané doklady a žádost schvalte nebo zamítněte.</p>`,
+    facts,
+    ctaLabel: 'Otevřít žádost',
+    ctaUrl: url,
+  });
+  return { subject, text, html };
+}
+async function notifyAdminsOfVerification(row, isCertOnly) {
+  try {
+    const admins = await restSelect(T.users, 'role=eq.admin&select=id,email,settings,status');
+    const name = (row && row.name) || '';
+    const mail = adminVerificationMail({ name, email: row && row.email, loc: row && row.loc, cert: row && row.cert, isCertOnly });
+    for (const a of admins || []) {
+      if (!a || !a.email || a.status === 'suspended') continue;
+      await notifyMail({ to: a.email, settings: a.settings, category: 'requests', ...mail });
+      await createNotification(a.id, {
+        type: 'verification',
+        title: isCertOnly ? `Nové osvědčení ke schválení: ${name || row.email}` : `Nová žádost o ověření: ${name || row.email}`,
+        body: row && row.loc ? row.loc : null,
+        link: 'admin-verify',
+      });
+    }
+  } catch (e) { console.error('[mail] notifyAdminsOfVerification:', e.message); }
+}
+
 /* odkazy na sociální sítě pro e-maily — drženo v cache, aktualizováno z DB
    (při startu a po každém admin uložení), ať šablona zůstane synchronní */
 let emailSocialLinks = { facebook: '', instagram: '' };
@@ -6615,6 +6656,7 @@ app.post('/api/verifications', requireRole('caregiver', 'admin'), requireVerifie
     refs, note: storedNote, bio, files, status: 'submitted', date: new Date().toISOString().slice(0, 10),
   });
   res.json({ verification: mapVerification(row) });
+  notifyAdminsOfVerification(row || { name, email, loc, cert }, false);
 }));
 
 /* ověřená pečovatelka přidá další osvědčení → nová žádost ke schválení (identita převzata z poslední žádosti) */
@@ -6649,6 +6691,7 @@ app.post('/api/certifications', requireRole('caregiver', 'admin'), h(async (req,
     date: new Date().toISOString().slice(0, 10),
   });
   res.json({ verification: mapVerification(row) });
+  notifyAdminsOfVerification(row || { name: base.name, email, loc: base.loc, cert: name }, true);
 }));
 
 /* admin si stáhne přílohy žádosti (data URL) — nedávají se do bootstrapu kvůli velikosti */
