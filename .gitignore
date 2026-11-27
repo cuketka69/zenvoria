@@ -178,3 +178,6 @@ mobile/android/app/*.iml
 
 # lokální poznámky (např. testovací účty) — nenahrávat
 *.local.md
+
+# hotová videa a exporty (velké binární soubory, do gitu nepatří)
+output/
